@@ -1,0 +1,7 @@
+{
+  "css.customData": [".vscode/tailwind-custom-data.json"],
+  "css.lint.unknownAtRules": "ignore",
+  "tailwindCSS.experimental.classRegex": [
+    ["ui\\s*:\\s*\"([^\"]*)\"", "([a-zA-Z0-9\\-:]+)"]
+  ]
+}
