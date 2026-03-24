@@ -56,6 +56,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Check for Zoho session cookie (set by /api/auth/zoho/callback route)
+    const cookies = document.cookie.split(";").map(c => c.trim());
+    const zohoCookie = cookies.find(c => c.startsWith("zoho_session="));
+    if (zohoCookie) {
+      try {
+        const encoded = zohoCookie.split("=")[1];
+        const decoded = JSON.parse(atob(decodeURIComponent(encoded)));
+        if (decoded && decoded.email) {
+          const zohoUserData: UserData = {
+            uid: decoded.uid || "",
+            email: decoded.email,
+            name: decoded.name || "User",
+            role: decoded.role || "employee",
+            permissions: decoded.permissions || [],
+          };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(zohoUserData));
+          setUser(zohoUserData);
+          // Clear the cookie
+          document.cookie = "zoho_session=; path=/; max-age=0";
+        }
+      } catch (err) {
+        console.warn("Failed to parse Zoho session cookie:", err);
+        document.cookie = "zoho_session=; path=/; max-age=0";
+      }
+    }
+
     // Listen for Firebase Auth state
     const unsubscribe = onAuthStateChanged(fbAuth, () => {
       // Just mark loading as done — session is already handled by localStorage
@@ -73,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithZoho = () => {
     const clientId = process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID;
-    const redirectUri = process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI || `${window.location.origin}/api/callback`;
+    const redirectUri = process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI || `${window.location.origin}/api/auth/zoho/callback`;
     const zohoDomain = process.env.NEXT_PUBLIC_ZOHO_DOMAIN || "accounts.zoho.in";
 
     if (!clientId) {
@@ -117,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(quickData);
       
       if (quickData.role === "admin") window.location.href = "/dashboard/admin";
-      else if (quickData.role === "employee" || quickData.role === "manager") window.location.href = "/dashboard/employee";
+      else if (quickData.role === "employee" || quickData.role === "manager") window.location.href = "/dashboard";
       else window.location.href = "/dashboard/user";
 
       // Firestore sync in background (don't await, don't block redirect)

@@ -1,18 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useAuth } from "./context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginContent() {
   const { loginWithZoho, loginWithGoogle, error, clearError, user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Show Zoho login error from redirect
+  useEffect(() => {
+    const loginError = searchParams.get("login_error");
+    if (loginError) {
+      const messages: Record<string, string> = {
+        zoho_denied: "Zoho login was denied. Please try again.",
+        no_code: "No authorization code received.",
+        server_not_configured: "Server not configured for Zoho login.",
+        token_failed: "Failed to get Zoho access token.",
+        profile_fetch_failed: "Failed to fetch Zoho profile.",
+        auth_failed: "Authentication failed. Please try again.",
+      };
+      clearError();
+      // We'll use the error state from auth context
+      alert(messages[loginError] || `Login error: ${loginError}`);
+      // Clean up the URL
+      router.replace("/");
+    }
+  }, [searchParams, router, clearError]);
 
   useEffect(() => {
     if (!loading && user) {
       if (user.role === "admin") router.push("/dashboard/admin");
-      else if (user.role === "employee" || user.role === "manager") router.push("/dashboard/employee");
+      else if (user.role === "employee" || user.role === "manager") router.push("/dashboard");
       else router.push("/dashboard/user");
     }
   }, [loading, user, router]);
@@ -75,11 +96,12 @@ export default function LoginPage() {
 
         {/* Company Name */}
         <h1 style={{
-          fontSize: 24,
-          fontWeight: 800,
+          fontSize: typeof window !== "undefined" && window.innerWidth < 480 ? 20 : 24,
+          fontWeight: 400,
           color: "#0f172a",
           margin: "0 0 32px",
           letterSpacing: "-0.02em",
+          lineHeight: 1.2,
         }}>
           Eurus Lifestyle
         </h1>
@@ -130,17 +152,17 @@ export default function LoginPage() {
               boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
               opacity: googleLoading ? 0.7 : 1,
             }}
-            onMouseEnter={e => { if (!googleLoading) { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }}}
+            onMouseEnter={e => { if (!googleLoading) { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; } }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; e.currentTarget.style.transform = "translateY(0)"; }}
           >
             {googleLoading ? (
               <div style={{ width: 22, height: 22, border: "2.5px solid #e2e8f0", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
             ) : (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.67 15.63 16.86 16.81 15.65 17.61V20.4H19.22C21.3 18.48 22.56 15.63 22.56 12.25Z" fill="#4285F4"/>
-                <path d="M12 23C14.97 23 17.46 22.02 19.22 20.4L15.65 17.61C14.7 18.25 13.45 18.63 12 18.63C9.19 18.63 6.81 16.73 5.96 14.24H2.28V17.06C4.07 20.62 7.74 23 12 23Z" fill="#34A853"/>
-                <path d="M5.96 14.24C5.74 13.59 5.61 12.89 5.61 12.2C5.61 11.5 5.74 10.81 5.96 10.15V7.33H2.28C1.54 8.79 1.12 10.42 1.12 12.2C1.12 13.98 1.54 15.61 2.28 17.06L5.96 14.24Z" fill="#FBBC05"/>
-                <path d="M12 5.38C13.62 5.38 15.06 5.93 16.2 7.02L19.3 3.92C17.46 2.2 14.97 1.2 12 1.2C7.74 1.2 4.07 3.58 2.28 7.33L5.96 10.15C6.81 7.66 9.19 5.38 12 5.38Z" fill="#EA4335"/>
+                <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.67 15.63 16.86 16.81 15.65 17.61V20.4H19.22C21.3 18.48 22.56 15.63 22.56 12.25Z" fill="#4285F4" />
+                <path d="M12 23C14.97 23 17.46 22.02 19.22 20.4L15.65 17.61C14.7 18.25 13.45 18.63 12 18.63C9.19 18.63 6.81 16.73 5.96 14.24H2.28V17.06C4.07 20.62 7.74 23 12 23Z" fill="#34A853" />
+                <path d="M5.96 14.24C5.74 13.59 5.61 12.89 5.61 12.2C5.61 11.5 5.74 10.81 5.96 10.15V7.33H2.28C1.54 8.79 1.12 10.42 1.12 12.2C1.12 13.98 1.54 15.61 2.28 17.06L5.96 14.24Z" fill="#FBBC05" />
+                <path d="M12 5.38C13.62 5.38 15.06 5.93 16.2 7.02L19.3 3.92C17.46 2.2 14.97 1.2 12 1.2C7.74 1.2 4.07 3.58 2.28 7.33L5.96 10.15C6.81 7.66 9.19 5.38 12 5.38Z" fill="#EA4335" />
               </svg>
             )}
             {googleLoading ? "Signing in..." : "Login with Google"}
@@ -184,5 +206,13 @@ export default function LoginPage() {
       {/* Spinner animation */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }

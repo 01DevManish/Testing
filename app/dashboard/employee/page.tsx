@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { collection, getDocs, doc, updateDoc, Timestamp, query, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import type { UserRole } from "../../context/AuthContext";
 
 interface Task {
   id: string; title: string; description: string;
@@ -23,11 +22,26 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   completed: { label: "Completed", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
 
+// Responsive hook
+function useWindowSize() {
+  const [size, setSize] = useState({ width: typeof window !== "undefined" ? window.innerWidth : 1200 });
+  useEffect(() => {
+    const handler = () => setSize({ width: window.innerWidth });
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return size;
+}
+
 export default function EmployeePage() {
   const { user, userData, logout, loading } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { width } = useWindowSize();
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
+  const isDesktop = width >= 1024;
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [fetchingTasks, setFetchingTasks] = useState(true);
   const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "in-progress" | "completed">("all");
@@ -39,6 +53,11 @@ export default function EmployeePage() {
       else router.replace("/dashboard/user");
     }
   }, [loading, user, userData, router]);
+
+  // Close sidebar on desktop
+  useEffect(() => {
+    if (isDesktop) setSidebarOpen(false);
+  }, [isDesktop]);
 
   const loadTasks = useCallback(async () => {
     if (!user) return;
@@ -72,44 +91,60 @@ export default function EmployeePage() {
   const greetHour = new Date().getHours();
   const greeting = greetHour < 12 ? "Good Morning" : greetHour < 17 ? "Good Afternoon" : "Good Evening";
 
-  // === Inline Styles ===
+  const SIDEBAR_WIDTH = 260;
+
   const S = {
     page: { display: "flex", minHeight: "100vh", fontFamily: "inherit", background: "#f8fafc" } as React.CSSProperties,
-    sidebar: { width: 260, background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)", display: "flex", flexDirection: "column" as const, padding: "24px 16px", position: "fixed" as const, top: 0, left: 0, bottom: 0, zIndex: 100, transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)" } as React.CSSProperties,
-    sidebarMobileOverlay: { position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99, backdropFilter: "blur(4px)" } as React.CSSProperties,
-    main: { flex: 1, marginLeft: 260, padding: "28px 32px 32px", minHeight: "100vh" } as React.CSSProperties,
-
-    // Cards
+    sidebar: { 
+      width: SIDEBAR_WIDTH, 
+      background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)", 
+      display: "flex", 
+      flexDirection: "column" as const, 
+      padding: "24px 16px", 
+      position: "fixed" as const, 
+      top: 0, 
+      left: 0, 
+      bottom: 0, 
+      zIndex: 100, 
+      transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+      transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
+    } as React.CSSProperties,
+    sidebarMobileOverlay: { 
+      position: "fixed" as const, 
+      inset: 0, 
+      background: "rgba(0,0,0,0.5)", 
+      zIndex: 99, 
+      backdropFilter: "blur(4px)",
+      display: (!isDesktop && sidebarOpen) ? "block" : "none",
+    } as React.CSSProperties,
+    main: { 
+      flex: 1, 
+      marginLeft: isDesktop ? SIDEBAR_WIDTH : 0, 
+      padding: isMobile ? "70px 16px 32px" : "28px 32px 32px", 
+      minHeight: "100vh", 
+      transition: "margin-left 0.3s" 
+    } as React.CSSProperties,
+    btnSecondary: { padding: "10px 18px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" } as React.CSSProperties,
+    btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
     statCard: (gradient: string) => ({
       background: "#fff", borderRadius: 16, padding: "22px 20px", border: "1px solid #e2e8f0",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.25s ease", cursor: "default", position: "relative" as const, overflow: "hidden" as const,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.25s ease", position: "relative" as const, overflow: "hidden" as const,
     }),
     statStripe: (gradient: string) => ({
       position: "absolute" as const, top: 0, left: 0, right: 0, height: 4, background: gradient, borderRadius: "16px 16px 0 0",
     }),
-
-    // Table
-    tableContainer: { background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" as const } as React.CSSProperties,
-    th: { padding: "14px 20px", textAlign: "left" as const, fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#94a3b8", borderBottom: "1px solid #e2e8f0", background: "#fafbfc" } as React.CSSProperties,
-    td: { padding: "16px 20px", fontSize: 14, color: "#475569", borderBottom: "1px solid #f1f5f9" } as React.CSSProperties,
-
-    // Buttons
-    btnSecondary: { padding: "10px 18px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" } as React.CSSProperties,
-    btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
-
-    // Badge
-    badge: (color: string, bg: string) => ({
-      display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, color, background: bg, border: `1px solid ${color}20`,
-    }),
+    badge: (color: string, bg: string) => ({ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, color, background: bg, border: `1px solid ${color}20` }),
+    th: { padding: "12px 16px", textAlign: "left" as const, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "#64748b", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" } as React.CSSProperties,
+    td: { padding: "16px", fontSize: 14, color: "#1e293b", borderBottom: "1px solid #f1f5f9" } as React.CSSProperties,
   };
 
   return (
     <div style={S.page}>
       {/* Mobile overlay */}
-      {sidebarOpen && <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />}
+      <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />
 
       {/* =================== SIDEBAR =================== */}
-      <aside style={{ ...S.sidebar, ...(typeof window !== "undefined" && window.innerWidth < 768 && !sidebarOpen ? { transform: "translateX(-100%)" } : {}) }}>
+      <aside style={S.sidebar}>
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 8px", marginBottom: 32 }}>
           <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
@@ -131,11 +166,12 @@ export default function EmployeePage() {
             {taskStats.pending > 0 && <span style={{ marginLeft: "auto", background: "rgba(52,211,153,0.2)", color: "#a7f3d0", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 12, minWidth: 24, textAlign: "center" }}>{taskStats.pending}</span>}
           </button>
 
-          {(userData?.role === "manager" || userData?.role === "employee") && (
-            <button onClick={() => router.push("/dashboard/advanced-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Dispatch
-            </button>
-          )}
+          <button onClick={() => router.push("/dashboard/advanced-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+            Dispatch
+          </button>
+          <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+            Inventory
+          </button>
         </nav>
 
         <div style={{ flex: 1 }} />
@@ -159,17 +195,17 @@ export default function EmployeePage() {
       <main style={S.main}>
         {/* Top bar */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}</h1>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}</h1>
             <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 500 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => setSidebarOpen(true)} style={{ ...S.btnIcon, display: "none" }}>☰</button>
+            {!isDesktop && <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>}
           </div>
         </div>
 
-        {/* ========== TASKS TAB ========== */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
+        {/* ========== STATS ========== */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
           {[
             { label: "My Tasks", value: taskStats.total, gradient: "linear-gradient(135deg,#6366f1,#8b5cf6)" },
             { label: "Pending", value: taskStats.pending, gradient: "linear-gradient(135deg,#f59e0b,#fbbf24)" },
@@ -178,9 +214,7 @@ export default function EmployeePage() {
           ].map(s => (
             <div key={s.label} style={S.statCard(s.gradient)}>
               <div style={S.statStripe(s.gradient)} />
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: s.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-              </div>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: s.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", marginBottom: 14 }} />
               <div style={{ fontSize: 30, fontWeight: 800, color: "#0f172a", lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
               <div style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>{s.label}</div>
             </div>
@@ -191,21 +225,29 @@ export default function EmployeePage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: 0 }}>Assigned to Me</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            {(["all", "pending", "in-progress", "completed"] as const).map(f => (
+            {!isMobile && (["all", "pending", "in-progress", "completed"] as const).map(f => (
               <button key={f} onClick={() => setTaskFilter(f)}
                 style={{ padding: "7px 16px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize", border: `1.5px solid ${taskFilter === f ? "#10b981" : "#e2e8f0"}`, background: taskFilter === f ? "rgba(16,185,129,0.08)" : "#fff", color: taskFilter === f ? "#10b981" : "#94a3b8", transition: "all 0.2s" }}>
                 {f === "all" ? "All" : statusConfig[f]?.label}
               </button>
             ))}
+            {isMobile && (
+              <select value={taskFilter} onChange={(e) => setTaskFilter(e.target.value as any)} style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, background: "#fff" }}>
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            )}
             <button onClick={loadTasks} style={S.btnSecondary}>↻ Refresh</button>
           </div>
         </div>
 
-        {/* Tasks Table */}
-        <div style={S.tableContainer}>
+        {/* Tasks List/Table */}
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}>
           {fetchingTasks ? (
             <div style={{ textAlign: "center", padding: "52px 0" }}>
-              <div style={{ width: 32, height: 32, margin: "0 auto 12px", border: "3px solid #e2e8f0", borderTopColor: "#10b981", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite" }} />
+              <div style={{ width: 32, height: 32, margin: "0 auto 12px", border: "3px solid #e2e8f0", borderTopColor: "#10b981", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
               <p style={{ color: "#94a3b8", fontSize: 14 }}>Loading tasks...</p>
             </div>
           ) : filteredTasks.length === 0 ? (
@@ -214,44 +256,61 @@ export default function EmployeePage() {
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
-                <thead><tr><th style={S.th}>Task Description</th><th style={S.th}>Priority</th><th style={S.th}>Status</th><th style={{ ...S.th, textAlign: "right" }}>Update Progress</th></tr></thead>
-                <tbody>
-                  {filteredTasks.map((t, i) => (
-                    <tr key={t.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 0.03}s`, transition: "background 0.15s" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                      <td style={S.td}>
-                        <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: 2 }}>{t.title}</div>
-                        {t.description && <div style={{ fontSize: 13, color: "#64748b", maxWidth: 400, lineHeight: 1.5 }}>{t.description}</div>}
-                      </td>
-                      <td style={S.td}><span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span></td>
-                      <td style={S.td}>
-                        <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>
-                          {statusConfig[t.status]?.label}
-                        </span>
-                      </td>
-                      <td style={{ ...S.td, textAlign: "right" }}>
-                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+              {isMobile ? (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {filteredTasks.map((t) => (
+                    <div key={t.id} style={{ padding: "16px", borderBottom: "1px solid #f1f5f9" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span>
+                        <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>{statusConfig[t.status]?.label}</span>
+                      </div>
+                      <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, marginBottom: 4 }}>{t.title}</div>
+                      {t.description && <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, marginBottom: 12 }}>{t.description}</div>}
+                      <select value={t.status} onChange={e => handleTaskStatus(t.id, e.target.value as Task["status"])}
+                        style={{ width: "100%", padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, fontWeight: 600, background: "#f8fafc" }}>
+                        <option value="pending">Mark Pending</option>
+                        <option value="in-progress">Start Progress</option>
+                        <option value="completed">Mark Completed</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead><tr><th style={S.th}>Task Description</th><th style={S.th}>Priority</th><th style={S.th}>Status</th><th style={{ ...S.th, textAlign: "right" }}>Update Progress</th></tr></thead>
+                  <tbody>
+                    {filteredTasks.map((t) => (
+                      <tr key={t.id} style={{ transition: "background 0.15s" }}>
+                        <td style={S.td}>
+                          <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: 2 }}>{t.title}</div>
+                          {t.description && <div style={{ fontSize: 13, color: "#64748b", maxWidth: 400, lineHeight: 1.5 }}>{t.description}</div>}
+                        </td>
+                        <td style={S.td}><span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span></td>
+                        <td style={S.td}>
+                          <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>
+                            {statusConfig[t.status]?.label}
+                          </span>
+                        </td>
+                        <td style={{ ...S.td, textAlign: "right" }}>
                           <select value={t.status} onChange={e => handleTaskStatus(t.id, e.target.value as Task["status"])}
-                            style={{ padding: "8px 32px 8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontFamily: "inherit", cursor: "pointer", outline: "none", appearance: "none", WebkitAppearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", transition: "all 0.2s" }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor = "#94a3b8"}
-                            onMouseLeave={e => e.currentTarget.style.borderColor = "#e2e8f0"}
-                          >
+                            style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", cursor: "pointer" }}>
                             <option value="pending">Mark Pending</option>
                             <option value="in-progress">Start Progress</option>
                             <option value="completed">Mark Completed</option>
                           </select>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
         </div>
       </main>
+      <style jsx global>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }

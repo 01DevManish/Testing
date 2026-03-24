@@ -10,9 +10,24 @@ import Scanner from "./components/Scanner";
 import OrderDetailsModal from "./components/OrderDetailsModal";
 import AddOrderModal from "./components/AddOrderModal";
 
+// Responsive hook
+function useWindowSize() {
+  const [size, setSize] = useState({ width: typeof window !== "undefined" ? window.innerWidth : 1200 });
+  useEffect(() => {
+    const handler = () => setSize({ width: window.innerWidth });
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return size;
+}
+
 export default function AdvancedDispatchDashboard() {
   const { user, userData, loading, logout } = useAuth();
   const router = useRouter();
+  const { width } = useWindowSize();
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
+  const isDesktop = width >= 1024;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -42,8 +57,12 @@ export default function AdvancedDispatchDashboard() {
 
   useEffect(() => {
     loadOrders();
-    // Allow public access for testing (remove this rule in production)
   }, []);
+
+  // Close sidebar on desktop
+  useEffect(() => {
+    if (isDesktop) setSidebarOpen(false);
+  }, [isDesktop]);
 
   const handleScan = async (code: string) => {
     const order = orders.find(o => o.id.toUpperCase() === code.toUpperCase());
@@ -51,7 +70,6 @@ export default function AdvancedDispatchDashboard() {
     if (order) {
       setSelectedOrder(order);
     } else {
-      // If code not found, prompt to create/import it
       setScannedUnknownId(code);
       setShowAddModal(true);
     }
@@ -66,7 +84,7 @@ export default function AdvancedDispatchDashboard() {
     setOrders([newOrder, ...orders]);
     setShowAddModal(false);
     setScannedUnknownId("");
-    setSelectedOrder(newOrder); // Automatically open the newly created order
+    setSelectedOrder(newOrder);
   };
 
   if (loading) return null;
@@ -77,26 +95,56 @@ export default function AdvancedDispatchDashboard() {
     pending: orders.filter(o => o.status === "Pending").length,
     packed: orders.filter(o => o.status === "Packed").length,
     dispatchedToday: orders.filter(o => o.status === "Dispatched" && o.logs.some(l => l.status === "Dispatched" && l.timestamp.startsWith(todayDate))).length,
-    failed: 0 // Mock failed count
+    failed: 0
   };
 
   const currentRole = userData?.role || "employee";
   const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
-  const currentName = userData?.name || "User";
+  const currentName = userData?.name || user?.name || "User";
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const SIDEBAR_WIDTH = 260;
+
   const S = {
-    sidebar: { width: 260, background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)", display: "flex", flexDirection: "column" as const, padding: "24px 16px", position: "fixed" as const, top: 0, left: 0, bottom: 0, zIndex: 100, transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)" } as React.CSSProperties,
-    sidebarMobileOverlay: { position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99, backdropFilter: "blur(4px)" } as React.CSSProperties,
+    sidebar: { 
+      width: SIDEBAR_WIDTH, 
+      background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)", 
+      display: "flex", 
+      flexDirection: "column" as const, 
+      padding: "24px 16px", 
+      position: "fixed" as const, 
+      top: 0, 
+      left: 0, 
+      bottom: 0, 
+      zIndex: 100, 
+      transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+      transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
+    } as React.CSSProperties,
+    sidebarMobileOverlay: { 
+      position: "fixed" as const, 
+      inset: 0, 
+      background: "rgba(0,0,0,0.5)", 
+      zIndex: 99, 
+      backdropFilter: "blur(4px)",
+      display: (!isDesktop && sidebarOpen) ? "block" : "none",
+    } as React.CSSProperties,
+    main: { 
+      flex: 1, 
+      marginLeft: isDesktop ? SIDEBAR_WIDTH : 0, 
+      padding: isMobile ? "70px 16px 32px" : "28px 32px 32px", 
+      minHeight: "100vh", 
+      transition: "margin-left 0.3s" 
+    } as React.CSSProperties,
     btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
   };
 
   return (
-    <div className="bg-gray-50 flex flex-col md:flex-row font-sans" style={{ minHeight: "100vh", fontFamily: "inherit" }}>
-      {sidebarOpen && <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />}
+    <div className="bg-gray-50 flex flex-col font-sans" style={{ minHeight: "100vh", fontFamily: "inherit" }}>
+      {/* Sidebar Overlay */}
+      <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />
 
       {/* =================== SIDEBAR =================== */}
-      <aside style={{ ...S.sidebar, ...(typeof window !== "undefined" && window.innerWidth < 768 && !sidebarOpen ? { transform: "translateX(-100%)" } : {}) }}>
+      <aside style={S.sidebar}>
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 8px", marginBottom: 32 }}>
           <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
@@ -115,6 +163,10 @@ export default function AdvancedDispatchDashboard() {
           
           <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "rgba(99,102,241,0.15)", color: "#a5b4fc", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: "3px solid #818cf8", paddingLeft: 11 }}>
             Advanced Dispatch
+          </button>
+          
+          <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+            Inventory
           </button>
         </nav>
 
@@ -136,12 +188,14 @@ export default function AdvancedDispatchDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-8 lg:p-10 min-h-screen" style={{ marginLeft: typeof window !== "undefined" && window.innerWidth >= 768 ? 260 : 0 }}>
+      <main style={S.main}>
         <div className="max-w-7xl mx-auto space-y-6">
           
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ ...S.btnIcon, display: typeof window !== "undefined" && window.innerWidth < 768 ? "flex" : "none", width: 40, height: 40, marginTop: 4 }}>☰</button>
+              {!isDesktop && (
+                <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>
+              )}
               <div>
                 <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Dispatch Overview</h1>
                 <p className="text-gray-500 mt-1 font-medium">Manage and track your entire fulfillment pipeline.</p>
@@ -158,35 +212,21 @@ export default function AdvancedDispatchDashboard() {
           </div>
 
           {/* Stats Widgets */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-2xl"></div>
-              <div>
-                <p className="text-sm font-bold text-gray-400">Total Orders</p>
-                <h3 className="text-2xl font-black text-gray-800">{stats.total}</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: "Total Orders", value: stats.total, color: "indigo", icon: "📦" },
+              { label: "Pending", value: stats.pending, color: "yellow", icon: "⏳" },
+              { label: "Dispatched", value: stats.dispatchedToday, color: "emerald", icon: "🚚" },
+              { label: "Failed Prints", value: stats.failed, color: "red", icon: "⚠️" },
+            ].map(s => (
+              <div key={s.label} className={`bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4`}>
+                <div className={`w-12 h-12 rounded-xl bg-${s.color}-50 text-${s.color}-500 flex items-center justify-center text-2xl`}>{s.icon}</div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{s.label}</p>
+                  <h3 className="text-2xl font-black text-gray-800">{s.value}</h3>
+                </div>
               </div>
-            </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-yellow-50 text-yellow-500 flex items-center justify-center text-2xl"></div>
-              <div>
-                <p className="text-sm font-bold text-gray-400">Pending</p>
-                <h3 className="text-2xl font-black text-gray-800">{stats.pending}</h3>
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-2xl"></div>
-              <div>
-                <p className="text-sm font-bold text-gray-400">Dispatched Today</p>
-                <h3 className="text-2xl font-black text-gray-800">{stats.dispatchedToday}</h3>
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-red-50 text-red-500 flex items-center justify-center text-2xl"></div>
-              <div>
-                <p className="text-sm font-bold text-gray-400">Failed Prints</p>
-                <h3 className="text-2xl font-black text-gray-800">{stats.failed}</h3>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Scanner & Table Section */}
@@ -199,7 +239,7 @@ export default function AdvancedDispatchDashboard() {
                 <p className="text-gray-500 font-medium">Loading orders...</p>
               </div>
             ) : (
-              <div className="h-[600px]">
+              <div style={{ height: isMobile ? "auto" : "600px" }}>
                 <OrderList 
                   orders={orders} 
                   onSelectOrder={setSelectedOrder} 
@@ -231,6 +271,9 @@ export default function AdvancedDispatchDashboard() {
           onOrderAdded={handleOrderAdded}
         />
       )}
+      <style jsx global>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
