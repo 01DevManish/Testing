@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Eurus Lifestyle",
+  title: "Eurus Lifestyle ERP",
   description: "Eurus Lifestyle — Login to your account",
   icons: {
     icon: "/logo.png",

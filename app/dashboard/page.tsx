@@ -3,7 +3,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
+import { ref, get, update, remove, query, orderByChild, equalTo, onValue } from "firebase/database";
 import { db } from "../lib/firebase";
 import type { UserRole } from "../context/AuthContext";
 
@@ -18,6 +18,9 @@ interface Task {
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
   createdAt: number;
+  completedAt?: number;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
@@ -65,21 +68,28 @@ export default function DashboardPage() {
   const currentEmail = userData?.email || user?.email || "";
   const currentUid = userData?.uid || user?.uid || "";
 
-  // Load tasks assigned to me
-  const loadTasks = useCallback(async () => {
+  // Load tasks assigned to me real-time
+  useEffect(() => {
     if (!currentUid) return;
     setFetchingTasks(true);
-    try {
-      const q = query(ref(db, "tasks"), orderByChild("assignedTo"), equalTo(currentUid));
-      const snapshot = await get(q);
+    const unsubscribe = onValue(ref(db, "tasks"), (snapshot) => {
       const list: Task[] = [];
       if (snapshot.exists()) {
-        snapshot.forEach((d) => { list.push({ id: d.key as string, ...d.val() } as Task); });
+        snapshot.forEach((d) => { 
+          const val = d.val();
+          if (val && val.assignedTo === currentUid) {
+            list.push({ id: d.key as string, ...val } as Task); 
+          }
+        });
       }
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setTasks(list);
-    } catch (err) { console.error(err); }
-    finally { setFetchingTasks(false); }
+      setFetchingTasks(false);
+    }, (err) => {
+      console.error(err);
+      setFetchingTasks(false);
+    });
+    return () => unsubscribe();
   }, [currentUid]);
 
   // Manager: load employees
@@ -98,7 +108,7 @@ export default function DashboardPage() {
     finally { setFetchingEmployees(false); }
   }, [currentRole]);
 
-  useEffect(() => { loadTasks(); loadEmployees(); }, [loadTasks, loadEmployees]);
+  useEffect(() => { loadEmployees(); }, [loadEmployees]);
 
   // Mark task as done
   const markDone = async (taskId: string) => {
@@ -232,7 +242,6 @@ export default function DashboardPage() {
             {!isDesktop && (
               <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>
             )}
-            <button onClick={loadTasks} style={S.btnIcon}>↻</button>
           </div>
         </div>
 
@@ -313,7 +322,8 @@ export default function DashboardPage() {
                           margin: 0
                         }}>{t.title}</h3>
                       </div>
-                      {t.description && <p style={{ fontSize: 13, color: "#64748b", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{t.description}</p>}
+                      {t.description && <p style={{ fontSize: 13, color: "#64748b", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", marginBottom: 6 }}>{t.description}</p>}
+                      {t.createdByName && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>Assigned by: <span style={{ fontWeight: 600, color: "#64748b" }}>{t.createdByName}</span></div>}
                     </div>
 
                     <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "flex-end" : "center" }}>

@@ -56,7 +56,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement> & { 
 // ── Label ──────────────────────────────────────────────────────
 export function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
     return (
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 5, fontFamily: FONT }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#64748b", marginBottom: 5, fontFamily: FONT }}>
             {children}{required && <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span>}
         </label>
     );
@@ -76,7 +76,7 @@ export function FormField({ label, required, children }: { label: string; requir
 export function SectionDivider({ title }: { title: string }) {
     return (
         <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 14px" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: FONT, whiteSpace: "nowrap" }}>{title}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: FONT, whiteSpace: "nowrap" }}>{title}</div>
             <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
         </div>
     );
@@ -93,7 +93,7 @@ export function BtnPrimary({ children, loading, disabled, onClick, style }: {
             disabled={disabled || loading}
             style={{
                 padding: "10px 22px", background: "#6366f1", color: "#fff",
-                border: "none", borderRadius: 9, fontSize: 13, fontWeight: 600,
+                border: "none", borderRadius: 9, fontSize: 13, fontWeight: 500,
                 fontFamily: FONT, cursor: disabled || loading ? "not-allowed" : "pointer",
                 display: "inline-flex", alignItems: "center", gap: 7,
                 opacity: disabled || loading ? 0.5 : 1, transition: "opacity 0.2s",
@@ -131,7 +131,7 @@ export function PageHeader({ title, sub, children }: { title: string; sub?: stri
     return (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22, gap: 12 }}>
             <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: 0, letterSpacing: "-0.02em", fontFamily: FONT }}>{title}</h1>
+                <h1 style={{ fontSize: 20, fontWeight: 600, color: "#0f172a", margin: 0, letterSpacing: "-0.02em", fontFamily: FONT }}>{title}</h1>
                 {sub && <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0", fontFamily: FONT }}>{sub}</p>}
             </div>
             {children && <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>{children}</div>}
@@ -151,7 +151,7 @@ export function EmptyState({ title, sub }: { title: string; sub: string }) {
                     <rect x="11" y="11" width="7" height="7" rx="1.5" fill="rgba(255,255,255,0.25)" />
                 </svg>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#475569", marginBottom: 5, fontFamily: FONT }}>{title}</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: "#475569", marginBottom: 5, fontFamily: FONT }}>{title}</div>
             <div style={{ fontSize: 13, color: "#94a3b8", fontFamily: FONT }}>{sub}</div>
         </div>
     );

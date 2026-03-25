@@ -15,11 +15,13 @@ const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
     productName: "", sku: "", category: "", brand: "",
     price: 0, costPrice: 0, stock: 0, minStock: 5,
     status: "active", imageUrl: "", description: "",
-    unit: "PCS", hsnCode: "", gstRate: 18,
+    unit: "PCS", size: "", hsnCode: "", gstRate: 18,
 };
 
 export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) => void }) {
     const [form, setForm] = useState({ ...EMPTY });
+    const [sizeOption, setSizeOption] = useState("");
+    const [customSize, setCustomSize] = useState("");
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState("");
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -29,6 +31,21 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
     const set = (k: keyof typeof EMPTY, v: any) => {
         setForm(f => ({ ...f, [k]: v }));
         setErrors(e => { const ne = { ...e }; delete ne[k as string]; return ne; });
+    };
+
+    const handleSizeOption = (opt: string) => {
+        setSizeOption(opt);
+        if (opt !== "Other") {
+            set("size", opt);
+            setCustomSize("");
+        } else {
+            set("size", customSize);
+        }
+    };
+
+    const handleCustomSize = (val: string) => {
+        setCustomSize(val);
+        set("size", val);
     };
 
     const validate = () => {
@@ -62,9 +79,31 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
         setSaving(true);
         console.log("DEBUG: Starting handleSave for product:", form.productName);
         try {
-            const autoStatus: Product["status"] = form.stock <= 0 ? "out-of-stock" : form.status;
+            let finalImageUrl = form.imageUrl;
+            
+            // Upload to Cloudinary if it's a local file (base64)
+            if (finalImageUrl && finalImageUrl.startsWith("data:image")) {
+                const res = await fetch("/api/upload", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ image: finalImageUrl })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to upload image to Cloudinary");
+                }
+                finalImageUrl = data.secure_url;
+            }
+
+            let autoStatus = form.status;
+            if (form.status === "active") {
+                 if (Number(form.stock) <= 0) autoStatus = "out-of-stock";
+                 else if (Number(form.stock) <= Number(form.minStock)) autoStatus = "low-stock";
+            }
+            
             const docData = {
                 ...form,
+                imageUrl: finalImageUrl,
                 status: autoStatus,
                 price: Number(form.price),
                 costPrice: Number(form.costPrice),
@@ -75,12 +114,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                 updatedAt: Date.now(),
             };
 
-            // Check if imageUrl (base64) is too large for Firestore (max 1MB)
-            const docSizeApprox = JSON.stringify(docData).length;
-            console.log("DEBUG: Approximate doc size:", docSizeApprox, "bytes");
-            if (docSizeApprox > 1000000) {
-                throw new Error("Product data (likely the image) is too large for Firestore. Please use a smaller image or a URL.");
-            }
+            // Removed size check since image is now safely hosted on Cloudinary
 
             console.log("DEBUG: Calling push/set...");
             const newRef = push(ref(db, "inventory"));
@@ -93,6 +127,8 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
             onCreated?.(created);
             
             setForm({ ...EMPTY });
+            setSizeOption("");
+            setCustomSize("");
             setImagePreview("");
             setSuccess(`Product "${created.productName}" created successfully.`);
             alert(`Product "${created.productName}" created successfully!`);
@@ -106,7 +142,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
         }
     };
 
-    const handleReset = () => { setForm({ ...EMPTY }); setImagePreview(""); setErrors({}); };
+    const handleReset = () => { setForm({ ...EMPTY }); setSizeOption(""); setCustomSize(""); setImagePreview(""); setErrors({}); };
 
     const fieldStyle = (key: string): React.CSSProperties =>
         errors[key] ? { borderColor: "#ef4444" } : {};
@@ -129,7 +165,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                     {/* Basic Info */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Basic Information</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Basic Information</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Product Name" required>
                                     <Input
@@ -175,7 +211,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                     {/* Pricing */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Pricing & Tax</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Pricing & Tax</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Selling Price (Rs.)" required>
                                     <Input
@@ -214,16 +250,16 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                             {profit !== null && (
                                 <div style={{ display: "flex", gap: 16, marginTop: 14, padding: "10px 14px", background: profit >= 0 ? "#f0fdf4" : "#fef2f2", border: `1px solid ${profit >= 0 ? "#bbf7d0" : "#fecaca"}`, borderRadius: 9 }}>
                                     <span style={{ fontSize: 13, color: "#64748b", fontFamily: FONT }}>
-                                        Profit: <strong style={{ color: profit >= 0 ? "#16a34a" : "#dc2626" }}>
+                                        Profit: <span style={{ color: profit >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
                                             Rs.{profit.toLocaleString("en-IN")}
-                                        </strong>
+                                        </span>
                                     </span>
                                     <span style={{ fontSize: 13, color: "#64748b", fontFamily: FONT }}>
-                                        Margin: <strong style={{ color: profit >= 0 ? "#16a34a" : "#dc2626" }}>{margin}%</strong>
+                                        Margin: <span style={{ color: profit >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{margin}%</span>
                                     </span>
                                     {gstAmt && (
                                         <span style={{ fontSize: 13, color: "#64748b", fontFamily: FONT }}>
-                                            GST ({form.gstRate}%): <strong style={{ color: "#6366f1" }}>Rs.{gstAmt}</strong>
+                                            GST ({form.gstRate}%): <span style={{ color: "#6366f1", fontWeight: 600 }}>Rs.{gstAmt}</span>
                                         </span>
                                     )}
                                 </div>
@@ -234,7 +270,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                     {/* Stock & Unit */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Stock & Unit</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Stock & Unit</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                                 <FormField label="Opening Stock">
                                     <Input
@@ -256,6 +292,29 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                     </Select>
                                 </FormField>
                             </div>
+
+                            {/* Size Selection */}
+                            <div style={{ display: "grid", gridTemplateColumns: sizeOption === "Other" ? "1fr 1fr" : "1fr", gap: 14, marginTop: 14 }}>
+                                <FormField label="Select Size">
+                                    <Select value={sizeOption} onChange={e => handleSizeOption(e.target.value)}>
+                                        <option value="">No specific size</option>
+                                        <option value="Single">Single</option>
+                                        <option value="Double">Double</option>
+                                        <option value="King">King</option>
+                                        <option value="Super">Super</option>
+                                        <option value="Other">Other / Custom</option>
+                                    </Select>
+                                </FormField>
+                                {sizeOption === "Other" && (
+                                    <FormField label="Enter Custom Size">
+                                        <Input
+                                            placeholder="e.g. Queen / 6x6"
+                                            value={customSize}
+                                            onChange={e => handleCustomSize(e.target.value)}
+                                        />
+                                    </FormField>
+                                )}
+                            </div>
                         </div>
                     </Card>
                 </div>
@@ -266,7 +325,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                     {/* Product Image */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Image</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Image</div>
 
                             {/* Preview box */}
                             <div
@@ -320,12 +379,14 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                     {/* Status */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Status</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Status</div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {(["active", "inactive"] as const).map(s => {
+                                {(["active", "inactive", "low-stock", "out-of-stock"] as const).map(s => {
                                     const colors: Record<string, { label: string; color: string; bg: string }> = {
                                         active: { label: "Active", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
                                         inactive: { label: "Inactive", color: "#94a3b8", bg: "rgba(148,163,184,0.1)" },
+                                        "low-stock": { label: "Low Stock", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+                                        "out-of-stock": { label: "Out of Stock", color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
                                     };
                                     const c = colors[s];
                                     const isSelected = form.status === s;

@@ -9,6 +9,42 @@ interface NavGroup { key: string; label: string; icon: React.ReactNode; items: N
 
 const NAV_GROUPS: NavGroup[] = [
     {
+        key: "overview", label: "Dashboard",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <rect x="1.5" y="1.5" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M4.5 10V8M7.5 10V6M10.5 10V4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+        ),
+        items: [{ id: "overview", label: "Dashboard" }],
+    },
+    {
+        key: "inventory", label: "Inventory Adjustment",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <rect x="1.5" y="3" width="12" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M5 3V2a2 2 0 014 0v1" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M5 8h5M7.5 5.5v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+        ),
+        items: [
+            { id: "inventory-adjustment", label: "Inventory Adjustment" },
+        ],
+    },
+    {
+        key: "product", label: "Products",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M7.5 1.5L13 4.5V10.5L7.5 13.5L2 10.5V4.5L7.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                <path d="M7.5 1.5V13.5M2 4.5L7.5 7.5L13 4.5" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
+        ),
+        items: [
+            { id: "product-create", label: "Create Product" },
+            { id: "product-list", label: "All Products" },
+        ],
+    },
+    {
         key: "category", label: "Category",
         icon: (
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -34,45 +70,6 @@ const NAV_GROUPS: NavGroup[] = [
             { id: "collections-create", label: "Create Collection" },
             { id: "collections-list", label: "All Collections" },
         ],
-    },
-    {
-        key: "product", label: "Products",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M7.5 1.5L13 4.5V10.5L7.5 13.5L2 10.5V4.5L7.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-                <path d="M7.5 1.5V13.5M2 4.5L7.5 7.5L13 4.5" stroke="currentColor" strokeWidth="1.3" />
-            </svg>
-        ),
-        items: [
-            { id: "product-create", label: "Create Product" },
-            { id: "product-list", label: "All Products" },
-        ],
-    },
-    {
-        key: "inventory", label: "Inventory",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <rect x="1.5" y="3" width="12" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M5 3V2a2 2 0 014 0v1" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M5 8h5M7.5 5.5v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-        ),
-        items: [
-            { id: "inventory-add", label: "Add Stock" },
-            { id: "inventory-remove", label: "Remove Stock" },
-            { id: "inventory-barcode-create", label: "Create Barcode" },
-            { id: "inventory-barcode-print", label: "Print Barcode" },
-        ],
-    },
-    {
-        key: "reports", label: "Reports",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <rect x="1.5" y="1.5" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M4.5 10V8M7.5 10V6M10.5 10V4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-        ),
-        items: [{ id: "reports", label: "View Reports" }],
     },
     {
         key: "grouping", label: "Item Grouping",
@@ -152,16 +149,17 @@ export default function InventorySidebar({
                 {NAV_GROUPS.map((group) => {
                     const isOpen = expandedGroup === group.key;
                     const hasActive = group.items.some(i => i.id === activeView);
+                    const isSingle = group.items.length === 1;
 
                     return (
                         <div key={group.key} style={{ marginBottom: 2 }}>
                             {/* Group header */}
                             <button
-                                onClick={() => toggleGroup(group.key)}
+                                onClick={() => isSingle ? onNavigate(group.items[0].id) : toggleGroup(group.key)}
                                 style={{
                                     display: "flex", alignItems: "center", width: "100%",
                                     padding: "9px 10px", borderRadius: 9, border: "none",
-                                    background: hasActive && !isOpen ? "rgba(99,102,241,0.08)" : "transparent",
+                                    background: hasActive && (!isOpen || isSingle) ? "rgba(99,102,241,0.08)" : "transparent",
                                     color: hasActive ? "#a5b4fc" : "#64748b",
                                     cursor: "pointer", fontFamily: FONT, textAlign: "left",
                                     transition: "background 0.15s",
@@ -173,17 +171,19 @@ export default function InventorySidebar({
                                 <span style={{ flex: 1, fontSize: 13, fontWeight: hasActive ? 600 : 500, letterSpacing: "-0.01em" }}>
                                     {group.label}
                                 </span>
-                                {hasActive && !isOpen && (
+                                {hasActive && (!isOpen || isSingle) && (
                                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#818cf8", marginRight: 6, flexShrink: 0 }} />
                                 )}
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
-                                    style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", color: "#475569" }}>
-                                    <path d="M4 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
+                                {!isSingle && (
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+                                        style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", color: "#475569" }}>
+                                        <path d="M4 2.5l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                )}
                             </button>
 
                             {/* Sub items */}
-                            {isOpen && (
+                            {!isSingle && isOpen && (
                                 <div style={{ paddingLeft: 10, paddingTop: 2, paddingBottom: 4 }}>
                                     <div style={{ borderLeft: "1.5px solid rgba(99,102,241,0.2)", marginLeft: 7 }}>
                                         {group.items.map((item) => {
@@ -191,7 +191,7 @@ export default function InventorySidebar({
                                             return (
                                                 <button
                                                     key={item.id}
-                                                    onClick={() => handleItem(group.key, item.id)}
+                                                    onClick={() => onNavigate(item.id)}
                                                     style={{
                                                         display: "flex", alignItems: "center",
                                                         width: "100%", padding: "7px 10px 7px 16px",

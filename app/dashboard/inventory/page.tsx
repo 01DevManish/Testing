@@ -14,7 +14,7 @@ import {
   CreateCategory, CategoryList,
   CreateCollection, CollectionList,
   CreateItemGroup, ItemGroupList,
-  StockAction, BarcodeView, Reports,
+  InventoryAdjustment, BarcodeView, Overview,
 } from "./subviews";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ export default function InventoryPage() {
 
   // ── Sidebar ───────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeView, setActiveView] = useState<ActiveView>("product-list");
+  const [activeView, setActiveView] = useState<ActiveView>("overview");
 
   // ── Data ──────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([]);
@@ -121,7 +121,13 @@ export default function InventoryPage() {
     if (!editProduct || !editForm) return;
     setEditSaving(true);
     try {
-      const autoStatus: Product["status"] = editForm.stock <= 0 ? "out-of-stock" : editForm.status === "out-of-stock" ? "active" : editForm.status;
+      let autoStatus = editForm.status;
+      if (editForm.status === "active" || editForm.status === "low-stock" || editForm.status === "out-of-stock") {
+           if (Number(editForm.stock) <= 0) autoStatus = "out-of-stock";
+           else if (Number(editForm.stock) <= Number(editForm.minStock)) autoStatus = "low-stock";
+           else autoStatus = "active";
+      }
+      
       const updated = { ...editForm, status: autoStatus, price: Number(editForm.price), costPrice: Number(editForm.costPrice), stock: Number(editForm.stock), minStock: Number(editForm.minStock), gstRate: Number(editForm.gstRate), updatedAt: Date.now() };
       await update(ref(db, `inventory/${editProduct.id}`), updated);
       setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...updated } : p));
@@ -146,7 +152,7 @@ export default function InventoryPage() {
     );
   }
 
-  const productStubs = products.map(p => ({ id: p.id, productName: p.productName, stock: p.stock, unit: p.unit || "PCS" }));
+  const productStubs = products.map(p => ({ id: p.id, productName: p.productName, stock: p.stock, unit: p.unit || "PCS", minStock: p.minStock, status: p.status }));
 
   // ── Route view ─────────────────────────────────────────────
   const navigate = (view: ActiveView) => {
@@ -189,17 +195,15 @@ export default function InventoryPage() {
       case "collections-list":
         return <CollectionList collections={collections} loading={fetching} onCreateNew={() => navigate("collections-create")} />;
       // ── Inventory actions ─────────────────────────────────
-      case "inventory-add":
-        return <StockAction products={productStubs} mode="add" onDone={loadAll} />;
-      case "inventory-remove":
-        return <StockAction products={productStubs} mode="remove" onDone={loadAll} />;
+      case "inventory-adjustment":
+        return <InventoryAdjustment products={products} collections={collections} onDone={loadAll} />;
       case "inventory-barcode-create":
         return <BarcodeView mode="create" />;
       case "inventory-barcode-print":
         return <BarcodeView mode="print" />;
-      // ── Reports ───────────────────────────────────────────
-      case "reports":
-        return <Reports products={products} />;
+      // ── Overview ──────────────────────────────────────────
+      case "overview":
+        return <Overview products={products} />;
       // ── Item Grouping ─────────────────────────────────────
       case "grouping-create":
         return <CreateItemGroup products={productStubs} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} />;
@@ -299,9 +303,17 @@ export default function InventoryPage() {
               <FormField label="Min Stock"><Input type="number" min="0" value={editForm.minStock || ""} onChange={e => setEditForm({ ...editForm, minStock: parseInt(e.target.value) || 0 })} /></FormField>
               <FormField label="Unit"><Select value={editForm.unit} onChange={e => setEditForm({ ...editForm, unit: e.target.value })}>{UNITS.map(u => <option key={u}>{u}</option>)}</Select></FormField>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="HSN Code"><Input placeholder="e.g. 6205" value={editForm.hsnCode} onChange={e => setEditForm({ ...editForm, hsnCode: e.target.value })} /></FormField>
               <FormField label="Image URL"><Input type="url" placeholder="https://..." value={editForm.imageUrl} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} /></FormField>
+              <FormField label="Status">
+                <Select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value as Product["status"] })}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="low-stock">Low Stock</option>
+                  <option value="out-of-stock">Out of Stock</option>
+                </Select>
+              </FormField>
             </div>
             <div style={{ marginBottom: 18 }}>
               <FormField label="Description"><Textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={2} /></FormField>

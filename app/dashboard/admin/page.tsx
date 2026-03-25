@@ -160,7 +160,9 @@ export default function AdminPage() {
       assignedToRole: au?.role || "employee", 
       priority: taskForm.priority, 
       status: "pending" as const, 
-      createdAt: Date.now() 
+      createdAt: Date.now(),
+      createdBy: user?.uid || "",
+      createdByName: userData?.name || user?.name || "Admin",
     };
     try { 
       const newTaskRef = push(ref(db, "tasks")); 

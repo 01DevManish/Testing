@@ -3,7 +3,7 @@
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
+import { ref, get, update, query, orderByChild, equalTo, onValue } from "firebase/database";
 import { db } from "../../lib/firebase";
 
 interface Task {
@@ -12,6 +12,7 @@ interface Task {
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
   completedAt?: number; createdAt: number;
+  createdBy?: string; createdByName?: string;
 }
 
 const roleBg: Record<string, string> = { admin: "linear-gradient(135deg,#ef4444,#f97316)", manager: "linear-gradient(135deg,#f59e0b,#fbbf24)", employee: "linear-gradient(135deg,#10b981,#34d399)", user: "linear-gradient(135deg,#3b82f6,#60a5fa)" };
@@ -59,23 +60,29 @@ export default function EmployeePage() {
     if (isDesktop) setSidebarOpen(false);
   }, [isDesktop]);
 
-  const loadTasks = useCallback(async () => {
+  useEffect(() => {
     if (!user) return;
     setFetchingTasks(true);
-    try { 
-      const q = query(ref(db, "tasks"), orderByChild("assignedTo"), equalTo(user.uid));
-      const s = await get(q); 
+    const unsubscribe = onValue(ref(db, "tasks"), (s) => {
       const l: Task[] = []; 
       if (s.exists()) {
-        s.forEach(d => { l.push({ id: d.key as string, ...d.val() } as Task); });
+        s.forEach(d => { 
+          const val = d.val();
+          if (val && val.assignedTo === user.uid) {
+            l.push({ id: d.key as string, ...val } as Task); 
+          }
+        });
       }
       l.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); 
-      setTasks(l); 
-    }
-    catch (e) { console.error(e); } finally { setFetchingTasks(false); }
-  }, [user]);
+      setTasks(l);
+      setFetchingTasks(false);
+    }, (err) => {
+      console.error(err);
+      setFetchingTasks(false);
+    });
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
+    return () => unsubscribe();
+  }, [user]);
 
   if (loading || !user || !userData) return null;
   if (userData.role !== "employee" && userData.role !== "manager") return null;
@@ -241,7 +248,6 @@ export default function EmployeePage() {
                 <option value="completed">Completed</option>
               </select>
             )}
-            <button onClick={loadTasks} style={S.btnSecondary}>↻ Refresh</button>
           </div>
         </div>
 
@@ -268,6 +274,7 @@ export default function EmployeePage() {
                       </div>
                       <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, marginBottom: 4 }}>{t.title}</div>
                       {t.description && <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, marginBottom: 12 }}>{t.description}</div>}
+                      {t.createdByName && <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>Assigned by: <span style={{ fontWeight: 600, color: "#64748b" }}>{t.createdByName}</span></div>}
                       <select value={t.status} onChange={e => handleTaskStatus(t.id, e.target.value as Task["status"])}
                         style={{ width: "100%", padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, fontWeight: 600, background: "#f8fafc" }}>
                         <option value="pending">Mark Pending</option>
@@ -286,6 +293,7 @@ export default function EmployeePage() {
                         <td style={S.td}>
                           <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: 2 }}>{t.title}</div>
                           {t.description && <div style={{ fontSize: 13, color: "#64748b", maxWidth: 400, lineHeight: 1.5 }}>{t.description}</div>}
+                          {t.createdByName && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Assigned by: {t.createdByName}</div>}
                         </td>
                         <td style={S.td}><span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span></td>
                         <td style={S.td}>
