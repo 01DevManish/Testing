@@ -3,7 +3,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { collection, getDocs, query, where, updateDoc, doc, Timestamp } from "firebase/firestore";
+import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { db } from "../lib/firebase";
 import type { UserRole } from "../context/AuthContext";
 
@@ -17,7 +17,7 @@ interface Task {
   assignedToName: string;
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
-  createdAt: Timestamp;
+  createdAt: number;
 }
 
 const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
@@ -70,11 +70,13 @@ export default function DashboardPage() {
     if (!currentUid) return;
     setFetchingTasks(true);
     try {
-      const q = query(collection(db, "tasks"), where("assignedTo", "==", currentUid));
-      const snapshot = await getDocs(q);
+      const q = query(ref(db, "tasks"), orderByChild("assignedTo"), equalTo(currentUid));
+      const snapshot = await get(q);
       const list: Task[] = [];
-      snapshot.forEach((d) => list.push({ id: d.id, ...d.data() } as Task));
-      list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      if (snapshot.exists()) {
+        snapshot.forEach((d) => { list.push({ id: d.key as string, ...d.val() } as Task); });
+      }
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setTasks(list);
     } catch (err) { console.error(err); }
     finally { setFetchingTasks(false); }
@@ -85,10 +87,12 @@ export default function DashboardPage() {
     if (currentRole !== "manager") { setFetchingEmployees(false); return; }
     setFetchingEmployees(true);
     try {
-      const q = query(collection(db, "users"), where("role", "==", "employee"));
-      const snapshot = await getDocs(q);
+      const q = query(ref(db, "users"), orderByChild("role"), equalTo("employee"));
+      const snapshot = await get(q);
       const list: UserRecord[] = [];
-      snapshot.forEach((d) => list.push(d.data() as UserRecord));
+      if (snapshot.exists()) {
+        snapshot.forEach((d) => { list.push(d.val() as UserRecord); });
+      }
       setEmployees(list);
     } catch (err) { console.error(err); }
     finally { setFetchingEmployees(false); }
@@ -99,7 +103,7 @@ export default function DashboardPage() {
   // Mark task as done
   const markDone = async (taskId: string) => {
     try {
-      await updateDoc(doc(db, "tasks", taskId), { status: "completed", completedAt: Timestamp.now() });
+      await update(ref(db, `tasks/${taskId}`), { status: "completed", completedAt: Date.now() });
       setTasks(tasks.map((t) => t.id === taskId ? { ...t, status: "completed" } : t));
     } catch (err) { console.error(err); }
   };
@@ -107,7 +111,7 @@ export default function DashboardPage() {
   // Start working on task
   const markInProgress = async (taskId: string) => {
     try {
-      await updateDoc(doc(db, "tasks", taskId), { status: "in-progress" });
+      await update(ref(db, `tasks/${taskId}`), { status: "in-progress" });
       setTasks(tasks.map((t) => t.id === taskId ? { ...t, status: "in-progress" } : t));
     } catch (err) { console.error(err); }
   };
@@ -188,12 +192,12 @@ export default function DashboardPage() {
             Dashboard
           </button>
           
-          {(userData?.role === "manager" || userData?.role === "employee") && (
+          {((userData?.role as string) === "admin" || userData?.permissions?.includes("dispatch")) && (
             <button onClick={() => router.push("/dashboard/advanced-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
               Dispatch
             </button>
           )}
-          {(userData?.role === "manager" || userData?.role === "employee") && (
+          {((userData?.role as string) === "admin" || userData?.permissions?.includes("inventory")) && (
             <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
               Inventory
             </button>

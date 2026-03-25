@@ -90,7 +90,28 @@ export default function AdvancedDispatchDashboard() {
     setSelectedOrder(newOrder);
   };
 
+  // Permission check: only admin or users with "dispatch" permission can access
+  const hasAccess = userData?.role === "admin" || userData?.permissions?.includes("dispatch");
+  useEffect(() => {
+    if (!loading && user && !hasAccess) {
+      const timer = setTimeout(() => router.replace("/dashboard"), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, user, hasAccess, router]);
+
   if (loading) return null;
+  if (!loading && user && !hasAccess) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "inherit" }}>
+        <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0", maxWidth: 400 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>Access Denied</h2>
+          <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 16px" }}>You do not have permission to access the Dispatch page.</p>
+          <p style={{ fontSize: 12, color: "#94a3b8" }}>Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const todayDate = new Date().toISOString().split('T')[0];
   const stats = {
@@ -169,10 +190,12 @@ export default function AdvancedDispatchDashboard() {
           <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "rgba(99,102,241,0.15)", color: "#a5b4fc", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: "3px solid #818cf8", paddingLeft: 11 }}>
             Advanced Dispatch
           </button>
-          <button onClick={() => router.push("/dashboard/inventory")}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-            Inventory
-          </button>
+          {(userData?.role === "admin" || userData?.permissions?.includes("inventory")) && (
+            <button onClick={() => router.push("/dashboard/inventory")}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+              Inventory
+            </button>
+          )}
         </nav>
 
         <div style={{ flex: 1 }} />

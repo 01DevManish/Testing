@@ -1,4 +1,3 @@
-import type { Timestamp } from "firebase/firestore";
 import type { UserRole } from "../../context/AuthContext";
 export type { UserRole };
 
@@ -21,8 +20,8 @@ export interface Task {
   assignedToRole: string;
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
-  completedAt?: Timestamp;
-  createdAt: Timestamp;
+  completedAt?: number;
+  createdAt: number;
 }
 
 export const roleColors: Record<string, string> = {

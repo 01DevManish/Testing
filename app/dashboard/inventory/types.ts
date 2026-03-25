@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase/firestore";
+// No firestore imports needed
 
 export const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
 
@@ -19,8 +19,8 @@ export interface Product {
     unit: string;
     hsnCode: string;
     gstRate: number;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
+    createdAt: number;
+    updatedAt: number;
 }
 
 // ── Category ───────────────────────────────────────────────────
@@ -28,7 +28,7 @@ export interface Category {
     id: string;
     name: string;
     description: string;
-    createdAt: Timestamp;
+    createdAt: number;
 }
 
 // ── Collection ─────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export interface Collection {
     name: string;
     description: string;
     productIds: string[];
-    createdAt: Timestamp;
+    createdAt: number;
 }
 
 // ── Item Group ─────────────────────────────────────────────────
@@ -46,7 +46,7 @@ export interface ItemGroup {
     name: string;
     description: string;
     productIds: string[];
-    createdAt: Timestamp;
+    createdAt: number;
 }
 
 // ── Active sidebar view ────────────────────────────────────────

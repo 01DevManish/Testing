@@ -1,5 +1,5 @@
 import { Order, OrderStatus, Party, Transporter } from "./types";
-import { collection, getDocs, addDoc, Timestamp } from "firebase/firestore";
+import { ref, get, push, set } from "firebase/database";
 import { db } from "../../lib/firebase";
 
 // ── Mock Orders (kept for backward compat) ──
@@ -59,54 +59,63 @@ export const firestoreApi = {
   // Parties
   getParties: async (): Promise<Party[]> => {
     try {
-      const snap = await getDocs(collection(db, "parties"));
+      const snap = await get(ref(db, "parties"));
       const list: Party[] = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() } as Party));
+      if (snap.exists()) {
+        snap.forEach(d => { list.push({ id: d.key as string, ...d.val() } as Party); });
+      }
       return list;
     } catch (e) { console.error(e); return []; }
   },
 
   createParty: async (party: Omit<Party, "id">): Promise<Party> => {
-    const ref = await addDoc(collection(db, "parties"), { ...party, createdAt: new Date().toISOString() });
-    return { id: ref.id, ...party };
+    const newRef = push(ref(db, "parties"));
+    await set(newRef, { ...party, createdAt: new Date().toISOString() });
+    return { id: newRef.key as string, ...party };
   },
 
   // Transporters
   getTransporters: async (): Promise<Transporter[]> => {
     try {
-      const snap = await getDocs(collection(db, "transporters"));
+      const snap = await get(ref(db, "transporters"));
       const list: Transporter[] = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() } as Transporter));
+      if (snap.exists()) {
+        snap.forEach(d => { list.push({ id: d.key as string, ...d.val() } as Transporter); });
+      }
       return list;
     } catch (e) { console.error(e); return []; }
   },
 
   createTransporter: async (t: Omit<Transporter, "id">): Promise<Transporter> => {
-    const ref = await addDoc(collection(db, "transporters"), { ...t, createdAt: new Date().toISOString() });
-    return { id: ref.id, ...t };
+    const newRef = push(ref(db, "transporters"));
+    await set(newRef, { ...t, createdAt: new Date().toISOString() });
+    return { id: newRef.key as string, ...t };
   },
 
   // Inventory Products
   getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number }[]> => {
     try {
-      const snap = await getDocs(collection(db, "products"));
+      const snap = await get(ref(db, "products"));
       const list: { id: string; productName: string; price: number; stock: number }[] = [];
-      snap.forEach(d => {
-        const data = d.data();
-        list.push({ id: d.id, productName: data.productName || "", price: data.price || 0, stock: data.stock || 0 });
-      });
+      if (snap.exists()) {
+        snap.forEach(d => {
+          const data = d.val();
+          list.push({ id: d.key as string, productName: data.productName || "", price: data.price || 0, stock: data.stock || 0 });
+        });
+      }
       return list;
     } catch (e) { console.error(e); return []; }
   },
 
-  // Create Dispatch (save to Firestore)
+  // Create Dispatch (save to Realtime DB)
   createDispatch: async (dispatch: Record<string, unknown>): Promise<string> => {
-    const ref = await addDoc(collection(db, "dispatches"), {
+    const newRef = push(ref(db, "dispatches"));
+    await set(newRef, {
       ...dispatch,
-      createdAt: Timestamp.now(),
+      createdAt: Date.now(),
       status: "Ready to Print",
     });
-    return ref.id;
+    return newRef.key as string;
   },
 };
 

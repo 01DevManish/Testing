@@ -42,6 +42,7 @@ export default function UsersTab({
     admins: users.filter(u => u.role === "admin").length,
     managers: users.filter(u => u.role === "manager").length,
     employees: users.filter(u => u.role === "employee").length,
+    users: users.filter(u => u.role === "user").length,
   };
 
   const UserCard = ({ u }: { u: UserRecord }) => (
@@ -52,7 +53,7 @@ export default function UsersTab({
         <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <span style={S.badge(roleColors[u.role], `${roleColors[u.role]}12`)}>{u.role}</span>
-          {u.permissions?.map(p => <span key={p} style={S.badge("#6366f1", "rgba(99,102,241,0.08)")}>{p.slice(0, 4)}..</span>)}
+          {u.permissions?.map(p => <span key={p} style={S.badge("#6366f1", "rgba(99,102,241,0.08)")}>{p}</span>)}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

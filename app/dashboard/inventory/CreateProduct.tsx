@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { ref, push, set as rtdbSet } from "firebase/database";
 import { db } from "../../lib/firebase";
 import {
     FONT, CATEGORIES, UNITS, GST_RATES, Product,
@@ -60,9 +60,10 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
         const errs = validate();
         if (Object.keys(errs).length) { setErrors(errs); return; }
         setSaving(true);
+        console.log("DEBUG: Starting handleSave for product:", form.productName);
         try {
             const autoStatus: Product["status"] = form.stock <= 0 ? "out-of-stock" : form.status;
-            const doc = {
+            const docData = {
                 ...form,
                 status: autoStatus,
                 price: Number(form.price),
@@ -70,19 +71,37 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                 stock: Number(form.stock),
                 minStock: Number(form.minStock),
                 gstRate: Number(form.gstRate),
-                createdAt: Timestamp.now(),
-                updatedAt: Timestamp.now(),
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
             };
-            const ref = await addDoc(collection(db, "inventory"), doc);
-            const created = { id: ref.id, ...doc } as Product;
+
+            // Check if imageUrl (base64) is too large for Firestore (max 1MB)
+            const docSizeApprox = JSON.stringify(docData).length;
+            console.log("DEBUG: Approximate doc size:", docSizeApprox, "bytes");
+            if (docSizeApprox > 1000000) {
+                throw new Error("Product data (likely the image) is too large for Firestore. Please use a smaller image or a URL.");
+            }
+
+            console.log("DEBUG: Calling push/set...");
+            const newRef = push(ref(db, "inventory"));
+            await rtdbSet(newRef, docData);
+            console.log("DEBUG: create success, ID:", newRef.key);
+            
+            const created = { id: newRef.key as string, ...docData } as Product;
+            
+            // Re-fetch to ensure sync as per user request
             onCreated?.(created);
+            
             setForm({ ...EMPTY });
             setImagePreview("");
             setSuccess(`Product "${created.productName}" created successfully.`);
+            alert(`Product "${created.productName}" created successfully!`);
         } catch (err) {
-            console.error(err);
-            alert("Failed to save product.");
+            console.error("DEBUG: Error in handleSave:", err);
+            const msg = err instanceof Error ? err.message : "Possible network issue or missing permissions.";
+            alert("Failed to save product: " + msg);
         } finally {
+            console.log("DEBUG: handleSave flow completed.");
             setSaving(false);
         }
     };
@@ -161,8 +180,8 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                 <FormField label="Selling Price (Rs.)" required>
                                     <Input
                                         type="number" min="0" step="0.01" placeholder="0.00"
-                                        value={form.price || ""}
-                                        onChange={e => set("price", parseFloat(e.target.value) || 0)}
+                                        value={form.price === 0 ? "" : form.price}
+                                        onChange={e => set("price", Number(e.target.value) || 0)}
                                         style={fieldStyle("price")}
                                     />
                                     {errors.price && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{errors.price}</div>}
@@ -170,8 +189,8 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                 <FormField label="Cost Price (Rs.)">
                                     <Input
                                         type="number" min="0" step="0.01" placeholder="0.00"
-                                        value={form.costPrice || ""}
-                                        onChange={e => set("costPrice", parseFloat(e.target.value) || 0)}
+                                        value={form.costPrice === 0 ? "" : form.costPrice}
+                                        onChange={e => set("costPrice", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
                                 <FormField label="GST Rate">
@@ -220,15 +239,15 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                 <FormField label="Opening Stock">
                                     <Input
                                         type="number" min="0" placeholder="0"
-                                        value={form.stock || ""}
-                                        onChange={e => set("stock", parseInt(e.target.value) || 0)}
+                                        value={form.stock === 0 ? "" : form.stock}
+                                        onChange={e => set("stock", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
                                 <FormField label="Min Stock (Alert)">
                                     <Input
                                         type="number" min="0" placeholder="5"
-                                        value={form.minStock || ""}
-                                        onChange={e => set("minStock", parseInt(e.target.value) || 0)}
+                                        value={form.minStock === 0 ? "" : form.minStock}
+                                        onChange={e => set("minStock", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
                                 <FormField label="Unit">

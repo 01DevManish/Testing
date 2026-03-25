@@ -4,9 +4,10 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { auth as fbAuth, db, googleProvider } from "../lib/firebase";
 import {
   signInWithPopup,
+  signInWithEmailAndPassword,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
+import { ref, set, get, update, query, orderByChild, equalTo } from "firebase/database";
 
 export type UserRole = "admin" | "manager" | "employee" | "user";
 
@@ -24,6 +25,7 @@ interface AuthContextType {
   loading: boolean;
   loginWithZoho: () => void;
   loginWithGoogle: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => void;
   error: string | null;
   clearError: () => void;
@@ -82,9 +84,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Listen for Firebase Auth state
-    const unsubscribe = onAuthStateChanged(fbAuth, () => {
-      // Just mark loading as done — session is already handled by localStorage
+    // Listen for Firebase Auth state — sync fresh permissions from Firestore once on load
+    let hasSynced = false;
+    const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
+      if (firebaseUser && !hasSynced) {
+        hasSynced = true;
+        try {
+          const userRef = ref(db, `users/${firebaseUser.uid}`);
+          const snap = await get(userRef);
+          if (snap.exists()) {
+            const freshData = snap.val() as UserData;
+            localStorage.setItem(SESSION_KEY, JSON.stringify(freshData));
+            setUser(freshData);
+          }
+        } catch (err) {
+          console.warn("Firestore sync on auth state change failed:", err);
+        }
+      }
       setLoading(false);
     });
 
@@ -149,15 +165,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Firestore sync in background (don't await, don't block redirect)
       (async () => {
         try {
-          const userRef = doc(db, "users", gUser.uid);
-          const snap = await getDoc(userRef);
+          const userRef = ref(db, `users/${gUser.uid}`);
+          const snap = await get(userRef);
           if (!snap.exists()) {
-            await setDoc(userRef, quickData);
+            await set(userRef, quickData);
           } else {
             // Force update Firestore if this is the admin email but Firestore says otherwise
-            const freshData = snap.data() as UserData;
+            const freshData = snap.val() as UserData;
             if (isAdminEmail && freshData.role !== "admin") {
-              await updateDoc(userRef, { role: "admin" });
+              await update(userRef, { role: "admin" });
               freshData.role = "admin";
             }
             // Update localStorage with fresh Firestore data for next login
@@ -180,6 +196,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithEmail = async (email: string, password: string) => {
+    try {
+      setError(null);
+      const result = await signInWithEmailAndPassword(fbAuth, email, password);
+      const eUser = result.user;
+
+      // Try to fetch user data from Firestore, but don't block login if offline
+      let userData: UserData;
+      try {
+        const userRef = ref(db, `users/${eUser.uid}`);
+        const snap = await get(userRef);
+        if (snap.exists()) {
+          userData = snap.val() as UserData;
+        } else {
+          userData = {
+            uid: eUser.uid,
+            email: eUser.email || email,
+            name: eUser.displayName || email.split("@")[0],
+            role: "employee",
+            permissions: [],
+          };
+        }
+      } catch {
+        // Firestore offline — use basic data, permissions will sync later via onAuthStateChanged
+        userData = {
+          uid: eUser.uid,
+          email: eUser.email || email,
+          name: eUser.displayName || email.split("@")[0],
+          role: "employee",
+          permissions: [],
+        };
+      }
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+      setUser(userData);
+
+      if (userData.role === "admin") window.location.href = "/dashboard/admin";
+      else if (userData.role === "employee" || userData.role === "manager") window.location.href = "/dashboard";
+      else window.location.href = "/dashboard/user";
+    } catch (err: unknown) {
+      const firebaseError = err as { code?: string; message?: string };
+      const code = firebaseError.code || "";
+      const msg = firebaseError.message || "Login failed";
+      console.error("Email login error:", code, msg);
+      if (code.includes("user-not-found") || code.includes("invalid-credential") || code.includes("invalid-login-credentials")) {
+        setError("Invalid email or password.");
+      } else if (code.includes("wrong-password")) {
+        setError("Incorrect password. Please try again.");
+      } else if (code.includes("too-many-requests")) {
+        setError("Too many failed attempts. Please try later.");
+      } else if (code.includes("network") || msg.includes("network")) {
+        setError("Network error. Check your internet connection.");
+      } else {
+        setError("Login failed: " + code);
+      }
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem(SESSION_KEY);
     fbAuth.signOut().catch(() => {});
@@ -189,22 +263,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearError = () => setError(null);
 
   const fetchAllUsers = async (): Promise<UserData[]> => {
-    const snapshot = await getDocs(collection(db, "users"));
+    const snapshot = await get(ref(db, "users"));
     const list: UserData[] = [];
-    snapshot.forEach((d) => list.push(d.data() as UserData));
+    if (snapshot.exists()) {
+      snapshot.forEach((child) => {
+        list.push(child.val() as UserData);
+      });
+    }
     return list;
   };
 
   const fetchEmployees = async (): Promise<UserData[]> => {
-    const q = query(collection(db, "users"), where("role", "==", "employee"));
-    const snapshot = await getDocs(q);
+    const q = query(ref(db, "users"), orderByChild("role"), equalTo("employee"));
+    const snapshot = await get(q);
     const list: UserData[] = [];
-    snapshot.forEach((d) => list.push(d.data() as UserData));
+    if (snapshot.exists()) {
+      snapshot.forEach((child) => {
+        list.push(child.val() as UserData);
+      });
+    }
     return list;
   };
 
   const updateUserRole = async (uid: string, newRole: UserRole) => {
-    await updateDoc(doc(db, "users", uid), { role: newRole });
+    await update(ref(db, `users/${uid}`), { role: newRole });
   };
 
   return (
@@ -214,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       loginWithZoho,
       loginWithGoogle,
+      loginWithEmail,
       logout,
       error,
       clearError,

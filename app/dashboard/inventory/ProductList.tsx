@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { deleteDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
+import { ref, remove, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Product, CATEGORIES, STATUS_CONFIG } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
@@ -45,7 +45,7 @@ export default function ProductList({
         if (filterStatus !== "all") list = list.filter(p => p.status === filterStatus);
         list.sort((a, b) => {
             let va: any = a[sortKey]; let vb: any = b[sortKey];
-            if (sortKey === "createdAt") { va = (va as any)?.seconds || 0; vb = (vb as any)?.seconds || 0; }
+            if (sortKey === "createdAt") { va = va || 0; vb = vb || 0; }
             if (typeof va === "string") { va = va.toLowerCase(); vb = (vb || "").toLowerCase(); }
             if (va < vb) return sortDir === "asc" ? -1 : 1;
             if (va > vb) return sortDir === "asc" ? 1 : -1;
@@ -66,7 +66,7 @@ export default function ProductList({
     const handleDelete = async (id: string) => {
         if (!confirm("Delete this product permanently?")) return;
         try {
-            await deleteDoc(doc(db, "inventory", id));
+            await remove(ref(db, `inventory/${id}`));
             onProductsChange(products.filter(p => p.id !== id));
         } catch (err) { console.error(err); }
     };
@@ -75,10 +75,10 @@ export default function ProductList({
         if (!bulkAction || selectedIds.size === 0) return;
         if (bulkAction === "delete") {
             if (!confirm(`Delete ${selectedIds.size} products?`)) return;
-            await Promise.all(Array.from(selectedIds).map(id => deleteDoc(doc(db, "inventory", id))));
+            await Promise.all(Array.from(selectedIds).map(id => remove(ref(db, `inventory/${id}`))));
             onProductsChange(products.filter(p => !selectedIds.has(p.id)));
         } else {
-            await Promise.all(Array.from(selectedIds).map(id => updateDoc(doc(db, "inventory", id), { status: bulkAction, updatedAt: Timestamp.now() })));
+            await Promise.all(Array.from(selectedIds).map(id => update(ref(db, `inventory/${id}`), { status: bulkAction, updatedAt: Date.now() })));
             onProductsChange(products.map(p => selectedIds.has(p.id) ? { ...p, status: bulkAction as Product["status"] } : p));
         }
         setSelectedIds(new Set()); setBulkAction("");

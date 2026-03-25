@@ -1,10 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyBZCDXLDGVCylL8mGCx6AAzp4Y2ngyd_zo",
   authDomain: "eurus-lifestyle.firebaseapp.com",
+  databaseURL: "https://eurus-lifestyle-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "eurus-lifestyle",
   storageBucket: "eurus-lifestyle.firebasestorage.app",
   messagingSenderId: "678618926664",
@@ -15,5 +16,6 @@ export const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
+export const db = getDatabase(app);
 export default app;
+

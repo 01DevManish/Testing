@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { collection, getDocs, updateDoc, doc, Timestamp } from "firebase/firestore";
+import { ref, get, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 
@@ -65,6 +65,15 @@ export default function InventoryPage() {
   useEffect(() => { if (!loading && !user) router.replace("/"); }, [loading, user, router]);
   useEffect(() => { if (isDesktop) setSidebarOpen(false); }, [isDesktop]);
 
+  // Permission check: only admin or users with "inventory" permission can access
+  const hasAccess = userData?.role === "admin" || userData?.permissions?.includes("inventory");
+  useEffect(() => {
+    if (!loading && user && !hasAccess) {
+      const timer = setTimeout(() => router.replace("/dashboard"), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, user, hasAccess, router]);
+
   const isAdminOrManager = userData?.role === "admin" || userData?.role === "manager";
   const currentName = userData?.name || user?.name || "User";
   const currentRole = userData?.role || "employee";
@@ -74,12 +83,18 @@ export default function InventoryPage() {
     setFetching(true);
     try {
       const [pSnap, cSnap, colSnap, gSnap] = await Promise.all([
-        getDocs(collection(db, "inventory")),
-        getDocs(collection(db, "categories")),
-        getDocs(collection(db, "collections")),
-        getDocs(collection(db, "itemGroups")),
+        get(ref(db, "inventory")),
+        get(ref(db, "categories")),
+        get(ref(db, "collections")),
+        get(ref(db, "itemGroups")),
       ]);
-      const toList = (snap: any) => snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      const toList = (snap: any) => {
+        const arr: any[] = [];
+        if (snap.exists()) {
+          snap.forEach((d: any) => { arr.push({ id: d.key, ...d.val() }); });
+        }
+        return arr;
+      };
       setProducts(toList(pSnap));
       setCategories(toList(cSnap));
       setCollections(toList(colSnap));
@@ -107,8 +122,8 @@ export default function InventoryPage() {
     setEditSaving(true);
     try {
       const autoStatus: Product["status"] = editForm.stock <= 0 ? "out-of-stock" : editForm.status === "out-of-stock" ? "active" : editForm.status;
-      const updated = { ...editForm, status: autoStatus, price: Number(editForm.price), costPrice: Number(editForm.costPrice), stock: Number(editForm.stock), minStock: Number(editForm.minStock), gstRate: Number(editForm.gstRate), updatedAt: Timestamp.now() };
-      await updateDoc(doc(db, "inventory", editProduct.id), updated);
+      const updated = { ...editForm, status: autoStatus, price: Number(editForm.price), costPrice: Number(editForm.costPrice), stock: Number(editForm.stock), minStock: Number(editForm.minStock), gstRate: Number(editForm.gstRate), updatedAt: Date.now() };
+      await update(ref(db, `inventory/${editProduct.id}`), updated);
       setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...updated } : p));
       setEditProduct(null); setEditForm(null);
     } catch (err) { console.error(err); alert("Failed to update."); }
@@ -116,6 +131,20 @@ export default function InventoryPage() {
   };
 
   if (loading || !user) return null;
+
+  // Show access denied UI if no inventory permission
+  if (!hasAccess) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f2f5", fontFamily: FONT }}>
+        <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0", maxWidth: 400 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>Access Denied</h2>
+          <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 16px" }}>You do not have permission to access the Inventory page.</p>
+          <p style={{ fontSize: 12, color: "#94a3b8" }}>Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const productStubs = products.map(p => ({ id: p.id, productName: p.productName, stock: p.stock, unit: p.unit || "PCS" }));
 
@@ -129,7 +158,14 @@ export default function InventoryPage() {
     switch (activeView) {
       // ── Products ──────────────────────────────────────────
       case "product-create":
-        return <CreateProduct onCreated={p => { setProducts(prev => [p, ...prev]); navigate("product-list"); }} />;
+        return (
+          <CreateProduct 
+            onCreated={() => { 
+                loadAll(); 
+                setActiveView("product-list"); 
+            }} 
+          />
+        );
       case "product-list":
         return (
           <ProductList

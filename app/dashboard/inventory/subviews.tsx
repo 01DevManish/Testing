@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { ref, push, set, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Category, Collection, ItemGroup } from "./types";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader, EmptyState } from "./ui";
@@ -20,9 +20,10 @@ export function CreateCategory({ onCreated }: { onCreated?: (c: Category) => voi
         if (!name.trim()) { setError("Category name is required"); return; }
         setSaving(true);
         try {
-            const d = { name: name.trim(), description: desc.trim(), createdAt: Timestamp.now() };
-            const ref = await addDoc(collection(db, "categories"), d);
-            onCreated?.({ id: ref.id, ...d } as Category);
+            const d = { name: name.trim(), description: desc.trim(), createdAt: Date.now() };
+            const newRef = push(ref(db, "categories"));
+            await set(newRef, d);
+            onCreated?.({ id: newRef.key as string, ...d } as Category);
             setSuccess(`Category "${name}" created.`);
             setName(""); setDesc(""); setError("");
         } catch (e) { console.error(e); alert("Failed to create category."); }
@@ -78,7 +79,7 @@ export function CategoryList({ categories, loading, onCreateNew }: { categories:
                                     <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
                                     {c.description && <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{c.description}</div>}
                                 </div>
-                                <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{c.createdAt?.toDate?.().toLocaleDateString("en-IN") ?? ""}</div>
+                                <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
                             </div>
                         ))}
                     </div>
@@ -109,9 +110,10 @@ export function CreateCollection({ products, onCreated }: { products: { id: stri
         if (!name.trim()) { setError("Collection name is required"); return; }
         setSaving(true);
         try {
-            const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Timestamp.now() };
-            const ref = await addDoc(collection(db, "collections"), d);
-            onCreated?.({ id: ref.id, ...d } as Collection);
+            const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
+            const newRef = push(ref(db, "collections"));
+            await set(newRef, d);
+            onCreated?.({ id: newRef.key as string, ...d } as Collection);
             setSuccess(`Collection "${name}" created.`);
             setName(""); setDesc(""); setSelected(new Set()); setError("");
         } catch (e) { console.error(e); alert("Failed to create collection."); }
@@ -187,7 +189,7 @@ export function CollectionList({ collections, loading, onCreateNew }: { collecti
                                     <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{c.productIds?.length ?? 0} products</div>
                                 </div>
-                                <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{c.createdAt?.toDate?.().toLocaleDateString("en-IN") ?? ""}</div>
+                                <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
                             </div>
                         ))}
                     </div>
@@ -218,9 +220,10 @@ export function CreateItemGroup({ products, onCreated }: { products: { id: strin
         if (!name.trim()) { setError("Group name is required"); return; }
         setSaving(true);
         try {
-            const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Timestamp.now() };
-            const ref = await addDoc(collection(db, "itemGroups"), d);
-            onCreated?.({ id: ref.id, ...d } as ItemGroup);
+            const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
+            const newRef = push(ref(db, "itemGroups"));
+            await set(newRef, d);
+            onCreated?.({ id: newRef.key as string, ...d } as ItemGroup);
             setSuccess(`Group "${name}" created.`);
             setName(""); setDesc(""); setSelected(new Set()); setError("");
         } catch (e) { console.error(e); alert("Failed to create group."); }
@@ -294,7 +297,7 @@ export function ItemGroupList({ groups, loading, onCreateNew }: { groups: ItemGr
                                     <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{g.name}</div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{g.productIds?.length ?? 0} items</div>
                                 </div>
-                                <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{g.createdAt?.toDate?.().toLocaleDateString("en-IN") ?? ""}</div>
+                                <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(g.createdAt).toLocaleDateString("en-IN")}</div>
                             </div>
                         ))}
                     </div>
@@ -328,10 +331,9 @@ export function StockAction({ products, mode, onDone }: StockActionProps) {
         if (mode === "remove" && selected && qty > selected.stock) { alert("Cannot remove more than available stock"); return; }
         setSaving(true);
         try {
-            const { updateDoc, doc, Timestamp } = await import("firebase/firestore");
             const newStock = mode === "add" ? (selected?.stock || 0) + qty : (selected?.stock || 0) - qty;
             const autoStatus = newStock <= 0 ? "out-of-stock" : "active";
-            await updateDoc(doc(db, "inventory", productId), { stock: newStock, status: autoStatus, updatedAt: Timestamp.now() });
+            await update(ref(db, `inventory/${productId}`), { stock: newStock, status: autoStatus, updatedAt: Date.now() });
             setSuccess(`${mode === "add" ? "Added" : "Removed"} ${qty} ${selected?.unit || "units"} ${mode === "add" ? "to" : "from"} "${selected?.productName}".`);
             setProductId(""); setQty(1); setReason(""); onDone?.();
         } catch (e) { console.error(e); alert("Failed to update stock."); }

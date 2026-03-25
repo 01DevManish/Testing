@@ -3,7 +3,7 @@
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, setDoc, Timestamp } from "firebase/firestore";
+import { ref, get, push, remove, update, set } from "firebase/database";
 import { db, firebaseConfig } from "../../lib/firebase";
 import { createUserWithEmailAndPassword, getAuth, signOut } from "firebase/auth";
 import { initializeApp, getApps } from "firebase/app";
@@ -64,12 +64,14 @@ export default function AdminPage() {
   const loadUsers = useCallback(async () => {
     setFetchingUsers(true);
     try { 
-      const s = await getDocs(collection(db, "users")); 
+      const s = await get(ref(db, "users")); 
       const l: UserRecord[] = []; 
-      s.forEach(d => l.push(d.data() as UserRecord)); 
+      if (s.exists()) {
+        s.forEach(d => { l.push(d.val() as UserRecord); });
+      }
       setUsers(l); 
     } catch (e) { 
-      console.error(e); 
+      console.error("Failed to load users:", e); 
     } finally { 
       setFetchingUsers(false); 
     }
@@ -78,13 +80,15 @@ export default function AdminPage() {
   const loadTasks = useCallback(async () => {
     setFetchingTasks(true);
     try { 
-      const s = await getDocs(collection(db, "tasks")); 
+      const s = await get(ref(db, "tasks")); 
       const l: Task[] = []; 
-      s.forEach(d => l.push({ id: d.id, ...d.data() } as Task)); 
-      l.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); 
+      if (s.exists()) {
+        s.forEach(d => { l.push({ id: d.key as string, ...d.val() } as Task); });
+      }
+      l.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); 
       setTasks(l); 
     } catch (e) { 
-      console.error(e); 
+      console.error("Failed to load tasks:", e); 
     } finally { 
       setFetchingTasks(false); 
     }
@@ -104,7 +108,7 @@ export default function AdminPage() {
   const handleRoleUpdate = async () => {
     if (!editingUser) return; setSavingRole(true);
     try { 
-      await updateDoc(doc(db, "users", editingUser.uid), { role: editRole, permissions: editPermissions }); 
+      await update(ref(db, `users/${editingUser.uid}`), { role: editRole, permissions: editPermissions }); 
       setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, role: editRole, permissions: editPermissions } : u)); 
       setEditingUser(null); 
     } catch { 
@@ -116,23 +120,28 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (uid: string) => {
     if (!confirm("Delete this user permanently?")) return;
-    try { await deleteDoc(doc(db, "users", uid)); setUsers(users.filter(u => u.uid !== uid)); } catch (e) { console.error(e); }
+    try { await remove(ref(db, `users/${uid}`)); setUsers(users.filter(u => u.uid !== uid)); } catch (e) { console.error(e); }
   };
 
   const handleAddEmployee = async () => {
     if (!newEmployee.name || !newEmployee.email || !newEmployee.password) return;
     setAddingEmployee(true); setAddError("");
     try {
-      const secondaryApp = getApps().find(app => app.name === "Secondary") || initializeApp(firebaseConfig, "Secondary");
+      const secondaryApp = getApps().find(a => a.name === "Secondary") || initializeApp(firebaseConfig, "Secondary");
       const secondaryAuth = getAuth(secondaryApp);
       const result = await createUserWithEmailAndPassword(secondaryAuth, newEmployee.email, newEmployee.password);
-      await signOut(secondaryAuth);
       const nu: UserRecord = { uid: result.user.uid, email: newEmployee.email, name: newEmployee.name, role: newEmployee.role, permissions: newEmployee.permissions };
-      await setDoc(doc(db, "users", result.user.uid), nu);
+      // Fire both concurrently — don't wait for signOut before Firestore write
+      await Promise.all([
+        signOut(secondaryAuth).catch(() => {}),
+        set(ref(db, `users/${result.user.uid}`), nu),
+      ]);
       setUsers([{ ...nu }, ...users]); 
       setNewEmployee({ name: "", email: "", password: "", role: "employee", permissions: [] }); 
       setShowAddForm(false);
+      alert(`User "${nu.name}" added successfully!`);
     } catch (err: unknown) {
+      console.error("Add user error:", err);
       const msg = err instanceof Error ? err.message : "Failed to add";
       if (msg.includes("email-already-in-use")) setAddError("Email already in use.");
       else if (msg.includes("weak-password")) setAddError("Password must be 6+ characters.");
@@ -151,11 +160,12 @@ export default function AdminPage() {
       assignedToRole: au?.role || "employee", 
       priority: taskForm.priority, 
       status: "pending" as const, 
-      createdAt: Timestamp.now() 
+      createdAt: Date.now() 
     };
     try { 
-      const ref = await addDoc(collection(db, "tasks"), td); 
-      setTasks([{ id: ref.id, ...td }, ...tasks]); 
+      const newTaskRef = push(ref(db, "tasks")); 
+      await set(newTaskRef, td);
+      setTasks([{ id: newTaskRef.key as string, ...td }, ...tasks]); 
       setTaskForm({ title: "", description: "", assignedTo: "", priority: "medium" }); 
       setShowTaskForm(false); 
     } catch { 
@@ -167,15 +177,15 @@ export default function AdminPage() {
 
   const handleDeleteTask = async (id: string) => {
     if (!confirm("Delete this task?")) return;
-    try { await deleteDoc(doc(db, "tasks", id)); setTasks(tasks.filter(t => t.id !== id)); } catch (e) { console.error(e); }
+    try { await remove(ref(db, `tasks/${id}`)); setTasks(tasks.filter(t => t.id !== id)); } catch (e) { console.error(e); }
   };
 
   const handleTaskStatus = async (id: string, status: Task["status"]) => {
     const upd: Record<string, unknown> = { status }; 
-    if (status === "completed") upd.completedAt = Timestamp.now();
+    if (status === "completed") upd.completedAt = Date.now();
     try { 
-      await updateDoc(doc(db, "tasks", id), upd); 
-      setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Timestamp.now() } : {}) } : t)); 
+      await update(ref(db, `tasks/${id}`), upd); 
+      setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Date.now() } : {}) } : t)); 
     } catch (e) { 
       console.error(e); 
     }

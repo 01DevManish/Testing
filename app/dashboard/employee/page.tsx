@@ -3,7 +3,7 @@
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { collection, getDocs, doc, updateDoc, Timestamp, query, where } from "firebase/firestore";
+import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { db } from "../../lib/firebase";
 
 interface Task {
@@ -11,7 +11,7 @@ interface Task {
   assignedTo: string; assignedToName: string; assignedToRole: string;
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
-  completedAt?: Timestamp; createdAt: Timestamp;
+  completedAt?: number; createdAt: number;
 }
 
 const roleBg: Record<string, string> = { admin: "linear-gradient(135deg,#ef4444,#f97316)", manager: "linear-gradient(135deg,#f59e0b,#fbbf24)", employee: "linear-gradient(135deg,#10b981,#34d399)", user: "linear-gradient(135deg,#3b82f6,#60a5fa)" };
@@ -63,11 +63,13 @@ export default function EmployeePage() {
     if (!user) return;
     setFetchingTasks(true);
     try { 
-      const q = query(collection(db, "tasks"), where("assignedTo", "==", user.uid));
-      const s = await getDocs(q); 
+      const q = query(ref(db, "tasks"), orderByChild("assignedTo"), equalTo(user.uid));
+      const s = await get(q); 
       const l: Task[] = []; 
-      s.forEach(d => l.push({ id: d.id, ...d.data() } as Task)); 
-      l.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); 
+      if (s.exists()) {
+        s.forEach(d => { l.push({ id: d.key as string, ...d.val() } as Task); });
+      }
+      l.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); 
       setTasks(l); 
     }
     catch (e) { console.error(e); } finally { setFetchingTasks(false); }
@@ -82,8 +84,8 @@ export default function EmployeePage() {
   const handleLogout = async () => { await logout(); router.replace("/"); };
 
   const handleTaskStatus = async (id: string, status: Task["status"]) => {
-    const upd: Record<string, unknown> = { status }; if (status === "completed") upd.completedAt = Timestamp.now();
-    try { await updateDoc(doc(db, "tasks", id), upd); setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Timestamp.now() } : {}) } : t)); } catch (e) { console.error(e); }
+    const upd: Record<string, unknown> = { status }; if (status === "completed") upd.completedAt = Date.now();
+    try { await update(ref(db, `tasks/${id}`), upd); setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Date.now() } : {}) } : t)); } catch (e) { console.error(e); }
   };
 
   const filteredTasks = taskFilter === "all" ? tasks : tasks.filter(t => t.status === taskFilter);

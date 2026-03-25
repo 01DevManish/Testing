@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { getDatabase, ref, get, set, update } from "firebase/database";
 
 // Initialize Firebase for server-side use
 const firebaseConfig = {
@@ -10,12 +10,13 @@ const firebaseConfig = {
   storageBucket: "eurus-lifestyle.firebasestorage.app",
   messagingSenderId: "678618926664",
   appId: "1:678618926664:web:b533b8985f7b96af02d27d",
-  measurementId: "G-N9EYS3V4PQ"
+  measurementId: "G-N9EYS3V4PQ",
+  databaseURL: "https://eurus-lifestyle-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
 function getDb() {
   const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  return getFirestore(app);
+  return getDatabase(app);
 }
 
 export async function GET(req: NextRequest) {
@@ -79,7 +80,7 @@ export async function GET(req: NextRequest) {
     const zohoId = zohoUser.ZUID || "";
     const zohoUid = `zoho_${zohoId || email.replace(/[^a-zA-Z0-9]/g, "_")}`;
     const isAdminEmail = email === "01devmanish@gmail.com";
-    const now = Timestamp.now();
+    const now = Date.now();
 
     const profileData = {
       uid: zohoUid,
@@ -98,10 +99,10 @@ export async function GET(req: NextRequest) {
       provider: "zoho",
     };
 
-    // ── Step 4: Store in Firestore ──
+    // ── Step 4: Store in Database ──
     const db = getDb();
-    const docRef = doc(db, "users", zohoUid);
-    const docSnap = await getDoc(docRef);
+    const docRef = ref(db, `users/${zohoUid}`);
+    const docSnap = await get(docRef);
 
     let userData: Record<string, any>;
 
@@ -115,10 +116,10 @@ export async function GET(req: NextRequest) {
         updatedAt: now,
         lastLoginAt: now,
       };
-      await setDoc(docRef, userData);
+      await set(docRef, userData);
     } else {
       // Existing user — update profile, keep role
-      const existing = docSnap.data();
+      const existing = docSnap.val();
       const updateFields: Record<string, any> = {
         name: name || existing.name,
         firstName: profileData.firstName || existing.firstName || "",
@@ -138,7 +139,7 @@ export async function GET(req: NextRequest) {
         updateFields.permissions = ["all"];
       }
 
-      await updateDoc(docRef, updateFields);
+      await update(docRef, updateFields);
       userData = { ...existing, ...updateFields };
     }
 
