@@ -42,15 +42,15 @@ export default function TasksTab({
   const TaskCard = ({ t }: { t: Task }) => (
     <div style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-        <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 14 }}>{t.title}</div>
+        <div style={{ fontWeight: 500, color: "#1e293b", fontSize: 14 }}>{t.title}</div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           <span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span>
         </div>
       </div>
       {t.description && <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8, lineHeight: 1.5 }}>{t.description}</div>}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 7, background: roleBg[t.assignedToRole] || roleBg.employee, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11, color: "#fff" }}>{t.assignedToName?.[0]?.toUpperCase() || "U"}</div>
-        <span style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>{t.assignedToName}</span>
+        <div style={{ width: 26, height: 26, borderRadius: 7, background: roleBg[t.assignedToRole] || roleBg.employee, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 500, fontSize: 11, color: "#fff" }}>{t.assignedToName?.[0]?.toUpperCase() || "U"}</div>
+        <span style={{ fontSize: 13, color: "#475569", fontWeight: 400 }}>{t.assignedToName}</span>
         <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>{statusConfig[t.status]?.label}</span>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -76,7 +76,7 @@ export default function TasksTab({
       {/* Action bar */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
-          <h2 style={{ fontSize: isMobile ? 17 : 19, fontWeight: 700, color: "#0f172a", margin: 0 }}>All Tasks</h2>
+          <h2 style={{ fontSize: isMobile ? 17 : 19, fontWeight: 500, color: "#0f172a", margin: 0 }}>All Tasks</h2>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => setShowTaskForm(!showTaskForm)} style={S.btnPrimary}>
               <span style={{ fontSize: 15 }}>{showTaskForm ? "✕" : "+"}</span>
@@ -90,7 +90,7 @@ export default function TasksTab({
         <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" as unknown as undefined }}>
           {(["all", "pending", "in-progress", "completed"] as const).map(f => (
             <button key={f} onClick={() => setTaskFilter(f)}
-              style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${taskFilter === f ? "#6366f1" : "#e2e8f0"}`, background: taskFilter === f ? "rgba(99,102,241,0.08)" : "#fff", color: taskFilter === f ? "#6366f1" : "#94a3b8", flexShrink: 0 }}>
+              style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${taskFilter === f ? "#6366f1" : "#e2e8f0"}`, background: taskFilter === f ? "rgba(99,102,241,0.08)" : "#fff", color: taskFilter === f ? "#6366f1" : "#94a3b8", flexShrink: 0 }}>
               {f === "all" ? "All" : statusConfig[f]?.label}
             </button>
           ))}

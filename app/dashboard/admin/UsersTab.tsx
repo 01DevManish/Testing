@@ -47,9 +47,9 @@ export default function UsersTab({
 
   const UserCard = ({ u }: { u: UserRecord }) => (
     <div style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12, alignItems: "flex-start" }}>
-      <div style={{ width: 40, height: 40, borderRadius: 11, background: roleBg[u.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16, color: "#fff", flexShrink: 0 }}>{u.name?.[0]?.toUpperCase() || "U"}</div>
+      <div style={{ width: 40, height: 40, borderRadius: 11, background: roleBg[u.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 500, fontSize: 16, color: "#fff", flexShrink: 0 }}>{u.name?.[0]?.toUpperCase() || "U"}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 14, marginBottom: 2 }}>{u.name}</div>
+        <div style={{ fontWeight: 500, color: "#1e293b", fontSize: 14, marginBottom: 2 }}>{u.name}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <span style={S.badge(roleColors[u.role], `${roleColors[u.role]}12`)}>{u.role}</span>
@@ -76,7 +76,7 @@ export default function UsersTab({
       {/* Action bar */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
-          <h2 style={{ fontSize: isMobile ? 17 : 19, fontWeight: 700, color: "#0f172a", margin: 0 }}>All Users</h2>
+          <h2 style={{ fontSize: isMobile ? 17 : 19, fontWeight: 500, color: "#0f172a", margin: 0 }}>All Users</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button onClick={() => setShowAddForm(!showAddForm)} style={S.btnPrimary}>
               <span style={{ fontSize: 15 }}>{showAddForm ? "✕" : "+"}</span>
@@ -102,7 +102,7 @@ export default function UsersTab({
       {/* Add Employee Form */}
       {showAddForm && (
         <div style={{ ...S.tableContainer, padding: isMobile ? 16 : 22, marginBottom: 18, animation: "fadeInUp 0.3s ease" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#0f172a" }}>Add New User</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 16px", color: "#0f172a" }}>Add New User</h3>
           {addError && (
             <div style={{ padding: "9px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 9, color: "#ef4444", fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
               <span>⚠️</span> {addError}
@@ -133,7 +133,7 @@ export default function UsersTab({
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {(["employee", "manager", "admin"] as UserRole[]).map(r => (
                 <button key={r} onClick={() => setNewEmployee({ ...newEmployee, role: r })}
-                  style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize", border: `1.5px solid ${newEmployee.role === r ? roleColors[r] : "#e2e8f0"}`, background: newEmployee.role === r ? `${roleColors[r]}15` : "transparent", color: newEmployee.role === r ? roleColors[r] : "#94a3b8" }}>
+                  style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize", border: `1.5px solid ${newEmployee.role === r ? roleColors[r] : "#e2e8f0"}`, background: newEmployee.role === r ? `${roleColors[r]}15` : "transparent", color: newEmployee.role === r ? roleColors[r] : "#94a3b8" }}>
                   {r}
                 </button>
               ))}
@@ -157,7 +157,7 @@ export default function UsersTab({
         ) : filteredUsers.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
             <p style={{ fontSize: 36, marginBottom: 6 }}>👥</p>
-            <p style={{ fontSize: 14, fontWeight: 500 }}>No users found</p>
+            <p style={{ fontSize: 14, fontWeight: 400 }}>No users found</p>
           </div>
         ) : isMobile ? (
           filteredUsers.map(u => <UserCard key={u.uid} u={u} />)
@@ -178,9 +178,9 @@ export default function UsersTab({
                   <tr key={u.uid} className="tr-hover">
                     <td style={S.td}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 9, background: roleBg[u.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0 }}>{u.name?.[0]?.toUpperCase() || "U"}</div>
+                        <div style={{ width: 34, height: 34, borderRadius: 9, background: roleBg[u.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 500, fontSize: 13, color: "#fff", flexShrink: 0 }}>{u.name?.[0]?.toUpperCase() || "U"}</div>
                         <div>
-                          <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 13 }}>{u.name}</div>
+                          <div style={{ fontWeight: 500, color: "#1e293b", fontSize: 13 }}>{u.name}</div>
                           {isTablet && <div style={{ fontSize: 11, color: "#94a3b8" }}>{u.email}</div>}
                         </div>
                       </div>
