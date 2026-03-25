@@ -3,14 +3,13 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyDZtRV7ZgsgrhwnjntaNAf0dqBUEmYtQgE",
-  authDomain: "preploner.firebaseapp.com",
-  databaseURL: "https://preploner-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "preploner",
-  storageBucket: "preploner.firebasestorage.app",
-  messagingSenderId: "104475352938",
-  appId: "1:104475352938:web:5e0a7376605bc5a0d08f13",
-  measurementId: "G-KFK5JLGWEB",
+  apiKey: "AIzaSyBZCDXLDGVCylL8mGCx6AAzp4Y2ngyd_zo",
+  authDomain: "eurus-lifestyle.firebaseapp.com",
+  projectId: "eurus-lifestyle",
+  storageBucket: "eurus-lifestyle.firebasestorage.app",
+  messagingSenderId: "678618926664",
+  appId: "1:678618926664:web:b533b8985f7b96af02d27d",
+  measurementId: "G-N9EYS3V4PQ",
 };
 
 const app = initializeApp(firebaseConfig);

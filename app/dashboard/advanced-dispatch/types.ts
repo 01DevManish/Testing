@@ -22,7 +22,7 @@ export interface DispatchLog {
 }
 
 export interface Order {
-  id: string; // Order ID e.g., ORD-1001
+  id: string;
   customer: Customer;
   products: Product[];
   paymentStatus: "Paid" | "COD";
@@ -33,4 +33,53 @@ export interface Order {
   dispatchDate?: string;
   logs: DispatchLog[];
   packedNotes?: string;
+  // Dispatch-specific fields
+  partyId?: string;
+  partyName?: string;
+  transporterId?: string;
+  transporterName?: string;
+  packagingType?: string;
+  remarks?: string;
+  bails?: number;
+  confirmedByPin?: boolean;
+}
+
+// ── New Dispatch Types ──
+
+export interface Party {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  gstin?: string;
+  createdAt?: string;
+}
+
+export interface Transporter {
+  id: string;
+  name: string;
+  phone: string;
+  vehicleType?: string;
+  createdAt?: string;
+}
+
+export type PackagingType = "Box" | "Bale" | "Carton" | "Loose" | "Custom";
+
+export interface DispatchFormData {
+  // Step 1
+  party: Party | null;
+  // Step 2
+  selectedProducts: { id: string; name: string; price: number; availableStock: number; selectedQty: number }[];
+  // Step 3
+  packagingType: PackagingType | "";
+  customPackaging?: string;
+  // Step 4
+  remarks: string;
+  // Step 5 — quantities are inside selectedProducts
+  // Step 6
+  transporter: Transporter | null;
+  // Step 7
+  bails: number;
+  // Step 8
+  pin: string;
 }

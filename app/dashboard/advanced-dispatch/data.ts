@@ -1,5 +1,8 @@
-import { Order, OrderStatus } from "./types";
+import { Order, OrderStatus, Party, Transporter } from "./types";
+import { collection, getDocs, addDoc, Timestamp } from "firebase/firestore";
+import { db } from "../../lib/firebase";
 
+// ── Mock Orders (kept for backward compat) ──
 const generateMockOrders = (): Order[] => {
   return [
     {
@@ -48,13 +51,68 @@ const generateMockOrders = (): Order[] => {
   ];
 };
 
-// In-memory mock database
 let dbOrders = generateMockOrders();
 
-// Mock API object replacing real fetch/axios
+// ── Firestore Helpers ──
+
+export const firestoreApi = {
+  // Parties
+  getParties: async (): Promise<Party[]> => {
+    try {
+      const snap = await getDocs(collection(db, "parties"));
+      const list: Party[] = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() } as Party));
+      return list;
+    } catch (e) { console.error(e); return []; }
+  },
+
+  createParty: async (party: Omit<Party, "id">): Promise<Party> => {
+    const ref = await addDoc(collection(db, "parties"), { ...party, createdAt: new Date().toISOString() });
+    return { id: ref.id, ...party };
+  },
+
+  // Transporters
+  getTransporters: async (): Promise<Transporter[]> => {
+    try {
+      const snap = await getDocs(collection(db, "transporters"));
+      const list: Transporter[] = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() } as Transporter));
+      return list;
+    } catch (e) { console.error(e); return []; }
+  },
+
+  createTransporter: async (t: Omit<Transporter, "id">): Promise<Transporter> => {
+    const ref = await addDoc(collection(db, "transporters"), { ...t, createdAt: new Date().toISOString() });
+    return { id: ref.id, ...t };
+  },
+
+  // Inventory Products
+  getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number }[]> => {
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      const list: { id: string; productName: string; price: number; stock: number }[] = [];
+      snap.forEach(d => {
+        const data = d.data();
+        list.push({ id: d.id, productName: data.productName || "", price: data.price || 0, stock: data.stock || 0 });
+      });
+      return list;
+    } catch (e) { console.error(e); return []; }
+  },
+
+  // Create Dispatch (save to Firestore)
+  createDispatch: async (dispatch: Record<string, unknown>): Promise<string> => {
+    const ref = await addDoc(collection(db, "dispatches"), {
+      ...dispatch,
+      createdAt: Timestamp.now(),
+      status: "Ready to Print",
+    });
+    return ref.id;
+  },
+};
+
+// ── Mock API (existing) ──
 export const api = {
   getOrders: async (): Promise<Order[]> => {
-    // simulated network delay
     return new Promise(resolve => setTimeout(() => resolve([...dbOrders]), 300));
   },
 
@@ -72,17 +130,9 @@ export const api = {
       setTimeout(() => {
         const index = dbOrders.findIndex(o => o.id === id);
         if (index === -1) return reject(new Error("Order not found"));
-        
         const existing = dbOrders[index];
         const newLog = { status: newStatus, timestamp: new Date().toISOString(), user, note: updates.packedNotes };
-        
-        dbOrders[index] = {
-          ...existing,
-          ...updates,
-          status: newStatus,
-          logs: [...existing.logs, newLog]
-        };
-        
+        dbOrders[index] = { ...existing, ...updates, status: newStatus, logs: [...existing.logs, newLog] };
         resolve({ ...dbOrders[index] });
       }, 400);
     });
@@ -93,10 +143,8 @@ export const api = {
       setTimeout(() => {
         const index = dbOrders.findIndex(o => o.id === orderId);
         if (index === -1) return reject(new Error("Order not found"));
-        
         const existing = dbOrders[index];
         const updatedProducts = existing.products.map(p => p.id === productId ? { ...p, packed } : p);
-        
         dbOrders[index] = { ...existing, products: updatedProducts };
         resolve({ ...dbOrders[index] });
       }, 100);
@@ -115,7 +163,7 @@ export const api = {
           logs: [{ status: "Pending", timestamp: new Date().toISOString(), user: "Admin", note: "Imported into dispatch system" }],
           ...newOrder
         };
-        dbOrders.unshift(order); // Add to beginning
+        dbOrders.unshift(order);
         resolve(order);
       }, 300);
     });
