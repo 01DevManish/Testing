@@ -23,6 +23,15 @@ export const firestoreApi = {
     return { id: newRef.key as string, ...party };
   },
 
+  deleteParty: async (id: string): Promise<void> => {
+    try {
+      await remove(ref(db, `parties/${id}`));
+    } catch (e) {
+      console.error("Failed to delete party:", e);
+      throw e;
+    }
+  },
+
   // Transporters
   getTransporters: async (): Promise<Transporter[]> => {
     try {

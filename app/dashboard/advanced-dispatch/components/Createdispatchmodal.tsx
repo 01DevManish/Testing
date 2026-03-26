@@ -90,6 +90,9 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
     const [dispatchRef] = useState(dispatchId());
     const printRef = useRef<HTMLDivElement>(null);
 
+    // Delete Party Confirmation
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
     // Filter search
     const [partySearch, setPartySearch] = useState("");
     const [productSearch, setProductSearch] = useState("");
@@ -206,6 +209,20 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
         } catch (e) {
             console.error(e);
             setPinError("Failed to save dispatch to database.");
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function handleDeleteParty(id: string) {
+        setIsSaving(true);
+        try {
+            await firestoreApi.deleteParty(id);
+            setDbParties(prev => prev.filter(p => p.id !== id));
+            if (form.party?.id === id) setForm(f => ({ ...f, party: null }));
+            setDeleteConfirmId(null);
+        } catch (e) {
+            alert("Failed to delete party.");
         } finally {
             setIsSaving(false);
         }
@@ -392,14 +409,35 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                             <input value={partySearch} onChange={e => setPartySearch(e.target.value)} style={inputStyle} placeholder="Search parties..." />
                                             <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredParties.map(p => (
-                                                    <div key={p.id} onClick={() => setForm(f => ({ ...f, party: p }))}
-                                                        style={{ ...listItem, background: form.party?.id === p.id ? "#ede9fe" : "#fff", borderColor: form.party?.id === p.id ? "#818cf8" : "#e2e8f0" }}>
+                                                    <div key={p.id} 
+                                                        style={{ ...listItem, background: form.party?.id === p.id ? "#ede9fe" : "#fff", borderColor: form.party?.id === p.id ? "#818cf8" : "#e2e8f0", position: "relative" }}>
                                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                            <div>
+                                                            <div onClick={() => setForm(f => ({ ...f, party: p }))} style={{ flex: 1, cursor: "pointer" }}>
                                                                 <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
                                                                 <div style={{ fontSize: 12, color: "#64748b" }}>{p.city || p.address || "No city"} {p.gst || p.gstin ? `· GST: ${p.gst || p.gstin}` : ""}</div>
                                                             </div>
-                                                            {form.party?.id === p.id && <span style={{ color: "#6366f1", fontWeight: 800, fontSize: 18 }}>✓</span>}
+                                                            
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                                {deleteConfirmId === p.id ? (
+                                                                    <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#fee2e2", padding: "4px 8px", borderRadius: 8, border: "1px solid #fecaca" }}>
+                                                                        <span style={{ fontSize: 10, fontWeight: 700, color: "#991b1b" }}>Delete?</span>
+                                                                        <button onClick={() => handleDeleteParty(p.id)} style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer", fontWeight: 700 }}>Yes</button>
+                                                                        <button onClick={() => setDeleteConfirmId(null)} style={{ background: "#94a3b8", color: "#fff", border: "none", borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer", fontWeight: 700 }}>No</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id); }}
+                                                                        style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: 6, transition: "color 0.2s" }}
+                                                                        onMouseOver={e => e.currentTarget.style.color = "#ef4444"}
+                                                                        onMouseOut={e => e.currentTarget.style.color = "#94a3b8"}
+                                                                    >
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
+                                                                        </svg>
+                                                                    </button>
+                                                                )}
+                                                                {form.party?.id === p.id && <span style={{ color: "#6366f1", fontWeight: 800, fontSize: 18 }}>✓</span>}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
