@@ -57,11 +57,11 @@ function LoginContent() {
     width: "100%",
     padding: "13px 16px",
     background: "rgba(255, 255, 255, 0.05)",
-    border: "1.5px solid rgba(255, 255, 255, 0.1)",
+    border: "1.5px solid rgba(255, 255, 255, 0.08)",
     borderRadius: 12,
     fontSize: 14,
     fontFamily: "inherit",
-    color: "#fff",
+    color: "#e2e8f0",
     outline: "none",
     transition: "all 0.2s ease",
     boxSizing: "border-box" as const,
@@ -87,7 +87,7 @@ function LoginContent() {
         borderRadius: 24,
         padding: "50px 40px",
         boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        border: "1px solid rgba(255,255,255,0.06)",
         textAlign: "center",
       }}>
         {/* Logo */}
@@ -96,14 +96,14 @@ function LoginContent() {
             src="/logo.png"
             alt="EURUS LIFESTYLE"
             style={{
-              width: 90,
-              height: 90,
+              width: 80,
+              height: 80,
               objectFit: "contain",
-              borderRadius: 20,
+              borderRadius: 18,
               margin: "0 auto",
               display: "block",
               background: "#fff",
-              border: "4px solid rgba(255, 255, 255, 0.1)",
+              border: "4px solid rgba(255, 255, 255, 0.05)",
               padding: 4,
             }}
           />
@@ -112,16 +112,16 @@ function LoginContent() {
         {/* Company Name */}
         <h1 style={{
           fontSize: 22,
-          fontWeight: 700,
+          fontWeight: 500,
           color: "#fff",
           margin: "0 0 4px",
-          letterSpacing: "0.08em",
+          letterSpacing: "0.1em",
           lineHeight: 1.2,
           textTransform: "uppercase",
         }}>
           EURUS LIFESTYLE
         </h1>
-        <p style={{ fontSize: 13, color: "#818cf8", fontWeight: 600, marginBottom: 32, textTransform: "uppercase", letterSpacing: "0.1em" }}>Control Panel Login</p>
+        <p style={{ fontSize: 13, color: "#818cf8", fontWeight: 400, marginBottom: 32, textTransform: "uppercase", letterSpacing: "0.05em" }}>ERP Control Panel</p>
 
         {/* Error */}
         {error && (
@@ -138,6 +138,7 @@ function LoginContent() {
             gap: 10,
             textAlign: "left",
           }}>
+            <span style={{ fontSize: 16 }}>⚠️</span>
             <span style={{ flex: 1, fontWeight: 400 }}>{error}</span>
             <button onClick={clearError} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 16 }}>✕</button>
           </div>
@@ -146,7 +147,7 @@ function LoginContent() {
         {/* Email/Password Form */}
         <form onSubmit={handleEmailLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.1em" }}>Official Email</label>
+            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
             <input
               type="email"
               placeholder="name@euruslifestyle.in"
@@ -154,12 +155,12 @@ function LoginContent() {
               onChange={e => setEmail(e.target.value)}
               style={inputStyle}
               onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+              onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
               required
             />
           </div>
           <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.1em" }}>Security Password</label>
+            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Security Password</label>
             <div style={{ position: "relative" }}>
               <input
                 type={showPassword ? "text" : "password"}
@@ -168,13 +169,13 @@ function LoginContent() {
                 onChange={e => setPassword(e.target.value)}
                 style={{ ...inputStyle, paddingRight: 44 }}
                 onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-                onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 400, textTransform: "uppercase" }}
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
@@ -186,21 +187,21 @@ function LoginContent() {
             style={{
               width: "100%",
               padding: "15px 20px",
-              background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+              background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
               border: "none",
               borderRadius: 12,
               fontSize: 14,
-              fontWeight: 700,
+              fontWeight: 500,
               color: "#fff",
               cursor: emailLoading ? "wait" : "pointer",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              transition: "all 0.2s ease",
               opacity: emailLoading ? 0.7 : 1,
               marginTop: 10,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 10,
-              boxShadow: "0 10px 20px -5px rgba(99,102,241,0.4)",
+              boxShadow: "0 10px 20px rgba(0,0,0,0.2)",
               letterSpacing: "0.05em",
             }}
           >
