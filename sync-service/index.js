@@ -7,7 +7,7 @@ const serviceAccount = require('./service-account.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://eurus-lifestyle-default-rtdb.firebaseio.com" 
+  databaseURL: process.env.FIREBASE_DB_URL || "https://eurus-lifestyle-default-rtdb.firebaseio.com"
 });
 
 const db = admin.database();
