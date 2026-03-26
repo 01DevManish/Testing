@@ -42,6 +42,8 @@ export interface Order {
   remarks?: string;
   bails?: number;
   confirmedByPin?: boolean;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 // ── New Dispatch Types ──
@@ -83,3 +85,8 @@ export interface DispatchFormData {
   // Step 8
   pin: string;
 }
+
+export const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
+
+export type ActiveView = "overview" | "create-dispatch" | "order-list" | "add-order" | "scanner";
+

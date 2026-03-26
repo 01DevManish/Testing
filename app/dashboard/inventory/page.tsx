@@ -25,7 +25,7 @@ import { FONT } from "./types";
 
 // ── Edit Product modal (lightweight wrapper) ──────────────────
 import { Input, Textarea, Select, FormField, BtnPrimary, BtnGhost } from "./ui";
-import { CATEGORIES, UNITS, GST_RATES, STATUS_CONFIG } from "./types";
+import { UNITS, GST_RATES, STATUS_CONFIG } from "./types";
 
 // ── Responsive hook ───────────────────────────────────────────
 function useWindowWidth() {
@@ -166,6 +166,7 @@ export default function InventoryPage() {
       case "product-create":
         return (
           <CreateProduct 
+            categories={categories}
             onCreated={() => { 
                 loadAll(); 
                 setActiveView("product-list"); 
@@ -176,6 +177,7 @@ export default function InventoryPage() {
         return (
           <ProductList
             products={products}
+            categories={categories}
             loading={fetching}
             isAdminOrManager={isAdminOrManager}
             onEdit={openEdit}
@@ -286,11 +288,11 @@ export default function InventoryPage() {
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 20px", fontFamily: FONT }}>Edit Product</h3>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <FormField label="Product Name" required><Input value={editForm.productName} onChange={e => setEditForm({ ...editForm, productName: e.target.value })} /></FormField>
+              <FormField label="Item Name" required><Input value={editForm.productName} onChange={e => setEditForm({ ...editForm, productName: e.target.value })} /></FormField>
               <FormField label="SKU" required><Input value={editForm.sku} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} /></FormField>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <FormField label="Category"><Select value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}><option value="">Select...</option>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</Select></FormField>
+              <FormField label="Category"><Select value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}><option value="">Select...</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
               <FormField label="Brand"><Input value={editForm.brand} onChange={e => setEditForm({ ...editForm, brand: e.target.value })} /></FormField>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
@@ -304,8 +306,8 @@ export default function InventoryPage() {
               <FormField label="Unit"><Select value={editForm.unit} onChange={e => setEditForm({ ...editForm, unit: e.target.value })}>{UNITS.map(u => <option key={u}>{u}</option>)}</Select></FormField>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <FormField label="HSN Code"><Input placeholder="e.g. 6205" value={editForm.hsnCode} onChange={e => setEditForm({ ...editForm, hsnCode: e.target.value })} /></FormField>
-              <FormField label="Image URL"><Input type="url" placeholder="https://..." value={editForm.imageUrl} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} /></FormField>
+              <FormField label="HSN Code"><Input value={editForm.hsnCode} onChange={e => setEditForm({ ...editForm, hsnCode: e.target.value })} /></FormField>
+              <FormField label="Image URL"><Input type="url" value={editForm.imageUrl} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} /></FormField>
               <FormField label="Status">
                 <Select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value as Product["status"] })}>
                   <option value="active">Active</option>

@@ -1,59 +1,8 @@
 import { Order, OrderStatus, Party, Transporter } from "./types";
-import { ref, get, push, set } from "firebase/database";
+import { ref, get, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 
-// ── Mock Orders (kept for backward compat) ──
-const generateMockOrders = (): Order[] => {
-  return [
-    {
-      id: "ORD-1001",
-      customer: { name: "John Doe", phone: "+91-9876543210", address: "123 Cyber St, Neo City" },
-      paymentStatus: "Paid",
-      status: "Pending",
-      products: [
-        { id: "P1", name: "Wireless Mouse", quantity: 2, price: 49.99, packed: false },
-        { id: "P2", name: "Mechanical Keyboard", quantity: 1, price: 129.99, packed: false }
-      ],
-      logs: [{ status: "Pending", timestamp: new Date(Date.now() - 86400000).toISOString(), user: "System" }]
-    },
-    {
-      id: "ORD-1002",
-      customer: { name: "Jane Smith", phone: "+91-8877665544", address: "456 Tech Park, Silicon Valley" },
-      paymentStatus: "COD",
-      status: "Packed",
-      packedNotes: "Fragile items, packed with extra bubble wrap.",
-      products: [
-        { id: "P3", name: "4K Monitor", quantity: 1, price: 299.99, packed: true }
-      ],
-      logs: [
-        { status: "Pending", timestamp: new Date(Date.now() - 172800000).toISOString(), user: "System" },
-        { status: "Packed", timestamp: new Date(Date.now() - 86400000).toISOString(), user: "Admin", note: "Fragile items, packed with extra bubble wrap." }
-      ]
-    },
-    {
-      id: "ORD-1003",
-      customer: { name: "Alice Johnson", phone: "+91-7766554433", address: "789 Cloud Way, Server Town" },
-      paymentStatus: "Paid",
-      status: "Dispatched",
-      courierPartner: "Delhivery",
-      trackingId: "DLV123456789AWB",
-      shippingType: "Air",
-      dispatchDate: new Date().toISOString().split('T')[0],
-      products: [
-        { id: "P4", name: "USB-C Hub", quantity: 3, price: 25.00, packed: true }
-      ],
-      logs: [
-        { status: "Pending", timestamp: new Date(Date.now() - 259200000).toISOString(), user: "System" },
-        { status: "Packed", timestamp: new Date(Date.now() - 172800000).toISOString(), user: "Admin" },
-        { status: "Dispatched", timestamp: new Date(Date.now() - 86400000).toISOString(), user: "Manager" }
-      ]
-    }
-  ];
-};
-
-let dbOrders = generateMockOrders();
-
-// ── Firestore Helpers ──
+// ── Firebase API for Dispatch ──
 
 export const firestoreApi = {
   // Parties
@@ -92,89 +41,158 @@ export const firestoreApi = {
     return { id: newRef.key as string, ...t };
   },
 
-  // Inventory Products
-  getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number }[]> => {
+  // Inventory - Fetch real items from inventory node
+  getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number; sku?: string; unit?: string }[]> => {
     try {
-      const snap = await get(ref(db, "products"));
-      const list: { id: string; productName: string; price: number; stock: number }[] = [];
+      const snap = await get(ref(db, "inventory"));
+      const list: { id: string; productName: string; price: number; stock: number; sku?: string; unit?: string }[] = [];
       if (snap.exists()) {
         snap.forEach(d => {
           const data = d.val();
-          list.push({ id: d.key as string, productName: data.productName || "", price: data.price || 0, stock: data.stock || 0 });
+          list.push({ 
+            id: d.key as string, 
+            productName: data.productName || "Unknown", 
+            price: data.price || 0, 
+            stock: data.stock || 0,
+            sku: data.sku || "N/A",
+            unit: data.unit || "PCS"
+          });
         });
       }
       return list;
     } catch (e) { console.error(e); return []; }
   },
 
-  // Create Dispatch (save to Realtime DB)
-  createDispatch: async (dispatch: Record<string, unknown>): Promise<string> => {
-    const newRef = push(ref(db, "dispatches"));
-    await set(newRef, {
-      ...dispatch,
-      createdAt: Date.now(),
-      status: "Ready to Print",
-    });
-    return newRef.key as string;
-  },
+  // Atomic Stock Deduction & Status Update
+  deductStock: async (productId: string, quantityToDeduct: number): Promise<boolean> => {
+    try {
+      const productRef = ref(db, `inventory/${productId}`);
+      const snap = await get(productRef);
+      
+      if (snap.exists()) {
+        const productData = snap.val();
+        const currentStock = Number(productData.stock) || 0;
+        const minStock = Number(productData.minStock) || 5;
+        const newStock = Math.max(0, currentStock - quantityToDeduct);
+        
+        // Auto-calculate new status
+        let newStatus = productData.status || "active";
+        if (newStatus === "active" || newStatus === "low-stock" || newStatus === "out-of-stock") {
+          if (newStock <= 0) newStatus = "out-of-stock";
+          else if (newStock <= minStock) newStatus = "low-stock";
+          else newStatus = "active";
+        }
+
+        await update(productRef, { 
+          stock: newStock, 
+          status: newStatus,
+          updatedAt: Date.now() 
+        });
+        
+        console.log(`Deducted ${quantityToDeduct} from ${productId}. New stock: ${newStock}, Status: ${newStatus}`);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Failed to deduct stock:", e);
+      return false;
+    }
+  }
 };
 
-// ── Mock API (existing) ──
 export const api = {
   getOrders: async (): Promise<Order[]> => {
-    return new Promise(resolve => setTimeout(() => resolve([...dbOrders]), 300));
+    try {
+      const snap = await get(ref(db, "dispatches"));
+      const list: Order[] = [];
+      if (snap.exists()) {
+        snap.forEach(d => { list.push({ id: d.key as string, ...d.val() } as Order); });
+      }
+      return list.sort((a,b) => {
+        const dateA = a.logs?.[a.logs.length - 1]?.timestamp || a.dispatchDate || "";
+        const dateB = b.logs?.[b.logs.length - 1]?.timestamp || b.dispatchDate || "";
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+    } catch (e) { console.error(e); return []; }
   },
 
   getOrderById: async (id: string): Promise<Order | null> => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const order = dbOrders.find(o => o.id === id);
-        resolve(order ? { ...order } : null);
-      }, 200);
-    });
+    try {
+      const snap = await get(ref(db, `dispatches/${id}`));
+      if (snap.exists()) {
+        return { id: snap.key as string, ...snap.val() } as Order;
+      }
+      return null;
+    } catch (e) { console.error(e); return null; }
   },
 
   updateOrderStatus: async (id: string, newStatus: OrderStatus, user: string, updates: Partial<Order> = {}): Promise<Order> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const index = dbOrders.findIndex(o => o.id === id);
-        if (index === -1) return reject(new Error("Order not found"));
-        const existing = dbOrders[index];
-        const newLog = { status: newStatus, timestamp: new Date().toISOString(), user, note: updates.packedNotes };
-        dbOrders[index] = { ...existing, ...updates, status: newStatus, logs: [...existing.logs, newLog] };
-        resolve({ ...dbOrders[index] });
-      }, 400);
-    });
+    try {
+      const orderRef = ref(db, `dispatches/${id}`);
+      const snap = await get(orderRef);
+      if (!snap.exists()) throw new Error("Order not found");
+      
+      const existing = snap.val();
+      const newLog = { status: newStatus, timestamp: new Date().toISOString(), user, note: updates.packedNotes };
+      const updatedLogs = existing.logs ? [...existing.logs, newLog] : [newLog];
+      
+      const updatedOrder = { ...existing, ...updates, status: newStatus, logs: updatedLogs, updatedAt: Date.now() };
+      await set(orderRef, updatedOrder);
+      return { id, ...updatedOrder } as Order;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   },
 
   markItemPacked: async (orderId: string, productId: string, packed: boolean): Promise<Order> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const index = dbOrders.findIndex(o => o.id === orderId);
-        if (index === -1) return reject(new Error("Order not found"));
-        const existing = dbOrders[index];
-        const updatedProducts = existing.products.map(p => p.id === productId ? { ...p, packed } : p);
-        dbOrders[index] = { ...existing, products: updatedProducts };
-        resolve({ ...dbOrders[index] });
-      }, 100);
-    });
+    try {
+      const orderRef = ref(db, `dispatches/${orderId}`);
+      const snap = await get(orderRef);
+      if (!snap.exists()) throw new Error("Order not found");
+      
+      const existing = snap.val();
+      const updatedProducts = existing.products?.map((p: any) => p.id === productId ? { ...p, packed } : p) || [];
+      
+      await update(orderRef, { products: updatedProducts });
+      return { id: orderId, ...existing, products: updatedProducts } as Order;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   },
 
   createOrder: async (newOrder: Partial<Order>): Promise<Order> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const order: Order = {
-          id: newOrder.id || `ORD-${Math.floor(Math.random() * 10000)}`,
-          customer: newOrder.customer || { name: "Unknown", phone: "", address: "" },
-          paymentStatus: newOrder.paymentStatus || "Paid",
-          status: newOrder.status || "Pending",
-          products: newOrder.products || [],
-          logs: [{ status: "Pending", timestamp: new Date().toISOString(), user: "Admin", note: "Imported into dispatch system" }],
-          ...newOrder
-        };
-        dbOrders.unshift(order);
-        resolve(order);
-      }, 300);
-    });
+    try {
+      const orderId = newOrder.id || `ORD-${Math.floor(Math.random() * 10000)}`;
+      const orderRef = ref(db, `dispatches/${orderId}`);
+      
+      const order: Order = {
+        id: orderId,
+        customer: newOrder.customer || { name: "Unknown", phone: "", address: "" },
+        paymentStatus: newOrder.paymentStatus || "Paid",
+        status: newOrder.status || "Pending",
+        products: newOrder.products || [],
+        logs: [{ status: "Pending", timestamp: new Date().toISOString(), user: "Admin", note: "Imported into dispatch system" }],
+        ...newOrder,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      
+      await set(orderRef, order);
+      return order;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  deleteOrder: async (orderId: string): Promise<void> => {
+    try {
+      await remove(ref(db, `dispatches/${orderId}`));
+    } catch (e) {
+      console.error("Failed to delete order:", e);
+      throw e;
+    }
   }
 };

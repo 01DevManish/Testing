@@ -17,6 +17,7 @@ interface UserData {
   name: string;
   role: UserRole;
   permissions?: string[];
+  dispatchPin?: string;
 }
 
 interface AuthContextType {
@@ -96,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const freshData = snap.val() as UserData;
             localStorage.setItem(SESSION_KEY, JSON.stringify(freshData));
             setUser(freshData);
+          } else {
+            // User exists in Auth but not in RTDB (deleted by admin)
+            console.warn("User record missing in RTDB. Logging out.");
+            logout();
           }
         } catch (err) {
           console.warn("Firestore sync on auth state change failed:", err);
@@ -210,23 +215,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (snap.exists()) {
           userData = snap.val() as UserData;
         } else {
-          userData = {
-            uid: eUser.uid,
-            email: eUser.email || email,
-            name: eUser.displayName || email.split("@")[0],
-            role: "employee",
-            permissions: [],
-          };
+          // User deleted by admin
+          await fbAuth.signOut();
+          setError("Your account has been deactivated by an administrator.");
+          setLoading(false);
+          return;
         }
-      } catch {
-        // Firestore offline — use basic data, permissions will sync later via onAuthStateChanged
-        userData = {
-          uid: eUser.uid,
-          email: eUser.email || email,
-          name: eUser.displayName || email.split("@")[0],
-          role: "employee",
-          permissions: [],
-        };
+      } catch (err) {
+        console.error("Critical: Could not verify user record in RTDB.", err);
+        await fbAuth.signOut();
+        setError("Account verification failed. Please contact support.");
+        setLoading(false);
+        return;
       }
 
       localStorage.setItem(SESSION_KEY, JSON.stringify(userData));

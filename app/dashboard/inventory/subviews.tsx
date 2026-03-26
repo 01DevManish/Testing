@@ -37,12 +37,12 @@ export function CreateCategory({ onCreated }: { onCreated?: (c: Category) => voi
             <Card style={{ maxWidth: 520 }}>
                 <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
                     <FormField label="Category Name" required>
-                        <Input placeholder="e.g. Clothing" value={name} onChange={e => { setName(e.target.value); setError(""); }}
+                        <Input value={name} onChange={e => { setName(e.target.value); setError(""); }}
                             style={error ? { borderColor: "#ef4444" } : {}} />
                         {error && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{error}</div>}
                     </FormField>
                     <FormField label="Description">
-                        <Textarea placeholder="Optional description..." value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
+                        <Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
                     </FormField>
                     <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
                         <BtnGhost onClick={() => { setName(""); setDesc(""); setError(""); }}>Reset</BtnGhost>
@@ -139,12 +139,12 @@ export function CreateCollection({ products, onCreated }: { products: { id: stri
                 <Card>
                     <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
                         <FormField label="Collection Name" required>
-                            <Input placeholder="e.g. Summer 2025" value={name} onChange={e => { setName(e.target.value); setError(""); }}
+                            <Input value={name} onChange={e => { setName(e.target.value); setError(""); }}
                                 style={error ? { borderColor: "#ef4444" } : {}} />
                             {error && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{error}</div>}
                         </FormField>
                         <FormField label="Description">
-                            <Textarea placeholder="Optional..." value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
+                            <Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
                         </FormField>
                         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                             <BtnGhost onClick={() => { setName(""); setDesc(""); setSelected(new Set()); setError(""); }}>Reset</BtnGhost>
@@ -158,7 +158,6 @@ export function CreateCollection({ products, onCreated }: { products: { id: stri
                             Add Products ({selected.size} selected)
                         </div>
                         <Input 
-                            placeholder="Search products..." 
                             value={search} 
                             onChange={e => setSearch(e.target.value)}
                             style={{ marginBottom: 12, height: 36, fontSize: 12 }}
@@ -266,12 +265,12 @@ export function CreateItemGroup({ products, onCreated }: { products: { id: strin
                 <Card>
                     <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
                         <FormField label="Group Name" required>
-                            <Input placeholder="e.g. Seasonal Items" value={name} onChange={e => { setName(e.target.value); setError(""); }}
+                            <Input value={name} onChange={e => { setName(e.target.value); setError(""); }}
                                 style={error ? { borderColor: "#ef4444" } : {}} />
                             {error && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{error}</div>}
                         </FormField>
                         <FormField label="Description">
-                            <Textarea placeholder="Optional..." value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
+                            <Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
                         </FormField>
                         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                             <BtnGhost onClick={() => { setName(""); setDesc(""); setSelected(new Set()); setError(""); }}>Reset</BtnGhost>
@@ -285,7 +284,6 @@ export function CreateItemGroup({ products, onCreated }: { products: { id: strin
                             Add Items ({selected.size} selected)
                         </div>
                         <Input 
-                            placeholder="Search items..." 
                             value={search} 
                             onChange={e => setSearch(e.target.value)}
                             style={{ marginBottom: 12, height: 36, fontSize: 12 }}
@@ -428,7 +426,7 @@ export function InventoryAdjustment({ products, collections, onDone }: { product
             <Card style={{ marginBottom: 20 }}>
                 <div style={{ padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                     <div style={{ flex: 1, minWidth: 200 }}>
-                        <Input placeholder="Search product by name or SKU..." value={search} onChange={e => setSearch(e.target.value)} />
+                        <Input value={search} onChange={e => setSearch(e.target.value)} />
                     </div>
                     <select value={filterCol} onChange={e => setFilterCol(e.target.value)} style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Collections</option>
@@ -792,7 +790,6 @@ export function Overview({ products }: { products: Product[] }) {
                             <div style={{ display: "flex", gap: 8, flex: 1, maxWidth: 450, justifyContent: "flex-end" }}>
                                 <input
                                     type="text"
-                                    placeholder="Search product or SKU..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, fontFamily: FONT, outline: "none", flex: 1 }}

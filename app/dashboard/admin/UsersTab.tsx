@@ -132,7 +132,7 @@ export default function UsersTab({
             <label style={{ ...S.label, margin: 0, flexShrink: 0 }}>Role:</label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {(["employee", "manager", "admin"] as UserRole[]).map(r => (
-                <button key={r} onClick={() => setNewEmployee({ ...newEmployee, role: r })}
+                <button key={r} onClick={() => setNewEmployee({ ...newEmployee, role: r, permissions: r === "admin" ? ["dispatch", "inventory", "reports", "settings"] : newEmployee.permissions })}
                   style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize", border: `1.5px solid ${newEmployee.role === r ? roleColors[r] : "#e2e8f0"}`, background: newEmployee.role === r ? `${roleColors[r]}15` : "transparent", color: newEmployee.role === r ? roleColors[r] : "#94a3b8" }}>
                   {r}
                 </button>

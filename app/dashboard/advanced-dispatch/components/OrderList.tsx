@@ -1,4 +1,8 @@
+"use client";
+
+import React from "react";
 import { Order, OrderStatus } from "../types";
+import { Card, Badge, BtnGhost, PageHeader, Spinner, Input, Select } from "./ui";
 
 interface OrderListProps {
   orders: Order[];
@@ -7,17 +11,25 @@ interface OrderListProps {
   setSearchQuery: (q: string) => void;
   filterStatus: OrderStatus | "All";
   setFilterStatus: (s: OrderStatus | "All") => void;
+  onRefresh?: () => void;
+  loading?: boolean;
+  onDeleteOrder?: (id: string) => void;
 }
 
-const statusColors: Record<OrderStatus, string> = {
-  "Pending": "bg-yellow-100 text-yellow-800 border-yellow-200",
-  "Packed": "bg-blue-100 text-blue-800 border-blue-200",
-  "Dispatched": "bg-indigo-100 text-indigo-800 border-indigo-200",
-  "In Transit": "bg-purple-100 text-purple-800 border-purple-200",
-  "Delivered": "bg-green-100 text-green-800 border-green-200",
+const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
+
+const statusConfig: Record<OrderStatus, { label: string; color: string; bg: string }> = {
+  "Pending": { label: "Pending", color: "#f59e0b", bg: "#fefce8" },
+  "Packed": { label: "Packed", color: "#3b82f6", bg: "#eff6ff" },
+  "Dispatched": { label: "Dispatched", color: "#6366f1", bg: "#eef2ff" },
+  "In Transit": { label: "In Transit", color: "#8b5cf6", bg: "#f5f3ff" },
+  "Delivered": { label: "Delivered", color: "#10b981", bg: "#ecfdf5" },
 };
 
-export default function OrderList({ orders, onSelectOrder, searchQuery, setSearchQuery, filterStatus, setFilterStatus }: OrderListProps) {
+export default function OrderList({ 
+  orders, onSelectOrder, searchQuery, setSearchQuery, 
+  filterStatus, setFilterStatus, onRefresh, loading, onDeleteOrder 
+}: OrderListProps) {
   
   const filtered = orders.filter(o => {
     const matchSearch = o.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -26,84 +38,117 @@ export default function OrderList({ orders, onSelectOrder, searchQuery, setSearc
     return matchSearch && matchStatus;
   });
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-full">
-      <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-800">Recent Orders</h2>
-        
-        <div className="flex gap-3 w-full sm:w-auto">
-          <input 
-            type="text" 
-            placeholder="Search ID or Name..." 
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-          />
-          <select 
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value as any)}
-            className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-          >
-            <option value="All">All Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Packed">Packed</option>
-            <option value="Dispatched">Dispatched</option>
-            <option value="In Transit">In Transit</option>
-            <option value="Delivered">Delivered</option>
-          </select>
-        </div>
-      </div>
+  const th: React.CSSProperties = {
+    padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 600,
+    textTransform: "uppercase", letterSpacing: "0.07em", color: "#94a3b8",
+    borderBottom: "1px solid #e2e8f0", background: "#fafbfc",
+    userSelect: "none", whiteSpace: "nowrap", fontFamily: FONT,
+  };
+  const td: React.CSSProperties = {
+    padding: "12px 14px", fontSize: 13, color: "#475569",
+    borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", fontFamily: FONT,
+  };
 
-      <div className="overflow-y-auto flex-1 p-0">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-white sticky top-0 z-10 shadow-sm">
-            <tr>
-              <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">Order ID</th>
-              <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">Customer</th>
-              <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">Items</th>
-              <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">Status</th>
-              <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50 text-sm">
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="py-12 text-center text-gray-400">
-                  <div className="text-4xl mb-3">📦</div>
-                  <p>No orders found matching your criteria.</p>
-                </td>
-              </tr>
-            ) : filtered.map(order => (
-              <tr 
-                key={order.id} 
-                className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
-                onClick={() => onSelectOrder(order)}
-              >
-                <td className="py-4 px-4 font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{order.id}</td>
-                <td className="py-4 px-4">
-                  <div className="font-medium text-gray-800">{order.customer.name}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{order.customer.phone}</div>
-                </td>
-                <td className="py-4 px-4 text-gray-600 font-medium">
-                  {order.products.reduce((acc, p) => acc + p.quantity, 0)} items
-                </td>
-                <td className="py-4 px-4">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${statusColors[order.status]}`}>
-                    {order.status}
-                  </span>
-                </td>
-                <td className="py-4 px-4 text-right">
-                  <button 
-                    className="text-blue-600 hover:text-blue-800 font-semibold text-sm bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition-colors"
-                  >
-                    View Details
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+  return (
+    <div>
+      <PageHeader title="All Dispatches" sub={`${filtered.length} dispatches found`}>
+        <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>↻ Refresh</BtnGhost>
+      </PageHeader>
+
+      <Card>
+        {/* Filters bar exactly like Inventory */}
+        <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 9, marginBottom: 10 }}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ color: "#94a3b8", flexShrink: 0 }}>
+              <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M9 9L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <input 
+              type="text" 
+              placeholder="Search by Order ID or Customer..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT }} 
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+             <select 
+                value={filterStatus} 
+                onChange={e => setFilterStatus(e.target.value as any)}
+                style={{ padding: "6px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none" }}
+             >
+                <option value="All">All Statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="Packed">Packed</option>
+                <option value="Dispatched">Dispatched</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Delivered">Delivered</option>
+             </select>
+             
+             {(["All", "Pending", "Packed", "Dispatched"] as const).map(f => (
+                <button key={f} onClick={() => setFilterStatus(f)}
+                    style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
+                    {f}
+                </button>
+             ))}
+          </div>
+        </div>
+
+        {loading ? <Spinner /> : filtered.length === 0 ? (
+          <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>
+             <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+             <p style={{ fontSize: 14 }}>No dispatches found.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+              <thead>
+                <tr>
+                  <th style={th}>Order ID</th>
+                  <th style={th}>Customer</th>
+                  <th style={th}>Items</th>
+                  <th style={th}>Status</th>
+                  <th style={{ ...th, textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(order => {
+                  const sc = statusConfig[order.status] || statusConfig.Pending;
+                  return (
+                    <tr key={order.id} style={{ background: "#fff" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+                      <td style={td}><span style={{ fontWeight: 700, color: "#1e293b" }}>{order.id}</span></td>
+                      <td style={td}>
+                         <div style={{ fontWeight: 600, color: "#1e293b" }}>{order.customer.name}</div>
+                         <div style={{ fontSize: 11, color: "#94a3b8" }}>{order.customer.phone}</div>
+                      </td>
+                      <td style={td}>
+                         <div style={{ fontWeight: 600 }}>{order.products.reduce((acc, p) => acc + p.quantity, 0)} items</div>
+                      </td>
+                      <td style={td}>
+                         <Badge color={sc.color} bg={sc.bg}>{sc.label}</Badge>
+                      </td>
+                      <td style={{ ...td, textAlign: "right" }}>
+                         <div style={{ display: "flex", gap: 5, justifyContent: "flex-end" }}>
+                           <BtnGhost onClick={() => onSelectOrder(order)} style={{ padding: "5px 10px", fontSize: 12 }}>View</BtnGhost>
+                           <button 
+                             onClick={() => { if(confirm("Delete this dispatch record permanently?")) onDeleteOrder?.(order.id); }}
+                             style={{ padding: "5px 10px", background: "rgba(239,68,68,0.07)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}
+                           >
+                             Del
+                           </button>
+                         </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import { ref, push, set as rtdbSet } from "firebase/database";
 import { db } from "../../lib/firebase";
 import {
-    FONT, CATEGORIES, UNITS, GST_RATES, Product,
+    FONT, UNITS, GST_RATES, Product, Category
 } from "./types";
 import {
     Input, Textarea, Select, FormField, SectionDivider,
@@ -18,7 +18,7 @@ const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
     unit: "PCS", size: "", hsnCode: "", gstRate: 18,
 };
 
-export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) => void }) {
+export default function CreateProduct({ categories, onCreated }: { categories: Category[], onCreated?: (p: Product) => void }) {
     const [form, setForm] = useState({ ...EMPTY });
     const [sizeOption, setSizeOption] = useState("");
     const [customSize, setCustomSize] = useState("");
@@ -153,7 +153,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
 
     return (
         <div>
-            <PageHeader title="Create Product" sub="Add a new product to your inventory." />
+            <PageHeader title="Create Item" sub="Add a new item to your inventory." />
 
             {success && <SuccessBanner message={success} onClose={() => setSuccess("")} />}
 
@@ -167,9 +167,8 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                         <div style={{ padding: "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Basic Information</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-                                <FormField label="Product Name" required>
+                                <FormField label="Item Name" required>
                                     <Input
-                                        placeholder="e.g. Cotton Shirt"
                                         value={form.productName}
                                         onChange={e => set("productName", e.target.value)}
                                         style={fieldStyle("productName")}
@@ -178,7 +177,6 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                 </FormField>
                                 <FormField label="SKU" required>
                                     <Input
-                                        placeholder="e.g. CTN-001"
                                         value={form.sku}
                                         onChange={e => set("sku", e.target.value)}
                                         style={fieldStyle("sku")}
@@ -190,16 +188,15 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                 <FormField label="Category">
                                     <Select value={form.category} onChange={e => set("category", e.target.value)}>
                                         <option value="">Select Category...</option>
-                                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                                     </Select>
                                 </FormField>
                                 <FormField label="Brand">
-                                    <Input placeholder="e.g. Nike" value={form.brand} onChange={e => set("brand", e.target.value)} />
+                                    <Input value={form.brand} onChange={e => set("brand", e.target.value)} />
                                 </FormField>
                             </div>
                             <FormField label="Product Description">
                                 <Textarea
-                                    placeholder="Describe the product — material, size, color, features..."
                                     value={form.description}
                                     onChange={e => set("description", e.target.value)}
                                     rows={3}
@@ -215,7 +212,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Selling Price (Rs.)" required>
                                     <Input
-                                        type="number" min="0" step="0.01" placeholder="0.00"
+                                        type="number" min="0" step="0.01"
                                         value={form.price === 0 ? "" : form.price}
                                         onChange={e => set("price", Number(e.target.value) || 0)}
                                         style={fieldStyle("price")}
@@ -224,7 +221,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                 </FormField>
                                 <FormField label="Cost Price (Rs.)">
                                     <Input
-                                        type="number" min="0" step="0.01" placeholder="0.00"
+                                        type="number" min="0" step="0.01"
                                         value={form.costPrice === 0 ? "" : form.costPrice}
                                         onChange={e => set("costPrice", Number(e.target.value) || 0)}
                                     />
@@ -238,7 +235,6 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                                 <FormField label="HSN Code">
                                     <Input
-                                        placeholder="e.g. 6205"
                                         value={form.hsnCode}
                                         onChange={e => set("hsnCode", e.target.value)}
                                     />
@@ -274,14 +270,14 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                                 <FormField label="Opening Stock">
                                     <Input
-                                        type="number" min="0" placeholder="0"
+                                        type="number" min="0"
                                         value={form.stock === 0 ? "" : form.stock}
                                         onChange={e => set("stock", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
                                 <FormField label="Min Stock (Alert)">
                                     <Input
-                                        type="number" min="0" placeholder="5"
+                                        type="number" min="0"
                                         value={form.minStock === 0 ? "" : form.minStock}
                                         onChange={e => set("minStock", Number(e.target.value) || 0)}
                                     />
@@ -308,7 +304,6 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
                                 {sizeOption === "Other" && (
                                     <FormField label="Enter Custom Size">
                                         <Input
-                                            placeholder="e.g. Queen / 6x6"
                                             value={customSize}
                                             onChange={e => handleCustomSize(e.target.value)}
                                         />
@@ -359,7 +354,6 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
 
                             <FormField label="Or paste image URL">
                                 <Input
-                                    placeholder="https://example.com/image.jpg"
                                     value={form.imageUrl.startsWith("data:") ? "" : form.imageUrl}
                                     onChange={e => handleImageUrl(e.target.value)}
                                 />
@@ -434,7 +428,7 @@ export default function CreateProduct({ onCreated }: { onCreated?: (p: Product) 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20, paddingTop: 20, borderTop: "1px solid #e2e8f0" }}>
                 <BtnGhost onClick={handleReset}>Reset</BtnGhost>
                 <BtnPrimary onClick={handleSave} loading={saving} disabled={saving}>
-                    Create Product
+                    Create Item
                 </BtnPrimary>
             </div>
         </div>

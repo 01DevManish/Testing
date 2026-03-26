@@ -60,10 +60,7 @@ export type ActiveView =
     | "grouping-create" | "grouping-list";
 
 // ── Constants ──────────────────────────────────────────────────
-export const CATEGORIES = [
-    "Electronics", "Clothing", "Accessories", "Home & Kitchen",
-    "Health & Beauty", "Sports", "Books", "Toys", "Food & Grocery", "Other",
-];
+// CATEGORIES moved to dynamic DB
 
 export const UNITS = ["PCS", "KG", "BOX", "SET", "MTR", "LTR", "DOZEN", "PACK", "PAIR", "BAG"];
 

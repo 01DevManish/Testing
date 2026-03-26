@@ -2,14 +2,16 @@ import { useState } from "react";
 import { Order, OrderStatus } from "../types";
 import Timeline from "./Timeline";
 import { api } from "../data";
+import { BtnPrimary, BtnGhost, Input, Select, Badge } from "./ui";
 
 interface OrderDetailsModalProps {
   order: Order;
   onClose: () => void;
   onOrderUpdated: (updatedOrder: Order) => void;
+  onDeleteOrder?: (id: string) => void;
 }
 
-export default function OrderDetailsModal({ order, onClose, onOrderUpdated }: OrderDetailsModalProps) {
+export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDeleteOrder }: OrderDetailsModalProps) {
   const [loading, setLoading] = useState(false);
   const [packingNotes, setPackingNotes] = useState(order.packedNotes || "");
   
@@ -77,7 +79,7 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated }: Or
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in-up">
         
         {/* Header */}
@@ -99,6 +101,10 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated }: Or
             <button className="p-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
               onClick={() => alert("Simulating PDF Generation...")}>
               📄 Invoice PDF
+            </button>
+            <button className="p-2 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg text-red-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
+              onClick={() => { if(confirm("Delete this dispatch record permanently?")) onDeleteOrder?.(order.id); }}>
+              🗑️ Delete
             </button>
             <button onClick={onClose} className="p-2 bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 rounded-lg transition-colors">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
@@ -200,7 +206,6 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated }: Or
                     <textarea 
                       value={packingNotes}
                       onChange={e => setPackingNotes(e.target.value)}
-                      placeholder="Add bubble wrap, gift box etc."
                       className="w-full text-sm p-3 border border-yellow-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
                       rows={2}
                     />
@@ -215,13 +220,13 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated }: Or
                     </div>
 
                     <div className="mt-4 flex justify-end">
-                      <button 
+                      <BtnPrimary 
                         onClick={handleMarkAsPacked}
                         disabled={!allPacked || loading}
-                        className={`px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition-all focus:ring-4 focus:outline-none ${!allPacked ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-100"}`}
+                        loading={loading}
                       >
-                        {loading ? "Saving..." : "Mark as Packed"}
-                      </button>
+                        Mark as Packed
+                      </BtnPrimary>
                     </div>
                   </div>
                 )}
@@ -263,7 +268,6 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated }: Or
                         type="text" 
                         value={dispatchData.trackingId}
                         onChange={e => setDispatchData({...dispatchData, trackingId: e.target.value})}
-                        placeholder="Scan or type AWB number here..."
                         className="w-full p-2.5 border border-gray-300 rounded-md text-sm font-mono bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
@@ -285,13 +289,14 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated }: Or
                         <input type="file" className="hidden" accept=".pdf,image/*" />
                       </label>
                       
-                      <button 
+                      <BtnPrimary 
                         onClick={handleDispatch}
                         disabled={loading}
-                        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm shadow-sm transition-all focus:ring-4 focus:ring-indigo-100 focus:outline-none"
+                        loading={loading}
+                        style={{ padding: "10px 32px" }}
                       >
-                        {loading ? "Processing..." : "🚀 Dispatch Order"}
-                      </button>
+                        🚀 Dispatch Order
+                      </BtnPrimary>
                     </div>
                   )}
 

@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { api, firestoreApi } from "../data";
+import { useAuth } from "../../../context/AuthContext";
+import { ref, update } from "firebase/database";
+import { db } from "../../../lib/firebase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Party { id: string; name: string; city: string; gst?: string }
-interface Product { id: string; name: string; sku: string; stock: number; unit: string }
+interface Party { id: string; name: string; city?: string; gst?: string; gstin?: string; address?: string }
+interface Product { id: string; name: string; sku: string; stock: number; unit: string; productName?: string }
 
 interface DispatchForm {
     party: Party | null;
@@ -25,22 +29,6 @@ interface DispatchForm {
 const PACKAGING_OPTIONS = ["Carton Box", "Gunny Bag", "Poly Bag", "Wooden Crate", "Stretch Wrap", "Bubble Wrap"];
 const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", "Own Vehicle", "Other"];
 
-// ─── Mock Data (replace with real api calls) ──────────────────────────────────
-const MOCK_PARTIES: Party[] = [
-    { id: "P001", name: "Sharma Traders", city: "Delhi", gst: "07AAACS1234A1Z5" },
-    { id: "P002", name: "Gupta Wholesale", city: "Lucknow", gst: "09AABCG5678B2Z6" },
-    { id: "P003", name: "Rajesh Enterprises", city: "Kanpur" },
-    { id: "P004", name: "M/S Shiv Shakti", city: "Agra", gst: "09AABCS9012C3Z7" },
-];
-const MOCK_PRODUCTS: Product[] = [
-    { id: "PR001", name: "Premium Cotton Shirt", sku: "CTN-001", stock: 240, unit: "PCS" },
-    { id: "PR002", name: "Denim Jeans – 32W", sku: "DNM-032", stock: 80, unit: "PCS" },
-    { id: "PR003", name: "Ethnic Kurta Set", sku: "ETH-K01", stock: 150, unit: "SET" },
-    { id: "PR004", name: "Woollen Blazer", sku: "WOL-B02", stock: 60, unit: "PCS" },
-];
-const CONFIRM_PIN = "1234"; // replace with env or api-verified PIN
-
-// ─── Step meta ────────────────────────────────────────────────────────────────
 const STEPS = [
     { no: 1, label: "Party", icon: "🏢" },
     { no: 2, label: "Product", icon: "📦" },
@@ -52,9 +40,8 @@ const STEPS = [
     { no: 8, label: "Confirm", icon: "✅" },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function dispatchId() {
-    return "DSP-" + Date.now().toString(36).toUpperCase();
+    return "DSP-" + Math.floor(Math.random() * 900000 + 100000).toString();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -64,6 +51,7 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
     onClose: () => void;
     onDispatched?: (data: any) => void;
 }) {
+    const { user, userData } = useAuth();
     const [step, setStep] = useState(1);
     const [form, setForm] = useState<DispatchForm>({
         party: null, newParty: { name: "", city: "", gst: "" }, isNewParty: false,
@@ -71,63 +59,158 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
         packagingType: "", remarks: "", quantity: 1, transporter: "", bails: 1,
     });
 
+    const [dbParties, setDbParties] = useState<Party[]>([]);
+    const [dbProducts, setDbProducts] = useState<Product[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        firestoreApi.getParties().then(res => setDbParties(res));
+        firestoreApi.getInventoryProducts().then(res => {
+            const mapped = res.map(p => ({
+                id: p.id,
+                name: p.productName || "Unknown",
+                sku: p.sku || "N/A",
+                stock: p.stock || 0,
+                unit: p.unit || "PCS"
+            }));
+            setDbProducts(mapped);
+        });
+    }, []);
+
     // PIN confirmation
     const [pinStep, setPinStep] = useState(false);
     const [pin, setPin] = useState(["", "", "", ""]);
     const [pinError, setPinError] = useState("");
     const pinRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
+    const hasPin = !!userData?.dispatchPin;
+
     // Print
     const [dispatched, setDispatched] = useState(false);
     const [dispatchRef] = useState(dispatchId());
     const printRef = useRef<HTMLDivElement>(null);
 
-    // Party search
+    // Filter search
     const [partySearch, setPartySearch] = useState("");
     const [productSearch, setProductSearch] = useState("");
 
-    const filteredParties = MOCK_PARTIES.filter(p =>
+    const filteredParties = dbParties.filter(p =>
         p.name.toLowerCase().includes(partySearch.toLowerCase()) ||
-        p.city.toLowerCase().includes(partySearch.toLowerCase())
+        (p.city && p.city.toLowerCase().includes(partySearch.toLowerCase()))
     );
-    const filteredProducts = MOCK_PRODUCTS.filter(p =>
+    const filteredProducts = dbProducts.filter(p =>
         p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
         p.sku.toLowerCase().includes(productSearch.toLowerCase())
     );
 
-    // ── Step validation ─────────────────────────────────────────────────────────
     function canProceed() {
         if (step === 1) return form.isNewParty ? form.newParty.name.trim() !== "" : form.party !== null;
         if (step === 2) return form.isNewProduct ? form.newProduct.name.trim() !== "" : form.product !== null;
         if (step === 3) return form.packagingType !== "";
-        if (step === 5) return form.quantity >= 1;
+        if (step === 5) {
+            if (!form.isNewProduct && form.product && form.quantity > form.product.stock) return false;
+            return form.quantity >= 1;
+        }
         if (step === 6) return form.transporter !== "";
         if (step === 7) return form.bails >= 1;
         return true;
     }
 
-    // ── PIN logic ───────────────────────────────────────────────────────────────
     function handlePinInput(idx: number, val: string) {
         if (!/^\d?$/.test(val)) return;
         const np = [...pin]; np[idx] = val; setPin(np);
         setPinError("");
         if (val && idx < 3) pinRefs[idx + 1].current?.focus();
     }
+    
     function handlePinKeyDown(idx: number, e: React.KeyboardEvent) {
         if (e.key === "Backspace" && !pin[idx] && idx > 0) pinRefs[idx - 1].current?.focus();
     }
-    function handleConfirmPin() {
-        if (pin.join("") === CONFIRM_PIN) {
-            setDispatched(true);
-            onDispatched?.({ ...form, ref: dispatchRef });
-        } else {
+
+    async function handleConfirmPin() {
+        const enteredPin = pin.join("");
+        
+        // Mode 1: First time setup
+        if (!hasPin) {
+            if (enteredPin.length < 4) return;
+            setIsSaving(true);
+            try {
+                await update(ref(db, `users/${user?.uid}`), { dispatchPin: enteredPin });
+                alert("Dispatch PIN created successfully! Please proceed to confirm dispatch.");
+                setPin(["", "", "", ""]);
+                // Refresh window to get new userData if not using a listener, 
+                // but since we are in a wizard, let's just use local state for this session.
+                // Or better, the AuthContext should handle it if it listens.
+                window.location.reload(); // Simplest way to ensure context updates for now
+                return;
+            } catch (e) {
+                setPinError("Failed to set PIN.");
+                setIsSaving(false);
+                return;
+            }
+        }
+
+        // Mode 2: Verification
+        if (enteredPin !== userData?.dispatchPin) {
             setPinError("Incorrect PIN. Please try again.");
             setPin(["", "", "", ""]);
             pinRefs[0].current?.focus();
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            // Deduct Stock
+            if (!form.isNewProduct && form.product) {
+                await firestoreApi.deductStock(form.product.id, form.quantity);
+            }
+
+            // Deduct or Create Party
+            let partyId = form.party?.id;
+            const finalPartyName = form.isNewParty ? form.newParty.name : form.party?.name;
+            if (form.isNewParty) {
+               const p = await firestoreApi.createParty({
+                   name: form.newParty.name,
+                   phone: "", address: form.newParty.city, gstin: form.newParty.gst
+               });
+               partyId = p.id;
+            }
+
+            // Create Order/Dispatch
+            const finalProductName = form.isNewProduct ? form.newProduct.name : form.product?.name;
+            const finalProdId = form.isNewProduct ? `NEW-${Date.now()}` : form.product?.id || `PROD-${Date.now()}`;
+
+            await api.createOrder({
+                id: dispatchRef,
+                customer: { name: finalPartyName || "Transporter", phone: "", address: form.isNewParty ? form.newParty.city : (form.party?.city || "") },
+                paymentStatus: "Paid",
+                status: "Dispatched",
+                dispatchDate: new Date().toISOString().split('T')[0],
+                products: [{ id: finalProdId, name: finalProductName || "Item", quantity: form.quantity, price: 0, packed: true }],
+                logs: [
+                    { status: "Pending", timestamp: new Date(Date.now() - 1000).toISOString(), user: "System" },
+                    { status: "Packed", timestamp: new Date(Date.now() - 500).toISOString(), user: "System" },
+                    { status: "Dispatched", timestamp: new Date().toISOString(), user: userData?.name || "User", note: form.remarks }
+                ],
+                partyId,
+                partyName: finalPartyName,
+                transporterName: form.transporter,
+                packagingType: form.packagingType,
+                remarks: form.remarks,
+                bails: form.bails,
+                confirmedByPin: true
+            });
+
+            setDispatched(true);
+            onDispatched?.({ ...form, ref: dispatchRef });
+        } catch (e) {
+            console.error(e);
+            setPinError("Failed to save dispatch to database.");
+        } finally {
+            setIsSaving(false);
         }
     }
 
-    // ── Print ───────────────────────────────────────────────────────────────────
     function handlePrint() {
         const win = window.open("", "_blank");
         if (!win || !printRef.current) return;
@@ -135,13 +218,9 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
       <style>
         body{font-family:'Segoe UI',sans-serif;padding:32px;color:#111;max-width:720px;margin:auto}
         h1{font-size:22px;font-weight:900;margin-bottom:4px}
-        .sub{color:#6b7280;font-size:13px;margin-bottom:24px}
         table{width:100%;border-collapse:collapse;margin-bottom:20px}
         td,th{padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;text-align:left}
         th{background:#f9fafb;font-weight:700;color:#374151}
-        .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#dbeafe;color:#1d4ed8}
-        .ref{font-size:12px;color:#9ca3af;margin-bottom:20px}
-        .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
         @media print{body{padding:16px}}
       </style>
     </head><body>${printRef.current.innerHTML}</body></html>`);
@@ -171,7 +250,9 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                             </div>
                         )}
                     </div>
-                    <button onClick={onClose} style={closeBtn}>✕</button>
+                    <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "#64748b", background: "none", border: "none", cursor: "pointer", transition: "color 0.2s" }}>
+                        ← Back to Overview
+                    </button>
                 </div>
 
                 {/* ── Progress Bar ────────────────────────────────────────────────── */}
@@ -199,9 +280,6 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                 {/* ── Body ───────────────────────────────────────────────────────── */}
                 <div style={modalBody}>
 
-                    {/* ================================================================
-              DISPATCHED — PRINT VIEW
-          ================================================================ */}
                     {dispatched && (
                         <div>
                             <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -210,7 +288,6 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                 <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Ref: <b>{dispatchRef}</b></div>
                             </div>
 
-                            {/* Printable slip */}
                             <div ref={printRef} style={{ background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", padding: "20px 24px", marginBottom: 20 }}>
                                 <h1 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Eurus Lifestyle — Dispatch Slip</h1>
                                 <div style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>Ref: {dispatchRef} &nbsp;|&nbsp; {new Date().toLocaleString()}</div>
@@ -218,8 +295,8 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                     <tbody>
                                         {[
                                             ["Party", partyName || "—"],
-                                            ["City", form.isNewParty ? form.newParty.city : form.party?.city || "—"],
-                                            ["GST", form.isNewParty ? (form.newParty.gst || "N/A") : (form.party?.gst || "N/A")],
+                                            ["City", form.isNewParty ? form.newParty.city : (form.party?.city || "—")],
+                                            ["GST", form.isNewParty ? (form.newParty.gst || "N/A") : (form.party?.gst || form.party?.gstin || "N/A")],
                                             ["Product", productName || "—"],
                                             ["SKU", form.isNewProduct ? form.newProduct.sku : (form.product?.sku || "—")],
                                             ["Packaging", form.packagingType],
@@ -235,92 +312,74 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                         ))}
                                     </tbody>
                                 </table>
-                                <div style={{ marginTop: 16, fontSize: 11, color: "#94a3b8", display: "flex", justifyContent: "space-between" }}>
+                                <div style={{ marginTop: 16, fontSize: 11, color: "#94a3b8", display: "flex", justifySelf: "space-between" }}>
                                     <span>Authorised by PIN ✓</span>
-                                    <span>Eurus Lifestyle Logistics Hub</span>
                                 </div>
                             </div>
 
                             <div style={{ display: "flex", gap: 10 }}>
                                 <button onClick={handlePrint} style={btnPrimary}>🖨️ Print Dispatch Slip</button>
-                                <button onClick={onClose} style={btnGhost}>Close</button>
+                                <button onClick={onClose} style={btnGhost}>Return to Overview</button>
                             </div>
                         </div>
                     )}
 
-                    {/* ================================================================
-              PIN CONFIRMATION STEP
-          ================================================================ */}
                     {!dispatched && pinStep && (
                         <div style={{ textAlign: "center" }}>
-                            <div style={{ fontSize: 48, marginBottom: 12 }}>🔐</div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>Enter Dispatch PIN</div>
-                            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 28 }}>
-                                Enter your 4-digit PIN to confirm and lock this dispatch.
+                            <div style={{ fontSize: 48, marginBottom: 12 }}>{hasPin ? "🔐" : "🆕"}</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+                                {hasPin ? "Enter Dispatch PIN" : "Setup Dispatch PIN"}
+                            </div>
+                            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
+                                {hasPin 
+                                    ? "Enter your 4-digit PIN to confirm and deduct stock from inventory."
+                                    : "This is your first time. Please choose a 4-digit PIN for future dispatch confirmations."
+                                }
                             </div>
 
-                            {/* Dispatch summary mini */}
-                            <div style={{ background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0", padding: "14px 18px", marginBottom: 24, textAlign: "left" }}>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: 13 }}>
-                                    <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Party:</span> <b>{partyName}</b></div>
-                                    <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Product:</span> <b>{productName}</b></div>
-                                    <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Qty:</span> <b>{form.quantity}</b></div>
-                                    <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Bails:</span> <b>{form.bails}</b></div>
-                                    <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Transporter:</span> <b>{form.transporter}</b></div>
-                                    <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Packaging:</span> <b>{form.packagingType}</b></div>
+                            {hasPin && (
+                                <div style={{ background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0", padding: "14px 18px", marginBottom: 24, textAlign: "left" }}>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: 13 }}>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Party:</span> <b>{partyName}</b></div>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Product:</span> <b>{productName}</b></div>
+                                        <div className={!form.isNewProduct && form.product ? "text-red-600" : ""}><span style={{ color: "#94a3b8", fontWeight: 600 }}>Qty deducting:</span> <b>{form.quantity}</b></div>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Bails:</span> <b>{form.bails}</b></div>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 16 }}>
                                 {pin.map((d, i) => (
                                     <input
-                                        key={i}
-                                        ref={pinRefs[i]}
-                                        type="password"
-                                        inputMode="numeric"
-                                        maxLength={1}
-                                        value={d}
-                                        onChange={e => handlePinInput(i, e.target.value)}
-                                        onKeyDown={e => handlePinKeyDown(i, e)}
-                                        style={{
-                                            width: 52, height: 60, borderRadius: 12,
-                                            border: pinError ? "2px solid #ef4444" : "2px solid #e2e8f0",
-                                            fontSize: 28, fontWeight: 900, textAlign: "center",
-                                            outline: "none", background: "#fff", color: "#0f172a",
-                                            transition: "border 0.2s"
-                                        }}
-                                        autoFocus={i === 0}
+                                        key={i} ref={pinRefs[i]} type="password" inputMode="numeric" maxLength={1} value={d}
+                                        onChange={e => handlePinInput(i, e.target.value)} onKeyDown={e => handlePinKeyDown(i, e)}
+                                        style={{ width: 52, height: 60, borderRadius: 12, border: pinError ? "2px solid #ef4444" : "2px solid #e2e8f0", fontSize: 28, fontWeight: 900, textAlign: "center", outline: "none", background: "#fff", color: "#0f172a" }}
+                                        autoFocus={i === 0} disabled={isSaving}
                                     />
                                 ))}
                             </div>
 
-                            {pinError && (
-                                <div style={{ color: "#ef4444", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
-                                    {pinError}
+                            {pinError && <div style={{ color: "#ef4444", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>{pinError}</div>}
+
+                            {hasPin && (
+                                <div style={{ marginBottom: 20 }}>
+                                    <p style={{ fontSize: 12, color: "#94a3b8" }}>
+                                        Forgotten your PIN? <span style={{ color: "#6366f1", fontWeight: 700, cursor: "pointer" }} onClick={() => alert("Please contact your Administrator to reset your Dispatch PIN.")}>Contact Admin</span>
+                                    </p>
                                 </div>
                             )}
 
                             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                                <button
-                                    onClick={handleConfirmPin}
-                                    disabled={pin.some(p => p === "")}
-                                    style={{ ...btnPrimary, opacity: pin.some(p => p === "") ? 0.5 : 1 }}
-                                >
-                                    ✅ Confirm Dispatch
+                                <button onClick={handleConfirmPin} disabled={pin.some(p => p === "") || isSaving} style={{ ...btnPrimary, opacity: pin.some(p => p === "") || isSaving ? 0.5 : 1 }}>
+                                    {isSaving ? "Saving..." : hasPin ? "✅ Confirm Dispatch" : "💾 Save PIN & Proceed"}
                                 </button>
-                                <button onClick={() => { setPinStep(false); setPin(["", "", "", ""]); setPinError(""); }} style={btnGhost}>
-                                    ← Back
-                                </button>
+                                <button onClick={() => { setPinStep(false); setPin(["", "", "", ""]); setPinError(""); }} disabled={isSaving} style={btnGhost}>← Back</button>
                             </div>
                         </div>
                     )}
 
-                    {/* ================================================================
-              STEP FORMS
-          ================================================================ */}
                     {!dispatched && !pinStep && (
                         <>
-                            {/* ── STEP 1: Party ────────────────────────────────────────── */}
                             {step === 1 && (
                                 <div>
                                     <StepTitle icon="🏢" title="Select Party" sub="Choose an existing party or create a new one." />
@@ -330,15 +389,15 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                     </div>
                                     {!form.isNewParty ? (
                                         <>
-                                            <input placeholder="Search party name or city…" value={partySearch} onChange={e => setPartySearch(e.target.value)} style={inputStyle} />
-                                            <div style={listBox}>
+                                            <input value={partySearch} onChange={e => setPartySearch(e.target.value)} style={inputStyle} placeholder="Search parties..." />
+                                            <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredParties.map(p => (
                                                     <div key={p.id} onClick={() => setForm(f => ({ ...f, party: p }))}
                                                         style={{ ...listItem, background: form.party?.id === p.id ? "#ede9fe" : "#fff", borderColor: form.party?.id === p.id ? "#818cf8" : "#e2e8f0" }}>
                                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                                             <div>
                                                                 <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
-                                                                <div style={{ fontSize: 12, color: "#64748b" }}>{p.city} {p.gst ? `· GST: ${p.gst}` : ""}</div>
+                                                                <div style={{ fontSize: 12, color: "#64748b" }}>{p.city || p.address || "No city"} {p.gst || p.gstin ? `· GST: ${p.gst || p.gstin}` : ""}</div>
                                                             </div>
                                                             {form.party?.id === p.id && <span style={{ color: "#6366f1", fontWeight: 800, fontSize: 18 }}>✓</span>}
                                                         </div>
@@ -349,45 +408,44 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                         </>
                                     ) : (
                                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                            <input placeholder="Party Name *" value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} />
-                                            <input placeholder="City *" value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} />
-                                            <input placeholder="GST Number (optional)" value={form.newParty.gst} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, gst: e.target.value } }))} style={inputStyle} />
+                                            <input value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} placeholder="Party Name" />
+                                            <input value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} placeholder="City / Address" />
+                                            <input value={form.newParty.gst} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, gst: e.target.value } }))} style={inputStyle} placeholder="GST Number (Optional)" />
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            {/* ── STEP 2: Product ──────────────────────────────────────── */}
                             {step === 2 && (
                                 <div>
-                                    <StepTitle icon="📦" title="Select Product" sub="Pick from inventory or add a new product." />
+                                    <StepTitle icon="📦" title="Select Product" sub="Pick from inventory or add a new dispatch un-tracked product." />
                                     <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                                         <button style={form.isNewProduct ? tabInactive : tabActive} onClick={() => setForm(f => ({ ...f, isNewProduct: false }))}>From Inventory</button>
-                                        <button style={form.isNewProduct ? tabActive : tabInactive} onClick={() => setForm(f => ({ ...f, isNewProduct: true }))}>+ Create New</button>
+                                        <button style={form.isNewProduct ? tabActive : tabInactive} onClick={() => setForm(f => ({ ...f, isNewProduct: true }))}>+ Untracked Item</button>
                                     </div>
                                     {!form.isNewProduct ? (
                                         <>
-                                            <input placeholder="Search product name or SKU…" value={productSearch} onChange={e => setProductSearch(e.target.value)} style={inputStyle} />
-                                            <div style={listBox}>
+                                            <input value={productSearch} onChange={e => setProductSearch(e.target.value)} style={inputStyle} placeholder="Search product name or SKU..." />
+                                            <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredProducts.map(p => (
                                                     <div key={p.id} onClick={() => setForm(f => ({ ...f, product: p }))}
-                                                        style={{ ...listItem, background: form.product?.id === p.id ? "#ede9fe" : "#fff", borderColor: form.product?.id === p.id ? "#818cf8" : "#e2e8f0" }}>
+                                                        style={{ ...listItem, background: form.product?.id === p.id ? "#f0fdf4" : "#fff", borderColor: form.product?.id === p.id ? "#22c55e" : "#e2e8f0" }}>
                                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                                             <div>
                                                                 <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
-                                                                <div style={{ fontSize: 12, color: "#64748b" }}>SKU: {p.sku} &nbsp;·&nbsp; Stock: {p.stock} {p.unit}</div>
+                                                                <div style={{ fontSize: 12, color: "#64748b" }}>SKU: {p.sku} &nbsp;·&nbsp; <b className="text-emerald-600">Stock: {p.stock} {p.unit}</b></div>
                                                             </div>
-                                                            {form.product?.id === p.id && <span style={{ color: "#6366f1", fontWeight: 800, fontSize: 18 }}>✓</span>}
+                                                            {form.product?.id === p.id && <span style={{ color: "#22c55e", fontWeight: 800, fontSize: 18 }}>✓</span>}
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {filteredProducts.length === 0 && <div style={{ padding: 16, color: "#94a3b8", fontSize: 13, textAlign: "center" }}>No products found</div>}
+                                                {filteredProducts.length === 0 && <div style={{ padding: 16, color: "#94a3b8", fontSize: 13, textAlign: "center" }}>No inventory products found</div>}
                                             </div>
                                         </>
                                     ) : (
                                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                            <input placeholder="Product Name *" value={form.newProduct.name} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, name: e.target.value } }))} style={inputStyle} />
-                                            <input placeholder="SKU / Item Code" value={form.newProduct.sku} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, sku: e.target.value } }))} style={inputStyle} />
+                                            <input value={form.newProduct.name} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, name: e.target.value } }))} style={inputStyle} placeholder="Item Name" />
+                                            <input value={form.newProduct.sku} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, sku: e.target.value } }))} style={inputStyle} placeholder="SKU/Barcode (Optional)" />
                                             <select value={form.newProduct.unit} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, unit: e.target.value } }))} style={inputStyle}>
                                                 {["PCS", "SET", "KG", "MTR", "BOX", "DOZEN"].map(u => <option key={u}>{u}</option>)}
                                             </select>
@@ -396,7 +454,6 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                 </div>
                             )}
 
-                            {/* ── STEP 3: Packaging Type ───────────────────────────────── */}
                             {step === 3 && (
                                 <div>
                                     <StepTitle icon="🗃️" title="Packaging Type" sub="How will the goods be packaged for dispatch?" />
@@ -412,84 +469,57 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                 </div>
                             )}
 
-                            {/* ── STEP 4: Remarks ─────────────────────────────────────── */}
                             {step === 4 && (
                                 <div>
                                     <StepTitle icon="📝" title="Add Remarks" sub="Any special instructions, notes, or handling requirements?" />
-                                    <textarea
-                                        placeholder="e.g. Handle with care, fragile items inside, deliver before 5 PM…"
-                                        value={form.remarks}
-                                        onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))}
-                                        rows={6}
-                                        style={{ ...inputStyle, resize: "vertical", minHeight: 140, fontFamily: "inherit" }}
-                                    />
+                                    <textarea value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} rows={6} style={{ ...inputStyle, resize: "vertical", minHeight: 140, fontFamily: "inherit" }} />
                                     <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>Optional — leave blank if none.</div>
                                 </div>
                             )}
 
-                            {/* ── STEP 5: Quantity ─────────────────────────────────────── */}
                             {step === 5 && (
                                 <div>
-                                    <StepTitle icon="🔢" title="Select Quantity"
-                                        sub={`How many ${form.isNewProduct ? form.newProduct.unit : form.product?.unit || "units"} of "${productName}" to dispatch?`} />
+                                    <StepTitle icon="🔢" title="Select Quantity" sub={`How many ${form.isNewProduct ? form.newProduct.unit : form.product?.unit || "units"} of "${productName}" to dispatch?`} />
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, margin: "32px 0" }}>
                                         <button onClick={() => setForm(f => ({ ...f, quantity: Math.max(1, f.quantity - 1) }))} style={counterBtn}>−</button>
                                         <div style={{ textAlign: "center" }}>
-                                            <input
-                                                type="number" min={1}
-                                                value={form.quantity}
-                                                onChange={e => setForm(f => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
-                                                style={{ fontSize: 40, fontWeight: 900, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }}
-                                            />
-                                            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>
-                                                {form.isNewProduct ? form.newProduct.unit : form.product?.unit || "UNITS"}
-                                            </div>
+                                            <input type="number" min={1} value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 900, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
+                                            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>{form.isNewProduct ? form.newProduct.unit : form.product?.unit || "UNITS"}</div>
                                         </div>
                                         <button onClick={() => setForm(f => ({ ...f, quantity: f.quantity + 1 }))} style={counterBtn}>+</button>
                                     </div>
                                     {!form.isNewProduct && form.product && (
-                                        <div style={{ textAlign: "center", fontSize: 13, color: form.quantity > form.product.stock ? "#ef4444" : "#22c55e", fontWeight: 600 }}>
+                                        <div style={{ textAlign: "center", fontSize: 14, color: form.quantity > form.product.stock ? "#ef4444" : "#22c55e", fontWeight: 700 }}>
                                             {form.quantity > form.product.stock
-                                                ? `⚠️ Exceeds stock (${form.product.stock} available)`
-                                                : `✓ ${form.product.stock - form.quantity} will remain in stock`}
+                                                ? `❌ Exceeds inventory stock (${form.product.stock} available)`
+                                                : `✓ ${form.product.stock - form.quantity} will remain in inventory`}
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            {/* ── STEP 6: Transporter ──────────────────────────────────── */}
                             {step === 6 && (
                                 <div>
                                     <StepTitle icon="🚛" title="Select Transporter" sub="Which logistics partner will handle this shipment?" />
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                                         {TRANSPORTERS.map(t => (
-                                            <div key={t} onClick={() => setForm(f => ({ ...f, transporter: t }))}
-                                                style={{ ...cardOption, background: form.transporter === t ? "#ede9fe" : "#fff", borderColor: form.transporter === t ? "#818cf8" : "#e2e8f0", color: form.transporter === t ? "#4f46e5" : "#374151" }}>
+                                            <div key={t} onClick={() => setForm(f => ({ ...f, transporter: t }))} style={{ ...cardOption, background: form.transporter === t ? "#ede9fe" : "#fff", borderColor: form.transporter === t ? "#818cf8" : "#e2e8f0", color: form.transporter === t ? "#4f46e5" : "#374151" }}>
                                                 <div style={{ fontWeight: 700, fontSize: 14 }}>🚛 {t}</div>
                                                 {form.transporter === t && <div style={{ fontSize: 18 }}>✓</div>}
                                             </div>
                                         ))}
                                     </div>
-                                    {form.transporter === "Other" && (
-                                        <input placeholder="Enter transporter name…" style={inputStyle}
-                                            onChange={e => setForm(f => ({ ...f, transporter: e.target.value || "Other" }))} />
-                                    )}
+                                    {form.transporter === "Other" && <input style={inputStyle} onChange={e => setForm(f => ({ ...f, transporter: e.target.value || "Other" }))} placeholder="Enter custom transporter name" />}
                                 </div>
                             )}
 
-                            {/* ── STEP 7: No. of Bails ─────────────────────────────────── */}
                             {step === 7 && (
                                 <div>
                                     <StepTitle icon="📐" title="Number of Bails" sub="How many bails / bundles make up this dispatch?" />
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, margin: "32px 0" }}>
                                         <button onClick={() => setForm(f => ({ ...f, bails: Math.max(1, f.bails - 1) }))} style={counterBtn}>−</button>
                                         <div style={{ textAlign: "center" }}>
-                                            <input
-                                                type="number" min={1}
-                                                value={form.bails}
-                                                onChange={e => setForm(f => ({ ...f, bails: Math.max(1, parseInt(e.target.value) || 1) }))}
-                                                style={{ fontSize: 40, fontWeight: 900, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }}
-                                            />
+                                            <input type="number" min={1} value={form.bails} onChange={e => setForm(f => ({ ...f, bails: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 900, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
                                             <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>BAILS</div>
                                         </div>
                                         <button onClick={() => setForm(f => ({ ...f, bails: f.bails + 1 }))} style={counterBtn}>+</button>
@@ -497,10 +527,9 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                 </div>
                             )}
 
-                            {/* ── STEP 8: Confirm Summary ──────────────────────────────── */}
                             {step === 8 && (
                                 <div>
-                                    <StepTitle icon="✅" title="Confirm Dispatch" sub="Review all details before proceeding to PIN confirmation." />
+                                    <StepTitle icon="✅" title="Confirm Dispatch" sub="Review all details before proceeding to inventory deduction and confirmation." />
                                     <div style={{ background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}>
                                         {[
                                             ["🏢 Party", partyName || "—", form.isNewParty ? "New" : ""],
@@ -520,26 +549,19 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                                             </div>
                                         ))}
                                     </div>
-                                    <div style={{ marginTop: 16, padding: "12px 16px", background: "#fef9c3", borderRadius: 10, border: "1px solid #fde047", fontSize: 13, color: "#854d0e", fontWeight: 600 }}>
-                                        ⚠️ Once confirmed with PIN, this dispatch cannot be undone. Please review carefully.
+                                    <div style={{ marginTop: 16, padding: "12px 16px", background: "#fef2f2", borderRadius: 10, border: "1px solid #fecaca", fontSize: 13, color: "#991b1b", fontWeight: 700 }}>
+                                        ⚠️ Completing this dispatch will permanently deduct stock from "{productName}" in the Inventory database.
                                     </div>
                                 </div>
                             )}
 
-                            {/* ── Navigation ───────────────────────────────────────────── */}
                             <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-                                {step > 1 && (
-                                    <button onClick={() => setStep(s => s - 1)} style={btnGhost}>← Back</button>
-                                )}
+                                {step > 1 && <button onClick={() => setStep(s => s - 1)} style={btnGhost}>← Back</button>}
                                 <div style={{ flex: 1 }} />
                                 {step < 8 ? (
-                                    <button onClick={() => canProceed() && setStep(s => s + 1)} style={{ ...btnPrimary, opacity: canProceed() ? 1 : 0.4 }}>
-                                        Next →
-                                    </button>
+                                    <button onClick={() => canProceed() && setStep(s => s + 1)} style={{ ...btnPrimary, opacity: canProceed() ? 1 : 0.4 }}>Next →</button>
                                 ) : (
-                                    <button onClick={() => setPinStep(true)} style={btnPrimary}>
-                                        🔐 Enter PIN to Confirm
-                                    </button>
+                                    <button onClick={() => setPinStep(true)} style={btnPrimary}>🔐 Enter PIN to Confirm</button>
                                 )}
                             </div>
                         </>
@@ -550,7 +572,6 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
     );
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
 function StepTitle({ icon, title, sub }: { icon: string; title: string; sub: string }) {
     return (
         <div style={{ marginBottom: 20 }}>
@@ -561,69 +582,26 @@ function StepTitle({ icon, title, sub }: { icon: string; title: string; sub: str
     );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const overlay: React.CSSProperties = {
-    position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
-    backdropFilter: "blur(6px)", zIndex: 1000, display: "flex",
-    alignItems: "center", justifyContent: "center", padding: 16,
+    position: "relative", zIndex: 1, display: "flex", width: "100%",
+    alignItems: "flex-start", justifyContent: "center", padding: "0 0 40px 0",
 };
 const modal: React.CSSProperties = {
-    background: "#fff", borderRadius: 20, width: "100%", maxWidth: 560,
-    maxHeight: "92vh", display: "flex", flexDirection: "column",
-    boxShadow: "0 24px 80px rgba(0,0,0,0.25)", overflow: "hidden",
+    background: "#fff", borderRadius: 20, width: "100%", maxWidth: 640,
+    display: "flex", flexDirection: "column",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0", overflow: "hidden",
 };
 const modalHeader: React.CSSProperties = {
     display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-    padding: "22px 28px 16px", borderBottom: "1px solid #f1f5f9",
+    padding: "22px 28px 16px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc"
 };
-const modalBody: React.CSSProperties = {
-    padding: "24px 28px 28px", overflowY: "auto", flex: 1,
-};
-const closeBtn: React.CSSProperties = {
-    width: 32, height: 32, border: "1px solid #e2e8f0", borderRadius: 8,
-    background: "#f8fafc", cursor: "pointer", fontSize: 13,
-    color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center",
-};
-const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0",
-    borderRadius: 10, fontSize: 14, outline: "none", fontFamily: "inherit",
-    color: "#0f172a", background: "#fff", boxSizing: "border-box",
-};
-const listBox: React.CSSProperties = {
-    border: "1.5px solid #e2e8f0", borderRadius: 12, overflow: "hidden",
-    maxHeight: 240, overflowY: "auto",
-};
-const listItem: React.CSSProperties = {
-    padding: "13px 16px", borderBottom: "1px solid #f1f5f9",
-    cursor: "pointer", transition: "background 0.15s", border: "none",
-};
-const cardOption: React.CSSProperties = {
-    padding: "14px 16px", borderRadius: 12, border: "2px solid #e2e8f0",
-    cursor: "pointer", display: "flex", justifyContent: "space-between",
-    alignItems: "center", transition: "all 0.15s",
-};
-const counterBtn: React.CSSProperties = {
-    width: 52, height: 52, borderRadius: 12, border: "2px solid #e2e8f0",
-    background: "#f8fafc", fontSize: 24, fontWeight: 700, cursor: "pointer",
-    color: "#374151", display: "flex", alignItems: "center", justifyContent: "center",
-};
-const tabActive: React.CSSProperties = {
-    padding: "8px 18px", borderRadius: 8, border: "none",
-    background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 13,
-    cursor: "pointer", fontFamily: "inherit",
-};
-const tabInactive: React.CSSProperties = {
-    padding: "8px 18px", borderRadius: 8, border: "1.5px solid #e2e8f0",
-    background: "#f8fafc", color: "#64748b", fontWeight: 600, fontSize: 13,
-    cursor: "pointer", fontFamily: "inherit",
-};
-const btnPrimary: React.CSSProperties = {
-    padding: "11px 22px", borderRadius: 10, border: "none",
-    background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14,
-    cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s",
-};
-const btnGhost: React.CSSProperties = {
-    padding: "11px 22px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-    background: "#f8fafc", color: "#374151", fontWeight: 700, fontSize: 14,
-    cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s",
-};
+const modalBody: React.CSSProperties = { padding: "24px 28px 28px", overflowY: "visible", flex: 1 };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: 10, fontSize: 14, outline: "none", fontFamily: "inherit", color: "#0f172a", background: "#fff", boxSizing: "border-box" };
+const listBox: React.CSSProperties = { border: "1.5px solid #e2e8f0", borderRadius: 12, overflow: "hidden", maxHeight: 240, overflowY: "auto" };
+const listItem: React.CSSProperties = { padding: "13px 16px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", transition: "background 0.15s", border: "none" };
+const cardOption: React.CSSProperties = { padding: "14px 16px", borderRadius: 12, border: "2px solid #e2e8f0", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.15s" };
+const counterBtn: React.CSSProperties = { width: 52, height: 52, borderRadius: 12, border: "2px solid #e2e8f0", background: "#f8fafc", fontSize: 24, fontWeight: 700, cursor: "pointer", color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" };
+const tabActive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" };
+const tabInactive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#64748b", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" };
+const btnPrimary: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };
+const btnGhost: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };

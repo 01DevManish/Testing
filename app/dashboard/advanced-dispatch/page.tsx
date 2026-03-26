@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "./data";
-import { Order, OrderStatus } from "./types";
+import { Order, OrderStatus, ActiveView } from "./types";
 import OrderList from "./components/OrderList";
 import Scanner from "./components/Scanner";
 import OrderDetailsModal from "./components/OrderDetailsModal";
 import AddOrderModal from "./components/AddOrderModal";
-import CreateDispatchModal from "./components/Createdispatchmodal"; // ← NEW
+import CreateDispatchModal from "./components/Createdispatchmodal";
+import DispatchSidebar from "./DispatchSidebar";
+import { PageHeader, BtnPrimary, BtnGhost, Card } from "./components/ui";
 
 // Responsive hook
 function useWindowSize() {
@@ -37,18 +39,13 @@ export default function AdvancedDispatchDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<OrderStatus | "All">("All");
 
+  // Layout State
+  const [activeView, setActiveView] = useState<ActiveView>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // Scanner & Modal State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-
-  // Add Order Modal State
-  const [showAddModal, setShowAddModal] = useState(false);
   const [scannedUnknownId, setScannedUnknownId] = useState("");
-
-  // Create Dispatch Wizard
-  const [showCreateDispatch, setShowCreateDispatch] = useState(false);
-
-  // Sidebar
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const loadOrders = async () => {
     setFetching(true);
@@ -74,7 +71,7 @@ export default function AdvancedDispatchDashboard() {
       setSelectedOrder(order);
     } else {
       setScannedUnknownId(code);
-      setShowAddModal(true);
+      setActiveView("add-order");
     }
   };
 
@@ -85,9 +82,19 @@ export default function AdvancedDispatchDashboard() {
 
   const handleOrderAdded = (newOrder: Order) => {
     setOrders([newOrder, ...orders]);
-    setShowAddModal(false);
+    setActiveView("overview");
     setScannedUnknownId("");
     setSelectedOrder(newOrder);
+  };
+
+  const handleDeleteOrder = async (id: string) => {
+    try {
+      await api.deleteOrder(id);
+      setOrders(orders.filter(o => o.id !== id));
+      if (selectedOrder?.id === id) setSelectedOrder(null);
+    } catch (e) {
+      alert("Failed to delete dispatch record.");
+    }
   };
 
   // Permission check: only admin or users with "dispatch" permission can access
@@ -129,220 +136,266 @@ export default function AdvancedDispatchDashboard() {
   const SIDEBAR_WIDTH = 260;
 
   const S = {
-    sidebar: {
-      width: SIDEBAR_WIDTH,
-      background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)",
-      display: "flex",
-      flexDirection: "column" as const,
-      padding: "24px 16px",
-      position: "fixed" as const,
-      top: 0, left: 0, bottom: 0,
-      zIndex: 100,
-      transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
-      transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
-    } as React.CSSProperties,
     sidebarMobileOverlay: {
       position: "fixed" as const,
       inset: 0,
       background: "rgba(0,0,0,0.5)",
-      zIndex: 99,
-      backdropFilter: "blur(4px)",
+      zIndex: 199,
+      backdropFilter: "blur(3px)",
       display: (!isDesktop && sidebarOpen) ? "block" : "none",
     } as React.CSSProperties,
     main: {
       flex: 1,
-      marginLeft: isDesktop ? SIDEBAR_WIDTH : 0,
-      padding: isMobile ? "70px 16px 32px" : "28px 32px 32px",
+      marginLeft: isDesktop ? 260 : 0,
+      padding: isMobile ? "16px 14px 32px" : "28px 32px 32px",
       minHeight: "100vh",
+      maxWidth: "100%",
+      overflow: "hidden",
+      background: "#f0f2f5",
       transition: "margin-left 0.3s"
     } as React.CSSProperties,
     btnIcon: {
-      width: 36, height: 36, borderRadius: 10, background: "#f8fafc",
-      border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      transition: "all 0.2s", fontSize: 16
+      width: 36, height: 36, borderRadius: 9, border: "1px solid #e2e8f0", 
+      background: "#fff", cursor: "pointer", display: "flex", 
+      alignItems: "center", justifyContent: "center", flexShrink: 0
     } as React.CSSProperties,
   };
 
   return (
-    <div className="bg-gray-50 flex flex-col font-sans" style={{ minHeight: "100vh", fontFamily: "inherit" }}>
-      {/* Sidebar Overlay */}
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f0f2f5" }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+        input:focus, select:focus, textarea:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+      `}</style>
+
+      {/* Mobile overlay */}
       <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />
 
-      {/* =================== SIDEBAR =================== */}
-      <aside style={S.sidebar}>
-        {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 8px", marginBottom: 32 }}>
-          <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-            <div style={{ fontSize: 10, color: "#818cf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em" }}>Logistics Hub</div>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <button onClick={() => router.push(userData?.role === "admin" ? "/dashboard/admin" : "/dashboard")}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-            Dashboard
-          </button>
-          <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "rgba(99,102,241,0.15)", color: "#a5b4fc", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: "3px solid #818cf8", paddingLeft: 11 }}>
-            Advanced Dispatch
-          </button>
-          {(userData?.role === "admin" || userData?.permissions?.includes("inventory")) && (
-            <button onClick={() => router.push("/dashboard/inventory")}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Inventory
-            </button>
-          )}
-        </nav>
-
-        <div style={{ flex: 1 }} />
-
-        {/* User */}
-        <div style={{ padding: "16px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: roleColors[currentRole] || "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, color: "#fff" }}>
-              {currentName[0]?.toUpperCase() || "U"}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
-              <div style={{ fontSize: 11, color: "#818cf8", fontWeight: 600, textTransform: "capitalize" }}>{currentRole}</div>
-            </div>
-          </div>
-        </div>
-        <button onClick={() => { logout(); router.replace("/"); }}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
-          Sign Out
-        </button>
-      </aside>
+      {/* SIDEBAR */}
+      <div style={{
+        position: "fixed", top: 0, left: 0, bottom: 0,
+        zIndex: 200,
+        transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
+        transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+      }}>
+        <DispatchSidebar
+          activeView={activeView}
+          onNavigate={(view) => {
+            setActiveView(view);
+            if (!isDesktop) setSidebarOpen(false);
+          }}
+          currentName={currentName}
+          currentRole={currentRole}
+          onLogout={() => { logout(); router.replace("/"); }}
+          userRoleColor={roleColors[currentRole] || "#6366f1"}
+          onDashboardBack={() => router.push(userData?.role === "admin" ? "/dashboard/admin" : "/dashboard")}
+        />
+      </div>
 
       {/* Main Content */}
       <main style={S.main}>
-        <div className="max-w-7xl mx-auto space-y-6">
+        {/* Mobile top bar */}
+        {!isDesktop && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+            <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4h12M2 8h12M2 12h8" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </button>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Dispatch</span>
+          </div>
+        )}
 
-          {/* ── Page Header ────────────────────────────────────────────────── */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-4">
-              {!isDesktop && (
-                <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>
-              )}
+        {activeView === "overview" && (
+          <div className="animate-in fade-in duration-300">
+            <PageHeader title="Overview" sub="Manage and track your entire fulfillment pipeline.">
+                <BtnPrimary onClick={() => setActiveView("create-dispatch")}>🚀 Create Dispatch</BtnPrimary>
+                <BtnGhost onClick={loadOrders} style={{ fontSize: 13 }}>↻ Refresh</BtnGhost>
+            </PageHeader>
+
+            {/* NEW: Global Search on Overview */}
+            <Card style={{ padding: "18px 20px", marginBottom: 24, background: "linear-gradient(to bottom right, #fff, #f8fafc)" }}>
+               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+                  <div style={{ flex: 1, minWidth: 280, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10 }}>
+                     <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ color: "#94a3b8" }}>
+                        <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.6" />
+                        <path d="M10 10L13.5 13.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                     </svg>
+                     <input 
+                        type="text" 
+                        placeholder="Quick Search: Enter Order ID or Customer..." 
+                        onChange={(e) => {
+                           setSearchQuery(e.target.value);
+                           if (e.target.value) setActiveView("order-list");
+                        }}
+                        style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14, fontFamily: "'Segoe UI', system-ui", color: "#1e293b" }}
+                     />
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                     {["Pending", "Packed", "Dispatched"].map(s => (
+                        <button 
+                           key={s} 
+                           onClick={() => {
+                              setFilterStatus(s as any);
+                              setActiveView("order-list");
+                           }}
+                           style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                           onMouseEnter={e => (e.currentTarget.style.background = "#f1f5f9")}
+                           onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+                        >
+                           {s}
+                        </button>
+                     ))}
+                  </div>
+               </div>
+            </Card>
+
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+              {[
+                { label: "Today's Dispatched", value: stats.dispatchedToday, color: "emerald", icon: "🚚" },
+                { label: "Pending Orders", value: stats.pending, color: "amber", icon: "🕒" },
+                { label: "Ready to Ship", value: stats.packed, color: "indigo", icon: "📦" },
+              ].map(s => (
+                <Card key={s.label} style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: "#f8fafc", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{s.icon}</div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{s.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#1e293b", fontFamily: "'Segoe UI', system-ui" }}>{s.value}</div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "2fr 1fr" : "1fr", gap: 24 }}>
               <div>
-                <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Dispatch Overview</h1>
-                <p className="text-gray-500 mt-1 font-medium">Manage and track your entire fulfillment pipeline.</p>
+                <Card style={{ padding: 0, overflow: "hidden", minHeight: 300 }}>
+                  <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0 }}>Recent Dispatches</h3>
+                    <button onClick={() => setActiveView("order-list")} style={{ fontSize: 12, fontWeight: 600, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ background: "#f8fafc" }}>
+                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Order ID</th>
+                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Party Name</th>
+                          <th style={{ padding: "12px 20px", textAlign: "center", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Total Box</th>
+                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Status</th>
+                          <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Transporter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.filter(o => o.status === "Dispatched").slice(0, 6).length === 0 ? (
+                            <tr>
+                                <td colSpan={5} style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                                    <div style={{ fontSize: 32, marginBottom: 12 }}>🚚</div>
+                                    No recent dispatches found.
+                                </td>
+                            </tr>
+                        ) : (
+                            orders.filter(o => o.status === "Dispatched").slice(0, 6).map(o => (
+                                <tr key={o.id} style={{ borderBottom: "1px solid #f8fafc" }}>
+                                  <td style={{ padding: "12px 20px", fontSize: 13, fontWeight: 600, color: "#475569" }}>#{o.id}</td>
+                                  <td style={{ padding: "12px 20px", fontSize: 13, color: "#64748b" }}>{o.partyName || o.customer?.name || "Unknown"}</td>
+                                  <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 700, textAlign: "center" }}>{o.bails || 0}</td>
+                                  <td style={{ padding: "12px 20px", fontSize: 11 }}>
+                                      <span style={{ padding: "4px 10px", borderRadius: 20, background: "#eef2ff", color: "#6366f1", fontWeight: 700 }}>{o.status}</span>
+                                  </td>
+                                  <td style={{ padding: "12px 20px", fontSize: 12, color: "#64748b", textAlign: "right", fontWeight: 600 }}>{o.courierPartner || o.transporterName || "—"}</td>
+                                </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
+
+              <div>
+                <Card style={{ padding: "24px", height: "100%", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", color: "#fff", border: "none" }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>⚡</span> Quick Actions
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <button onClick={() => setActiveView("create-dispatch")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                      <span style={{ background: "rgba(99,102,241,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>➕</span>
+                      Create New Dispatch
+                    </button>
+                    <button onClick={() => setActiveView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                      <span style={{ background: "rgba(139,92,246,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</span>
+                      Manage All Orders
+                    </button>
+                    <button onClick={() => setActiveView("scanner")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                      <span style={{ background: "rgba(20,184,166,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔍</span>
+                      Barcode Scanner
+                    </button>
+                  </div>
+                </Card>
               </div>
             </div>
-
-            {/* ── Action Buttons ──────────────────────────────────────────── */}
-            <div className="flex gap-3 flex-wrap">
-              {/* ★ CREATE DISPATCH — Primary CTA */}
-              <button
-                onClick={() => setShowCreateDispatch(true)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "10px 20px", borderRadius: 12, border: "none",
-                  background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                  color: "#fff", fontWeight: 800, fontSize: 14,
-                  cursor: "pointer", fontFamily: "inherit",
-                  boxShadow: "0 4px 15px rgba(99,102,241,0.35)",
-                  transition: "all 0.2s",
-                }}
-              >
-                <span style={{ fontSize: 18 }}>🚀</span>
-                Create Dispatch
-              </button>
-
-              <button
-                onClick={() => { setScannedUnknownId(""); setShowAddModal(true); }}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 shadow-sm rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2"
-              >
-                <span>+</span> Add Order
-              </button>
-
-              <button
-                onClick={loadOrders}
-                className="px-5 py-2.5 bg-white border border-gray-200 shadow-sm rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2"
-              >
-                Refresh
-              </button>
-            </div>
           </div>
+        )}
 
-          {/* ── Stats Widgets ───────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: "Today's Dispatched", value: stats.dispatchedToday, color: "emerald", icon: "🚚" },
-              { label: "Previous Day Dispatched", value: stats.pending, color: "yellow", icon: "⏳" },
-              { label: "Total Dispatched", value: stats.total, color: "indigo", icon: "📦" },
-            ].map(s => (
-              <div key={s.label} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl bg-${s.color}-50 text-${s.color}-500 flex items-center justify-center text-2xl`}>{s.icon}</div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{s.label}</p>
-                  <h3 className="text-2xl font-black text-gray-800">{s.value}</h3>
-                </div>
-              </div>
-            ))}
+        {activeView === "order-list" && (
+          <div className="animate-in fade-in duration-300">
+            <OrderList
+              orders={orders}
+              onSelectOrder={setSelectedOrder}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              filterStatus={filterStatus}
+              setFilterStatus={setFilterStatus}
+              onRefresh={loadOrders}
+              loading={fetching}
+              onDeleteOrder={handleDeleteOrder}
+            />
           </div>
+        )}
 
-          {/* ── Scanner & Table Section ─────────────────────────────────────── */}
-          <div className="grid grid-cols-1 gap-6">
-            <Scanner onScan={handleScan} />
-
-            {fetching ? (
-              <div className="py-20 flex flex-col items-center justify-center">
-                <div className="w-8 h-8 rounded-full border-4 border-gray-200 border-t-blue-600 animate-spin mb-4"></div>
-                <p className="text-gray-500 font-medium">Loading orders...</p>
-              </div>
-            ) : (
-              <div style={{ height: isMobile ? "auto" : "600px" }}>
-                <OrderList
-                  orders={orders}
-                  onSelectOrder={setSelectedOrder}
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  filterStatus={filterStatus}
-                  setFilterStatus={setFilterStatus}
-                />
-              </div>
-            )}
+        {activeView === "scanner" && (
+          <div className="animate-in fade-in duration-300">
+             <PageHeader title="Scanner" sub="Scan barcodes to quickly find and process orders." />
+             <Card style={{ padding: 24 }}>
+               <Scanner onScan={handleScan} />
+             </Card>
           </div>
-        </div>
+        )}
+
+        {activeView === "create-dispatch" && (
+          <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300">
+            <CreateDispatchModal
+              onClose={() => setActiveView("overview")}
+              onDispatched={(data) => {
+                loadOrders();
+                setActiveView("overview");
+              }}
+            />
+          </div>
+        )}
+
+        {activeView === "add-order" && (
+          <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300">
+            <AddOrderModal
+              initialOrderId={scannedUnknownId}
+              onClose={() => setActiveView("overview")}
+              onOrderAdded={handleOrderAdded}
+            />
+          </div>
+        )}
+
       </main>
 
-      {/* ── Modals ─────────────────────────────────────────────────────────── */}
-
-      {/* ★ Create Dispatch — 8-step wizard */}
-      {showCreateDispatch && (
-        <CreateDispatchModal
-          onClose={() => setShowCreateDispatch(false)}
-          onDispatched={(data) => {
-            console.log("Dispatch created:", data);
-            loadOrders(); // refresh order list after dispatch
-          }}
-        />
-      )}
-
+      {/* Overlay Modals */}
       {selectedOrder && (
         <OrderDetailsModal
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onOrderUpdated={handleOrderUpdated}
+          onDeleteOrder={handleDeleteOrder}
         />
       )}
-
-      {showAddModal && (
-        <AddOrderModal
-          initialOrderId={scannedUnknownId}
-          onClose={() => setShowAddModal(false)}
-          onOrderAdded={handleOrderAdded}
-        />
-      )}
-
-      <style jsx global>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

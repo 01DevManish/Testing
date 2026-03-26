@@ -13,13 +13,15 @@ interface EditRoleModalProps {
   editPermissions: string[];
   setEditPermissions: (p: string[]) => void;
   savingRole: boolean;
+  editPin: string;
+  setEditPin: (p: string) => void;
   handleRoleUpdate: () => void;
   onClose: () => void;
 }
 
 export default function EditRoleModal({
   S, editingUser, editRole, setEditRole, editPermissions, setEditPermissions,
-  savingRole, handleRoleUpdate, onClose,
+  savingRole, editPin, setEditPin, handleRoleUpdate, onClose,
 }: EditRoleModalProps) {
   return (
     <div style={S.modalOverlay} onClick={onClose}>
@@ -33,7 +35,10 @@ export default function EditRoleModal({
         <label style={{ ...S.label, marginBottom: 10 }}>Change Role</label>
         <div style={{ display: "flex", gap: 8, marginBottom: 22 }}>
           {(["admin", "manager", "employee"] as UserRole[]).map(r => (
-            <button key={r} onClick={() => setEditRole(r)}
+            <button key={r} onClick={() => {
+              setEditRole(r);
+              if (r === "admin") setEditPermissions(["dispatch", "inventory", "reports", "settings"]);
+            }}
               style={{ flex: 1, padding: "10px 6px", borderRadius: 11, cursor: "pointer", textAlign: "center", fontFamily: "inherit", border: editRole === r ? `2px solid ${roleColors[r]}` : "2px solid #e2e8f0", background: editRole === r ? `${roleColors[r]}08` : "#fff" }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: editRole === r ? roleColors[r] : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{r}</div>
             </button>
@@ -51,6 +56,23 @@ export default function EditRoleModal({
             </label>
           ))}
         </div>
+
+        <label style={{ ...S.label, marginBottom: 10 }}>Dispatch PIN (4 Digits)</label>
+        <div style={{ marginBottom: 22 }}>
+          <input 
+            type="text" 
+            maxLength={4} 
+            placeholder="No PIN set"
+            value={editPin || ""}
+            onChange={e => {
+              const val = e.target.value.replace(/\D/g, "");
+              if (val.length <= 4) setEditPin(val);
+            }}
+            style={{ ...S.input, letterSpacing: "0.5em", textAlign: "center", fontWeight: 700, fontSize: 18 }}
+          />
+          <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Administrators can reset user PINs if they are forgotten.</p>
+        </div>
+
         <button onClick={handleRoleUpdate} disabled={savingRole}
           style={{ ...S.btnPrimary, width: "100%", justifyContent: "center", padding: "13px 20px", fontSize: 14, opacity: savingRole ? 0.5 : 1 }}>
           {savingRole ? <span style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Update Role"}

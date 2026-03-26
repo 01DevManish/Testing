@@ -55,19 +55,19 @@ export default function AddOrderModal({ initialOrderId, onClose, onOrderAdded }:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in-up">
+    <div className="w-full">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden animate-fade-in-up">
         
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h2 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
             📦 {initialOrderId ? `Import Scanned Order` : `Manual Dispatch Entry`}
           </h2>
-          <button onClick={onClose} className="p-2 bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 rounded-lg transition-colors">
-            ✕
+          <button onClick={onClose} className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors">
+            ← Back to Overview
           </button>
         </div>
 
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-6">
           {initialOrderId && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-sm flex gap-3">
               <span className="text-xl">ℹ️</span>
@@ -85,7 +85,7 @@ export default function AddOrderModal({ initialOrderId, onClose, onOrderAdded }:
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Order ID *</label>
-                  <input type="text" required value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., ORD-123" />
+                  <input type="text" required value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Payment Status</label>
@@ -124,15 +124,15 @@ export default function AddOrderModal({ initialOrderId, onClose, onOrderAdded }:
               <div className="space-y-3">
                 {products.map((p, index) => (
                   <div key={index} className="flex gap-2 items-center">
-                    <input type="text" placeholder="Item Name" value={p.name} onChange={e => {
+                    <input type="text" value={p.name} onChange={e => {
                       const newP = [...products]; newP[index].name = e.target.value; setProducts(newP);
                     }} className="flex-1 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-blue-500" />
                     
-                    <input type="number" min="1" placeholder="Qty" value={p.quantity} onChange={e => {
+                    <input type="number" min="1" value={p.quantity} onChange={e => {
                       const newP = [...products]; newP[index].quantity = Number(e.target.value); setProducts(newP);
                     }} className="w-20 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-blue-500" />
                     
-                    <input type="number" min="0" step="0.01" placeholder="Price" value={p.price} onChange={e => {
+                    <input type="number" min="0" step="0.01" value={p.price} onChange={e => {
                       const newP = [...products]; newP[index].price = Number(e.target.value); setProducts(newP);
                     }} className="w-24 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-blue-500" />
                     

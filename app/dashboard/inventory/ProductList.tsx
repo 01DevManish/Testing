@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { ref, remove, update } from "firebase/database";
 import { db } from "../../lib/firebase";
-import { FONT, Product, CATEGORIES, STATUS_CONFIG } from "./types";
+import { FONT, Product, Category, STATUS_CONFIG } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
 
 type SortKey = "productName" | "category" | "price" | "stock" | "status" | "createdAt";
@@ -11,6 +11,7 @@ type SortDir = "asc" | "desc";
 
 interface Props {
     products: Product[];
+    categories: Category[];
     loading: boolean;
     isAdminOrManager: boolean;
     onEdit: (p: Product) => void;
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export default function ProductList({
-    products, loading, isAdminOrManager, onEdit, onRefresh, onCreateNew, onProductsChange,
+    products, categories, loading, isAdminOrManager, onEdit, onRefresh, onCreateNew, onProductsChange,
 }: Props) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
@@ -122,7 +123,7 @@ export default function ProductList({
                             <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4" />
                             <path d="M9 9L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                         </svg>
-                        <input type="text" placeholder="Search name, SKU, brand..." value={searchTerm}
+                        <input type="text" value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT }} />
                         {searchTerm && (
@@ -137,7 +138,7 @@ export default function ProductList({
                         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
                             style={{ padding: "6px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none" }}>
                             <option value="all">All Categories</option>
-                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                         {(["all", "active", "inactive", "out-of-stock"] as const).map(f => (
                             <button key={f} onClick={() => setFilterStatus(f)}

