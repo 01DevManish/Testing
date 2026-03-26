@@ -3,7 +3,6 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // 1. Initialize Firebase
-// Make sure you place your service-account.json in the same folder
 const serviceAccount = require('./service-account.json');
 
 admin.initializeApp({
@@ -26,17 +25,10 @@ const pool = mysql.createPool({
 
 console.log("🚀 Eurus Sync Service Started...");
 
-// ─── SYNC LOGIC ───
+// ─── SYNC HELPERS ───
 
-// Sync Function for Products
-function syncProducts() {
-  const ref = db.ref('products');
-  
-  ref.on('child_added', async (snapshot) => {
-    const p = snapshot.val();
-    const id = snapshot.key;
+async function saveProduct(id, p) {
     if (!p) return;
-    
     const query = `
       INSERT INTO products (id, name, category, collection, itemGroup, stock, price, status, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -47,40 +39,11 @@ function syncProducts() {
       id, p.name, p.category, p.collection, p.itemGroup, p.stock, p.price, p.status, p.updatedAt,
       p.name, p.category, p.collection, p.itemGroup, p.stock, p.price, p.status, p.updatedAt
     ];
-    
-    try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (Add):", e.message); }
-  });
-
-  ref.on('child_changed', async (snapshot) => {
-    const p = snapshot.val();
-    const id = snapshot.key;
-    if (!p) return;
-    
-    const query = `
-      UPDATE products SET 
-      name=?, category=?, collection=?, itemGroup=?, stock=?, price=?, status=?, updatedAt=?
-      WHERE id=?
-    `;
-    const values = [p.name, p.category, p.collection, p.itemGroup, p.stock, p.price, p.status, p.updatedAt, id];
-    
-    try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (Update):", e.message); }
-  });
-
-  ref.on('child_removed', async (snapshot) => {
-    const id = snapshot.key;
-    try { await pool.execute('DELETE FROM products WHERE id = ?', [id]); } catch (e) { console.error("SQL Error (Delete):", e.message); }
-  });
+    try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (Product):", e.message); }
 }
 
-// Sync Function for Dispatches (Orders)
-function syncDispatches() {
-  const ref = db.ref('orders');
-  
-  ref.on('child_added', async (snapshot) => {
-    const o = snapshot.val();
-    const id = snapshot.key;
+async function saveDispatch(id, o) {
     if (!o) return;
-    
     const query = `
       INSERT INTO dispatches (id, partyName, transporterName, bails, status, paymentStatus, dispatchDate, remarks, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -91,26 +54,82 @@ function syncDispatches() {
       id, o.partyName, o.transporterName, o.bails, o.status, o.paymentStatus, o.dispatchDate, o.remarks, o.createdAt, o.updatedAt,
       o.partyName, o.transporterName, o.bails, o.status, o.paymentStatus, o.dispatchDate, o.remarks, o.updatedAt
     ];
+    try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (Dispatch):", e.message); }
+}
+
+async function saveUser(id, u) {
+    if (!u || u.email === '01devmanish@gmail.com') return; // Skip developer account
+    const query = `
+      INSERT INTO users (uid, name, email, role, permissions, dispatchPin)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+      name=?, email=?, role=?, permissions=?, dispatchPin=?
+    `;
+    const values = [
+      id, u.name, u.email, u.role, JSON.stringify(u.permissions || []), u.dispatchPin || '',
+      u.name, u.email, u.role, JSON.stringify(u.permissions || []), u.dispatchPin || ''
+    ];
+    try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (User):", e.message); }
+}
+
+// ─── INITIAL SYNC ───
+
+async function runInitialSync() {
+    console.log("📥 Running Initial Sync (Historical Data Import)...");
     
-    try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (Dispatch Add):", e.message); }
+    // 1. Sync Products
+    const productsSnap = await db.ref('products').once('value');
+    if (productsSnap.exists()) {
+        const data = productsSnap.val();
+        for (const id in data) await saveProduct(id, data[id]);
+    }
+    
+    // 2. Sync Orders (Dispatches)
+    const ordersSnap = await db.ref('orders').once('value');
+    if (ordersSnap.exists()) {
+        const data = ordersSnap.val();
+        for (const id in data) await saveDispatch(id, data[id]);
+    }
+
+    // 3. Sync Users
+    const usersSnap = await db.ref('users').once('value');
+    if (usersSnap.exists()) {
+        const data = usersSnap.val();
+        for (const id in data) await saveUser(id, data[id]);
+    }
+
+    console.log("✅ Initial Sync Completed. Now listening for changes...");
+}
+
+// ─── REALTIME LISTENERS ───
+
+function setupListeners() {
+  // Products
+  db.ref('products').on('child_added', (s) => saveProduct(s.key, s.val()));
+  db.ref('products').on('child_changed', (s) => saveProduct(s.key, s.val()));
+  db.ref('products').on('child_removed', async (s) => {
+    try { await pool.execute('DELETE FROM products WHERE id = ?', [s.key]); } catch (e) {}
   });
 
-  ref.on('child_changed', async (snapshot) => {
-    const o = snapshot.val();
-    const id = snapshot.key;
-    const query = `UPDATE dispatches SET partyName=?, transporterName=?, bails=?, status=?, updatedAt=? WHERE id=?`;
-    try { await pool.execute(query, [o.partyName, o.transporterName, o.bails, o.status, o.updatedAt, id]); } catch (e) { console.error("SQL Error (Dispatch Update):", e.message); }
+  // Orders
+  db.ref('orders').on('child_added', (s) => saveDispatch(s.key, s.val()));
+  db.ref('orders').on('child_changed', (s) => saveDispatch(s.key, s.val()));
+  db.ref('orders').on('child_removed', async (s) => {
+    try { await pool.execute('DELETE FROM dispatches WHERE id = ?', [s.key]); } catch (e) {}
   });
 
-  ref.on('child_removed', async (snapshot) => {
-    const id = snapshot.key;
-    try { await pool.execute('DELETE FROM dispatches WHERE id = ?', [id]); } catch (e) { console.error("SQL Error (Dispatch Delete):", e.message); }
+  // Users
+  db.ref('users').on('child_added', (s) => saveUser(s.key, s.val()));
+  db.ref('users').on('child_changed', (s) => saveUser(s.key, s.val()));
+  db.ref('users').on('child_removed', async (s) => {
+    try { await pool.execute('DELETE FROM users WHERE uid = ?', [s.key]); } catch (e) {}
   });
 }
 
-// Start Listeners
-syncProducts();
-syncDispatches();
+// Start sequence
+runInitialSync().then(() => {
+    setupListeners();
+});
 
 // Error Handling
 process.on('uncaughtException', (err) => {

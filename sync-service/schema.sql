@@ -30,7 +30,18 @@ CREATE TABLE IF NOT EXISTS dispatches (
     updatedAt BIGINT
 );
 
--- 3. Sync Log (Optional)
+-- 3. Users Table
+CREATE TABLE IF NOT EXISTS users (
+    uid VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255),
+    role VARCHAR(50),
+    permissions TEXT,
+    dispatchPin VARCHAR(10),
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Sync Log (Optional)
 CREATE TABLE IF NOT EXISTS sync_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     action VARCHAR(50),
