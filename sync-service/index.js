@@ -5,6 +5,11 @@ require('dotenv').config();
 // 1. Initialize Firebase
 const serviceAccount = require('./service-account.json');
 
+// Fix for PEM formatting (replacing literal \n with actual newlines)
+if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+  serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+}
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: process.env.FIREBASE_DB_URL || "https://eurus-lifestyle-default-rtdb.firebaseio.com"
