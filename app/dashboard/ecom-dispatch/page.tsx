@@ -90,8 +90,9 @@ export default function AdvancedDispatchDashboard() {
   };
 
   const handleDeleteOrder = async (id: string) => {
+    if (!user) return;
     try {
-      await api.deleteOrder(id);
+      await api.deleteOrder(id, { uid: user.uid, name: currentName, role: currentRole });
       setOrders(orders.filter(o => o.id !== id));
       if (selectedOrder?.id === id) setSelectedOrder(null);
     } catch (e) {
@@ -227,7 +228,6 @@ export default function AdvancedDispatchDashboard() {
                      </svg>
                      <input 
                         type="text" 
-                        placeholder="Quick Search: Enter Order ID or Customer..." 
                         onChange={(e) => {
                            setSearchQuery(e.target.value);
                            if (e.target.value) setActiveView("order-list");
@@ -391,12 +391,13 @@ export default function AdvancedDispatchDashboard() {
       </main>
 
       {/* Overlay Modals */}
-      {selectedOrder && (
+      {selectedOrder && user && (
         <OrderDetailsModal
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onOrderUpdated={handleOrderUpdated}
           onDeleteOrder={handleDeleteOrder}
+          user={{ uid: user.uid, name: currentName, role: currentRole }}
         />
       )}
     </div>

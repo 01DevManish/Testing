@@ -10,6 +10,9 @@ import {
     Input, Textarea, Select, FormField, SectionDivider,
     BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader,
 } from "./ui";
+import ImageGallery from "./ImageGallery";
+import { uploadToCloudinary } from "./cloudinary";
+import { logActivity } from "../../lib/activityLogger";
 
 const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
     productName: "", sku: "", category: "", collection: "", brand: "",
@@ -36,6 +39,7 @@ export default function CreateProduct({
     const [success, setSuccess] = useState("");
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [imagePreview, setImagePreview] = useState("");
+    const [galleryImages, setGalleryImages] = useState<string[]>([]);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const set = (k: keyof typeof EMPTY, v: any) => {
@@ -79,8 +83,27 @@ export default function CreateProduct({
             const result = ev.target?.result as string;
             setImagePreview(result);
             set("imageUrl", result);
+            // Also add to gallery if not already there
+            if (!galleryImages.includes(result)) {
+                setGalleryImages(prev => [result, ...prev]);
+            }
         };
         reader.readAsDataURL(file);
+    };
+
+    const handleGalleryChange = (imgs: string[]) => {
+        setGalleryImages(imgs);
+        // If the main image is removed from gallery, update it
+        if (imgs.length > 0 && !imgs.includes(form.imageUrl)) {
+            // keep it if it's external, or update to first gallery image
+            if (form.imageUrl.startsWith("data:")) {
+                 set("imageUrl", imgs[0]);
+                 setImagePreview(imgs[0]);
+            }
+        } else if (imgs.length === 0) {
+            set("imageUrl", "");
+            setImagePreview("");
+        }
     };
 
     const handleSave = async () => {
@@ -99,19 +122,18 @@ export default function CreateProduct({
             }
 
             let finalImageUrl = form.imageUrl;
+            let finalImageUrls: string[] = [];
             
-            // Upload to Cloudinary if it's a local file (base64)
-            if (finalImageUrl && finalImageUrl.startsWith("data:image")) {
-                const res = await fetch("/api/upload", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ image: finalImageUrl })
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || "Failed to upload image to Cloudinary");
+            // Upload all gallery images to Cloudinary
+            if (galleryImages.length > 0) {
+                const uploadPromises = galleryImages.map(img => uploadToCloudinary(img));
+                finalImageUrls = await Promise.all(uploadPromises);
+                
+                // Set first image as main thumbnail if main image was one of the uploaded ones
+                if (form.imageUrl.startsWith("data:")) {
+                    const idx = galleryImages.indexOf(form.imageUrl);
+                    finalImageUrl = idx !== -1 ? finalImageUrls[idx] : finalImageUrls[0];
                 }
-                finalImageUrl = data.secure_url;
             }
 
             let autoStatus = form.status;
@@ -123,6 +145,7 @@ export default function CreateProduct({
             const docData = {
                 ...form,
                 imageUrl: finalImageUrl,
+                imageUrls: finalImageUrls,
                 status: autoStatus,
                 price: Number(form.price),
                 costPrice: Number(form.costPrice),
@@ -139,9 +162,21 @@ export default function CreateProduct({
 
             // Removed size check since image is now safely hosted on Cloudinary
 
-            console.log("DEBUG: Calling push/set...");
             const newRef = push(ref(db, "inventory"));
             await rtdbSet(newRef, docData);
+            
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "create",
+                title: "New Product Created",
+                description: `Product "${docData.productName}" (SKU: ${docData.sku}) was created by ${currentUser.name}.`,
+                userId: currentUser.uid,
+                userName: currentUser.name,
+                userRole: "admin",
+                metadata: { productId: newRef.key }
+            });
+
             console.log("DEBUG: create success, ID:", newRef.key);
             
             const created = { id: newRef.key as string, ...docData } as Product;
@@ -153,6 +188,7 @@ export default function CreateProduct({
             setSizeOption("");
             setCustomSize("");
             setImagePreview("");
+            setGalleryImages([]);
             setSuccess(`Product "${created.productName}" created successfully.`);
             alert(`Product "${created.productName}" created successfully!`);
         } catch (err) {
@@ -352,9 +388,9 @@ export default function CreateProduct({
                     {/* Product Image */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Image</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Images</div>
 
-                            {/* Preview box */}
+                            {/* Main Preview box */}
                             <div
                                 onClick={() => fileRef.current?.click()}
                                 style={{
@@ -362,7 +398,7 @@ export default function CreateProduct({
                                     borderRadius: 10, border: "2px dashed #e2e8f0",
                                     background: "#f8fafc", display: "flex",
                                     alignItems: "center", justifyContent: "center",
-                                    cursor: "pointer", overflow: "hidden", marginBottom: 12,
+                                    cursor: "pointer", overflow: "hidden", marginBottom: 16,
                                     transition: "border-color 0.2s",
                                 }}
                             >
@@ -376,29 +412,28 @@ export default function CreateProduct({
                                             <circle cx="11" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
                                             <path d="M3 22l7-5 5 4 5-6 9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
-                                        <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>Click to upload image</div>
-                                        <div style={{ fontSize: 10, color: "#cbd5e1", marginTop: 3, fontFamily: FONT }}>PNG, JPG, WEBP</div>
+                                        <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>Principal Thumbnail</div>
                                     </div>
                                 )}
                             </div>
 
                             <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
+                            
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Image Gallery</div>
+                            <ImageGallery 
+                                images={galleryImages} 
+                                onImagesChange={handleGalleryChange} 
+                                maxImages={6} 
+                            />
 
-                            <FormField label="Or paste image URL">
-                                <Input
-                                    value={form.imageUrl.startsWith("data:") ? "" : form.imageUrl}
-                                    onChange={e => handleImageUrl(e.target.value)}
-                                />
-                            </FormField>
-
-                            {imagePreview && (
-                                <button
-                                    onClick={() => { setImagePreview(""); set("imageUrl", ""); }}
-                                    style={{ marginTop: 8, fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontFamily: FONT, padding: 0 }}
-                                >
-                                    Remove image
-                                </button>
-                            )}
+                            <div style={{ marginTop: 16 }}>
+                                <FormField label="Main Image URL (Optional fallback)">
+                                    <Input
+                                        value={form.imageUrl.startsWith("data:") ? "" : form.imageUrl}
+                                        onChange={e => handleImageUrl(e.target.value)}
+                                    />
+                                </FormField>
+                            </div>
                         </div>
                     </Card>
 

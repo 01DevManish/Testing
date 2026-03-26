@@ -115,7 +115,7 @@ export default function TasksTab({
         <div style={{ ...S.tableContainer, padding: isMobile ? 16 : 22, marginBottom: 18, animation: "fadeInUp 0.3s ease" }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#0f172a" }}>Create New Task</h3>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-            <div><label style={S.label}>Task Title</label><input style={S.input} placeholder="Enter task title" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} /></div>
+            <div><label style={S.label}>Task Title</label><input style={S.input} value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} /></div>
             <div>
               <label style={S.label}>Assign To</label>
               <select value={taskForm.assignedTo} onChange={e => setTaskForm({ ...taskForm, assignedTo: e.target.value })} style={{ ...S.input, cursor: "pointer", appearance: "none" as const }}>
@@ -124,7 +124,7 @@ export default function TasksTab({
               </select>
             </div>
           </div>
-          <div style={{ marginTop: 12 }}><label style={S.label}>Description</label><textarea placeholder="Describe the task..." value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} rows={2} style={{ ...S.input, resize: "vertical" as const }} /></div>
+          <div style={{ marginTop: 12 }}><label style={S.label}>Description</label><textarea value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} rows={2} style={{ ...S.input, resize: "vertical" as const }} /></div>
           
           {/* Attachments UI */}
           <div style={{ marginTop: 12 }}>

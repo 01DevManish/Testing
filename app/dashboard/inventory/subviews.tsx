@@ -10,7 +10,7 @@ import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, 
 // ══════════════════════════════════════════════════════════════
 // CREATE CATEGORY
 // ══════════════════════════════════════════════════════════════
-export function CreateCategory({ onCreated }: { onCreated?: (c: Category) => void }) {
+export function CreateCategory({ user, onCreated }: { user: { uid: string; name: string }, onCreated?: (c: Category) => void }) {
     const [name, setName] = useState("");
     const [desc, setDesc] = useState("");
     const [saving, setSaving] = useState(false);
@@ -24,6 +24,19 @@ export function CreateCategory({ onCreated }: { onCreated?: (c: Category) => voi
             const d = { name: name.trim(), description: desc.trim(), createdAt: Date.now() };
             const newRef = push(ref(db, "categories"));
             await set(newRef, d);
+            
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "create",
+                title: "New Category Created",
+                description: `Category "${name}" was created by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { categoryId: newRef.key }
+            });
+
             onCreated?.({ id: newRef.key as string, ...d } as Category);
             setSuccess(`Category "${name}" created.`);
             setName(""); setDesc(""); setError("");
@@ -58,7 +71,7 @@ export function CreateCategory({ onCreated }: { onCreated?: (c: Category) => voi
 // ══════════════════════════════════════════════════════════════
 // CATEGORY LIST
 // ══════════════════════════════════════════════════════════════
-export function CategoryList({ categories, loading, onCreateNew }: { categories: Category[]; loading: boolean; onCreateNew: () => void }) {
+export function CategoryList({ categories, user, loading, onCreateNew }: { categories: Category[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void }) {
     return (
         <div>
             <PageHeader title="All Categories" sub={`${categories.length} categories`}>
@@ -83,7 +96,21 @@ export function CategoryList({ categories, loading, onCreateNew }: { categories:
                                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
                                     <button 
-                                        onClick={() => { if(confirm(`Delete category "${c.name}"?`)) remove(ref(db, `categories/${c.id}`)); }}
+                                        onClick={async () => { 
+                                            if(confirm(`Delete category "${c.name}"?`)) {
+                                                await remove(ref(db, `categories/${c.id}`));
+                                                await logActivity({
+                                                    type: "inventory",
+                                                    action: "delete",
+                                                    title: "Category Deleted",
+                                                    description: `Category "${c.name}" was deleted by ${user.name}.`,
+                                                    userId: user.uid,
+                                                    userName: user.name,
+                                                    userRole: "admin",
+                                                    metadata: { categoryId: c.id, categoryName: c.name }
+                                                });
+                                            }
+                                        }}
                                         style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
                                         onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
                                         onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
@@ -103,7 +130,7 @@ export function CategoryList({ categories, loading, onCreateNew }: { categories:
 // ══════════════════════════════════════════════════════════════
 // CREATE COLLECTION
 // ══════════════════════════════════════════════════════════════
-export function CreateCollection({ products, onCreated }: { products: { id: string; productName: string }[]; onCreated?: (c: Collection) => void }) {
+export function CreateCollection({ products, user, onCreated }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (c: Collection) => void }) {
     const [name, setName] = useState("");
     const [desc, setDesc] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -125,6 +152,19 @@ export function CreateCollection({ products, onCreated }: { products: { id: stri
             const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
             const newRef = push(ref(db, "collections"));
             await set(newRef, d);
+            
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "create",
+                title: "New Collection Created",
+                description: `Collection "${name}" (${selected.size} items) was created by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { collectionId: newRef.key, productCount: selected.size }
+            });
+
             onCreated?.({ id: newRef.key as string, ...d } as Collection);
             setSuccess(`Collection "${name}" created.`);
             setName(""); setDesc(""); setSelected(new Set()); setError("");
@@ -184,7 +224,7 @@ export function CreateCollection({ products, onCreated }: { products: { id: stri
 // ══════════════════════════════════════════════════════════════
 // COLLECTION LIST
 // ══════════════════════════════════════════════════════════════
-export function CollectionList({ collections, loading, onCreateNew }: { collections: Collection[]; loading: boolean; onCreateNew: () => void }) {
+export function CollectionList({ collections, user, loading, onCreateNew }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void }) {
     return (
         <div>
             <PageHeader title="All Collections" sub={`${collections.length} collections`}>
@@ -209,7 +249,21 @@ export function CollectionList({ collections, loading, onCreateNew }: { collecti
                                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
                                     <button 
-                                        onClick={() => { if(confirm(`Delete collection "${c.name}"?`)) remove(ref(db, `collections/${c.id}`)); }}
+                                        onClick={async () => { 
+                                            if(confirm(`Delete collection "${c.name}"?`)) {
+                                                await remove(ref(db, `collections/${c.id}`));
+                                                await logActivity({
+                                                    type: "inventory",
+                                                    action: "delete",
+                                                    title: "Collection Deleted",
+                                                    description: `Collection "${c.name}" was deleted by ${user.name}.`,
+                                                    userId: user.uid,
+                                                    userName: user.name,
+                                                    userRole: "admin",
+                                                    metadata: { collectionId: c.id, collectionName: c.name }
+                                                });
+                                            }
+                                        }}
                                         style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
                                         onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
                                         onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
@@ -229,7 +283,7 @@ export function CollectionList({ collections, loading, onCreateNew }: { collecti
 // ══════════════════════════════════════════════════════════════
 // CREATE ITEM GROUP
 // ══════════════════════════════════════════════════════════════
-export function CreateItemGroup({ products, onCreated }: { products: { id: string; productName: string }[]; onCreated?: (g: ItemGroup) => void }) {
+export function CreateItemGroup({ products, user, onCreated }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (g: ItemGroup) => void }) {
     const [name, setName] = useState("");
     const [desc, setDesc] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -251,6 +305,19 @@ export function CreateItemGroup({ products, onCreated }: { products: { id: strin
             const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
             const newRef = push(ref(db, "itemGroups"));
             await set(newRef, d);
+            
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "create",
+                title: "New Item Group Created",
+                description: `Item Group "${name}" (${selected.size} items) was created by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { groupId: newRef.key, itemCount: selected.size }
+            });
+
             onCreated?.({ id: newRef.key as string, ...d } as ItemGroup);
             setSuccess(`Group "${name}" created.`);
             setName(""); setDesc(""); setSelected(new Set()); setError("");
@@ -308,7 +375,7 @@ export function CreateItemGroup({ products, onCreated }: { products: { id: strin
 // ══════════════════════════════════════════════════════════════
 // ITEM GROUP LIST
 // ══════════════════════════════════════════════════════════════
-export function ItemGroupList({ groups, loading, onCreateNew }: { groups: ItemGroup[]; loading: boolean; onCreateNew: () => void }) {
+export function ItemGroupList({ groups, user, loading, onCreateNew }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void }) {
     return (
         <div>
             <PageHeader title="All Item Groups" sub={`${groups.length} groups`}>
@@ -333,7 +400,21 @@ export function ItemGroupList({ groups, loading, onCreateNew }: { groups: ItemGr
                                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(g.createdAt).toLocaleDateString("en-IN")}</div>
                                     <button 
-                                        onClick={() => { if(confirm(`Delete group "${g.name}"?`)) remove(ref(db, `itemGroups/${g.id}`)); }}
+                                        onClick={async () => { 
+                                            if(confirm(`Delete group "${g.name}"?`)) {
+                                                await remove(ref(db, `itemGroups/${g.id}`));
+                                                await logActivity({
+                                                    type: "inventory",
+                                                    action: "delete",
+                                                    title: "Item Group Deleted",
+                                                    description: `Item Group "${g.name}" was deleted by ${user.name}.`,
+                                                    userId: user.uid,
+                                                    userName: user.name,
+                                                    userRole: "admin",
+                                                    metadata: { groupId: g.id, groupName: g.name }
+                                                });
+                                            }
+                                        }}
                                         style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
                                         onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
                                         onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
@@ -687,7 +768,14 @@ export function BarcodeView({ mode }: { mode: "create" | "print" }) {
 // ══════════════════════════════════════════════════════════════
 // OVERVIEW (ALL INVENTORY DASHBOARD)
 // ══════════════════════════════════════════════════════════════
-export function Overview({ products }: { products: Product[] }) {
+export function Overview({ products, categories, collections, loading, onNavigate, currentName }: { 
+    products: Product[]; 
+    categories: Category[]; 
+    collections: Collection[]; 
+    loading: boolean;
+    onNavigate: (view: any) => void;
+    currentName: string;
+}) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);

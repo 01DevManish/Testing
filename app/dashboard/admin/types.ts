@@ -31,7 +31,7 @@ export interface Task {
 export interface LoggedActivity {
   id: string;
   type: "dispatch" | "inventory" | "user" | "task" | "system";
-  action: "create" | "update" | "delete" | "status_change" | "adjustment";
+  action: "create" | "update" | "delete" | "status_change" | "adjustment" | "login" | "logout";
   title: string;
   description: string;
   timestamp: number;

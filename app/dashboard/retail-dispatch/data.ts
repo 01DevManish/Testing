@@ -136,7 +136,7 @@ export const api = {
     } catch (e) { console.error(e); return null; }
   },
 
-  updateOrderStatus: async (id: string, newStatus: OrderStatus, user: string, updates: Partial<Order> = {}): Promise<Order> => {
+  updateOrderStatus: async (id: string, newStatus: OrderStatus, user: string, updates: Partial<Order> = {}, actor?: { uid: string; name: string; role: string }): Promise<Order> => {
     try {
       const orderRef = ref(db, `dispatches/${id}`);
       const snap = await get(orderRef);
@@ -154,10 +154,10 @@ export const api = {
         type: "dispatch",
         action: "status_change",
         title: "Order Status Updated",
-        description: `Retail dispatch ${id} status changed to ${newStatus} by ${user}.`,
-        userId: "unknown", // We only have the name here
-        userName: user,
-        userRole: "staff",
+        description: `Retail dispatch ${id} status changed to ${newStatus} by ${actor?.name || user}.`,
+        userId: actor?.uid || "unknown",
+        userName: actor?.name || user,
+        userRole: (actor?.role as any) || "staff",
         metadata: { orderId: id, status: newStatus }
       });
 
@@ -185,7 +185,7 @@ export const api = {
     }
   },
 
-  createOrder: async (newOrder: Partial<Order>): Promise<Order> => {
+  createOrder: async (newOrder: Partial<Order>, actor?: { uid: string; name: string; role: string }): Promise<Order> => {
     try {
       const orderId = newOrder.id || `ORD-${Math.floor(Math.random() * 10000)}`;
       const orderRef = ref(db, `dispatches/${orderId}`);
@@ -209,10 +209,10 @@ export const api = {
         type: "dispatch",
         action: "create",
         title: "New Retail Dispatch Created",
-        description: `Retail dispatch ${orderId} created for ${order.customer.name} (₹${order.products.reduce((s,p) => s + (p.price*p.quantity), 0)}).`,
-        userId: "unknown",
-        userName: "Admin",
-        userRole: "admin",
+        description: `Retail dispatch ${orderId} created for ${order.customer.name} by ${actor?.name || "Admin"}.`,
+        userId: actor?.uid || "unknown",
+        userName: actor?.name || "Admin",
+        userRole: (actor?.role as any) || "admin",
         metadata: { orderId }
       });
 
@@ -223,7 +223,7 @@ export const api = {
     }
   },
 
-  deleteOrder: async (orderId: string): Promise<void> => {
+  deleteOrder: async (orderId: string, actor?: { uid: string; name: string; role: string }): Promise<void> => {
     try {
       await remove(ref(db, `dispatches/${orderId}`));
 
@@ -232,10 +232,10 @@ export const api = {
         type: "dispatch",
         action: "delete",
         title: "Retail Dispatch Deleted",
-        description: `Retail dispatch ${orderId} was permanently removed.`,
-        userId: "unknown",
-        userName: "Admin",
-        userRole: "admin",
+        description: `Retail dispatch ${orderId} was permanently removed by ${actor?.name || "Admin"}.`,
+        userId: actor?.uid || "unknown",
+        userName: actor?.name || "Admin",
+        userRole: (actor?.role as any) || "admin",
         metadata: { orderId }
       });
     } catch (e) {

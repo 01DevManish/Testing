@@ -7,14 +7,14 @@ import type { AdminStyles } from "./styles";
 
 interface AdminSidebarProps {
   S: AdminStyles;
-  tab: "dashboard" | "users" | "tasks";
-  setTab: (tab: "dashboard" | "users" | "tasks") => void;
+  tab: "dashboard" | "users" | "tasks" | "logs" | "catalog";
+  setTab: (tab: "dashboard" | "users" | "tasks" | "logs" | "catalog") => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   isDesktop: boolean;
   currentName: string;
   handleLogout: () => void;
-  navItems: { key: "dashboard" | "users" | "tasks"; label: string; count?: number }[];
+  navItems: { key: "dashboard" | "users" | "tasks" | "logs" | "catalog"; label: string; count?: number }[];
 }
 
 export default function AdminSidebar({

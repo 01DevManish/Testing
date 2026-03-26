@@ -64,8 +64,7 @@ export default function OrderList({
               <path d="M9 9L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
             <input 
-              type="text" 
-              placeholder="Search by Order ID or Customer..."
+              type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT }} 

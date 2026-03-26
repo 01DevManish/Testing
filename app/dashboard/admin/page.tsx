@@ -19,6 +19,9 @@ import UsersTab from "./UsersTab";
 import TasksTab from "./TasksTab";
 import EditRoleModal from "./EditRoleModal";
 import DashboardTab from "./DashboardTab";
+import LogsTab from "./LogsTab";
+import CatalogTab from "../inventory/CatalogTab";
+import { Product, Category, Collection } from "../inventory/types";
 
 export default function AdminPage() {
   const { user, userData, logout, loading } = useAuth();
@@ -28,7 +31,7 @@ export default function AdminPage() {
   const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
-  const [tab, setTab] = useState<"dashboard" | "users" | "tasks">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "catalog">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -56,6 +59,11 @@ export default function AdminPage() {
   const [taskForm, setTaskForm] = useState({ title: "", description: "", assignedTo: "", priority: "medium" as "low" | "medium" | "high" });
   const [savingTask, setSavingTask] = useState(false);
   const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "in-progress" | "completed">("all");
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [fetchingCatalog, setFetchingCatalog] = useState(false);
 
   const S = useMemo(() => getStyles(isMobile, isTablet, isDesktop, sidebarOpen), [isMobile, isTablet, isDesktop, sidebarOpen]);
 
@@ -103,10 +111,38 @@ export default function AdminPage() {
     }
   }, []);
 
+  const loadCatalogData = useCallback(async () => {
+    setFetchingCatalog(true);
+    try {
+      const [prodSnap, catSnap, collSnap] = await Promise.all([
+        get(ref(db, "products")),
+        get(ref(db, "categories")),
+        get(ref(db, "collections"))
+      ]);
+      
+      const prods: Product[] = [];
+      if (prodSnap.exists()) prodSnap.forEach(d => { prods.push({ id: d.key as string, ...d.val() } as Product); });
+      setProducts(prods);
+
+      const cats: Category[] = [];
+      if (catSnap.exists()) catSnap.forEach(d => { cats.push({ id: d.key as string, ...d.val() } as Category); });
+      setCategories(cats);
+
+      const colls: Collection[] = [];
+      if (collSnap.exists()) collSnap.forEach(d => { colls.push({ id: d.key as string, ...d.val() } as Collection); });
+      setCollections(colls);
+    } catch (e) {
+      console.error("Failed to load catalog data:", e);
+    } finally {
+      setFetchingCatalog(false);
+    }
+  }, []);
+
   useEffect(() => { 
     loadUsers(); 
     loadTasks(); 
-  }, [loadUsers, loadTasks]);
+    loadCatalogData();
+  }, [loadUsers, loadTasks, loadCatalogData]);
 
   if (loading || !user) return null;
   if (userData && userData.role !== "admin") return null;
@@ -340,6 +376,8 @@ export default function AdminPage() {
             { key: "dashboard", label: "Dashboard" },
             { key: "users", label: "Users", count: users.length },
             { key: "tasks", label: "Tasks", count: taskPendingCount > 0 ? taskPendingCount : undefined },
+            { key: "logs", label: "Logs" },
+            { key: "catalog", label: "Catalog Sharing" },
           ]}
         />
 
@@ -390,7 +428,7 @@ export default function AdminPage() {
               }} 
               loadUsers={loadUsers} 
             />
-          ) : (
+          ) : tab === "tasks" ? (
             <TasksTab 
               S={S} 
               isMobile={isMobile} 
@@ -410,6 +448,19 @@ export default function AdminPage() {
               handleTaskStatus={handleTaskStatus} 
               assignableUsers={users.filter(u => u.role === "manager" || u.role === "employee")} 
               loadTasks={loadTasks} 
+            />
+          ) : tab === "logs" ? (
+            <LogsTab 
+              S={S} 
+              isMobile={isMobile} 
+              isTablet={isTablet} 
+            />
+          ) : (
+            <CatalogTab 
+              products={products}
+              categories={categories}
+              collections={collections}
+              loading={fetchingCatalog}
             />
           )}
         </main>

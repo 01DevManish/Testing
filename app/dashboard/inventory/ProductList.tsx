@@ -5,6 +5,7 @@ import { ref, remove, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Product, Category, STATUS_CONFIG } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
+import { logActivity } from "../../lib/activityLogger";
 
 type SortKey = "productName" | "category" | "price" | "stock" | "status" | "createdAt";
 type SortDir = "asc" | "desc";
@@ -16,12 +17,14 @@ interface Props {
     isAdminOrManager: boolean;
     onEdit: (p: Product) => void;
     onRefresh: () => void;
+    user: { uid: string; name: string };
     onCreateNew: () => void;
     onProductsChange: (updated: Product[]) => void;
+    onShareCatalog: (selected: Product[]) => void;
 }
 
 export default function ProductList({
-    products, categories, loading, isAdminOrManager, onEdit, onRefresh, onCreateNew, onProductsChange,
+    products, categories, user, loading, isAdminOrManager, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog,
 }: Props) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
@@ -65,9 +68,24 @@ export default function ProductList({
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this product permanently?")) return;
+        const p = products.find(x => x.id === id);
+        if (!p) return;
+        if (!confirm(`Delete "${p.productName}" permanently?`)) return;
         try {
             await remove(ref(db, `inventory/${id}`));
+            
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "delete",
+                title: "Product Deleted",
+                description: `Product "${p.productName}" (SKU: ${p.sku}) was deleted by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { productId: id, productName: p.productName, sku: p.sku }
+            });
+
             onProductsChange(products.filter(p => p.id !== id));
         } catch (err) { console.error(err); }
     };
@@ -76,10 +94,37 @@ export default function ProductList({
         if (!bulkAction || selectedIds.size === 0) return;
         if (bulkAction === "delete") {
             if (!confirm(`Delete ${selectedIds.size} products?`)) return;
+            const selectedProducts = products.filter(p => selectedIds.has(p.id));
             await Promise.all(Array.from(selectedIds).map(id => remove(ref(db, `inventory/${id}`))));
+            
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "delete",
+                title: "Bulk Products Deleted",
+                description: `${selectedIds.size} products were deleted in bulk by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { count: selectedIds.size, productNames: selectedProducts.map(p => p.productName).join(", ") }
+            });
+
             onProductsChange(products.filter(p => !selectedIds.has(p.id)));
         } else {
             await Promise.all(Array.from(selectedIds).map(id => update(ref(db, `inventory/${id}`), { status: bulkAction, updatedAt: Date.now() })));
+            
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "status_change",
+                title: "Bulk Status Updated",
+                description: `Status for ${selectedIds.size} products was updated to "${bulkAction}" by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { count: selectedIds.size, newStatus: bulkAction }
+            });
+
             onProductsChange(products.map(p => selectedIds.has(p.id) ? { ...p, status: bulkAction as Product["status"] } : p));
         }
         setSelectedIds(new Set()); setBulkAction("");
@@ -161,6 +206,42 @@ export default function ProductList({
                             <option value="delete">Delete</option>
                         </select>
                         <BtnPrimary onClick={executeBulk} disabled={!bulkAction} style={{ padding: "5px 12px", fontSize: 12 }}>Apply</BtnPrimary>
+                        <button 
+                            onClick={() => onShareCatalog(Array.from(selectedIds).map(id => products.find(p => p.id === id)!))}
+                            style={{ 
+                                padding: "5px 14px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", 
+                                color: "#fff", border: "none", borderRadius: 8, fontSize: 12, 
+                                fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 6
+                            }}
+                        >
+                            <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
+                                <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            Share Catalog
+                        </button>
+                        <BtnGhost onClick={() => setSelectedIds(new Set())} style={{ padding: "5px 10px", fontSize: 12 }}>Clear</BtnGhost>
+                    </div>
+                )}
+
+                {/* Selection bar for non-admins (only for sharing) */}
+                {selectedIds.size > 0 && !isAdminOrManager && (
+                    <div style={{ padding: "9px 16px", background: "rgba(99,102,241,0.04)", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
+                        <button 
+                            onClick={() => onShareCatalog(Array.from(selectedIds).map(id => products.find(p => p.id === id)!))}
+                            style={{ 
+                                padding: "5px 14px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", 
+                                color: "#fff", border: "none", borderRadius: 8, fontSize: 12, 
+                                fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 6
+                            }}
+                        >
+                            <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
+                                <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            Share Catalog
+                        </button>
                         <BtnGhost onClick={() => setSelectedIds(new Set())} style={{ padding: "5px 10px", fontSize: 12 }}>Clear</BtnGhost>
                     </div>
                 )}
@@ -173,12 +254,10 @@ export default function ProductList({
                         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
                             <thead>
                                 <tr>
-                                    {isAdminOrManager && (
-                                        <th style={{ ...th, width: 38, textAlign: "center" }}>
-                                            <input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0} onChange={toggleAll}
-                                                style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
-                                        </th>
-                                    )}
+                                    <th style={{ ...th, width: 38, textAlign: "center" }}>
+                                        <input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0} onChange={toggleAll}
+                                            style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
+                                    </th>
                                     <th style={th} onClick={() => handleSort("productName")}>Product{sortArrow("productName")}</th>
                                     <th style={th} onClick={() => handleSort("category")}>Category{sortArrow("category")}</th>
                                     <th style={th}>Unit / HSN</th>
@@ -197,12 +276,11 @@ export default function ProductList({
                                         <tr key={p.id} style={{ background: "#fff" }}
                                             onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
                                             onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
-                                            {isAdminOrManager && (
-                                                <td style={{ ...td, textAlign: "center", width: 38 }}>
-                                                    <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
-                                                        style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
-                                                </td>
-                                            )}
+                                            {/* Show checkbox even for non-admins for catalog sharing */}
+                                            <td style={{ ...td, textAlign: "center", width: 38 }}>
+                                                <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
+                                                    style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
+                                            </td>
                                             <td style={td}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                                     <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg,#e2e8f0,#cbd5e1)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>

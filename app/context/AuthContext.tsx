@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
 } from "firebase/auth";
 import { ref, set, get, update, query, orderByChild, equalTo } from "firebase/database";
+import { logActivity } from "../lib/activityLogger";
 
 export type UserRole = "admin" | "manager" | "employee" | "user";
 
@@ -100,7 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             // User exists in Auth but not in RTDB (deleted by admin)
             console.warn("User record missing in RTDB. Logging out.");
-            logout();
+            localStorage.removeItem(SESSION_KEY);
+            fbAuth.signOut().catch(() => {});
+            setUser(null);
           }
         } catch (err) {
           console.warn("Firestore sync on auth state change failed:", err);
@@ -162,6 +165,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Save and redirect IMMEDIATELY
       localStorage.setItem(SESSION_KEY, JSON.stringify(quickData));
       setUser(quickData);
+      
+      // Log activity
+      await logActivity({
+        type: "system",
+        action: "login",
+        title: "User Login (Google)",
+        description: `User ${quickData.name} logged in via Google.`,
+        userId: quickData.uid,
+        userName: quickData.name,
+        userRole: quickData.role,
+      });
       
       if (quickData.role === "admin") window.location.href = "/dashboard/admin";
       else if (quickData.role === "employee" || quickData.role === "manager") window.location.href = "/dashboard";
@@ -232,6 +246,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
       setUser(userData);
 
+      // Log activity
+      await logActivity({
+        type: "system",
+        action: "login",
+        title: "User Login (Email)",
+        description: `User ${userData.name} logged in via Email.`,
+        userId: userData.uid,
+        userName: userData.name,
+        userRole: userData.role,
+      });
+
       if (userData.role === "admin") window.location.href = "/dashboard/admin";
       else if (userData.role === "employee" || userData.role === "manager") window.location.href = "/dashboard";
       else window.location.href = "/dashboard/user";
@@ -255,6 +280,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    if (user) {
+      logActivity({
+        type: "system",
+        action: "logout",
+        title: "User Logout",
+        description: `User ${user.name} logged out.`,
+        userId: user.uid,
+        userName: user.name,
+        userRole: user.role,
+      });
+    }
     localStorage.removeItem(SESSION_KEY);
     fbAuth.signOut().catch(() => {});
     setUser(null);
@@ -287,6 +323,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUserRole = async (uid: string, newRole: UserRole) => {
     await update(ref(db, `users/${uid}`), { role: newRole });
+    
+    // Log activity
+    if (user) {
+      await logActivity({
+        type: "user",
+        action: "update",
+        title: "User Role Updated",
+        description: `Role for user ID ${uid} was updated to ${newRole} by ${user.name}.`,
+        userId: user.uid,
+        userName: user.name,
+        userRole: user.role,
+        metadata: { targetUid: uid, newRole }
+      });
+    }
   };
 
   return (

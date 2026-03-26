@@ -9,9 +9,10 @@ interface OrderDetailsModalProps {
   onClose: () => void;
   onOrderUpdated: (updatedOrder: Order) => void;
   onDeleteOrder?: (id: string) => void;
+  user: { uid: string; name: string; role: string };
 }
 
-export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDeleteOrder }: OrderDetailsModalProps) {
+export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDeleteOrder, user }: OrderDetailsModalProps) {
   const [loading, setLoading] = useState(false);
   const [packingNotes, setPackingNotes] = useState(order.packedNotes || "");
   
@@ -36,7 +37,7 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDe
   const handleMarkAsPacked = async () => {
     setLoading(true);
     try {
-      const updated = await api.updateOrderStatus(order.id, "Packed", "Admin", { packedNotes: packingNotes });
+      const updated = await api.updateOrderStatus(order.id, "Packed", user.name, { packedNotes: packingNotes }, user);
       onOrderUpdated(updated);
     } catch (e) {
       console.error(e);
@@ -49,12 +50,12 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDe
     if (!dispatchData.trackingId) return alert("Please enter Tracking ID");
     setLoading(true);
     try {
-      const updated = await api.updateOrderStatus(order.id, "Dispatched", "Admin", {
+      const updated = await api.updateOrderStatus(order.id, "Dispatched", user.name, {
         courierPartner: dispatchData.courierPartner,
         trackingId: dispatchData.trackingId,
         shippingType: dispatchData.shippingType,
         dispatchDate: dispatchData.dispatchDate
-      });
+      }, user);
       onOrderUpdated(updated);
       
       // Simulate Notification API

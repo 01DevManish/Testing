@@ -61,8 +61,7 @@ export default function EditRoleModal({
         <div style={{ marginBottom: 22 }}>
           <input 
             type="text" 
-            maxLength={4} 
-            placeholder="No PIN set"
+            maxLength={4}
             value={editPin || ""}
             onChange={e => {
               const val = e.target.value.replace(/\D/g, "");

@@ -4,7 +4,7 @@ import { LoggedActivity } from "../dashboard/admin/types";
 
 export interface ActivityInput {
   type: "dispatch" | "inventory" | "user" | "task" | "system";
-  action: "create" | "update" | "delete" | "status_change" | "adjustment";
+  action: "create" | "update" | "delete" | "status_change" | "adjustment" | "login" | "logout";
   title: string;
   description: string;
   userId: string;

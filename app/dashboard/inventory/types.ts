@@ -16,6 +16,7 @@ export interface Product {
     minStock: number;
     status: "active" | "inactive" | "out-of-stock" | "low-stock";
     imageUrl: string;
+    imageUrls?: string[];
     description: string;
     unit: string;
     size?: string;
@@ -64,6 +65,8 @@ export type ActiveView =
     | "product-create" | "product-list"
     | "inventory-adjustment" | "inventory-barcode-create" | "inventory-barcode-print"
     | "overview"
+    | "catalog"
+    | "inventory-bulk"
     | "grouping-create" | "grouping-list";
 
 // ── Constants ──────────────────────────────────────────────────

@@ -90,7 +90,7 @@ export default function UsersTab({
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, flex: 1, minWidth: 160 }}>
             <span style={{ color: "#94a3b8", fontSize: 14, flexShrink: 0 }}>🔍</span>
-            <input type="text" placeholder="Search users..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 13, width: "100%", fontFamily: "inherit" }} />
+            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 13, width: "100%", fontFamily: "inherit" }} />
           </div>
           <select value={filterRole} onChange={e => setFilterRole(e.target.value as "all" | UserRole)}
             style={{ padding: "9px 32px 9px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, color: "#475569", fontSize: 13, fontFamily: "inherit", cursor: "pointer", outline: "none", appearance: "none" as const, minWidth: 130 }}>
@@ -110,9 +110,9 @@ export default function UsersTab({
             </div>
           )}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 12 }}>
-            <div><label style={S.label}>Full Name</label><input style={S.input} placeholder="John Doe" value={newEmployee.name} onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })} /></div>
-            <div><label style={S.label}>Email</label><input style={S.input} type="email" placeholder="email@company.com" value={newEmployee.email} onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })} /></div>
-            <div><label style={S.label}>Password</label><input style={S.input} type="text" placeholder="Min 6 chars" value={newEmployee.password} onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })} /></div>
+            <div><label style={S.label}>Full Name</label><input style={S.input} value={newEmployee.name} onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })} /></div>
+            <div><label style={S.label}>Email</label><input style={S.input} type="email" value={newEmployee.email} onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })} /></div>
+            <div><label style={S.label}>Password</label><input style={S.input} type="text" value={newEmployee.password} onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })} /></div>
           </div>
           <div style={{ marginTop: 14 }}>
             <label style={{ ...S.label, marginBottom: 8 }}>Permissions</label>

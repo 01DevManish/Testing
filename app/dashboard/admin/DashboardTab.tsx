@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { UserRecord, Task, LoggedActivity } from "./types";
 import type { AdminStyles } from "./styles";
-import { get, ref, query, limitToLast, onValue, off } from "firebase/database";
+import { get, ref, query, limitToLast, onValue, off, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
+import { logActivity } from "../../lib/activityLogger";
+import { useAuth } from "../../context/AuthContext";
 
 interface Activity {
   id: string;
@@ -15,6 +17,7 @@ interface Activity {
   user: string;
   icon: string;
   color: string;
+  metadata?: Record<string, any>;
 }
 
 interface Product {
@@ -42,12 +45,13 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [stockSearch, setStockSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const { user, userData } = useAuth();
 
   // New states for activity feeds
   const [dispatchSearch, setDispatchSearch] = useState("");
-  const [dispatchFilter, setDispatchFilter] = useState("all"); // "all", "Retail Dispatched", "E-com Dispatched"
+  const [dispatchFilter, setDispatchFilter] = useState("all"); 
   const [inventorySearch, setInventorySearch] = useState("");
-  const [inventoryFilter, setInventoryFilter] = useState("all"); // "all", "Stock Add", "Stock Remove", "New Item"
+  const [inventoryFilter, setInventoryFilter] = useState("all"); 
 
   useEffect(() => {
     // 1. Listen for Activities (Live)
@@ -66,6 +70,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             user: val.userName || "System",
             icon: val.type === "dispatch" ? (val.title.includes("E-com") ? "🛒" : "🚛") : (val.type === "inventory" ? "📦" : "🔔"),
             color: val.type === "dispatch" ? (val.title.includes("E-com") ? "#6366f1" : "linear-gradient(135deg,#3b82f6,#2dd4bf)") : (val.type === "inventory" ? "#10b981" : "#94a3b8"),
+            metadata: val.metadata
           });
         });
         setActivities(acts.sort((a, b) => b.timestamp - a.timestamp));
@@ -90,6 +95,62 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
       off(invRef, "value", unsubInv);
     };
   }, []);
+
+  const deleteActivity = async (a: Activity) => {
+    const orderId = a.metadata?.orderId;
+    let deleteOrderToo = false;
+
+    if (orderId && confirm(`Delete activity log: "${a.title}"?\n\nWOULD YOU ALSO LIKE TO PERMANENTLY DELETE THE ACTUAL DISPATCH RECORD (${orderId})?`)) {
+        deleteOrderToo = true;
+    } else if (!confirm(`Delete activity log: "${a.title}"?`)) {
+        return;
+    }
+
+    try {
+      if (deleteOrderToo && orderId) {
+        await remove(ref(db, `dispatches/${orderId}`));
+        // Log deep deletion
+        await logActivity({
+          type: "dispatch",
+          action: "delete",
+          title: "Dispatch Record Removed (Deep Delete)",
+          description: `Retail/E-com dispatch ${orderId} was permanently deleted via dashboard log override by ${userData?.name || "Admin"}.`,
+          userId: user?.uid || "",
+          userName: userData?.name || user?.name || "Admin",
+          userRole: "admin",
+          metadata: { orderId }
+        });
+      }
+
+      await remove(ref(db, `activities/${a.id}`));
+    } catch (e) {
+      console.error(e);
+      alert("Something went wrong during deletion.");
+    }
+  };
+
+  const deleteProduct = async (p: Product) => {
+    if (confirm(`DANGER: Permanently delete product "${p.productName}" and its entire inventory?`)) {
+      try {
+        await remove(ref(db, `inventory/${p.id}`));
+        
+        // Log product deletion
+        await logActivity({
+          type: "inventory",
+          action: "delete",
+          title: "Product Deleted (Admin Dashboard)",
+          description: `Product "${p.productName}" (SKU: ${p.sku}) was manually deleted by admin.`,
+          userId: user?.uid || "",
+          userName: userData?.name || user?.name || "Admin",
+          userRole: "admin",
+          metadata: { productId: p.id, sku: p.sku }
+        });
+      } catch (e) {
+        console.error(e);
+        alert("Failed to delete product.");
+      }
+    }
+  };
 
   const groupByType = (type: Activity["type"] | "other", search: string = "", filter: string = "all") => {
     const today = new Date().setHours(0, 0, 0, 0);
@@ -120,7 +181,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
         
         return true;
       })
-      .slice(0, 15); // Show more since we have search now
+      .slice(0, 15); 
 
     const groups: { [key: string]: Activity[] } = { Today: [], Yesterday: [], Earlier: [] };
     typeActivities.forEach(a => {
@@ -164,7 +225,15 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
               <div style={{ fontSize: 10, color: "#94a3b8" }}>{group === "Earlier" ? formatDate(a.timestamp) : formatTime(a.timestamp)}</div>
             </div>
             <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>{a.description}</div>
-            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 6, fontWeight: 500 }}>Performed by: {a.user}</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 6, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>Performed by: {a.user}</span>
+              <button 
+                onClick={() => deleteActivity(a)}
+                style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: "2px 4px", fontSize: 10 }}
+              >
+                Delete Log
+              </button>
+            </div>
           </div>
         </div>
       ))}
@@ -256,7 +325,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>🚛 Recent Dispatches</h3>
             <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 200 }}>
               <input 
-                type="text" placeholder="Search..." 
+                type="text" 
                 value={dispatchSearch} onChange={e => setDispatchSearch(e.target.value)}
                 style={{ width: "100%", maxWidth: 160, padding: "6px 10px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
               />
@@ -289,7 +358,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>📦 Stock Adjustments</h3>
             <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 200 }}>
               <input 
-                type="text" placeholder="Search..." 
+                type="text" 
                 value={inventorySearch} onChange={e => setInventorySearch(e.target.value)}
                 style={{ width: "100%", maxWidth: 160, padding: "6px 10px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
               />
@@ -323,7 +392,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
           <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Current Stock Status</h3>
           <div style={{ position: "relative", width: isMobile ? "100%" : 280 }}>
             <input 
-              type="text" placeholder="Search product or SKU..." 
+              type="text" 
               value={stockSearch} onChange={e => setStockSearch(e.target.value)}
               style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", background: "#f8fafc" }}
             />
@@ -338,6 +407,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                 <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>SKU</th>
                 <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", textAlign: "right" }}>Stock</th>
                 <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Managed By</th>
+                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", textAlign: "center" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -352,6 +422,15 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                      <div style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{p.updatedByName || p.createdByName || "System"}</div>
                      <div style={{ fontSize: 10, color: "#94a3b8" }}>{p.updatedByName ? "Last updated" : "Created"}</div>
                   </td>
+                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", textAlign: "center" }}>
+                      <button 
+                        onClick={() => deleteProduct(p)}
+                        style={{ border: "none", background: "none", color: "#f87171", cursor: "pointer", padding: "4px" }}
+                        title="Delete Product"
+                      >
+                         <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M5.5 1V1.5H3.5V2.5H11.5V1.5H9.5V1H5.5ZM2.5 3.5V13.5C2.5 14.0523 2.94772 14.5 3.5 14.5H11.5C12.0523 14.5 12.5 14.0523 12.5 13.5V3.5H2.5ZM4.5 5.5H5.5V12.5H4.5V5.5ZM7 5.5H8V12.5H7V5.5ZM9.5 5.5H10.5V12.5H10.5V5.5H9.5V5.5Z" fill="currentColor"/></svg>
+                      </button>
+                   </td>
                 </tr>
               ))}
             </tbody>

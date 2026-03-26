@@ -39,10 +39,12 @@ export interface Order {
   transporterId?: string;
   transporterName?: string;
   packagingType?: string;
-  remarks?: string;
   bails?: number;
+  transporter?: string;
+  remarks?: string;
   confirmedByPin?: boolean;
   dispatchType?: "retail" | "ecom";
+  dispatchRef?: string;
   createdAt?: number;
   updatedAt?: number;
 }

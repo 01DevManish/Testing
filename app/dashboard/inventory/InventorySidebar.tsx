@@ -41,6 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
         ),
         items: [
             { id: "product-create", label: "Create Item" },
+            { id: "inventory-bulk", label: "Bulk Upload" },
             { id: "product-list", label: "All Items" },
         ],
     },
@@ -87,6 +88,15 @@ const NAV_GROUPS: NavGroup[] = [
             { id: "grouping-create", label: "Create Group" },
             { id: "grouping-list", label: "All Groups" },
         ],
+    },
+    {
+        key: "catalog", label: "Catalog Sharing",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        ),
+        items: [{ id: "catalog", label: "Catalog Sharing" }],
     },
 ];
 

@@ -109,15 +109,17 @@ export function BtnPrimary({ children, loading, disabled, onClick, style }: {
 }
 
 // ── Ghost Button ───────────────────────────────────────────────
-export function BtnGhost({ children, onClick, style }: { children: React.ReactNode; onClick?: () => void; style?: React.CSSProperties }) {
+export function BtnGhost({ children, onClick, style, disabled }: { children: React.ReactNode; onClick?: () => void; style?: React.CSSProperties; disabled?: boolean }) {
     return (
         <button
             onClick={onClick}
+            disabled={disabled}
             style={{
                 padding: "10px 18px", background: "#fff", color: "#475569",
                 border: "1px solid #e2e8f0", borderRadius: 9, fontSize: 13,
-                fontWeight: 500, fontFamily: FONT, cursor: "pointer",
+                fontWeight: 500, fontFamily: FONT, cursor: disabled ? "not-allowed" : "pointer",
                 display: "inline-flex", alignItems: "center", gap: 6,
+                opacity: disabled ? 0.6 : 1,
                 ...style,
             }}
         >

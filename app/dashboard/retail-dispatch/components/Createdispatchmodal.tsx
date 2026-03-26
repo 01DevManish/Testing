@@ -5,6 +5,7 @@ import { api, firestoreApi } from "../data";
 import { useAuth } from "../../../context/AuthContext";
 import { ref, update } from "firebase/database";
 import { db } from "../../../lib/firebase";
+import { logActivity } from "../../../lib/activityLogger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Party { id: string; name: string; city?: string; gst?: string; gstin?: string; address?: string }
@@ -197,13 +198,23 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                     { status: "Dispatched", timestamp: new Date().toISOString(), user: userData?.name || "User", note: form.remarks }
                 ],
                 partyId,
-                partyName: finalPartyName,
-                transporterName: form.transporter,
-                packagingType: form.packagingType,
-                remarks: form.remarks,
+                dispatchRef,
+                transporter: form.transporter,
                 bails: form.bails,
                 confirmedByPin: true,
                 dispatchType: dispatchType
+            });
+
+            // Log activity
+            await logActivity({
+                type: "dispatch",
+                action: "create",
+                title: "New Dispatch Created",
+                description: `Dispatch ${dispatchRef} created for ${finalPartyName} (${form.quantity} ${form.isNewProduct ? form.newProduct.unit : form.product?.unit || "units"}) by ${userData?.name || "User"}.`,
+                userId: user?.uid || "unknown",
+                userName: userData?.name || "User",
+                userRole: userData?.role || "staff",
+                metadata: { dispatchId: dispatchRef, partyId, prodId: finalProdId }
             });
 
             setDispatched(true);
@@ -220,6 +231,20 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
         setIsSaving(true);
         try {
             await firestoreApi.deleteParty(id);
+            const partyToDelete = dbParties.find(p => p.id === id);
+            
+            // Log activity
+            await logActivity({
+                type: "user",
+                action: "delete",
+                title: "Party Deleted",
+                description: `Party "${partyToDelete?.name || "Unknown"}" was deleted by ${userData?.name || "User"}.`,
+                userId: user?.uid || "unknown",
+                userName: userData?.name || "User",
+                userRole: userData?.role || "staff",
+                metadata: { partyId: id }
+            });
+
             setDbParties(prev => prev.filter(p => p.id !== id));
             if (form.party?.id === id) setForm(f => ({ ...f, party: null }));
             setDeleteConfirmId(null);
@@ -408,7 +433,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     </div>
                                     {!form.isNewParty ? (
                                         <>
-                                            <input value={partySearch} onChange={e => setPartySearch(e.target.value)} style={inputStyle} placeholder="Search parties..." />
+                                            <input value={partySearch} onChange={e => setPartySearch(e.target.value)} style={inputStyle} />
                                             <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredParties.map(p => (
                                                     <div key={p.id} 
@@ -448,9 +473,9 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                         </>
                                     ) : (
                                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                            <input value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} placeholder="Party Name" />
-                                            <input value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} placeholder="City / Address" />
-                                            <input value={form.newParty.gst} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, gst: e.target.value } }))} style={inputStyle} placeholder="GST Number (Optional)" />
+                                            <input value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} />
+                                            <input value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} />
+                                            <input value={form.newParty.gst} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, gst: e.target.value } }))} style={inputStyle} />
                                         </div>
                                     )}
                                 </div>
@@ -465,7 +490,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     </div>
                                     {!form.isNewProduct ? (
                                         <>
-                                            <input value={productSearch} onChange={e => setProductSearch(e.target.value)} style={inputStyle} placeholder="Search product name or SKU..." />
+                                            <input value={productSearch} onChange={e => setProductSearch(e.target.value)} style={inputStyle} />
                                             <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredProducts.map(p => (
                                                     <div key={p.id} onClick={() => setForm(f => ({ ...f, product: p }))}
@@ -484,8 +509,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                         </>
                                     ) : (
                                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                            <input value={form.newProduct.name} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, name: e.target.value } }))} style={inputStyle} placeholder="Item Name" />
-                                            <input value={form.newProduct.sku} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, sku: e.target.value } }))} style={inputStyle} placeholder="SKU/Barcode (Optional)" />
+                                            <input value={form.newProduct.name} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, name: e.target.value } }))} style={inputStyle} />
+                                            <input value={form.newProduct.sku} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, sku: e.target.value } }))} style={inputStyle} />
                                             <select value={form.newProduct.unit} onChange={e => setForm(f => ({ ...f, newProduct: { ...f.newProduct, unit: e.target.value } }))} style={inputStyle}>
                                                 {["PCS", "SET", "KG", "MTR", "BOX", "DOZEN"].map(u => <option key={u}>{u}</option>)}
                                             </select>
@@ -549,7 +574,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                             </div>
                                         ))}
                                     </div>
-                                    {form.transporter === "Other" && <input style={inputStyle} onChange={e => setForm(f => ({ ...f, transporter: e.target.value || "Other" }))} placeholder="Enter custom transporter name" />}
+                                    {form.transporter === "Other" && <input style={inputStyle} onChange={e => setForm(f => ({ ...f, transporter: e.target.value || "Other" }))} />}
                                 </div>
                             )}
 

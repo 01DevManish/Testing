@@ -150,7 +150,6 @@ function LoginContent() {
             <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
             <input
               type="email"
-              placeholder="name@euruslifestyle.in"
               value={email}
               onChange={e => setEmail(e.target.value)}
               style={inputStyle}
@@ -164,7 +163,6 @@ function LoginContent() {
             <div style={{ position: "relative" }}>
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 style={{ ...inputStyle, paddingRight: 44 }}

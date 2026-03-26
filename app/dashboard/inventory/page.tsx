@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
+import { ref, get, update, query, orderByChild, equalTo, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { logActivity } from "../../lib/activityLogger";
 
-// ── Local components ──────────────────────────────────────────
 import InventorySidebar from "./InventorySidebar";
 import CreateProduct from "./CreateProduct";
 import ProductList from "./ProductList";
@@ -17,6 +16,11 @@ import {
   CreateItemGroup, ItemGroupList,
   InventoryAdjustment, BarcodeView, Overview,
 } from "./subviews";
+import BulkUpload from "./BulkUpload";
+import ShareModal from "./ShareModal";
+import CatalogTab from "./CatalogTab";
+import ImageGallery from "./ImageGallery";
+import { uploadToCloudinary } from "./cloudinary";
 
 // ── Types ─────────────────────────────────────────────────────
 import { ActiveView, Product, Category, Collection, ItemGroup } from "./types";
@@ -62,6 +66,9 @@ export default function InventoryPage() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [editGallery, setEditGallery] = useState<string[]>([]);
+  const editFileRef = useRef<HTMLInputElement>(null);
+  const [sharingProducts, setSharingProducts] = useState<Product[] | null>(null);
 
   useEffect(() => { if (!loading && !user) router.replace("/"); }, [loading, user, router]);
   useEffect(() => { if (isDesktop) setSidebarOpen(false); }, [isDesktop]);
@@ -114,8 +121,9 @@ export default function InventoryPage() {
       productName: p.productName, sku: p.sku, category: p.category, collection: p.collection || "", brand: p.brand,
       price: p.price, costPrice: p.costPrice, stock: p.stock, minStock: p.minStock,
       status: p.status, imageUrl: p.imageUrl || "", description: p.description || "",
-      unit: p.unit || "PCS", hsnCode: p.hsnCode || "", gstRate: p.gstRate ?? 18,
+      unit: p.unit || "PCS", hsnCode: p.hsnCode || "", gstRate: p.gstRate ?? 18, size: p.size || "",
     });
+    setEditGallery(p.imageUrls || (p.imageUrl ? [p.imageUrl] : []));
   };
 
   const handleEditSave = async () => {
@@ -134,25 +142,43 @@ export default function InventoryPage() {
         }
       }
 
-      let autoStatus = editForm.status;
-      if (editForm.status === "active" || editForm.status === "low-stock" || editForm.status === "out-of-stock") {
-           if (Number(editForm.stock) <= 0) autoStatus = "out-of-stock";
-           else if (Number(editForm.stock) <= Number(editForm.minStock)) autoStatus = "low-stock";
-           else autoStatus = "active";
-      }
-      
-      const updated = { 
-        ...editForm, 
-        status: autoStatus, 
-        price: Number(editForm.price), 
-        costPrice: Number(editForm.costPrice), 
-        stock: Number(editForm.stock), 
-        minStock: Number(editForm.minStock), 
-        gstRate: Number(editForm.gstRate), 
-        updatedAt: Date.now(),
-        updatedBy: user?.uid || "unknown",
-        updatedByName: currentName
-      };
+    let autoStatus = editForm.status;
+    if (editForm.status === "active" || editForm.status === "low-stock" || editForm.status === "out-of-stock") {
+         if (Number(editForm.stock) <= 0) autoStatus = "out-of-stock";
+         else if (Number(editForm.stock) <= Number(editForm.minStock)) autoStatus = "low-stock";
+         else autoStatus = "active";
+    }
+
+    let finalImageUrl = editForm.imageUrl;
+    let finalImageUrls = editGallery;
+
+    // Check if any gallery images are new (base64)
+    const hasNewImages = editGallery.some(img => img.startsWith("data:"));
+    if (hasNewImages) {
+        const uploadPromises = editGallery.map(img => uploadToCloudinary(img));
+        finalImageUrls = await Promise.all(uploadPromises);
+        
+        // Update main thumbnail if it was a base64 from gallery
+        if (editForm.imageUrl.startsWith("data:")) {
+            const idx = editGallery.indexOf(editForm.imageUrl);
+            finalImageUrl = idx !== -1 ? finalImageUrls[idx] : finalImageUrls[0];
+        }
+    }
+    
+    const updated = { 
+      ...editForm, 
+      imageUrl: finalImageUrl,
+      imageUrls: finalImageUrls,
+      status: autoStatus, 
+      price: Number(editForm.price), 
+      costPrice: Number(editForm.costPrice), 
+      stock: Number(editForm.stock), 
+      minStock: Number(editForm.minStock), 
+      gstRate: Number(editForm.gstRate), 
+      updatedAt: Date.now(),
+      updatedBy: user?.uid || "unknown",
+      updatedByName: currentName
+    };
       if (!user) throw new Error("User not authenticated");
       await update(ref(db, `inventory/${editProduct.id}`), updated);
 
@@ -218,24 +244,26 @@ export default function InventoryPage() {
           <ProductList
             products={products}
             categories={categories}
+            user={{ uid: user.uid, name: currentName }}
             loading={fetching}
             isAdminOrManager={isAdminOrManager}
             onEdit={openEdit}
             onRefresh={loadAll}
             onCreateNew={() => navigate("product-create")}
             onProductsChange={setProducts}
+            onShareCatalog={setSharingProducts}
           />
         );
       // ── Categories ────────────────────────────────────────
       case "category-create":
-        return <CreateCategory onCreated={c => { setCategories(prev => [c, ...prev]); navigate("category-list"); }} />;
+        return <CreateCategory user={{ uid: user.uid, name: currentName }} onCreated={c => { setCategories(prev => [c, ...prev]); navigate("category-list"); }} />;
       case "category-list":
-        return <CategoryList categories={categories} loading={fetching} onCreateNew={() => navigate("category-create")} />;
+        return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("category-create")} />;
       // ── Collections ───────────────────────────────────────
       case "collections-create":
-        return <CreateCollection products={productStubs} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} />;
+        return <CreateCollection products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} />;
       case "collections-list":
-        return <CollectionList collections={collections} loading={fetching} onCreateNew={() => navigate("collections-create")} />;
+        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("collections-create")} />;
       // ── Inventory actions ─────────────────────────────────
       case "inventory-adjustment":
         return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} />;
@@ -245,12 +273,16 @@ export default function InventoryPage() {
         return <BarcodeView mode="print" />;
       // ── Overview ──────────────────────────────────────────
       case "overview":
-        return <Overview products={products} />;
+        return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} />;
       // ── Item Grouping ─────────────────────────────────────
       case "grouping-create":
-        return <CreateItemGroup products={productStubs} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} />;
+        return <CreateItemGroup products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} />;
       case "grouping-list":
-        return <ItemGroupList groups={groups} loading={fetching} onCreateNew={() => navigate("grouping-create")} />;
+        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("grouping-create")} />;
+      case "catalog":
+        return <CatalogTab products={products} categories={categories} collections={collections} loading={fetching} />;
+      case "inventory-bulk":
+        return <BulkUpload categories={categories} collections={collections} user={{ uid: user.uid, name: currentName, role: currentRole }} onDone={() => { loadAll(); navigate("product-list"); }} />;
       default:
         return null;
     }
@@ -346,9 +378,69 @@ export default function InventoryPage() {
               <FormField label="Min Stock"><Input type="number" min="0" value={editForm.minStock || ""} onChange={e => setEditForm({ ...editForm, minStock: parseInt(e.target.value) || 0 })} /></FormField>
               <FormField label="Unit"><Select value={editForm.unit} onChange={e => setEditForm({ ...editForm, unit: e.target.value })}>{UNITS.map(u => <option key={u}>{u}</option>)}</Select></FormField>
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20, marginBottom: 18 }}>
+              {/* Main Thumbnail Section */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 10, fontFamily: FONT }}>Main Thumbnail</div>
+                <div
+                  onClick={() => editFileRef.current?.click()}
+                  style={{
+                    width: "100%", aspectRatio: "1/1", borderRadius: 12, border: "2px dashed #e2e8f0",
+                    background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", overflow: "hidden", position: "relative"
+                  }}
+                >
+                  {editForm.imageUrl ? (
+                    <img src={editForm.imageUrl} alt="Thumbnail" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: 10 }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 4 }}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>Set Primary</div>
+                    </div>
+                  )}
+                  <input 
+                    ref={editFileRef} 
+                    type="file" 
+                    accept="image/*" 
+                    style={{ display: "none" }} 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          const result = ev.target?.result as string;
+                          setEditForm({ ...editForm, imageUrl: result });
+                          if (!editGallery.includes(result)) {
+                            setEditGallery([result, ...editGallery]);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Gallery Section */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 10, fontFamily: FONT }}>Gallery Images</div>
+                <ImageGallery 
+                  images={editGallery} 
+                  onImagesChange={(imgs) => {
+                    setEditGallery(imgs);
+                    if (imgs.length > 0 && editForm.imageUrl.startsWith("data:") && !imgs.includes(editForm.imageUrl)) {
+                      setEditForm({ ...editForm, imageUrl: imgs[0] });
+                    } else if (imgs.length === 0) {
+                      setEditForm({ ...editForm, imageUrl: "" });
+                    }
+                  }} 
+                />
+              </div>
+            </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="HSN Code"><Input value={editForm.hsnCode} onChange={e => setEditForm({ ...editForm, hsnCode: e.target.value })} /></FormField>
-              <FormField label="Image URL"><Input type="url" value={editForm.imageUrl} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} /></FormField>
+              <FormField label="Main Image URL (Manual)"><Input type="url" value={editForm.imageUrl.startsWith("data:") ? "" : editForm.imageUrl} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} /></FormField>
               <FormField label="Status">
                 <Select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value as Product["status"] })}>
                   <option value="active">Active</option>
@@ -357,6 +449,10 @@ export default function InventoryPage() {
                   <option value="out-of-stock">Out of Stock</option>
                 </Select>
               </FormField>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <FormField label="Size (e.g. King, Double, 72x78)"><Input value={editForm.size} onChange={e => setEditForm({ ...editForm, size: e.target.value })} /></FormField>
+              <div />
             </div>
             <div style={{ marginBottom: 18 }}>
               <FormField label="Description"><Textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={2} /></FormField>
@@ -368,6 +464,14 @@ export default function InventoryPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Share Catalog Modal ───────────────────────────────── */}
+      {sharingProducts && (
+        <ShareModal 
+          selectedProducts={sharingProducts} 
+          onClose={() => setSharingProducts(null)} 
+        />
       )}
     </>
   );
