@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { ref, push, set as rtdbSet } from "firebase/database";
+import { ref, push, set as rtdbSet, get, query, orderByChild, equalTo } from "firebase/database";
 import { db } from "../../lib/firebase";
 import {
-    FONT, UNITS, GST_RATES, Product, Category
+    FONT, UNITS, GST_RATES, Product, Category, Collection
 } from "./types";
 import {
     Input, Textarea, Select, FormField, SectionDivider,
@@ -12,13 +12,23 @@ import {
 } from "./ui";
 
 const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
-    productName: "", sku: "", category: "", brand: "",
+    productName: "", sku: "", category: "", collection: "", brand: "",
     price: 0, costPrice: 0, stock: 0, minStock: 5,
     status: "active", imageUrl: "", description: "",
     unit: "PCS", size: "", hsnCode: "", gstRate: 18,
 };
 
-export default function CreateProduct({ categories, onCreated }: { categories: Category[], onCreated?: (p: Product) => void }) {
+export default function CreateProduct({ 
+    categories, 
+    collections,
+    user: currentUser, 
+    onCreated 
+}: { 
+    categories: Category[], 
+    collections: Collection[],
+    user: { uid: string; name: string },
+    onCreated?: (p: Product) => void 
+}) {
     const [form, setForm] = useState({ ...EMPTY });
     const [sizeOption, setSizeOption] = useState("");
     const [customSize, setCustomSize] = useState("");
@@ -79,6 +89,15 @@ export default function CreateProduct({ categories, onCreated }: { categories: C
         setSaving(true);
         console.log("DEBUG: Starting handleSave for product:", form.productName);
         try {
+            // SKU uniqueness check
+            const skuQuery = query(ref(db, "inventory"), orderByChild("sku"), equalTo(form.sku.trim()));
+            const skuSnap = await get(skuQuery);
+            if (skuSnap.exists()) {
+                setErrors(prev => ({ ...prev, sku: "This SKU already exists. Please use a unique SKU." }));
+                setSaving(false);
+                return;
+            }
+
             let finalImageUrl = form.imageUrl;
             
             // Upload to Cloudinary if it's a local file (base64)
@@ -112,6 +131,10 @@ export default function CreateProduct({ categories, onCreated }: { categories: C
                 gstRate: Number(form.gstRate),
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
+                createdBy: currentUser.uid,
+                createdByName: currentUser.name,
+                updatedBy: currentUser.uid,
+                updatedByName: currentUser.name,
             };
 
             // Removed size check since image is now safely hosted on Cloudinary
@@ -191,9 +214,18 @@ export default function CreateProduct({ categories, onCreated }: { categories: C
                                         {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                                     </Select>
                                 </FormField>
+                                <FormField label="Collection">
+                                    <Select value={form.collection || ""} onChange={e => set("collection", e.target.value)}>
+                                        <option value="">Select Collection...</option>
+                                        {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                    </Select>
+                                </FormField>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Brand">
                                     <Input value={form.brand} onChange={e => set("brand", e.target.value)} />
                                 </FormField>
+                                <div />
                             </div>
                             <FormField label="Product Description">
                                 <Textarea

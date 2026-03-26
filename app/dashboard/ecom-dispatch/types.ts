@@ -42,6 +42,7 @@ export interface Order {
   remarks?: string;
   bails?: number;
   confirmedByPin?: boolean;
+  dispatchType?: "retail" | "ecom";
   createdAt?: number;
   updatedAt?: number;
 }

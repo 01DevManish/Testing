@@ -1,6 +1,7 @@
 import { Order, OrderStatus, Party, Transporter } from "./types";
 import { ref, get, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
+import { logActivity } from "../../lib/activityLogger";
 
 // ── Firebase API for Dispatch ──
 
@@ -147,6 +148,19 @@ export const api = {
       
       const updatedOrder = { ...existing, ...updates, status: newStatus, logs: updatedLogs, updatedAt: Date.now() };
       await set(orderRef, updatedOrder);
+
+      // Log activity
+      await logActivity({
+        type: "dispatch",
+        action: "status_change",
+        title: "Order Status Updated",
+        description: `E-com dispatch ${id} status changed to ${newStatus} by ${user}.`,
+        userId: "unknown",
+        userName: user,
+        userRole: "staff",
+        metadata: { orderId: id, status: newStatus }
+      });
+
       return { id, ...updatedOrder } as Order;
     } catch (e) {
       console.error(e);
@@ -189,6 +203,19 @@ export const api = {
       };
       
       await set(orderRef, order);
+
+      // Log activity
+      await logActivity({
+        type: "dispatch",
+        action: "create",
+        title: "New E-com Dispatch Created",
+        description: `E-com dispatch ${orderId} created for ${order.customer.name} (₹${order.products.reduce((s,p) => s + (p.price*p.quantity), 0)}).`,
+        userId: "unknown",
+        userName: "Admin",
+        userRole: "admin",
+        metadata: { orderId }
+      });
+
       return order;
     } catch (e) {
       console.error(e);
@@ -199,6 +226,18 @@ export const api = {
   deleteOrder: async (orderId: string): Promise<void> => {
     try {
       await remove(ref(db, `dispatches/${orderId}`));
+
+      // Log activity
+      await logActivity({
+        type: "dispatch",
+        action: "delete",
+        title: "E-com Dispatch Deleted",
+        description: `E-com dispatch ${orderId} was permanently removed.`,
+        userId: "unknown",
+        userName: "Admin",
+        userRole: "admin",
+        metadata: { orderId }
+      });
     } catch (e) {
       console.error("Failed to delete order:", e);
       throw e;

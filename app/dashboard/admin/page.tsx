@@ -11,12 +11,14 @@ import { initializeApp, getApps } from "firebase/app";
 import { UserRecord, Task, UserRole } from "./types";
 import { useWindowSize } from "./hooks";
 import { getStyles } from "./styles";
+import { logActivity } from "../../lib/activityLogger";
 
 import AdminSidebar from "./AdminSidebar";
 import AdminTopBar from "./AdminTopBar";
 import UsersTab from "./UsersTab";
 import TasksTab from "./TasksTab";
 import EditRoleModal from "./EditRoleModal";
+import DashboardTab from "./DashboardTab";
 
 export default function AdminPage() {
   const { user, userData, logout, loading } = useAuth();
@@ -26,7 +28,7 @@ export default function AdminPage() {
   const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
-  const [tab, setTab] = useState<"users" | "tasks">("users");
+  const [tab, setTab] = useState<"dashboard" | "users" | "tasks">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -113,12 +115,26 @@ export default function AdminPage() {
   const handleLogout = async () => { await logout(); router.replace("/"); };
 
   const handleRoleUpdate = async () => {
-    if (!editingUser) return; setSavingRole(true);
+    if (!editingUser) return; 
+    setSavingRole(true);
     try { 
       await update(ref(db, `users/${editingUser.uid}`), { role: editRole, permissions: editPermissions, dispatchPin: editPin }); 
+      
+      // Log activity
+      await logActivity({
+        type: "user",
+        action: "update",
+        title: "User Role Updated",
+        description: `User "${editingUser.name}" role changed to ${editRole} by ${currentName}.`,
+        userId: user.uid,
+        userName: currentName,
+        userRole: "admin"
+      });
+
       setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, role: editRole, permissions: editPermissions, dispatchPin: editPin } : u)); 
       setEditingUser(null); 
-    } catch { 
+    } catch (e) { 
+      console.error(e);
       alert("Failed to update role."); 
     } finally { 
       setSavingRole(false); 
@@ -127,13 +143,30 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (uid: string) => {
     const userToDelete = users.find(u => u.uid === uid);
-    if (userToDelete?.role === "admin") {
+    if (!userToDelete) return;
+
+    if (userToDelete.role === "admin") {
       setAdminToDelete(userToDelete);
       setReplacementAdminId("");
       return;
     }
     if (!confirm("Permanently DEACTIVATE this user? They will be logged out immediately and lose all access.")) return;
-    try { await remove(ref(db, `users/${uid}`)); setUsers(users.filter(u => u.uid !== uid)); } catch (e) { console.error(e); }
+    try { 
+      await remove(ref(db, `users/${uid}`)); 
+      
+      // Log activity
+      await logActivity({
+        type: "user",
+        action: "delete",
+        title: "User Deactivated",
+        description: `User "${userToDelete.name}" (${userToDelete.email}) was deactivated by ${currentName}.`,
+        userId: user.uid,
+        userName: currentName,
+        userRole: "admin"
+      });
+
+      setUsers(users.filter(u => u.uid !== uid)); 
+    } catch (e) { console.error(e); }
   };
 
   const handleAdminReplacement = async () => {
@@ -145,6 +178,18 @@ export default function AdminPage() {
         permissions: ["dispatch", "inventory", "reports", "settings"] 
       });
       await remove(ref(db, `users/${adminToDelete.uid}`));
+
+      // Log activity
+      await logActivity({
+        type: "user",
+        action: "update",
+        title: "Admin Reassigned & Deleted",
+        description: `Admin rights transferred from "${adminToDelete.name}" to another user. Original admin deleted by ${currentName}.`,
+        userId: user.uid,
+        userName: currentName,
+        userRole: "admin"
+      });
+
       setUsers(users.map(u => u.uid === replacementAdminId ? { ...u, role: "admin" as UserRole, permissions: ["dispatch", "inventory", "reports", "settings"] } : u).filter(u => u.uid !== adminToDelete.uid));
       setAdminToDelete(null);
     } catch (e) {
@@ -184,10 +229,10 @@ export default function AdminPage() {
     } finally { setAddingEmployee(false); }
   };
 
-  const handleCreateTask = async () => {
+  const handleCreateTask = async (attachments: { name: string; url: string }[] = []) => {
     if (!taskForm.title.trim() || !taskForm.assignedTo) return; setSavingTask(true);
     const au = users.find(u => u.uid === taskForm.assignedTo);
-    const td = { 
+    const td: Omit<Task, "id"> = { 
       title: taskForm.title.trim(), 
       description: taskForm.description.trim(), 
       assignedTo: taskForm.assignedTo, 
@@ -198,10 +243,24 @@ export default function AdminPage() {
       createdAt: Date.now(),
       createdBy: user?.uid || "",
       createdByName: userData?.name || user?.name || "Admin",
+      attachments: attachments.length > 0 ? attachments : undefined
     };
     try { 
       const newTaskRef = push(ref(db, "tasks")); 
       await set(newTaskRef, td);
+
+      // Log activity
+      await logActivity({
+        type: "task",
+        action: "create",
+        title: "New Task Assigned",
+        description: `Task "${td.title}" assigned to ${td.assignedToName} by ${td.createdByName}.`,
+        userId: user?.uid || "unknown",
+        userName: td.createdByName,
+        userRole: "admin",
+        metadata: { taskId: newTaskRef.key }
+      });
+
       setTasks([{ id: newTaskRef.key as string, ...td }, ...tasks]); 
       setTaskForm({ title: "", description: "", assignedTo: "", priority: "medium" }); 
       setShowTaskForm(false); 
@@ -222,6 +281,20 @@ export default function AdminPage() {
     if (status === "completed") upd.completedAt = Date.now();
     try { 
       await update(ref(db, `tasks/${id}`), upd); 
+      
+      // Log activity
+      const task = tasks.find(t => t.id === id);
+      await logActivity({
+        type: "task",
+        action: "status_change",
+        title: "Task Status Updated",
+        description: `Task "${task?.title || "Unknown"}" marked as ${status} by ${currentName}.`,
+        userId: user?.uid || "unknown",
+        userName: currentName,
+        userRole: "admin",
+        metadata: { taskId: id, status }
+      });
+
       setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Date.now() } : {}) } : t)); 
     } catch (e) { 
       console.error(e); 
@@ -264,6 +337,7 @@ export default function AdminPage() {
           currentName={currentName} 
           handleLogout={handleLogout}
           navItems={[
+            { key: "dashboard", label: "Dashboard" },
             { key: "users", label: "Users", count: users.length },
             { key: "tasks", label: "Tasks", count: taskPendingCount > 0 ? taskPendingCount : undefined },
           ]}
@@ -279,7 +353,15 @@ export default function AdminPage() {
             setSidebarOpen={setSidebarOpen} 
           />
 
-          {tab === "users" ? (
+          {tab === "dashboard" ? (
+            <DashboardTab 
+              S={S} 
+              isMobile={isMobile} 
+              isTablet={isTablet} 
+              users={users} 
+              tasks={tasks} 
+            />
+          ) : tab === "users" ? (
             <UsersTab 
               S={S} 
               isMobile={isMobile} 

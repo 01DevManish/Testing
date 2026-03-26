@@ -220,6 +220,27 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       color: "#64748b",
       marginBottom: 5,
     } as React.CSSProperties,
+
+    tabContent: {
+      animation: "fadeInUp 0.4s ease-out",
+    } as React.CSSProperties,
+
+    activityCard: {
+      background: "#fff",
+      borderRadius: 16,
+      border: "1px solid #e2e8f0",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+      padding: isMobile ? "16px 14px" : "24px 20px",
+      marginBottom: 24,
+    } as React.CSSProperties,
+
+    activityItem: {
+      display: "flex",
+      gap: 14,
+      padding: "16px 0",
+      borderBottom: "1px solid #f1f5f9",
+      position: "relative" as const,
+    } as React.CSSProperties,
   };
 }
 

@@ -19,7 +19,7 @@ interface TasksTabProps {
   taskForm: { title: string; description: string; assignedTo: string; priority: "low" | "medium" | "high" };
   setTaskForm: (v: { title: string; description: string; assignedTo: string; priority: "low" | "medium" | "high" }) => void;
   savingTask: boolean;
-  handleCreateTask: () => void;
+  handleCreateTask: (attachments: { name: string; url: string }[]) => void;
   handleDeleteTask: (id: string) => void;
   handleTaskStatus: (id: string, status: Task["status"]) => void;
   assignableUsers: UserRecord[];
@@ -32,6 +32,9 @@ export default function TasksTab({
   taskForm, setTaskForm, savingTask, handleCreateTask, handleDeleteTask,
   handleTaskStatus, assignableUsers, loadTasks,
 }: TasksTabProps) {
+  const [uploading, setUploading] = React.useState(false);
+  const [selectedFiles, setSelectedFiles] = React.useState<File[]>([]);
+
   const taskStats = {
     total: tasks.length,
     pending: tasks.filter(t => t.status === "pending").length,
@@ -48,6 +51,16 @@ export default function TasksTab({
         </div>
       </div>
       {t.description && <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8, lineHeight: 1.5 }}>{t.description}</div>}
+      
+      {t.attachments && t.attachments.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          {t.attachments.map((at, idx) => (
+            <a key={idx} href={at.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 8px", background: "#f1f5f9", borderRadius: 6, fontSize: 10, color: "#6366f1", textDecoration: "none", border: "1px solid #e2e8f0" }}>
+              📎 {at.name.length > 15 ? at.name.slice(0, 12) + "..." : at.name}
+            </a>
+          ))}
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <div style={{ width: 26, height: 26, borderRadius: 7, background: roleBg[t.assignedToRole] || roleBg.employee, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 500, fontSize: 11, color: "#fff" }}>{t.assignedToName?.[0]?.toUpperCase() || "U"}</div>
         <span style={{ fontSize: 13, color: "#475569", fontWeight: 400 }}>{t.assignedToName}</span>
@@ -112,6 +125,24 @@ export default function TasksTab({
             </div>
           </div>
           <div style={{ marginTop: 12 }}><label style={S.label}>Description</label><textarea placeholder="Describe the task..." value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} rows={2} style={{ ...S.input, resize: "vertical" as const }} /></div>
+          
+          {/* Attachments UI */}
+          <div style={{ marginTop: 12 }}>
+            <label style={S.label}>Attachments (Optional)</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                {selectedFiles.map((f, i) => (
+                    <div key={i} style={{ padding: "6px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>📄 {f.name}</span>
+                        <button onClick={() => setSelectedFiles(selectedFiles.filter((_, idx) => idx !== i))} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontWeight: 700 }}>✕</button>
+                    </div>
+                ))}
+            </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "#f1f5f9", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#475569", border: "1px solid #e2e8f0" }}>
+                <span>📁 Choose Files</span>
+                <input type="file" multiple onChange={(e) => e.target.files && setSelectedFiles([...selectedFiles, ...Array.from(e.target.files)])} style={{ display: "none" }} />
+            </label>
+          </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
             <label style={{ ...S.label, margin: 0, flexShrink: 0 }}>Priority:</label>
             <div style={{ display: "flex", gap: 6 }}>
@@ -123,9 +154,31 @@ export default function TasksTab({
               ))}
             </div>
             <div style={{ flex: 1 }} />
-            <button onClick={handleCreateTask} disabled={savingTask || !taskForm.title.trim() || !taskForm.assignedTo}
-              style={{ ...S.btnPrimary, opacity: savingTask || !taskForm.title.trim() || !taskForm.assignedTo ? 0.5 : 1 }}>
-              {savingTask ? <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Assign Task"}
+            <button 
+              onClick={async () => {
+                setUploading(true);
+                const attachments: { name: string; url: string }[] = [];
+                try {
+                  const { storage } = await import("../../lib/firebase");
+                  const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+                  for (const file of selectedFiles) {
+                    const storageRef = ref(storage, `tasks/${Date.now()}_${file.name}`);
+                    const snapshot = await uploadBytes(storageRef, file);
+                    const url = await getDownloadURL(snapshot.ref);
+                    attachments.push({ name: file.name, url });
+                  }
+                  handleCreateTask(attachments);
+                  setSelectedFiles([]);
+                } catch (e) {
+                  console.error(e);
+                  alert("Upload failed.");
+                } finally {
+                  setUploading(false);
+                }
+              }} 
+              disabled={savingTask || uploading || !taskForm.title.trim() || !taskForm.assignedTo}
+              style={{ ...S.btnPrimary, opacity: savingTask || uploading || !taskForm.title.trim() || !taskForm.assignedTo ? 0.5 : 1 }}>
+              {savingTask || uploading ? <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Assign Task"}
             </button>
           </div>
         </div>
@@ -163,6 +216,7 @@ export default function TasksTab({
                     <td style={S.td}>
                       <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: 2, fontSize: 13 }}>{t.title}</div>
                       {t.description && <div style={{ fontSize: 11, color: "#94a3b8", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</div>}
+                      {t.attachments && t.attachments.length > 0 && <div style={{ fontSize: 10, color: "#6366f1", marginTop: 4 }}>📎 {t.attachments.length} files attached</div>}
                       {isTablet && <span style={{ ...S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent"), marginTop: 4, display: "inline-flex" }}>{statusConfig[t.status]?.label}</span>}
                     </td>
                     <td style={S.td}>

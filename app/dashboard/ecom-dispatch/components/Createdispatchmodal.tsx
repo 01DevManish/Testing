@@ -47,9 +47,10 @@ function dispatchId() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CreateDispatchModal({ onClose, onDispatched }: {
+export default function CreateDispatchModal({ onClose, onDispatched, dispatchType }: {
     onClose: () => void;
     onDispatched?: (data: any) => void;
+    dispatchType?: "retail" | "ecom";
 }) {
     const { user, userData } = useAuth();
     const [step, setStep] = useState(1);
@@ -201,7 +202,8 @@ export default function CreateDispatchModal({ onClose, onDispatched }: {
                 packagingType: form.packagingType,
                 remarks: form.remarks,
                 bails: form.bails,
-                confirmedByPin: true
+                confirmedByPin: true,
+                dispatchType: dispatchType
             });
 
             setDispatched(true);

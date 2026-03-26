@@ -21,6 +21,7 @@ interface Task {
   completedAt?: number;
   createdBy?: string;
   createdByName?: string;
+  attachments?: { name: string; url: string }[];
 }
 
 const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
@@ -203,9 +204,14 @@ export default function DashboardPage() {
           </button>
           
           {((userData?.role as string) === "admin" || userData?.permissions?.includes("dispatch")) && (
-            <button onClick={() => router.push("/dashboard/advanced-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Dispatch
-            </button>
+            <>
+              <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+                Retail Dispatch
+              </button>
+              <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+                E-com Dispatch
+              </button>
+            </>
           )}
           {((userData?.role as string) === "admin" || userData?.permissions?.includes("inventory")) && (
             <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
@@ -323,6 +329,15 @@ export default function DashboardPage() {
                         }}>{t.title}</h3>
                       </div>
                       {t.description && <p style={{ fontSize: 13, color: "#64748b", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", marginBottom: 6 }}>{t.description}</p>}
+                      {t.attachments && t.attachments.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                          {t.attachments.map((at, idx) => (
+                            <a key={idx} href={at.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 8px", background: "#f1f5f9", borderRadius: 6, fontSize: 11, color: "#6366f1", textDecoration: "none", border: "1px solid #e2e8f0" }}>
+                              📎 {at.name.length > 15 ? at.name.slice(0, 12) + "..." : at.name}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       {t.createdByName && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>Assigned by: <span style={{ fontWeight: 600, color: "#64748b" }}>{t.createdByName}</span></div>}
                     </div>
 

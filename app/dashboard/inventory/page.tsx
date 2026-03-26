@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ref, get, update } from "firebase/database";
+import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
+import { logActivity } from "../../lib/activityLogger";
 
 // ── Local components ──────────────────────────────────────────
 import InventorySidebar from "./InventorySidebar";
@@ -110,7 +111,7 @@ export default function InventoryPage() {
   const openEdit = (p: Product) => {
     setEditProduct(p);
     setEditForm({
-      productName: p.productName, sku: p.sku, category: p.category, brand: p.brand,
+      productName: p.productName, sku: p.sku, category: p.category, collection: p.collection || "", brand: p.brand,
       price: p.price, costPrice: p.costPrice, stock: p.stock, minStock: p.minStock,
       status: p.status, imageUrl: p.imageUrl || "", description: p.description || "",
       unit: p.unit || "PCS", hsnCode: p.hsnCode || "", gstRate: p.gstRate ?? 18,
@@ -121,6 +122,18 @@ export default function InventoryPage() {
     if (!editProduct || !editForm) return;
     setEditSaving(true);
     try {
+      // SKU uniqueness check (if SKU changed)
+      const sanitizedSku = editForm.sku.trim();
+      if (sanitizedSku !== editProduct.sku) {
+        const skuQuery = query(ref(db, "inventory"), orderByChild("sku"), equalTo(sanitizedSku));
+        const skuSnap = await get(skuQuery);
+        if (skuSnap.exists()) {
+          alert("This SKU already exists for another product. Please use a unique SKU.");
+          setEditSaving(false);
+          return;
+        }
+      }
+
       let autoStatus = editForm.status;
       if (editForm.status === "active" || editForm.status === "low-stock" || editForm.status === "out-of-stock") {
            if (Number(editForm.stock) <= 0) autoStatus = "out-of-stock";
@@ -128,8 +141,33 @@ export default function InventoryPage() {
            else autoStatus = "active";
       }
       
-      const updated = { ...editForm, status: autoStatus, price: Number(editForm.price), costPrice: Number(editForm.costPrice), stock: Number(editForm.stock), minStock: Number(editForm.minStock), gstRate: Number(editForm.gstRate), updatedAt: Date.now() };
+      const updated = { 
+        ...editForm, 
+        status: autoStatus, 
+        price: Number(editForm.price), 
+        costPrice: Number(editForm.costPrice), 
+        stock: Number(editForm.stock), 
+        minStock: Number(editForm.minStock), 
+        gstRate: Number(editForm.gstRate), 
+        updatedAt: Date.now(),
+        updatedBy: user?.uid || "unknown",
+        updatedByName: currentName
+      };
+      if (!user) throw new Error("User not authenticated");
       await update(ref(db, `inventory/${editProduct.id}`), updated);
+
+      // Log activity
+      await logActivity({
+        type: "inventory",
+        action: "update",
+        title: "Product Updated",
+        description: `Product "${updated.productName}" (SKU: ${updated.sku}) was updated by ${currentName}.`,
+        userId: user.uid,
+        userName: currentName,
+        userRole: userData?.role || "staff",
+        metadata: { productId: editProduct.id, oldStock: editProduct.stock, newStock: updated.stock }
+      });
+
       setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...updated } : p));
       setEditProduct(null); setEditForm(null);
     } catch (err) { console.error(err); alert("Failed to update."); }
@@ -167,6 +205,8 @@ export default function InventoryPage() {
         return (
           <CreateProduct 
             categories={categories}
+            collections={collections}
+            user={{ uid: user.uid, name: currentName }}
             onCreated={() => { 
                 loadAll(); 
                 setActiveView("product-list"); 
@@ -198,7 +238,7 @@ export default function InventoryPage() {
         return <CollectionList collections={collections} loading={fetching} onCreateNew={() => navigate("collections-create")} />;
       // ── Inventory actions ─────────────────────────────────
       case "inventory-adjustment":
-        return <InventoryAdjustment products={products} collections={collections} onDone={loadAll} />;
+        return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} />;
       case "inventory-barcode-create":
         return <BarcodeView mode="create" />;
       case "inventory-barcode-print":
@@ -291,8 +331,9 @@ export default function InventoryPage() {
               <FormField label="Item Name" required><Input value={editForm.productName} onChange={e => setEditForm({ ...editForm, productName: e.target.value })} /></FormField>
               <FormField label="SKU" required><Input value={editForm.sku} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} /></FormField>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Category"><Select value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}><option value="">Select...</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
+              <FormField label="Collection"><Select value={editForm.collection || ""} onChange={e => setEditForm({ ...editForm, collection: e.target.value })}><option value="">Select...</option>{collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
               <FormField label="Brand"><Input value={editForm.brand} onChange={e => setEditForm({ ...editForm, brand: e.target.value })} /></FormField>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>

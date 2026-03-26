@@ -19,73 +19,29 @@ const NAV_GROUPS: NavGroup[] = [
         items: [{ id: "overview", label: "Dashboard" }],
     },
     {
-        key: "inventory", label: "Inventory Adjustment",
+        key: "dispatch", label: "Dispatches",
         icon: (
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <rect x="1.5" y="3" width="12" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M5 3V2a2 2 0 014 0v1" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M5 8h5M7.5 5.5v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M1 4.5h6v7H1v-7zM7 6.5h4l2.5 2v3H7v-5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                <circle cx="3.5" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.4" />
+                <circle cx="10.5" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.4" />
             </svg>
         ),
         items: [
-            { id: "inventory-adjustment", label: "Inventory Adjustment" },
+            { id: "create-dispatch", label: "Create Dispatch" },
+            { id: "order-list", label: "All Dispatches" },
         ],
     },
     {
-        key: "product", label: "Items",
+        key: "tools", label: "Tools",
         icon: (
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M7.5 1.5L13 4.5V10.5L7.5 13.5L2 10.5V4.5L7.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-                <path d="M7.5 1.5V13.5M2 4.5L7.5 7.5L13 4.5" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M2.5 7.5h10M2.5 4.5h10M2.5 10.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
         ),
         items: [
-            { id: "product-create", label: "Create Item" },
-            { id: "product-list", label: "All Items" },
-        ],
-    },
-    {
-        key: "category", label: "Category",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <rect x="1" y="1" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
-                <rect x="8.5" y="1" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
-                <rect x="1" y="8.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
-                <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
-            </svg>
-        ),
-        items: [
-            { id: "category-create", label: "Create Category" },
-            { id: "category-list", label: "All Categories" },
-        ],
-    },
-    {
-        key: "collections", label: "Collections",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M2 4h11M2 7.5h11M2 11h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-        ),
-        items: [
-            { id: "collections-create", label: "Create Collection" },
-            { id: "collections-list", label: "All Collections" },
-        ],
-    },
-    {
-        key: "grouping", label: "Item Grouping",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4" />
-                <circle cx="2.5" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.3" />
-                <circle cx="12.5" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.3" />
-                <circle cx="2.5" cy="12" r="1.5" stroke="currentColor" strokeWidth="1.3" />
-                <circle cx="12.5" cy="12" r="1.5" stroke="currentColor" strokeWidth="1.3" />
-                <path d="M4 3.5L5.8 6M10 3.5L9.2 6M4 11.5L5.8 9M10 11.5L9.2 9" stroke="currentColor" strokeWidth="1.2" />
-            </svg>
-        ),
-        items: [
-            { id: "grouping-create", label: "Create Group" },
-            { id: "grouping-list", label: "All Groups" },
+            { id: "add-order", label: "Add Unknown Order" },
+            { id: "scanner", label: "Scan Barcode" },
         ],
     },
 ];
@@ -100,19 +56,14 @@ interface Props {
     onDashboardBack: () => void;
 }
 
-export default function InventorySidebar({
+export default function DispatchSidebar({
     activeView, onNavigate, currentName, currentRole,
     onLogout, userRoleColor, onDashboardBack,
 }: Props) {
-    const activeGroup = NAV_GROUPS.find(g => g.items.some(i => i.id === activeView))?.key || "product";
+    const activeGroup = NAV_GROUPS.find(g => g.items.some(i => i.id === activeView))?.key || "dispatch";
     const [expandedGroup, setExpandedGroup] = useState<string>(activeGroup);
 
     const toggleGroup = (key: string) => setExpandedGroup(prev => prev === key ? "" : key);
-
-    const handleItem = (groupKey: string, itemId: ActiveView) => {
-        setExpandedGroup(groupKey);
-        onNavigate(itemId);
-    };
 
     return (
         <aside style={{
@@ -126,7 +77,7 @@ export default function InventorySidebar({
                     <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Inventory Hub</div>
+                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Retail Dispatch Hub</div>
                     </div>
                 </div>
                 <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 600, cursor: "pointer" }}>
@@ -140,7 +91,7 @@ export default function InventorySidebar({
             {/* Section label */}
             <div style={{ padding: "14px 18px 6px", flexShrink: 0 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#334155", textTransform: "uppercase", letterSpacing: "0.14em", fontFamily: FONT }}>
-                    Inventory Management
+                    Dispatch Management
                 </div>
             </div>
 

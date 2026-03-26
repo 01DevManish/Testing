@@ -77,10 +77,10 @@ export default function DispatchSidebar({
                     <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Logistics Hub</div>
+                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>E-com Dispatch Hub</div>
                     </div>
                 </div>
-                <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.05)", color: "#64748b", fontSize: 12, fontFamily: FONT, fontWeight: 500, cursor: "pointer" }}>
+                <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 600, cursor: "pointer" }}>
                     <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                         <path d="M8 2L4 6.5L8 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>

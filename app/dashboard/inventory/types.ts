@@ -8,6 +8,7 @@ export interface Product {
     productName: string;
     sku: string;
     category: string;
+    collection?: string;
     brand: string;
     price: number;
     costPrice: number;
@@ -22,6 +23,10 @@ export interface Product {
     gstRate: number;
     createdAt: number;
     updatedAt: number;
+    createdBy?: string;
+    createdByName?: string;
+    updatedBy?: string;
+    updatedByName?: string;
 }
 
 // ── Category ───────────────────────────────────────────────────
@@ -30,6 +35,8 @@ export interface Category {
     name: string;
     description: string;
     createdAt: number;
+    createdBy?: string;
+    createdByName?: string;
 }
 
 // ── Collection ─────────────────────────────────────────────────

@@ -13,9 +13,11 @@ export const firebaseConfig = {
   measurementId: "G-N9EYS3V4PQ",
 };
 
+import { getStorage } from "firebase/storage";
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getDatabase(app);
+export const storage = getStorage(app);
 export default app;
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { ref, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Category, Collection, ItemGroup, Product } from "./types";
+import { logActivity } from "../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader, EmptyState } from "./ui";
 
 // ══════════════════════════════════════════════════════════════
@@ -352,7 +353,7 @@ export function ItemGroupList({ groups, loading, onCreateNew }: { groups: ItemGr
 // ══════════════════════════════════════════════════════════════
 // INVENTORY ADJUSTMENT
 // ══════════════════════════════════════════════════════════════
-export function InventoryAdjustment({ products, collections, onDone }: { products: Product[], collections: Collection[], onDone?: () => void }) {
+export function InventoryAdjustment({ products, collections, user, onDone }: { products: Product[], collections: Collection[], user: { uid: string; name: string }, onDone?: () => void }) {
     const [search, setSearch] = useState("");
     const [filterCol, setFilterCol] = useState("all");
     const [filterSize, setFilterSize] = useState("all");
@@ -450,7 +451,7 @@ export function InventoryAdjustment({ products, collections, onDone }: { product
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map(p => <AdjustRow key={p.id} p={p} onRefresh={() => { onDone?.(); setSuccessMsg(`Stock updated for ${p.productName}`); }} />)}
+                            {filtered.map(p => <AdjustRow key={p.id} p={p} user={user} onRefresh={() => { onDone?.(); setSuccessMsg(`Stock updated for ${p.productName}`); }} />)}
                         </tbody>
                     </table>
                     {filtered.length === 0 && (
@@ -462,7 +463,7 @@ export function InventoryAdjustment({ products, collections, onDone }: { product
     );
 }
 
-function AdjustRow({ p, onRefresh }: { p: Product, onRefresh?: () => void }) {
+function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; name: string }, onRefresh?: () => void }) {
     const [qty, setQty] = useState<number | "">(1);
     const [saving, setSaving] = useState(false);
     const [confirm, setConfirm] = useState<{ mode: "add" | "remove" } | null>(null);
@@ -483,7 +484,26 @@ function AdjustRow({ p, onRefresh }: { p: Product, onRefresh?: () => void }) {
                 else if (newStock <= p.minStock) autoStatus = "low-stock";
                 else autoStatus = "active";
             }
-            await update(ref(db, `inventory/${p.id}`), { stock: newStock, status: autoStatus, updatedAt: Date.now() });
+            await update(ref(db, `inventory/${p.id}`), { 
+                stock: newStock, 
+                status: autoStatus, 
+                updatedAt: Date.now(),
+                updatedBy: user.uid,
+                updatedByName: user.name
+            });
+
+            // Log activity
+            await logActivity({
+                type: "inventory",
+                action: "adjustment",
+                title: mode === "add" ? "Stock Added" : "Stock Removed",
+                description: `${user.name} ${mode === "add" ? "added" : "removed"} ${q} ${p.unit || "units"} for "${p.productName}". New stock: ${newStock}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "staff",
+                metadata: { productId: p.id, adjustment: q, mode, newStock }
+            });
+
             setQty(1);
             setConfirm(null);
             onRefresh?.();

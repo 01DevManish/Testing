@@ -23,6 +23,22 @@ export interface Task {
   status: "pending" | "in-progress" | "completed";
   completedAt?: number;
   createdAt: number;
+  createdBy: string;
+  createdByName: string;
+  attachments?: { name: string; url: string }[];
+}
+
+export interface LoggedActivity {
+  id: string;
+  type: "dispatch" | "inventory" | "user" | "task" | "system";
+  action: "create" | "update" | "delete" | "status_change" | "adjustment";
+  title: string;
+  description: string;
+  timestamp: number;
+  userId: string;
+  userName: string;
+  userRole: string;
+  metadata?: Record<string, any>;
 }
 
 export const roleColors: Record<string, string> = {

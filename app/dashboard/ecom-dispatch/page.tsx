@@ -51,7 +51,9 @@ export default function AdvancedDispatchDashboard() {
     setFetching(true);
     try {
       const data = await api.getOrders();
-      setOrders(data);
+      // Filter for ecom dispatches
+      const filtered = data.filter(o => o.dispatchType === "ecom");
+      setOrders(filtered);
     } catch (e) {
       console.error(e);
     } finally {
@@ -210,8 +212,8 @@ export default function AdvancedDispatchDashboard() {
 
         {activeView === "overview" && (
           <div className="animate-in fade-in duration-300">
-            <PageHeader title="Overview" sub="Manage and track your entire fulfillment pipeline.">
-                <BtnPrimary onClick={() => setActiveView("create-dispatch")}>🚀 Create Dispatch</BtnPrimary>
+            <PageHeader title="E-com Dispatch" sub="Manage and track your e-commerce fulfillment pipeline.">
+                <BtnPrimary onClick={() => setActiveView("create-dispatch")}>🚀 Create E-com Dispatch</BtnPrimary>
                 <BtnGhost onClick={loadOrders} style={{ fontSize: 13 }}>↻ Refresh</BtnGhost>
             </PageHeader>
 
@@ -366,6 +368,7 @@ export default function AdvancedDispatchDashboard() {
         {activeView === "create-dispatch" && (
           <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300">
             <CreateDispatchModal
+              dispatchType="ecom"
               onClose={() => setActiveView("overview")}
               onDispatched={(data) => {
                 loadOrders();

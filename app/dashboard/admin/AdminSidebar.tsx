@@ -7,14 +7,14 @@ import type { AdminStyles } from "./styles";
 
 interface AdminSidebarProps {
   S: AdminStyles;
-  tab: "users" | "tasks";
-  setTab: (tab: "users" | "tasks") => void;
+  tab: "dashboard" | "users" | "tasks";
+  setTab: (tab: "dashboard" | "users" | "tasks") => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   isDesktop: boolean;
   currentName: string;
   handleLogout: () => void;
-  navItems: { key: "users" | "tasks"; label: string; count?: number }[];
+  navItems: { key: "dashboard" | "users" | "tasks"; label: string; count?: number }[];
 }
 
 export default function AdminSidebar({
@@ -40,16 +40,6 @@ export default function AdminSidebar({
         {/* Nav */}
         <div style={{ fontSize: 9, fontWeight: 500, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Navigation</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {[
-            { label: "Dashboard", path: "/dashboard" },
-            { label: "Dispatch", path: "/dashboard/advanced-dispatch" },
-            { label: "Inventory", path: "/dashboard/inventory" },
-          ].map(item => (
-            <button key={item.path} onClick={() => { router.push(item.path); if (!isDesktop) setSidebarOpen(false); }}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const }}>
-              {item.label}
-            </button>
-          ))}
           {navItems.map(item => (
             <button key={item.key} onClick={() => { setTab(item.key); if (!isDesktop) setSidebarOpen(false); }}
               style={{
@@ -63,6 +53,17 @@ export default function AdminSidebar({
               {item.count !== undefined && (
                 <span style={{ marginLeft: "auto", background: tab === item.key ? "rgba(129,140,248,0.2)" : "rgba(148,163,184,0.15)", color: tab === item.key ? "#c7d2fe" : "#94a3b8", fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 12, minWidth: 24, textAlign: "center" as const }}>{item.count}</span>
               )}
+            </button>
+          ))}
+          <div style={{ margin: "8px 0", height: 1, background: "rgba(255,255,255,0.06)" }} />
+          {[
+            { label: "Retail Dispatch", path: "/dashboard/retail-dispatch" },
+            { label: "E-com Dispatch", path: "/dashboard/ecom-dispatch" },
+            { label: "Inventory", path: "/dashboard/inventory" },
+          ].map(item => (
+            <button key={item.path} onClick={() => { router.push(item.path); if (!isDesktop) setSidebarOpen(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const }}>
+              {item.label}
             </button>
           ))}
         </nav>
