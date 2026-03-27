@@ -60,7 +60,7 @@ export default function AdminPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [fetchingTasks, setFetchingTasks] = useState(true);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: "", description: "", assignedTo: "", priority: "medium" as "low" | "medium" | "high" });
+  const [taskForm, setTaskForm] = useState({ title: "", description: "", assignedTo: [] as string[], priority: "medium" as "low" | "medium" | "high" });
   const [savingTask, setSavingTask] = useState(false);
   const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "in-progress" | "completed">("all");
 
@@ -124,7 +124,7 @@ export default function AdminPage() {
     setFetchingCatalog(true);
     try {
       const [prodSnap, catSnap, collSnap] = await Promise.all([
-        get(ref(db, "products")),
+        get(ref(db, "inventory")),
         get(ref(db, "categories")),
         get(ref(db, "collections"))
       ]);
@@ -306,48 +306,57 @@ export default function AdminPage() {
   };
 
   const handleCreateTask = async (attachments: { name: string; url: string }[] = []) => {
-    if (!taskForm.title.trim() || !taskForm.assignedTo) return; setSavingTask(true);
-    const au = users.find(u => u.uid === taskForm.assignedTo);
-    const td: any = { 
-      title: taskForm.title.trim(), 
-      description: taskForm.description.trim(), 
-      assignedTo: taskForm.assignedTo, 
-      assignedToName: au?.name || "Unknown", 
-      assignedToRole: au?.role || "employee", 
-      priority: taskForm.priority, 
-      status: "pending", 
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 72 * 60 * 60 * 1000, 
-      createdBy: user?.uid || "",
-      createdByName: userData?.name || user?.name || "Admin",
-    };
-
-    if (attachments && attachments.length > 0) {
-      // Filter out any invalid attachments
-      const validAttachments = attachments.filter(at => at.name && at.url);
-      if (validAttachments.length > 0) td.attachments = validAttachments;
-    }
-
+    if (!taskForm.title.trim() || !taskForm.assignedTo || taskForm.assignedTo.length === 0) return; 
+    setSavingTask(true);
+    
     try { 
-      const newTaskRef = push(ref(db, "tasks")); 
-      await set(newTaskRef, td);
+      const now = Date.now();
+      const expiresAt = now + 72 * 60 * 60 * 1000;
+      const createdByName = userData?.name || user?.name || "Admin";
+      
+      const creationPromises = taskForm.assignedTo.map(async (uid) => {
+        const au = users.find(u => u.uid === uid);
+        const td: any = { 
+          title: taskForm.title.trim(), 
+          description: taskForm.description.trim(), 
+          assignedTo: uid, 
+          assignedToName: au?.name || "Unknown", 
+          assignedToRole: au?.role || "employee", 
+          priority: taskForm.priority, 
+          status: "pending", 
+          createdAt: now,
+          expiresAt: expiresAt, 
+          createdBy: user?.uid || "",
+          createdByName: createdByName,
+        };
 
+        if (attachments && attachments.length > 0) {
+          const validAttachments = attachments.filter(at => at.name && at.url);
+          if (validAttachments.length > 0) td.attachments = validAttachments;
+        }
 
-      // Log activity
-      await logActivity({
-        type: "task",
-        action: "create",
-        title: "New Task Assigned",
-        description: `Task "${td.title}" assigned to ${td.assignedToName} by ${td.createdByName}.`,
-        userId: user?.uid || "unknown",
-        userName: td.createdByName,
-        userRole: "admin",
-        metadata: { taskId: newTaskRef.key }
+        const newTaskRef = push(ref(db, "tasks")); 
+        await set(newTaskRef, td);
+
+        await logActivity({
+          type: "task",
+          action: "create",
+          title: "New Task Assigned",
+          description: `Task "${td.title}" assigned to ${td.assignedToName} by ${td.createdByName}.`,
+          userId: user?.uid || "unknown",
+          userName: td.createdByName,
+          userRole: "admin",
+          metadata: { taskId: newTaskRef.key }
+        });
+
+        return { id: newTaskRef.key as string, ...td };
       });
 
-      setTasks([{ id: newTaskRef.key as string, ...td }, ...tasks]); 
-      setTaskForm({ title: "", description: "", assignedTo: "", priority: "medium" }); 
+      const newTasks = await Promise.all(creationPromises);
+      setTasks([...newTasks, ...tasks]); 
+      setTaskForm({ title: "", description: "", assignedTo: [], priority: "medium" }); 
       setShowTaskForm(false); 
+      alert(`Success! Task assigned to ${taskForm.assignedTo.length} users.`);
     } catch (err: any) { 
       console.error("Task Creation Error:", err);
       alert(`Failed to create task: ${err.message || "Unknown error"}`); 
@@ -424,9 +433,9 @@ export default function AdminPage() {
           handleLogout={handleLogout}
           navItems={[
             { key: "dashboard", label: "Dashboard" },
-            { key: "party-rates", label: "Party Rates" },
-            { key: "brands", label: "Create Brand" },
-            { key: "catalog", label: "Catalog Sharing" },
+            { key: "party-rates", label: "Party Wise Rate" },
+            { key: "brands", label: "Brands" },
+            { key: "catalog", label: "Catalog Exports" },
           ]}
           settingsItems={[
             { key: "profile", label: "Profile" },

@@ -4,23 +4,26 @@ export const uploadToCloudinary = async (base64OrUrl: string): Promise<string> =
     }
 
     try {
+        const formData = new FormData();
+        formData.append("file", base64OrUrl);
+
         const res = await fetch("/api/upload", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file: base64OrUrl })
+            body: formData
         });
-        const data = await res.json();
+        
+        const data = await res.json().catch(() => ({ error: "Server response was not valid JSON" }));
 
         if (!res.ok) {
-            throw new Error(data.error || "Failed to upload file to Cloudinary");
+            throw new Error(data.error || `Upload failed with status ${res.status}`);
         }
         if (!data.secure_url) {
-            throw new Error("No secure_url returned from Cloudinary");
+            throw new Error("Invalid response: secure_url missing");
         }
         return data.secure_url;
-    } catch (err) {
+    } catch (err: any) {
         console.error("Cloudinary Upload Error:", err);
-        throw err;
+        throw new Error(err.message || "Network error occurred during upload");
     }
 };
 

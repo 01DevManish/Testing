@@ -28,6 +28,7 @@ interface Product {
   minStock: number;
   unit: string;
   status: string;
+  imageUrl?: string;
   createdByName?: string;
   updatedByName?: string;
 }
@@ -43,7 +44,6 @@ interface DashboardTabProps {
 export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: DashboardTabProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [stockSearch, setStockSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const { user, userData } = useAuth();
 
@@ -51,7 +51,6 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   const [dispatchSearch, setDispatchSearch] = useState("");
   const [dispatchFilter, setDispatchFilter] = useState("all"); 
   const [inventorySearch, setInventorySearch] = useState("");
-  const [inventoryFilter, setInventoryFilter] = useState("all"); 
 
   useEffect(() => {
     // 1. Listen for Activities (Live)
@@ -173,11 +172,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             if (filter === "E-com" && !a.title.includes("E-com")) return false;
         }
 
-        if (type === "inventory") {
-            if (filter === "Add" && !a.description.includes("added")) return false;
-            if (filter === "Remove" && !a.description.includes("removed")) return false;
-            if (filter === "Update" && a.description.includes("added") && a.description.includes("removed")) return false; // Basic distinction
-        }
+        
         
         return true;
       })
@@ -200,13 +195,6 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   const formatDate = (ts: number) => {
     return new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   };
-
-  const filteredStock = useMemo(() => {
-    return allProducts.filter(p => 
-      p.productName.toLowerCase().includes(stockSearch.toLowerCase()) ||
-      p.sku.toLowerCase().includes(stockSearch.toLowerCase())
-    ).slice(0, 10);
-  }, [allProducts, stockSearch]);
 
   const ActivityGroup = ({ group, activities }: { group: string; activities: Activity[] }) => (
     <div style={{ marginBottom: 16 }}>
@@ -301,13 +289,16 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             </div>
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
               {allProducts.filter(p => p.stock <= p.minStock).map(p => (
-                <div key={p.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, marginRight: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{p.sku}</div>
+                <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: "#f8fafc", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
+                    <img src={p.imageUrl || "/placeholder-prod.png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 400, color: "#ef4444", flexShrink: 0 }}>
-                    {p.stock} <span style={{ fontSize: 10, fontWeight: 400, color: "#94a3b8" }}>{p.unit}</span>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{p.sku}</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 400, color: "#ef4444", textAlign: "right", flexShrink: 0 }}>
+                    {p.stock} <span style={{ fontSize: 10, color: "#94a3b8" }}>{p.unit}</span>
                   </div>
                 </div>
               ))}
@@ -326,7 +317,9 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 200 }}>
               <input 
                 type="text" 
-                value={dispatchSearch} onChange={e => setDispatchSearch(e.target.value)}
+                placeholder="Search..."
+                value={dispatchSearch} 
+                onChange={(e) => setDispatchSearch(e.target.value)}
                 style={{ width: "100%", maxWidth: 160, padding: "6px 10px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
               />
               <select 
@@ -352,92 +345,47 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
           </div>
         </div>
 
-        {/* INVENTORY CARD */}
+        {/* LIVE INVENTORY CARD */}
         <div style={S.activityCard}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>📦 Stock Adjustments</h3>
-            <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 200 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>📦 Live Inventory</h3>
+            <div style={{ position: "relative", flex: 1, maxWidth: 200 }}>
               <input 
-                type="text" 
+                type="text" placeholder="Search inventory..."
                 value={inventorySearch} onChange={e => setInventorySearch(e.target.value)}
-                style={{ width: "100%", maxWidth: 160, padding: "6px 10px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
+                style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
               />
-              <select 
-                value={inventoryFilter} onChange={e => setInventoryFilter(e.target.value)}
-                style={{ padding: "6px 10px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc", cursor: "pointer" }}
-              >
-                <option value="all">All Actions</option>
-                <option value="Add">Stock Added</option>
-                <option value="Remove">Stock Removed</option>
-              </select>
             </div>
           </div>
           <div style={{ maxHeight: 400, overflowY: "auto", paddingRight: 4 }}>
-            {["Today", "Yesterday", "Earlier"].map(g => {
-              const gActs = groupByType("inventory", inventorySearch, inventoryFilter)[g];
-              return gActs.length > 0 && <ActivityGroup key={g} group={g} activities={gActs} />;
-            })}
-             {groupByType("inventory", inventorySearch, inventoryFilter).Today.length === 0 && 
-             groupByType("inventory", inventorySearch, inventoryFilter).Yesterday.length === 0 && 
-             groupByType("inventory", inventorySearch, inventoryFilter).Earlier.length === 0 && (
-               <div style={{ textAlign: "center", padding: "20px 0", color: "#94a3b8", fontSize: 13 }}>No recent stock adjustments found.</div>
+            {allProducts
+              .filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase()))
+              .slice(0, 50)
+              .map(p => (
+                <div key={p.id} style={{ ...S.activityItem, padding: "10px", borderBottom: "1px solid #f8fafc", borderRadius: 10, marginBottom: 4, background: p.stock <= p.minStock ? "rgba(239, 68, 68, 0.03)" : "transparent", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f8fafc", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
+                    <img src={p.imageUrl || "/placeholder-prod.png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.productName}</div>
+                      <div style={{ fontSize: 13, fontWeight: 400, color: p.stock <= p.minStock ? "#ef4444" : "#10b981", marginLeft: 10 }}>
+                        {p.stock} <span style={{ fontSize: 10, color: "#94a3b8" }}>{p.unit}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>SKU: {p.sku}</div>
+                      {p.stock <= p.minStock && (
+                        <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 400 }}>Low Stock</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            {allProducts.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8", fontSize: 13 }}>No inventory found.</div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* CURRENT STOCK STATUS */}
-      <div style={S.activityCard}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a" }}>Current Stock Status</h3>
-          <div style={{ position: "relative", width: isMobile ? "100%" : 280 }}>
-            <input 
-              type="text" 
-              value={stockSearch} onChange={e => setStockSearch(e.target.value)}
-              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", background: "#f8fafc" }}
-            />
-          </div>
-        </div>
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc" }}>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase" }}>Product</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase" }}>SKU</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", textAlign: "right" }}>Stock</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase" }}>Managed By</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", textAlign: "center" }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStock.map(p => (
-                <tr key={p.id}>
-                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#1e293b", fontWeight: 400 }}>{p.productName}</td>
-                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#64748b" }}>{p.sku}</td>
-                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 14, fontWeight: 400, color: p.stock <= p.minStock ? "#ef4444" : "#10b981", textAlign: "right" }}>
-                    {p.stock} <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 400 }}>{p.unit}</span>
-                  </td>
-                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9" }}>
-                     <div style={{ fontSize: 12, color: "#475569", fontWeight: 400 }}>{p.updatedByName || p.createdByName || "System"}</div>
-                     <div style={{ fontSize: 10, color: "#94a3b8" }}>{p.updatedByName ? "Last updated" : "Created"}</div>
-                  </td>
-                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", textAlign: "center" }}>
-                      <button 
-                        onClick={() => deleteProduct(p)}
-                        style={{ border: "none", background: "none", color: "#f87171", cursor: "pointer", padding: "4px" }}
-                        title="Delete Product"
-                      >
-                         <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M5.5 1V1.5H3.5V2.5H11.5V1.5H9.5V1H5.5ZM2.5 3.5V13.5C2.5 14.0523 2.94772 14.5 3.5 14.5H11.5C12.0523 14.5 12.5 14.0523 12.5 13.5V3.5H2.5ZM4.5 5.5H5.5V12.5H4.5V5.5ZM7 5.5H8V12.5H7V5.5ZM9.5 5.5H10.5V12.5H10.5V5.5H9.5V5.5Z" fill="currentColor"/></svg>
-                      </button>
-                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredStock.length === 0 && (
-            <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: 14 }}>No products found.</div>
-          )}
         </div>
       </div>
     </div>

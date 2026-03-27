@@ -122,11 +122,11 @@ export default function PartyRateTab({
   return (
     <div style={{ padding: isMobile ? 0 : "0 8px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
-        <h2 style={{ fontSize: 19, fontWeight: 400, color: "#0f172a", margin: 0 }}>Party-wise Rate List</h2>
+        <h2 style={{ fontSize: 19, fontWeight: 400, color: "#0f172a", margin: 0 }}>Party Wise Rate</h2>
         <div style={{ display: "flex", gap: 8 }}>
           {isAdmin && (
             <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ partyName: "", rates: [] }); }} style={S.btnPrimary}>
-              + Add Rate List
+              + Create Party Rate
             </button>
           )}
           <button onClick={loadData} style={S.btnSecondary}>↻ Refresh</button>
@@ -138,7 +138,7 @@ export default function PartyRateTab({
           <span style={{ color: "#94a3b8" }}>🔍</span>
           <input 
             type="text" 
-            placeholder="Search party name..." 
+            placeholder="Search party..." 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
             style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14 }}
@@ -149,7 +149,7 @@ export default function PartyRateTab({
       {showForm && isAdmin && (
         <div style={{ ...S.modalOverlay, zIndex: 1000 }} onClick={() => setShowForm(false)}>
           <div style={{ ...S.modalCard, maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ fontSize: 18, fontWeight: 400, marginBottom: 20 }}>{editingId ? "Edit Rate List" : "Create Rate List"}</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 400, marginBottom: 20 }}>{editingId ? "Edit Party Rate" : "New Party Rate List"}</h3>
             
             <div style={{ marginBottom: 20 }}>
               <label style={S.label}>Party Name</label>
@@ -157,13 +157,13 @@ export default function PartyRateTab({
                 style={S.input} 
                 value={form.partyName} 
                 onChange={e => setForm({ ...form, partyName: e.target.value })} 
-                placeholder="e.g. Reliance Retail"
+                placeholder="Enter party name..."
               />
             </div>
 
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <label style={S.label}>Product Rates</label>
+                <label style={S.label}>Specific Product Rates</label>
                 <button onClick={addRateRow} style={{ ...S.btnSecondary, padding: "4px 10px", fontSize: 12 }}>+ Add Product</button>
               </div>
               
@@ -176,23 +176,26 @@ export default function PartyRateTab({
                       onChange={e => updateRate(i, "productName", e.target.value)}
                     >
                       <option value="">Select Product...</option>
-                      {products.map((p: any) => (
-                        <option key={p.id} value={p.productName}>{p.productName}</option>
-                      ))}
+                      {products.map((p: any) => {
+                        const pName = p.productName || p.name || "N/A";
+                        return (
+                          <option key={p.id} value={pName}>{pName} ({p.sku})</option>
+                        );
+                      })}
                     </select>
                     <input 
                       type="number" 
                       style={{ ...S.input, flex: 1 }} 
                       value={r.rate || ""} 
                       onChange={e => updateRate(i, "rate", parseFloat(e.target.value))} 
-                      placeholder="Rate"
+                      placeholder="₹ Rate"
                     />
                     <button onClick={() => removeRateRow(i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 18 }}>✕</button>
                   </div>
                 ))}
                 {form.rates.length === 0 && (
                   <div style={{ textAlign: "center", padding: 20, border: "1px dashed #e2e8f0", borderRadius: 8, color: "#94a3b8", fontSize: 13 }}>
-                    No products added. Click "+ Add Product" to start.
+                    Click "+ Add Product" to set custom rates for this party.
                   </div>
                 )}
               </div>
@@ -211,7 +214,7 @@ export default function PartyRateTab({
       {fetching ? (
         <div style={{ textAlign: "center", padding: 60 }}>
           <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid #f1f5f9", borderTopColor: "#6366f1", animation: "spin-slow 0.8s linear infinite", margin: "0 auto 12px" }} />
-          <p style={{ color: "#94a3b8" }}>Loading rates...</p>
+          <p style={{ color: "#94a3b8" }}>Loading records...</p>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "repeat(3, 1fr)", gap: 16 }}>
@@ -235,22 +238,17 @@ export default function PartyRateTab({
                   </div>
                 ))}
                 {pr.rates.length > 5 && (
-                  <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 4 }}>+ {pr.rates.length - 5} more products</div>
+                  <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 4 }}>+ {pr.rates.length - 5} more items</div>
                 )}
                 {pr.rates.length === 0 && (
-                  <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>No rates specified.</div>
+                  <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>No specific rates.</div>
                 )}
               </div>
 
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>Updated {new Date(pr.updatedAt).toLocaleDateString()}</span>
-                <button onClick={() => {
-                  // View all rates modal could be added here
-                   setEditingId(pr.id);
-                   setForm({ partyName: pr.partyName, rates: [...pr.rates] });
-                   setShowForm(true);
-                }} style={{ background: "none", border: "none", color: "#6366f1", fontSize: 12, fontWeight: 400, cursor: "pointer" }}>
-                  View Full List →
+                <span style={{ fontSize: 10, color: "#94a3b8" }}>Last updated {new Date(pr.updatedAt).toLocaleDateString()}</span>
+                <button onClick={() => handleEdit(pr)} style={{ background: "none", border: "none", color: "#6366f1", fontSize: 12, fontWeight: 400, cursor: "pointer" }}>
+                  View / Edit →
                 </button>
               </div>
             </div>
@@ -259,7 +257,7 @@ export default function PartyRateTab({
           {filteredRates.length === 0 && (
             <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 60, background: "#fff", borderRadius: 16, border: "1px dashed #e2e8f0" }}>
               <p style={{ fontSize: 30, marginBottom: 10 }}>📋</p>
-              <p style={{ color: "#94a3b8", fontSize: 14 }}>No party rate lists found.</p>
+              <p style={{ color: "#94a3b8", fontSize: 14 }}>No party rate records found.</p>
             </div>
           )}
         </div>

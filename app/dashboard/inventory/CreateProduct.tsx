@@ -207,12 +207,10 @@ export default function CreateProduct({
             setGalleryImages([]);
             setSuccess(`Product "${created.productName}" created successfully.`);
             alert(`Product "${created.productName}" created successfully!`);
-        } catch (err) {
-            console.error("DEBUG: Error in handleSave:", err);
-            const msg = err instanceof Error ? err.message : "Possible network issue or missing permissions.";
-            alert("Failed to save product: " + msg);
+        } catch (err: any) {
+            console.error("Save Error:", err);
+            alert(err.message || "Failed to create product.");
         } finally {
-            console.log("DEBUG: handleSave flow completed.");
             setSaving(false);
         }
     };
@@ -527,7 +525,7 @@ export default function CreateProduct({
                                 )}
                             </div>
 
-                            <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
+                            <input ref={fileRef} type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={handleFileChange} style={{ display: "none" }} />
                             
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Image Gallery</div>
                             <ImageGallery 

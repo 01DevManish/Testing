@@ -158,7 +158,7 @@ export default function BrandsTab({
                 style={{ ...S.input, fontWeight: 400 }} 
                 value={form.name} 
                 onChange={e => setForm({ ...form, name: e.target.value })} 
-                placeholder="e.g. Nike, Adidas"
+                placeholder="Enter brand name..."
               />
             </div>
 

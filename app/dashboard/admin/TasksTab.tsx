@@ -16,8 +16,8 @@ interface TasksTabProps {
   setTaskFilter: (v: "all" | "pending" | "in-progress" | "completed") => void;
   showTaskForm: boolean;
   setShowTaskForm: (v: boolean) => void;
-  taskForm: { title: string; description: string; assignedTo: string; priority: "low" | "medium" | "high" };
-  setTaskForm: (v: { title: string; description: string; assignedTo: string; priority: "low" | "medium" | "high" }) => void;
+  taskForm: { title: string; description: string; assignedTo: string[]; priority: "low" | "medium" | "high" };
+  setTaskForm: (v: { title: string; description: string; assignedTo: string[]; priority: "low" | "medium" | "high" }) => void;
   savingTask: boolean;
   handleCreateTask: (attachments: { name: string; url: string }[]) => void;
   handleDeleteTask: (id: string) => void;
@@ -34,6 +34,21 @@ export default function TasksTab({
 }: TasksTabProps) {
   const [uploading, setUploading] = React.useState(false);
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([]);
+  const [userSearch, setUserSearch] = React.useState("");
+
+  const filteredAssignable = assignableUsers.filter(u => 
+    u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+    u.email.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
+  const toggleUser = (uid: string) => {
+    const current = taskForm.assignedTo;
+    if (current.includes(uid)) {
+      setTaskForm({ ...taskForm, assignedTo: current.filter(id => id !== uid) });
+    } else {
+      setTaskForm({ ...taskForm, assignedTo: [...current, uid] });
+    }
+  };
 
   const taskStats = {
     total: tasks.length,
@@ -127,14 +142,56 @@ export default function TasksTab({
       {showTaskForm && (
         <div style={{ ...S.tableContainer, padding: isMobile ? 16 : 22, marginBottom: 18, animation: "fadeInUp 0.3s ease" }}>
           <h3 style={{ fontSize: 16, fontWeight: 400, margin: "0 0 16px", color: "#0f172a" }}>Create New Task</h3>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
             <div><label style={S.label}>Task Title</label><input style={S.input} value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} /></div>
-            <div>
-              <label style={S.label}>Assign To</label>
-              <select value={taskForm.assignedTo} onChange={e => setTaskForm({ ...taskForm, assignedTo: e.target.value })} style={{ ...S.input, cursor: "pointer", appearance: "none" as const }}>
-                <option value="">Select user...</option>
-                {assignableUsers.map(u => <option key={u.uid} value={u.uid}>{u.name} ({u.role})</option>)}
-              </select>
+            
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
+                <label style={S.label}>Assign To ({taskForm.assignedTo.length} selected)</label>
+                <input 
+                  type="text" 
+                  placeholder="Filter users..." 
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  style={{ ...S.input, width: "auto", padding: "5px 12px", fontSize: 11, background: "#f1f5f9", borderRadius: 20, border: "none" }}
+                />
+              </div>
+              <div style={{ 
+                maxHeight: 180, overflowY: "auto", border: "1px solid #e2e8f0", 
+                borderRadius: 12, padding: 4, background: "#f8fafc",
+                display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 4
+              }}>
+                {filteredAssignable.map(u => {
+                  const isSelected = taskForm.assignedTo.includes(u.uid);
+                  return (
+                    <div 
+                      key={u.uid} 
+                      onClick={() => toggleUser(u.uid)}
+                      style={{ 
+                        display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", 
+                        borderRadius: 10, cursor: "pointer", background: isSelected ? "#fff" : "transparent",
+                        border: `1px solid ${isSelected ? "#6366f1" : "transparent"}`,
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <div style={{ 
+                        width: 18, height: 18, borderRadius: 5, border: "2px solid #cbd5e1",
+                        background: isSelected ? "#6366f1" : "transparent", borderColor: isSelected ? "#6366f1" : "#cbd5e1",
+                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff"
+                      }}>
+                        {isSelected && "✓"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 400, color: isSelected ? "#6366f1" : "#475569" }}>{u.name}</div>
+                        <div style={{ fontSize: 10, color: "#94a3b8" }}>{u.role.toUpperCase()}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {filteredAssignable.length === 0 && (
+                    <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12, gridColumn: "1/-1" }}>No users found.</div>
+                )}
+              </div>
             </div>
           </div>
           <div style={{ marginTop: 12 }}><label style={S.label}>Description</label><textarea value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} rows={2} style={{ ...S.input, resize: "vertical" as const }} /></div>
@@ -193,8 +250,8 @@ export default function TasksTab({
                   setUploading(false);
                 }
               }} 
-              disabled={savingTask || uploading || !taskForm.title.trim() || !taskForm.assignedTo}
-              style={{ ...S.btnPrimary, opacity: savingTask || uploading || !taskForm.title.trim() || !taskForm.assignedTo ? 0.5 : 1 }}>
+              disabled={savingTask || uploading || !taskForm.title.trim() || taskForm.assignedTo.length === 0}
+              style={{ ...S.btnPrimary, opacity: savingTask || uploading || !taskForm.title.trim() || taskForm.assignedTo.length === 0 ? 0.5 : 1 }}>
               {savingTask || uploading ? <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Assign Task"}
             </button>
           </div>

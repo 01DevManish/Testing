@@ -69,6 +69,8 @@ export default function InventoryPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editGallery, setEditGallery] = useState<string[]>([]);
   const editFileRef = useRef<HTMLInputElement>(null);
+  const [editSizeOption, setEditSizeOption] = useState("");
+  const [editCustomSize, setEditCustomSize] = useState("");
   const [sharingProducts, setSharingProducts] = useState<Product[] | null>(null);
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
   const [brandSearch, setBrandSearch] = useState("");
@@ -134,6 +136,13 @@ export default function InventoryPage() {
 
   const openEdit = (p: Product) => {
     setEditProduct(p);
+    const standardSizes = ["Single", "Double", "King", "Super King"];
+    const isStandard = standardSizes.includes(p.size || "");
+    const sizeOpt = p.size ? (isStandard ? p.size : "Other") : "";
+    
+    setEditSizeOption(sizeOpt);
+    setEditCustomSize(isStandard ? "" : (p.size || ""));
+
     setEditForm({
       productName: p.productName, sku: p.sku, category: p.category, collection: p.collection || "", brand: p.brand, brandId: p.brandId || "",
       price: p.price, costPrice: p.costPrice, stock: p.stock, minStock: p.minStock,
@@ -213,8 +222,12 @@ export default function InventoryPage() {
 
       setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...updated } : p));
       setEditProduct(null); setEditForm(null);
-    } catch (err) { console.error(err); alert("Failed to update."); }
-    finally { setEditSaving(false); }
+    } catch (err: any) {
+      console.error("Update Error:", err);
+      alert(err.message || "Failed to update product.");
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   if (loading || !user) return null;
@@ -510,7 +523,7 @@ export default function InventoryPage() {
                   <input 
                     ref={editFileRef} 
                     type="file" 
-                    accept="image/*" 
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png" 
                     style={{ display: "none" }} 
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -559,9 +572,34 @@ export default function InventoryPage() {
                 </Select>
               </FormField>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <FormField label="Size (e.g. King, Double, 72x78)"><Input value={editForm.size} onChange={e => setEditForm({ ...editForm, size: e.target.value })} /></FormField>
-              <div />
+            <div style={{ display: "grid", gridTemplateColumns: editSizeOption === "Other" ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
+              <FormField label="Size">
+                <Select value={editSizeOption} onChange={e => {
+                  const opt = e.target.value;
+                  setEditSizeOption(opt);
+                  if (opt !== "Other") {
+                    setEditForm({ ...editForm, size: opt });
+                    setEditCustomSize("");
+                  } else {
+                    setEditForm({ ...editForm, size: editCustomSize });
+                  }
+                }}>
+                  <option value="">No specific size</option>
+                  <option value="Single">Single</option>
+                  <option value="Double">Double</option>
+                  <option value="King">King</option>
+                  <option value="Super King">Super King</option>
+                  <option value="Other">Other / Custom</option>
+                </Select>
+              </FormField>
+              {editSizeOption === "Other" && (
+                <FormField label="Custom Size">
+                  <Input value={editCustomSize} onChange={e => {
+                    setEditCustomSize(e.target.value);
+                    setEditForm({ ...editForm, size: e.target.value });
+                  }} placeholder="e.g. 72x78" />
+                </FormField>
+              )}
             </div>
             <div style={{ marginBottom: 18 }}>
               <FormField label="Description"><Textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={2} /></FormField>
