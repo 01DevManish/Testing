@@ -5,6 +5,7 @@ import { ref, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Category, Collection, ItemGroup, Product } from "./types";
 import { logActivity } from "../../lib/activityLogger";
+import { deleteFromCloudinary } from "./cloudinary";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader, EmptyState } from "./ui";
 
 // ══════════════════════════════════════════════════════════════
@@ -72,6 +73,7 @@ export function CreateCategory({ user, onCreated }: { user: { uid: string; name:
 // CATEGORY LIST
 // ══════════════════════════════════════════════════════════════
 export function CategoryList({ categories, user, loading, onCreateNew }: { categories: Category[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void }) {
+    const [editing, setEditing] = useState<Category | null>(null);
     return (
         <div>
             <PageHeader title="All Categories" sub={`${categories.length} categories`}>
@@ -93,8 +95,14 @@ export function CategoryList({ categories, user, loading, onCreateNew }: { categ
                                     <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
                                     {c.description && <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{c.description}</div>}
                                 </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
+                                    <button 
+                                        onClick={() => setEditing(c)}
+                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: FONT }}
+                                    >
+                                        Edit
+                                    </button>
                                     <button 
                                         onClick={async () => { 
                                             if(confirm(`Delete category "${c.name}"?`)) {
@@ -122,6 +130,58 @@ export function CategoryList({ categories, user, loading, onCreateNew }: { categ
                         ))}
                     </div>
                 )}
+            </Card>
+
+            {editing && (
+                <EditCategoryModal 
+                    category={editing} 
+                    user={user} 
+                    onClose={() => setEditing(null)} 
+                />
+            )}
+        </div>
+    );
+}
+
+function EditCategoryModal({ category, user, onClose }: { category: Category; user: { uid: string; name: string }; onClose: () => void }) {
+    const [name, setName] = useState(category.name);
+    const [desc, setDesc] = useState(category.description || "");
+    const [saving, setSaving] = useState(false);
+
+    const handleSave = async () => {
+        if (!name.trim()) return;
+        setSaving(true);
+        try {
+            await update(ref(db, `categories/${category.id}`), { name: name.trim(), description: desc.trim() });
+            await logActivity({
+                type: "inventory",
+                action: "update",
+                title: "Category Updated",
+                description: `Category "${category.name}" was updated by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { categoryId: category.id }
+            });
+            onClose();
+        } catch (e) { console.error(e); alert("Failed to update."); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <Card style={{ maxWidth: 460, width: "100%" }}>
+                <div style={{ padding: 24 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>Edit Category</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <FormField label="Category Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
+                        <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} /></FormField>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 24 }}>
+                        <BtnGhost onClick={onClose}>Cancel</BtnGhost>
+                        <BtnPrimary onClick={handleSave} loading={saving}>Save Changes</BtnPrimary>
+                    </div>
+                </div>
             </Card>
         </div>
     );
@@ -224,7 +284,8 @@ export function CreateCollection({ products, user, onCreated }: { products: { id
 // ══════════════════════════════════════════════════════════════
 // COLLECTION LIST
 // ══════════════════════════════════════════════════════════════
-export function CollectionList({ collections, user, loading, onCreateNew }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void }) {
+export function CollectionList({ collections, user, loading, onCreateNew, products }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[] }) {
+    const [editing, setEditing] = useState<Collection | null>(null);
     return (
         <div>
             <PageHeader title="All Collections" sub={`${collections.length} collections`}>
@@ -246,8 +307,14 @@ export function CollectionList({ collections, user, loading, onCreateNew }: { co
                                     <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{c.productIds?.length ?? 0} products</div>
                                 </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
+                                    <button 
+                                        onClick={() => setEditing(c)}
+                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: FONT }}
+                                    >
+                                        Edit
+                                    </button>
                                     <button 
                                         onClick={async () => { 
                                             if(confirm(`Delete collection "${c.name}"?`)) {
@@ -275,6 +342,81 @@ export function CollectionList({ collections, user, loading, onCreateNew }: { co
                         ))}
                     </div>
                 )}
+            </Card>
+
+            {editing && (
+                <EditCollectionModal 
+                    collection={editing} 
+                    user={user} 
+                    allProducts={products || []}
+                    onClose={() => setEditing(null)} 
+                />
+            )}
+        </div>
+    );
+}
+
+function EditCollectionModal({ collection, user, allProducts, onClose }: { collection: Collection; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void }) {
+    const [name, setName] = useState(collection.name);
+    const [desc, setDesc] = useState(collection.description || "");
+    const [selected, setSelected] = useState<Set<string>>(new Set(collection.productIds || []));
+    const [saving, setSaving] = useState(false);
+    const [search, setSearch] = useState("");
+
+    const toggle = (id: string) => {
+        const s = new Set(selected);
+        s.has(id) ? s.delete(id) : s.add(id);
+        setSelected(s);
+    };
+
+    const handleSave = async () => {
+        if (!name.trim()) return;
+        setSaving(true);
+        try {
+            await update(ref(db, `collections/${collection.id}`), { name: name.trim(), description: desc.trim(), productIds: Array.from(selected) });
+            await logActivity({
+                type: "inventory",
+                action: "update",
+                title: "Collection Updated",
+                description: `Collection "${collection.name}" was updated by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { collectionId: collection.id }
+            });
+            onClose();
+        } catch (e) { console.error(e); alert("Failed to update."); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <Card style={{ maxWidth: 800, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+                <div style={{ padding: 24 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>Edit Collection</h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            <FormField label="Collection Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
+                            <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
+                            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." />
+                            <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+                                {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
+                                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                                        <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
+                                        <span style={{ fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 24 }}>
+                        <BtnGhost onClick={onClose}>Cancel</BtnGhost>
+                        <BtnPrimary onClick={handleSave} loading={saving}>Save Changes</BtnPrimary>
+                    </div>
+                </div>
             </Card>
         </div>
     );
@@ -375,7 +517,8 @@ export function CreateItemGroup({ products, user, onCreated }: { products: { id:
 // ══════════════════════════════════════════════════════════════
 // ITEM GROUP LIST
 // ══════════════════════════════════════════════════════════════
-export function ItemGroupList({ groups, user, loading, onCreateNew }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void }) {
+export function ItemGroupList({ groups, user, loading, onCreateNew, products }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[] }) {
+    const [editing, setEditing] = useState<ItemGroup | null>(null);
     return (
         <div>
             <PageHeader title="All Item Groups" sub={`${groups.length} groups`}>
@@ -397,8 +540,14 @@ export function ItemGroupList({ groups, user, loading, onCreateNew }: { groups: 
                                     <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{g.name}</div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{g.productIds?.length ?? 0} items</div>
                                 </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(g.createdAt).toLocaleDateString("en-IN")}</div>
+                                    <button 
+                                        onClick={() => setEditing(g)}
+                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: FONT }}
+                                    >
+                                        Edit
+                                    </button>
                                     <button 
                                         onClick={async () => { 
                                             if(confirm(`Delete group "${g.name}"?`)) {
@@ -426,6 +575,81 @@ export function ItemGroupList({ groups, user, loading, onCreateNew }: { groups: 
                         ))}
                     </div>
                 )}
+            </Card>
+
+            {editing && (
+                <EditItemGroupModal 
+                    group={editing} 
+                    user={user} 
+                    allProducts={products || []}
+                    onClose={() => setEditing(null)} 
+                />
+            )}
+        </div>
+    );
+}
+
+function EditItemGroupModal({ group, user, allProducts, onClose }: { group: ItemGroup; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void }) {
+    const [name, setName] = useState(group.name);
+    const [desc, setDesc] = useState(group.description || "");
+    const [selected, setSelected] = useState<Set<string>>(new Set(group.productIds || []));
+    const [saving, setSaving] = useState(false);
+    const [search, setSearch] = useState("");
+
+    const toggle = (id: string) => {
+        const s = new Set(selected);
+        s.has(id) ? s.delete(id) : s.add(id);
+        setSelected(s);
+    };
+
+    const handleSave = async () => {
+        if (!name.trim()) return;
+        setSaving(true);
+        try {
+            await update(ref(db, `itemGroups/${group.id}`), { name: name.trim(), description: desc.trim(), productIds: Array.from(selected) });
+            await logActivity({
+                type: "inventory",
+                action: "update",
+                title: "Item Group Updated",
+                description: `Item Group "${group.name}" was updated by ${user.name}.`,
+                userId: user.uid,
+                userName: user.name,
+                userRole: "admin",
+                metadata: { groupId: group.id }
+            });
+            onClose();
+        } catch (e) { console.error(e); alert("Failed to update."); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <Card style={{ maxWidth: 800, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+                <div style={{ padding: 24 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>Edit Item Group</h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            <FormField label="Group Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
+                            <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
+                            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." />
+                            <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+                                {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
+                                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                                        <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
+                                        <span style={{ fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 24 }}>
+                        <BtnGhost onClick={onClose}>Cancel</BtnGhost>
+                        <BtnPrimary onClick={handleSave} loading={saving}>Save Changes</BtnPrimary>
+                    </div>
+                </div>
             </Card>
         </div>
     );
@@ -988,6 +1212,13 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                 onClick={async () => {
                                     try {
                                         await remove(ref(db, `inventory/${productToDelete.id}`));
+                                        
+                                        // Delete images from Cloudinary
+                                        if (productToDelete.imageUrl) await deleteFromCloudinary(productToDelete.imageUrl);
+                                        if (productToDelete.imageUrls && productToDelete.imageUrls.length > 0) {
+                                            await Promise.all(productToDelete.imageUrls.map(url => deleteFromCloudinary(url)));
+                                        }
+
                                         setProductToDelete(null);
                                     } catch(e) { console.error(e); alert("Failed to delete."); }
                                 }}

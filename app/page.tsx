@@ -56,12 +56,12 @@ function LoginContent() {
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "13px 16px",
-    background: "rgba(255, 255, 255, 0.05)",
-    border: "1.5px solid rgba(255, 255, 255, 0.08)",
+    background: "#f8fafc",
+    border: "1.5px solid #e2e8f0",
     borderRadius: 12,
     fontSize: 14,
     fontFamily: "inherit",
-    color: "#e2e8f0",
+    color: "#1e293b",
     outline: "none",
     transition: "all 0.2s ease",
     boxSizing: "border-box" as const,
@@ -73,7 +73,7 @@ function LoginContent() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      background: "#f1f5f9",
+      background: "#ffffff",
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       padding: 24,
     }}>
@@ -83,11 +83,11 @@ function LoginContent() {
         zIndex: 1,
         width: "100%",
         maxWidth: 420,
-        background: "#0f172a",
+        background: "#ffffff",
         borderRadius: 24,
         padding: "50px 40px",
-        boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        boxShadow: "0 20px 50px rgba(0,0,0,0.08)",
+        border: "1px solid #f1f5f9",
         textAlign: "center",
       }}>
         {/* Logo */}
@@ -103,7 +103,7 @@ function LoginContent() {
               margin: "0 auto",
               display: "block",
               background: "#fff",
-              border: "4px solid rgba(255, 255, 255, 0.05)",
+              border: "4px solid #f8fafc",
               padding: 4,
             }}
           />
@@ -112,25 +112,25 @@ function LoginContent() {
         {/* Company Name */}
         <h1 style={{
           fontSize: 22,
-          fontWeight: 500,
-          color: "#fff",
+          fontWeight: 600,
+          color: "#0f172a",
           margin: "0 0 4px",
-          letterSpacing: "0.1em",
+          letterSpacing: "0.08em",
           lineHeight: 1.2,
           textTransform: "uppercase",
         }}>
           EURUS LIFESTYLE
         </h1>
-        <p style={{ fontSize: 13, color: "#818cf8", fontWeight: 400, marginBottom: 32, textTransform: "uppercase", letterSpacing: "0.05em" }}>ERP Control Panel</p>
+        <p style={{ fontSize: 13, color: "#6366f1", fontWeight: 600, marginBottom: 32, textTransform: "uppercase", letterSpacing: "0.05em" }}>ERP Control Panel</p>
 
         {/* Error */}
         {error && (
           <div style={{
             padding: "12px 14px",
-            background: "rgba(239, 68, 68, 0.1)",
-            border: "1px solid rgba(239, 68, 68, 0.2)",
+            background: "rgba(239, 68, 68, 0.05)",
+            border: "1px solid rgba(239, 68, 68, 0.1)",
             borderRadius: 12,
-            color: "#fca5a5",
+            color: "#dc2626",
             fontSize: 13,
             marginBottom: 20,
             display: "flex",
@@ -139,41 +139,41 @@ function LoginContent() {
             textAlign: "left",
           }}>
             <span style={{ fontSize: 16 }}>⚠️</span>
-            <span style={{ flex: 1, fontWeight: 400 }}>{error}</span>
-            <button onClick={clearError} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 16 }}>✕</button>
+            <span style={{ flex: 1, fontWeight: 500 }}>{error}</span>
+            <button onClick={clearError} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}>✕</button>
           </div>
         )}
 
         {/* Email/Password Form */}
         <form onSubmit={handleEmailLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               style={inputStyle}
-              onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+              onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "#fff"; }}
+              onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }}
               required
             />
           </div>
           <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Security Password</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Security Password</label>
             <div style={{ position: "relative" }}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 style={{ ...inputStyle, paddingRight: 44 }}
-                onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-                onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "#fff"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }}
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 400, textTransform: "uppercase" }}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
@@ -185,11 +185,11 @@ function LoginContent() {
             style={{
               width: "100%",
               padding: "15px 20px",
-              background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+              background: "#0f172a",
               border: "none",
               borderRadius: 12,
               fontSize: 14,
-              fontWeight: 500,
+              fontWeight: 600,
               color: "#fff",
               cursor: emailLoading ? "wait" : "pointer",
               transition: "all 0.2s ease",
@@ -199,16 +199,19 @@ function LoginContent() {
               alignItems: "center",
               justifyContent: "center",
               gap: 10,
-              boxShadow: "0 10px 20px rgba(0,0,0,0.2)",
+              boxShadow: "0 10px 20px rgba(15, 23, 42, 0.15)",
               letterSpacing: "0.05em",
             }}
           >
-            {emailLoading ? "AUTHENTICATING..." : "SIGN IN TO ERP"}
+            {emailLoading ? (
+              <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+            ) : "SIGN IN TO ERP"}
           </button>
         </form>
       </div>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        input:focus { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
       `}</style>
     </div>
   );

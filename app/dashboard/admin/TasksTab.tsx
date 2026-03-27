@@ -156,22 +156,26 @@ export default function TasksTab({
             <div style={{ flex: 1 }} />
             <button 
               onClick={async () => {
-                setUploading(true);
+                if (selectedFiles.length > 0) setUploading(true);
                 const attachments: { name: string; url: string }[] = [];
                 try {
-                  const { storage } = await import("../../lib/firebase");
-                  const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+                  const { uploadToCloudinary } = await import("../inventory/cloudinary");
+                  
                   for (const file of selectedFiles) {
-                    const storageRef = ref(storage, `tasks/${Date.now()}_${file.name}`);
-                    const snapshot = await uploadBytes(storageRef, file);
-                    const url = await getDownloadURL(snapshot.ref);
+                    const reader = new FileReader();
+                    const base64Promise = new Promise<string>((resolve) => {
+                      reader.onload = () => resolve(reader.result as string);
+                      reader.readAsDataURL(file);
+                    });
+                    const base64 = await base64Promise;
+                    const url = await uploadToCloudinary(base64);
                     attachments.push({ name: file.name, url });
                   }
                   handleCreateTask(attachments);
                   setSelectedFiles([]);
-                } catch (e) {
-                  console.error(e);
-                  alert("Upload failed.");
+                } catch (e: any) {
+                  console.error("Upload Error:", e);
+                  alert(`Upload failed: ${e.message || "Check connection"}`);
                 } finally {
                   setUploading(false);
                 }

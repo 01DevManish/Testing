@@ -76,6 +76,21 @@ async function saveUser(id, u) {
     ];
     try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (User):", e.message); }
 }
+async function saveTask(id, t) {
+    if (!t) return;
+    const query = `
+      INSERT INTO tasks (id, title, description, assignedTo, assignedToName, assignedToRole, priority, status, createdAt, expiresAt, completedAt, createdBy, createdByName, attachments, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+      title=?, description=?, assignedTo=?, assignedToName=?, assignedToRole=?, priority=?, status=?, expiresAt=?, completedAt=?, createdByName=?, attachments=?, updatedAt=?
+    `;
+    const now = Date.now();
+    const values = [
+      id, t.title, t.description, t.assignedTo, t.assignedToName, t.assignedToRole, t.priority, t.status, t.createdAt, t.expiresAt, t.completedAt || null, t.createdBy, t.createdByName, JSON.stringify(t.attachments || []), now,
+      t.title, t.description, t.assignedTo, t.assignedToName, t.assignedToRole, t.priority, t.status, t.expiresAt, t.completedAt || null, t.createdByName, JSON.stringify(t.attachments || []), now
+    ];
+    try { await pool.execute(query, values); } catch (e) { console.error("SQL Error (Task):", e.message); }
+}
 
 // ─── INITIAL SYNC ───
 
@@ -101,6 +116,13 @@ async function runInitialSync() {
     if (usersSnap.exists()) {
         const data = usersSnap.val();
         for (const id in data) await saveUser(id, data[id]);
+    }
+
+    // 4. Sync Tasks
+    const tasksSnap = await db.ref('tasks').once('value');
+    if (tasksSnap.exists()) {
+        const data = tasksSnap.val();
+        for (const id in data) await saveTask(id, data[id]);
     }
 
     console.log("✅ Initial Sync Completed. Now listening for changes...");
@@ -129,12 +151,57 @@ function setupListeners() {
   db.ref('users').on('child_removed', async (s) => {
     try { await pool.execute('DELETE FROM users WHERE uid = ?', [s.key]); } catch (e) {}
   });
+  // Tasks
+  db.ref('tasks').on('child_added', (s) => saveTask(s.key, s.val()));
+  db.ref('tasks').on('child_changed', (s) => saveTask(s.key, s.val()));
+  db.ref('tasks').on('child_removed', async (s) => {
+    try { await pool.execute('DELETE FROM tasks WHERE id = ?', [s.key]); } catch (e) {}
+  });
+}
+
+
+// ─── TTL CLEANUP ───
+
+async function startCleanupJob() {
+  console.log("⏰ Starting TTL Cleanup Job (72h Tasks)...");
+  
+  const cleanup = async () => {
+    const now = Date.now();
+    try {
+      const tasksSnap = await db.ref('tasks').once('value');
+      if (!tasksSnap.exists()) return;
+      
+      const tasks = tasksSnap.val();
+      let deletedCount = 0;
+      
+      for (const id in tasks) {
+        const task = tasks[id];
+        if (task.expiresAt && task.expiresAt < now) {
+          console.log(`🗑️ Deleting expired task: ${id} (${task.title})`);
+          await db.ref(`tasks/${id}`).remove();
+          deletedCount++;
+        }
+      }
+      
+      if (deletedCount > 0) {
+        console.log(`✅ Cleanup finished. Deleted ${deletedCount} expired tasks.`);
+      }
+    } catch (e) {
+      console.error("❌ Cleanup Error:", e.message);
+    }
+  };
+
+  // Run immediately then every hour
+  cleanup();
+  setInterval(cleanup, 60 * 60 * 1000); 
 }
 
 // Start sequence
 runInitialSync().then(() => {
     setupListeners();
+    startCleanupJob();
 });
+
 
 // Error Handling
 process.on('uncaughtException', (err) => {

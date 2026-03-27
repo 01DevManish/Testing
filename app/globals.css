@@ -33,7 +33,12 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
+
+  /* Font Fallbacks - Fixed build error by removing external dependency */
+  --font-geist-sans: "Geist Sans", "Inter", system-ui, -apple-system, sans-serif;
+  --font-geist-mono: "Geist Mono", "Roboto Mono", SFMono-Regular, monospace;
 }
+
 
 @theme inline {
   --color-background: var(--bg-primary);

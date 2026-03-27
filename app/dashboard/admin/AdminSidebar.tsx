@@ -7,18 +7,20 @@ import type { AdminStyles } from "./styles";
 
 interface AdminSidebarProps {
   S: AdminStyles;
-  tab: "dashboard" | "users" | "tasks" | "logs" | "catalog";
-  setTab: (tab: "dashboard" | "users" | "tasks" | "logs" | "catalog") => void;
+  tab: string;
+  setTab: (tab: any) => void;
+  // ... rest of props but I'll replace the full interface for clarity
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   isDesktop: boolean;
   currentName: string;
   handleLogout: () => void;
-  navItems: { key: "dashboard" | "users" | "tasks" | "logs" | "catalog"; label: string; count?: number }[];
+  navItems: { key: string; label: string; count?: number }[];
+  settingsItems?: { key: string; label: string; count?: number }[];
 }
 
 export default function AdminSidebar({
-  S, tab, setTab, sidebarOpen, setSidebarOpen, isDesktop, currentName, handleLogout, navItems,
+  S, tab, setTab, sidebarOpen, setSidebarOpen, isDesktop, currentName, handleLogout, navItems, settingsItems
 }: AdminSidebarProps) {
   const router = useRouter();
 
@@ -55,18 +57,45 @@ export default function AdminSidebar({
               )}
             </button>
           ))}
-          <div style={{ margin: "8px 0", height: 1, background: "rgba(255,255,255,0.06)" }} />
           {[
+            { label: "Inventory", path: "/dashboard/inventory" },
             { label: "Retail Dispatch", path: "/dashboard/retail-dispatch" },
             { label: "E-com Dispatch", path: "/dashboard/ecom-dispatch" },
-            { label: "Inventory", path: "/dashboard/inventory" },
           ].map(item => (
             <button key={item.path} onClick={() => { router.push(item.path); if (!isDesktop) setSidebarOpen(false); }}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const }}>
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none",
+                background: "transparent",
+                color: "#94a3b8",
+                fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const,
+              }}>
               {item.label}
             </button>
           ))}
         </nav>
+
+        {settingsItems && settingsItems.length > 0 && (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 9, fontWeight: 500, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Settings</div>
+            <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {settingsItems.map(item => (
+                <button key={item.key} onClick={() => { setTab(item.key); if (!isDesktop) setSidebarOpen(false); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none",
+                    background: tab === item.key ? "rgba(99,102,241,0.15)" : "transparent",
+                    color: tab === item.key ? "#a5b4fc" : "#94a3b8",
+                    fontSize: 14, fontWeight: tab === item.key ? 500 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const,
+                    ...(tab === item.key ? { borderLeft: "3px solid #818cf8", paddingLeft: 9 } : {}),
+                  }}>
+                  {item.label}
+                  {item.count !== undefined && (
+                    <span style={{ marginLeft: "auto", background: tab === item.key ? "rgba(129,140,248,0.2)" : "rgba(148,163,184,0.15)", color: tab === item.key ? "#c7d2fe" : "#94a3b8", fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 12, minWidth: 24, textAlign: "center" as const }}>{item.count}</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
+        )}
 
         <div style={{ flex: 1 }} />
 

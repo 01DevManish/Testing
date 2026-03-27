@@ -18,6 +18,7 @@ interface Task {
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
   createdAt: number;
+  expiresAt?: number;
   completedAt?: number;
   createdBy?: string;
   createdByName?: string;

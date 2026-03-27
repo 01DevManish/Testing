@@ -21,8 +21,9 @@ export interface Task {
   assignedToRole: string;
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
-  completedAt?: number;
   createdAt: number;
+  expiresAt?: number;
+  completedAt?: number;
   createdBy: string;
   createdByName: string;
   attachments?: { name: string; url: string }[];

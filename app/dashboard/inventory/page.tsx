@@ -263,7 +263,7 @@ export default function InventoryPage() {
       case "collections-create":
         return <CreateCollection products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} />;
       case "collections-list":
-        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("collections-create")} />;
+        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("collections-create")} />;
       // ── Inventory actions ─────────────────────────────────
       case "inventory-adjustment":
         return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} />;
@@ -278,7 +278,7 @@ export default function InventoryPage() {
       case "grouping-create":
         return <CreateItemGroup products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} />;
       case "grouping-list":
-        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("grouping-create")} />;
+        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("grouping-create")} />;
       case "catalog":
         return <CatalogTab products={products} categories={categories} collections={collections} loading={fetching} />;
       case "inventory-bulk":

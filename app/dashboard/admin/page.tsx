@@ -31,7 +31,7 @@ export default function AdminPage() {
   const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
-  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "catalog">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "catalog" | "profile">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -268,22 +268,30 @@ export default function AdminPage() {
   const handleCreateTask = async (attachments: { name: string; url: string }[] = []) => {
     if (!taskForm.title.trim() || !taskForm.assignedTo) return; setSavingTask(true);
     const au = users.find(u => u.uid === taskForm.assignedTo);
-    const td: Omit<Task, "id"> = { 
+    const td: any = { 
       title: taskForm.title.trim(), 
       description: taskForm.description.trim(), 
       assignedTo: taskForm.assignedTo, 
       assignedToName: au?.name || "Unknown", 
       assignedToRole: au?.role || "employee", 
       priority: taskForm.priority, 
-      status: "pending" as const, 
+      status: "pending", 
       createdAt: Date.now(),
+      expiresAt: Date.now() + 72 * 60 * 60 * 1000, 
       createdBy: user?.uid || "",
       createdByName: userData?.name || user?.name || "Admin",
-      attachments: attachments.length > 0 ? attachments : undefined
     };
+
+    if (attachments && attachments.length > 0) {
+      // Filter out any invalid attachments
+      const validAttachments = attachments.filter(at => at.name && at.url);
+      if (validAttachments.length > 0) td.attachments = validAttachments;
+    }
+
     try { 
       const newTaskRef = push(ref(db, "tasks")); 
       await set(newTaskRef, td);
+
 
       // Log activity
       await logActivity({
@@ -300,8 +308,9 @@ export default function AdminPage() {
       setTasks([{ id: newTaskRef.key as string, ...td }, ...tasks]); 
       setTaskForm({ title: "", description: "", assignedTo: "", priority: "medium" }); 
       setShowTaskForm(false); 
-    } catch { 
-      alert("Failed to create task."); 
+    } catch (err: any) { 
+      console.error("Task Creation Error:", err);
+      alert(`Failed to create task: ${err.message || "Unknown error"}`); 
     } finally { 
       setSavingTask(false); 
     }
@@ -374,6 +383,9 @@ export default function AdminPage() {
           handleLogout={handleLogout}
           navItems={[
             { key: "dashboard", label: "Dashboard" },
+          ]}
+          settingsItems={[
+            { key: "profile", label: "Profile" },
             { key: "users", label: "Users", count: users.length },
             { key: "tasks", label: "Tasks", count: taskPendingCount > 0 ? taskPendingCount : undefined },
             { key: "logs", label: "Logs" },
@@ -455,6 +467,20 @@ export default function AdminPage() {
               isMobile={isMobile} 
               isTablet={isTablet} 
             />
+          ) : tab === "profile" ? (
+            <div style={{ padding: 20 }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>My Profile</div>
+              <div style={{ background: "#fff", padding: 24, borderRadius: 16, border: "1px solid #e2e8f0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24 }}>
+                  <div style={{ width: 80, height: 80, borderRadius: 20, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 700 }}>{currentName[0]?.toUpperCase()}</div>
+                  <div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>{currentName}</div>
+                    <div style={{ fontSize: 14, color: "#64748b" }}>{userData?.role || "Admin"} • {user.email}</div>
+                  </div>
+                </div>
+                {/* Add more profile details if needed */}
+              </div>
+            </div>
           ) : (
             <CatalogTab 
               products={products}

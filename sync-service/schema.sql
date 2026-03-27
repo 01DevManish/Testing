@@ -41,6 +41,25 @@ CREATE TABLE IF NOT EXISTS users (
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 5. Tasks Table
+CREATE TABLE IF NOT EXISTS tasks (
+    id VARCHAR(100) PRIMARY KEY,
+    title VARCHAR(255),
+    description TEXT,
+    assignedTo VARCHAR(100),
+    assignedToName VARCHAR(255),
+    assignedToRole VARCHAR(50),
+    priority VARCHAR(20),
+    status VARCHAR(50),
+    createdAt BIGINT,
+    expiresAt BIGINT,
+    completedAt BIGINT,
+    createdBy VARCHAR(100),
+    createdByName VARCHAR(255),
+    attachments TEXT, -- Store as JSON string
+    updatedAt BIGINT DEFAULT (UNIX_TIMESTAMP() * 1000)
+);
+
 -- 4. Sync Log (Optional)
 CREATE TABLE IF NOT EXISTS sync_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,

@@ -8,10 +8,11 @@ import { generateCatalogPdf } from "./PdfGenerator";
 
 interface ShareModalProps {
     selectedProducts: Product[];
+    collectionName?: string;
     onClose: () => void;
 }
 
-export default function ShareModal({ selectedProducts, onClose }: ShareModalProps) {
+export default function ShareModal({ selectedProducts, collectionName, onClose }: ShareModalProps) {
     const [sharing, setSharing] = useState(false);
     const [sharingImages, setSharingImages] = useState(false);
 
@@ -79,7 +80,7 @@ export default function ShareModal({ selectedProducts, onClose }: ShareModalProp
     const handleGeneratePdf = async () => {
         setSharing(true);
         try {
-            const blob = await generateCatalogPdf(selectedProducts, false);
+            const blob = await generateCatalogPdf(selectedProducts, collectionName, false);
             if (!blob) return;
 
             const fileName = `Eurus_Lifestyle_Catalog_${new Date().getTime()}.pdf`;

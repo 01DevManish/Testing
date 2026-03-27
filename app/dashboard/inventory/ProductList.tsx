@@ -6,6 +6,7 @@ import { db } from "../../lib/firebase";
 import { FONT, Product, Category, STATUS_CONFIG } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
 import { logActivity } from "../../lib/activityLogger";
+import { deleteFromCloudinary } from "./cloudinary";
 
 type SortKey = "productName" | "category" | "price" | "stock" | "status" | "createdAt";
 type SortDir = "asc" | "desc";
@@ -74,6 +75,12 @@ export default function ProductList({
         try {
             await remove(ref(db, `inventory/${id}`));
             
+            // Delete images from Cloudinary
+            if (p.imageUrl) await deleteFromCloudinary(p.imageUrl);
+            if (p.imageUrls && p.imageUrls.length > 0) {
+                await Promise.all(p.imageUrls.map(url => deleteFromCloudinary(url)));
+            }
+            
             // Log activity
             await logActivity({
                 type: "inventory",
@@ -95,7 +102,15 @@ export default function ProductList({
         if (bulkAction === "delete") {
             if (!confirm(`Delete ${selectedIds.size} products?`)) return;
             const selectedProducts = products.filter(p => selectedIds.has(p.id));
-            await Promise.all(Array.from(selectedIds).map(id => remove(ref(db, `inventory/${id}`))));
+            
+            // Delete from Firebase and Cloudinary
+            await Promise.all(selectedProducts.map(async (p) => {
+                await remove(ref(db, `inventory/${p.id}`));
+                if (p.imageUrl) await deleteFromCloudinary(p.imageUrl);
+                if (p.imageUrls && p.imageUrls.length > 0) {
+                    await Promise.all(p.imageUrls.map(url => deleteFromCloudinary(url)));
+                }
+            }));
             
             // Log activity
             await logActivity({

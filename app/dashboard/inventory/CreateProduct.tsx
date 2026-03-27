@@ -365,7 +365,7 @@ export default function CreateProduct({
                                         <option value="Single">Single</option>
                                         <option value="Double">Double</option>
                                         <option value="King">King</option>
-                                        <option value="Super">Super</option>
+                                        <option value="Super King">Super King</option>
                                         <option value="Other">Other / Custom</option>
                                     </Select>
                                 </FormField>
