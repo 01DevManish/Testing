@@ -992,28 +992,44 @@ export function BarcodeView({ mode }: { mode: "create" | "print" }) {
 // ══════════════════════════════════════════════════════════════
 // OVERVIEW (ALL INVENTORY DASHBOARD)
 // ══════════════════════════════════════════════════════════════
-export function Overview({ products, categories, collections, loading, onNavigate, currentName }: { 
+export function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole }: { 
     products: Product[]; 
     categories: Category[]; 
     collections: Collection[]; 
     loading: boolean;
     onNavigate: (view: any) => void;
     currentName: string;
+    userRole: string;
 }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
+    const [groupBy, setGroupBy] = useState<"category" | "collection">("category");
+    const [breakdownSearch, setBreakdownSearch] = useState("");
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
     const total = products.length;
-    const inStock = products.filter(p => p.stock > 0).length;
+    const totalStock = products.reduce((s, p) => s + (p.stock || 0), 0);
+    const inStock = products.filter(p => p.stock > p.minStock).length;
     const outStock = products.filter(p => p.stock <= 0).length;
     const lowStock = products.filter(p => p.stock > 0 && p.stock <= p.minStock).length;
     
     const totalVal = products.reduce((s, p) => s + (p.price * p.stock), 0);
-    const totalCost = products.reduce((s, p) => s + (p.costPrice * p.stock), 0);
 
-    const byCategory: Record<string, number> = {};
-    products.forEach(p => { if (p.category) byCategory[p.category] = (byCategory[p.category] || 0) + 1; });
+    // Dynamic Breakdown Calculation
+    let breakdown: Record<string, number> = {};
+    if (groupBy === "category") {
+        products.forEach(p => { 
+            if (p.category) breakdown[p.category] = (breakdown[p.category] || 0) + 1; 
+        });
+    } else {
+        products.forEach(p => {
+            if (p.collection) breakdown[p.collection] = (breakdown[p.collection] || 0) + 1;
+        });
+    }
+
+    const filteredBreakdown = Object.entries(breakdown)
+        .filter(([name]) => name.toLowerCase().includes(breakdownSearch.toLowerCase()))
+        .sort((a, b) => b[1] - a[1]);
 
     const recentProducts = [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
 
@@ -1026,18 +1042,24 @@ export function Overview({ products, categories, collections, loading, onNavigat
         return matchQ && matchS;
     });
 
+    const stats: { label: string; value: string | number; color: string }[] = [
+        { label: "Total Products", value: total, color: "#6366f1" },
+        { label: "Total Stock", value: totalStock, color: "#3b82f6" },
+        { label: "In Stock Items", value: inStock, color: "#10b981" },
+        { label: "Low Stock Alert", value: lowStock, color: "#f59e0b" },
+        { label: "Out of Stock", value: outStock, color: "#ef4444" },
+    ];
+
+    if (userRole === "admin") {
+        stats.push({ label: "Total Asset Value", value: `₹${totalVal.toLocaleString("en-IN")}`, color: "#8b5cf6" });
+    }
+
     return (
         <div>
             <PageHeader title="Inventory Overview" sub="Comprehensive view of your entire stock status." />
             
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 20 }}>
-                {[
-                    { label: "Total Products", value: total, color: "#6366f1" },
-                    { label: "In Stock Items", value: inStock, color: "#10b981" },
-                    { label: "Low Stock Alert", value: lowStock, color: "#f59e0b" },
-                    { label: "Out of Stock", value: outStock, color: "#ef4444" },
-                    { label: "Total Asset Value", value: `₹${totalVal.toLocaleString("en-IN")}`, color: "#8b5cf6" },
-                ].map((s, i) => (
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${userRole === 'admin' ? 6 : 5}, 1fr)`, gap: 14, marginBottom: 20 }}>
+                {stats.map((s, i) => (
                     <Card key={i}>
                         <div style={{ padding: "16px 18px" }}>
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, marginBottom: 10 }} />
@@ -1088,21 +1110,42 @@ export function Overview({ products, categories, collections, loading, onNavigat
 
                 <Card>
                     <div style={{ padding: "18px 20px" }}>
-                        <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Products by Category</div>
-                        {Object.entries(byCategory).length === 0 ? (
-                            <div style={{ color: "#94a3b8", fontSize: 13, fontFamily: FONT, textAlign: "center", padding: "20px 0" }}>No category data.</div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                            <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Products by {groupBy === "category" ? "Category" : "Collection"}</div>
+                            <select 
+                                value={groupBy} 
+                                onChange={(e) => setGroupBy(e.target.value as any)}
+                                style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 11, background: "#f8fafc", outline: "none", cursor: "pointer" }}
+                            >
+                                <option value="category">Category</option>
+                                <option value="collection">Collection</option>
+                            </select>
+                        </div>
+
+                        <div style={{ marginBottom: 12 }}>
+                            <input 
+                                type="text"
+                                placeholder={`Filter ${groupBy}...`}
+                                value={breakdownSearch}
+                                onChange={(e) => setBreakdownSearch(e.target.value)}
+                                style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, outline: "none", fontFamily: FONT }}
+                            />
+                        </div>
+
+                        {filteredBreakdown.length === 0 ? (
+                            <div style={{ color: "#94a3b8", fontSize: 13, fontFamily: FONT, textAlign: "center", padding: "20px 0" }}>No data found.</div>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                {Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([cat, count]) => {
+                                {filteredBreakdown.slice(0, 10).map(([key, count]) => {
                                     const pct = Math.round((count / total) * 100);
                                     return (
-                                        <div key={cat}>
+                                        <div key={key}>
                                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                                                <span style={{ fontSize: 12, fontWeight: 400, color: "#334155", fontFamily: FONT }}>{cat}</span>
+                                                <span style={{ fontSize: 12, fontWeight: 400, color: "#334155", fontFamily: FONT }}>{key}</span>
                                                 <span style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, fontWeight: 400 }}>{count} items ({pct}%)</span>
                                             </div>
                                             <div style={{ height: 6, background: "#f1f5f9", borderRadius: 99 }}>
-                                                <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg,#6366f1,#8b5cf6)", borderRadius: 99 }} />
+                                                <div style={{ width: `${pct}%`, height: "100%", background: groupBy === "category" ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "linear-gradient(90deg,#8b5cf6,#d946ef)", borderRadius: 99 }} />
                                             </div>
                                         </div>
                                     );

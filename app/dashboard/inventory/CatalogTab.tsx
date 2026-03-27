@@ -193,7 +193,7 @@ export default function CatalogTab({ products, categories, collections, loading 
             {showShareModal && (
                 <ShareModal 
                     selectedProducts={selectedProducts}
-                    collectionName={selectedCollection === "all" ? "STOCK CATALOG" : selectedCollection}
+                    collectionName={selectedCollection === "all" ? undefined : selectedCollection}
                     onClose={() => setShowShareModal(false)}
                 />
             )}

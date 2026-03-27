@@ -434,8 +434,8 @@ export default function AdminPage() {
           navItems={[
             { key: "dashboard", label: "Dashboard" },
             { key: "party-rates", label: "Party Wise Rate" },
-            { key: "brands", label: "Brands" },
-            { key: "catalog", label: "Catalog Exports" },
+            { key: "brands", label: "Brand Manager" },
+            { key: "catalog", label: "Catalog Sharing" },
           ]}
           settingsItems={[
             { key: "profile", label: "Profile" },

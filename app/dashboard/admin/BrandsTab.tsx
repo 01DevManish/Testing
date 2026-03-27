@@ -125,7 +125,7 @@ export default function BrandsTab({
   return (
     <div style={{ padding: isMobile ? 0 : "0 8px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
-        <h2 style={{ fontSize: 19, fontWeight: 400, color: "#0f172a", margin: 0 }}>Brand Management</h2>
+        <h2 style={{ fontSize: 19, fontWeight: 400, color: "#0f172a", margin: 0 }}>Brand Manager</h2>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: "", logoUrl: "" }); setLogoPreview(""); }} style={S.btnPrimary}>
             + Create Brand

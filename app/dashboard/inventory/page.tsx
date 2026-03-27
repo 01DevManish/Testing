@@ -304,7 +304,7 @@ export default function InventoryPage() {
         return <BarcodeView mode="print" />;
       // ── Overview ──────────────────────────────────────────
       case "overview":
-        return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} />;
+        return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} />;
       // ── Item Grouping ─────────────────────────────────────
       case "grouping-create":
         return <CreateItemGroup products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} />;
