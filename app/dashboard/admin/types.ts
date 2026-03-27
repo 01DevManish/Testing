@@ -71,3 +71,18 @@ export const statusConfig: Record<string, { label: string; color: string; bg: st
   "in-progress": { label: "In Progress", color: "#6366f1", bg: "rgba(99,102,241,0.1)" },
   completed: { label: "Completed", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
+
+export interface PartyRate {
+  id: string;
+  partyName: string;
+  rates: { productName: string; rate: number }[];
+  updatedAt: number;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  logoUrl: string;
+  createdAt: number;
+}
+

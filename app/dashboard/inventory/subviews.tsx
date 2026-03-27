@@ -89,17 +89,17 @@ export function CategoryList({ categories, user, loading, onCreateNew }: { categ
                         {categories.map((c, i) => (
                             <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "13px 18px", borderBottom: i < categories.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                                 <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 14 }}>
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{c.name[0]?.toUpperCase()}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT }}>{c.name[0]?.toUpperCase()}</span>
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
                                     {c.description && <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{c.description}</div>}
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
                                     <button 
                                         onClick={() => setEditing(c)}
-                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: FONT }}
+                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 400, fontFamily: FONT }}
                                     >
                                         Edit
                                     </button>
@@ -172,7 +172,7 @@ function EditCategoryModal({ category, user, onClose }: { category: Category; us
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
             <Card style={{ maxWidth: 460, width: "100%" }}>
                 <div style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>Edit Category</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", marginBottom: 20 }}>Edit Category</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         <FormField label="Category Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
                         <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} /></FormField>
@@ -255,7 +255,7 @@ export function CreateCollection({ products, user, onCreated }: { products: { id
                 </Card>
                 <Card>
                     <div style={{ padding: "16px 18px" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>
+                        <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>
                             Add Products ({selected.size} selected)
                         </div>
                         <Input 
@@ -301,17 +301,17 @@ export function CollectionList({ collections, user, loading, onCreateNew, produc
                         {collections.map((c, i) => (
                             <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "13px 18px", borderBottom: i < collections.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                                 <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(135deg,#8b5cf6,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 14 }}>
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{c.name[0]?.toUpperCase()}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT }}>{c.name[0]?.toUpperCase()}</span>
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{c.productIds?.length ?? 0} products</div>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
                                     <button 
                                         onClick={() => setEditing(c)}
-                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: FONT }}
+                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 400, fontFamily: FONT }}
                                     >
                                         Edit
                                     </button>
@@ -393,14 +393,14 @@ function EditCollectionModal({ collection, user, allProducts, onClose }: { colle
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
             <Card style={{ maxWidth: 800, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
                 <div style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>Edit Collection</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", marginBottom: 20 }}>Edit Collection</h3>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             <FormField label="Collection Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
                             <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
                             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." />
                             <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
                                 {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
@@ -490,7 +490,7 @@ export function CreateItemGroup({ products, user, onCreated }: { products: { id:
                 </Card>
                 <Card>
                     <div style={{ padding: "16px 18px" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>
+                        <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>
                             Add Items ({selected.size} selected)
                         </div>
                         <Input 
@@ -534,17 +534,17 @@ export function ItemGroupList({ groups, user, loading, onCreateNew, products }: 
                         {groups.map((g, i) => (
                             <div key={g.id} style={{ display: "flex", alignItems: "center", padding: "13px 18px", borderBottom: i < groups.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                                 <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(135deg,#10b981,#34d399)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 14 }}>
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{g.name[0]?.toUpperCase()}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT }}>{g.name[0]?.toUpperCase()}</span>
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{g.name}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{g.name}</div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{g.productIds?.length ?? 0} items</div>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(g.createdAt).toLocaleDateString("en-IN")}</div>
                                     <button 
                                         onClick={() => setEditing(g)}
-                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: FONT }}
+                                        style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 400, fontFamily: FONT }}
                                     >
                                         Edit
                                     </button>
@@ -626,14 +626,14 @@ function EditItemGroupModal({ group, user, allProducts, onClose }: { group: Item
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
             <Card style={{ maxWidth: 800, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
                 <div style={{ padding: 24 }}>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>Edit Item Group</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", marginBottom: 20 }}>Edit Item Group</h3>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             <FormField label="Group Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
                             <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
                             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." />
                             <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
                                 {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
@@ -715,7 +715,7 @@ export function InventoryAdjustment({ products, collections, user, onDone }: { p
                     borderRadius: 16, 
                     boxShadow: "0 20px 25px -5px rgba(16,185,129,0.2), 0 8px 10px -6px rgba(16,185,129,0.1)", 
                     zIndex: 3000, 
-                    fontWeight: 700, 
+                    fontWeight: 400, 
                     fontSize: 15,
                     fontFamily: FONT,
                     display: "flex",
@@ -750,9 +750,9 @@ export function InventoryAdjustment({ products, collections, user, onDone }: { p
                     <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                         <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
                             <tr>
-                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 600, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product & Info</th>
-                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 600, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Current Stock</th>
-                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 600, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Adjust Quantity</th>
+                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product & Info</th>
+                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Current Stock</th>
+                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Adjust Quantity</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -824,7 +824,7 @@ function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; na
                         {p.imageUrl && <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                     </div>
                     <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{p.productName}</div>
+                        <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{p.productName}</div>
                         <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT }}>
                             SKU: {p.sku} • {p.unit || "PCS"}{p.size ? ` • ${p.size}` : ""}
                         </div>
@@ -832,20 +832,20 @@ function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; na
                 </div>
             </td>
             <td style={{ padding: "14px 16px" }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontFamily: FONT }}>
+                <div style={{ fontSize: 16, fontWeight: 400, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontFamily: FONT }}>
                     {p.stock}
                 </div>
-                {p.stock <= p.minStock && p.stock > 0 && <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>Low Stock</span>}
+                {p.stock <= p.minStock && p.stock > 0 && <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 400 }}>Low Stock</span>}
             </td>
             <td style={{ padding: "14px 16px", textAlign: "right", position: "relative" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
                     <input 
                         type="number" min="1" value={qty} 
                         onChange={e => setQty(e.target.value === "" ? "" : Math.max(1, parseInt(e.target.value) || 1))}
-                        style={{ width: 60, padding: "8px", border: "1.5px solid #e2e8f0", borderRadius: 8, textAlign: "center", fontSize: 14, fontWeight: 600, outline: "none" }}
+                        style={{ width: 60, padding: "8px", border: "1.5px solid #e2e8f0", borderRadius: 8, textAlign: "center", fontSize: 14, fontWeight: 400, outline: "none" }}
                     />
-                    <button onClick={() => setConfirm({ mode: "add" })} disabled={saving} style={{ padding: "8px 12px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Add</button>
-                    <button onClick={() => setConfirm({ mode: "remove" })} disabled={saving} style={{ padding: "8px 12px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>- Remove</button>
+                    <button onClick={() => setConfirm({ mode: "add" })} disabled={saving} style={{ padding: "8px 12px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 400, cursor: "pointer" }}>+ Add</button>
+                    <button onClick={() => setConfirm({ mode: "remove" })} disabled={saving} style={{ padding: "8px 12px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 400, cursor: "pointer" }}>- Remove</button>
                 </div>
 
                 {confirm && (
@@ -886,12 +886,12 @@ function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; na
                                 {confirm.mode === "add" ? "↑" : "↓"}
                             </div>
 
-                            <h3 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 8px", fontFamily: FONT }}>
+                            <h3 style={{ fontSize: 22, fontWeight: 400, color: "#0f172a", margin: "0 0 8px", fontFamily: FONT }}>
                                 {confirm.mode === "add" ? "Add Stock" : "Remove Stock"}?
                             </h3>
-                            <p style={{ fontSize: 15, color: "#64748b", fontWeight: 500, margin: "0 0 24px", fontFamily: FONT, lineHeight: 1.5 }}>
+                            <p style={{ fontSize: 15, color: "#64748b", fontWeight: 400, margin: "0 0 24px", fontFamily: FONT, lineHeight: 1.5 }}>
                                 You are adjusting <strong>{qty} {p.unit || "units"}</strong> for:<br/>
-                                <span style={{ color: "#1e293b", fontWeight: 700 }}>{p.productName}</span>
+                                <span style={{ color: "#1e293b", fontWeight: 400 }}>{p.productName}</span>
                             </p>
 
                             {/* Product Preview Snippet */}
@@ -900,8 +900,8 @@ function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; na
                                     {p.imageUrl && <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current Stock</div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#1e293b" }}>
+                                    <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current Stock</div>
+                                    <div style={{ fontSize: 18, fontWeight: 400, color: "#1e293b" }}>
                                         {p.stock} → <span style={{ color: confirm.mode === "add" ? "#10b981" : "#ef4444" }}>
                                             {confirm.mode === "add" ? p.stock + Number(qty) : p.stock - Number(qty)}
                                         </span>
@@ -920,7 +920,7 @@ function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; na
                                         border: "none", 
                                         borderRadius: 14, 
                                         fontSize: 16, 
-                                        fontWeight: 700, 
+                                        fontWeight: 400, 
                                         cursor: "pointer",
                                         transition: "all 0.2s",
                                         boxShadow: `0 4px 12px ${confirm.mode === "add" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`
@@ -938,7 +938,7 @@ function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; na
                                         border: "1.5px solid #e2e8f0", 
                                         borderRadius: 14, 
                                         fontSize: 16, 
-                                        fontWeight: 600, 
+                                        fontWeight: 400, 
                                         cursor: "pointer"
                                     }}
                                 >
@@ -977,7 +977,7 @@ export function BarcodeView({ mode }: { mode: "create" | "print" }) {
                             <rect x="21" y="4" width="3" height="18" rx="1" fill="white" />
                         </svg>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#475569", marginBottom: 6, fontFamily: FONT }}>
+                    <div style={{ fontSize: 15, fontWeight: 400, color: "#475569", marginBottom: 6, fontFamily: FONT }}>
                         {mode === "create" ? "Barcode Generator" : "Barcode Printer"}
                     </div>
                     <div style={{ fontSize: 13, color: "#94a3b8", fontFamily: FONT }}>
@@ -1041,7 +1041,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                     <Card key={i}>
                         <div style={{ padding: "16px 18px" }}>
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, marginBottom: 10 }} />
-                            <div style={{ fontSize: 20, fontWeight: 600, color: "#1e293b", fontFamily: FONT, marginBottom: 3 }}>
+                            <div style={{ fontSize: 20, fontWeight: 400, color: "#1e293b", fontFamily: FONT, marginBottom: 3 }}>
                                 {s.value}
                             </div>
                             <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT, fontWeight: 400 }}>
@@ -1055,7 +1055,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
             <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18 }}>
                 <Card>
                     <div style={{ padding: "18px 20px" }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Recently Added Products</div>
+                        <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Recently Added Products</div>
                         {recentProducts.length === 0 ? (
                             <EmptyState title="No Products" sub="Your inventory is currently empty." />
                         ) : (
@@ -1070,12 +1070,12 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                             )}
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{p.productName}</div>
+                                            <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{p.productName}</div>
                                             <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT }}>SKU: {p.sku} • Stock: {p.stock}</div>
                                         </div>
                                         <div style={{ textAlign: "right" }}>
-                                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", fontFamily: FONT }}>₹{p.price.toLocaleString("en-IN")}</div>
-                                            <div style={{ fontSize: 11, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontWeight: 500, fontFamily: FONT }}>
+                                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>₹{p.price.toLocaleString("en-IN")}</div>
+                                            <div style={{ fontSize: 11, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontWeight: 400, fontFamily: FONT }}>
                                                 {p.stock <= 0 ? "Out of Stock" : p.stock <= p.minStock ? "Low Stock" : "In Stock"}
                                             </div>
                                         </div>
@@ -1088,7 +1088,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
 
                 <Card>
                     <div style={{ padding: "18px 20px" }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Products by Category</div>
+                        <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Products by Category</div>
                         {Object.entries(byCategory).length === 0 ? (
                             <div style={{ color: "#94a3b8", fontSize: 13, fontFamily: FONT, textAlign: "center", padding: "20px 0" }}>No category data.</div>
                         ) : (
@@ -1098,7 +1098,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                     return (
                                         <div key={cat}>
                                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                                                <span style={{ fontSize: 12, fontWeight: 500, color: "#334155", fontFamily: FONT }}>{cat}</span>
+                                                <span style={{ fontSize: 12, fontWeight: 400, color: "#334155", fontFamily: FONT }}>{cat}</span>
                                                 <span style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, fontWeight: 400 }}>{count} items ({pct}%)</span>
                                             </div>
                                             <div style={{ height: 6, background: "#f1f5f9", borderRadius: 99 }}>
@@ -1118,7 +1118,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                 <Card>
                     <div style={{ padding: "18px 20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
-                            <div style={{ fontSize: 15, fontWeight: 500, color: "#0f172a", fontFamily: FONT }}>Detailed Stock Levels</div>
+                            <div style={{ fontSize: 15, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Detailed Stock Levels</div>
                             <div style={{ display: "flex", gap: 8, flex: 1, maxWidth: 450, justifyContent: "flex-end" }}>
                                 <input
                                     type="text"
@@ -1142,11 +1142,11 @@ export function Overview({ products, categories, collections, loading, onNavigat
                             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                                 <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
                                     <tr>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>Product</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>SKU</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Available Pieces</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Actions</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>Product</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>SKU</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Available Pieces</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1160,10 +1160,10 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                                     {p.productName}
                                                 </div>
                                             </td>
-                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#64748b", fontWeight: 500, fontFamily: FONT }}>{p.sku}</td>
-                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 14, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{p.stock}</td>
+                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#64748b", fontWeight: 400, fontFamily: FONT }}>{p.sku}</td>
+                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 14, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 400, fontFamily: FONT, textAlign: "right" }}>{p.stock}</td>
                                             <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9" }}>
-                                                <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 20, background: p.stock <= 0 ? "#fef2f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4", color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontWeight: 500, border: `1px solid ${p.stock <= 0 ? "#fecaca" : p.stock <= p.minStock ? "#fde68a" : "#bbf7d0"}` }}>
+                                                <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 20, background: p.stock <= 0 ? "#fef2f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4", color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontWeight: 400, border: `1px solid ${p.stock <= 0 ? "#fecaca" : p.stock <= p.minStock ? "#fde68a" : "#bbf7d0"}` }}>
                                                     {p.stock <= 0 ? "Out of Stock" : p.stock <= p.minStock ? "Low Stock" : "In Stock"}
                                                 </span>
                                             </td>
@@ -1194,8 +1194,8 @@ export function Overview({ products, categories, collections, loading, onNavigat
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(6px)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
                     <div style={{ width: "100%", maxWidth: 420, background: "#fff", borderRadius: 24, padding: "40px", textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", animation: "scaleIn 0.2s ease-out" }}>
                         <div style={{ width: 80, height: 80, borderRadius: 40, background: "#fef2f2", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 24px" }}>🔒</div>
-                        <h3 style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", margin: "0 0 8px", fontFamily: FONT }}>Delete Product?</h3>
-                        <p style={{ fontSize: 15, color: "#64748b", fontWeight: 500, margin: "0 0 24px", fontFamily: FONT, lineHeight: 1.5 }}>
+                        <h3 style={{ fontSize: 22, fontWeight: 400, color: "#0f172a", margin: "0 0 8px", fontFamily: FONT }}>Delete Product?</h3>
+                        <p style={{ fontSize: 15, color: "#64748b", fontWeight: 400, margin: "0 0 24px", fontFamily: FONT, lineHeight: 1.5 }}>
                             Are you sure you want to delete <strong style={{ color: "#0f172a" }}>{productToDelete.productName}</strong>? This action cannot be undone.
                         </p>
                         <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16, marginBottom: 30, display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
@@ -1203,8 +1203,8 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                 {productToDelete.imageUrl && <img src={productToDelete.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                             </div>
                             <div>
-                                <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}>SKU</div>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{productToDelete.sku}</div>
+                                <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, textTransform: "uppercase" }}>SKU</div>
+                                <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b" }}>{productToDelete.sku}</div>
                             </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1222,11 +1222,11 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                         setProductToDelete(null);
                                     } catch(e) { console.error(e); alert("Failed to delete."); }
                                 }}
-                                style={{ background: "#ef4444", color: "#fff", border: "none", width: "100%", padding: "16px", borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: "pointer" }}
+                                style={{ background: "#ef4444", color: "#fff", border: "none", width: "100%", padding: "16px", borderRadius: 14, fontSize: 16, fontWeight: 400, cursor: "pointer" }}
                             >
                                 Delete Inventory
                             </button>
-                            <button onClick={() => setProductToDelete(null)} style={{ width: "100%", padding: "16px", background: "#fff", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                            <button onClick={() => setProductToDelete(null)} style={{ width: "100%", padding: "16px", background: "#fff", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: 14, fontSize: 16, fontWeight: 400, cursor: "pointer" }}>Cancel</button>
                         </div>
                     </div>
                 </div>

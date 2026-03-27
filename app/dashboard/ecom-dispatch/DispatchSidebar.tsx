@@ -76,11 +76,11 @@ export default function DispatchSidebar({
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                     <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
                     <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>E-com Dispatch Hub</div>
+                        <div style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
+                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>E-com Dispatch Hub</div>
                     </div>
                 </div>
-                <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 600, cursor: "pointer" }}>
+                <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 400, cursor: "pointer" }}>
                     <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                         <path d="M8 2L4 6.5L8 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -90,7 +90,7 @@ export default function DispatchSidebar({
 
             {/* Section label */}
             <div style={{ padding: "14px 18px 6px", flexShrink: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#334155", textTransform: "uppercase", letterSpacing: "0.14em", fontFamily: FONT }}>
+                <div style={{ fontSize: 9, fontWeight: 400, color: "#334155", textTransform: "uppercase", letterSpacing: "0.14em", fontFamily: FONT }}>
                     Dispatch Management
                 </div>
             </div>
@@ -119,7 +119,7 @@ export default function DispatchSidebar({
                                 <span style={{ color: hasActive ? "#818cf8" : "#475569", flexShrink: 0, display: "flex", alignItems: "center", marginRight: 9 }}>
                                     {group.icon}
                                 </span>
-                                <span style={{ flex: 1, fontSize: 13, fontWeight: hasActive ? 600 : 500, letterSpacing: "-0.01em" }}>
+                                <span style={{ flex: 1, fontSize: 13, fontWeight: 400, letterSpacing: "-0.01em" }}>
                                     {group.label}
                                 </span>
                                 {hasActive && (!isOpen || isSingle) && (
@@ -150,7 +150,7 @@ export default function DispatchSidebar({
                                                         background: isActive ? "rgba(99,102,241,0.15)" : "transparent",
                                                         color: isActive ? "#a5b4fc" : "#64748b",
                                                         fontSize: 12, fontFamily: FONT,
-                                                        fontWeight: isActive ? 600 : 400,
+                                                        fontWeight: 400,
                                                         cursor: "pointer", textAlign: "left",
                                                         transition: "background 0.12s", position: "relative",
                                                     }}
@@ -181,15 +181,15 @@ export default function DispatchSidebar({
             {/* User footer */}
             <div style={{ padding: "14px 12px", flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: userRoleColor, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0, fontFamily: FONT }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: userRoleColor, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 13, color: "#fff", flexShrink: 0, fontFamily: FONT }}>
                         {currentName[0]?.toUpperCase() || "U"}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{currentName}</div>
-                        <div style={{ fontSize: 10, color: "#818cf8", fontWeight: 600, textTransform: "capitalize", fontFamily: FONT }}>{currentRole}</div>
+                        <div style={{ fontSize: 13, fontWeight: 400, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{currentName}</div>
+                        <div style={{ fontSize: 10, color: "#818cf8", fontWeight: 400, textTransform: "capitalize", fontFamily: FONT }}>{currentRole}</div>
                     </div>
                 </div>
-                <button onClick={onLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "9px", borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.07)", color: "#f87171", fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
+                <button onClick={onLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "9px", borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.07)", color: "#f87171", fontSize: 12, fontWeight: 400, fontFamily: FONT, cursor: "pointer" }}>
                     <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                         <path d="M5 2H3a1 1 0 00-1 1v7a1 1 0 001 1h2M9 9.5L12 6.5M12 6.5L9 3.5M12 6.5H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>

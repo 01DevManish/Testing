@@ -39,7 +39,7 @@ export default function OrderList({
   });
 
   const th: React.CSSProperties = {
-    padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 600,
+    padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 400,
     textTransform: "uppercase", letterSpacing: "0.07em", color: "#94a3b8",
     borderBottom: "1px solid #e2e8f0", background: "#fafbfc",
     userSelect: "none", whiteSpace: "nowrap", fontFamily: FONT,
@@ -87,7 +87,7 @@ export default function OrderList({
              
              {(["All", "Pending", "Packed", "Dispatched"] as const).map(f => (
                 <button key={f} onClick={() => setFilterStatus(f)}
-                    style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
+                    style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 400, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
                     {f}
                 </button>
              ))}
@@ -118,13 +118,13 @@ export default function OrderList({
                     <tr key={order.id} style={{ background: "#fff" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
                         onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
-                      <td style={td}><span style={{ fontWeight: 700, color: "#1e293b" }}>{order.id}</span></td>
+                      <td style={td}><span style={{ fontWeight: 400, color: "#1e293b" }}>{order.id}</span></td>
                       <td style={td}>
-                         <div style={{ fontWeight: 600, color: "#1e293b" }}>{order.customer.name}</div>
+                         <div style={{ fontWeight: 400, color: "#1e293b" }}>{order.customer.name}</div>
                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{order.customer.phone}</div>
                       </td>
                       <td style={td}>
-                         <div style={{ fontWeight: 600 }}>{order.products.reduce((acc, p) => acc + p.quantity, 0)} items</div>
+                         <div style={{ fontWeight: 400 }}>{order.products.reduce((acc, p) => acc + p.quantity, 0)} items</div>
                       </td>
                       <td style={td}>
                          <Badge color={sc.color} bg={sc.bg}>{sc.label}</Badge>

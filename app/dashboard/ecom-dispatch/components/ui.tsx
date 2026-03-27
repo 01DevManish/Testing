@@ -35,7 +35,7 @@ export function BtnPrimary({ children, loading, disabled, onClick, style }: {
     return (
         <button onClick={onClick} disabled={disabled || loading} style={{
             padding: "10px 22px", background: "#6366f1", color: "#fff",
-            border: "none", borderRadius: 9, fontSize: 13, fontWeight: 500,
+            border: "none", borderRadius: 9, fontSize: 13, fontWeight: 400,
             fontFamily: FONT, cursor: disabled || loading ? "not-allowed" : "pointer",
             display: "inline-flex", alignItems: "center", gap: 7,
             opacity: disabled || loading ? 0.5 : 1, transition: "opacity 0.2s",
@@ -52,7 +52,7 @@ export function BtnGhost({ children, onClick, style }: { children: React.ReactNo
         <button onClick={onClick} style={{
             padding: "10px 18px", background: "#fff", color: "#475569",
             border: "1px solid #e2e8f0", borderRadius: 9, fontSize: 13,
-            fontWeight: 500, fontFamily: FONT, cursor: "pointer",
+            fontWeight: 400, fontFamily: FONT, cursor: "pointer",
             display: "inline-flex", alignItems: "center", gap: 6,
             ...style,
         }}>
@@ -65,7 +65,7 @@ export function PageHeader({ title, sub, children }: { title: string; sub?: stri
     return (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22, gap: 12 }}>
             <div>
-                <h1 style={{ fontSize: 20, fontWeight: 600, color: "#0f172a", margin: 0, letterSpacing: "-0.02em", fontFamily: FONT }}>{title}</h1>
+                <h1 style={{ fontSize: 20, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em", fontFamily: FONT }}>{title}</h1>
                 {sub && <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0", fontFamily: FONT }}>{sub}</p>}
             </div>
             {children && <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>{children}</div>}
@@ -92,7 +92,7 @@ export function Badge({ color, bg, children }: { color: string; bg: string; chil
         <span style={{
             display: "inline-flex", alignItems: "center",
             padding: "3px 9px", borderRadius: 20,
-            fontSize: 11, fontWeight: 500, color, background: bg,
+            fontSize: 11, fontWeight: 400, color, background: bg,
             border: `1px solid ${color}20`, whiteSpace: "nowrap",
             fontFamily: FONT,
         }}>

@@ -112,7 +112,7 @@ function LoginContent() {
         {/* Company Name */}
         <h1 style={{
           fontSize: 22,
-          fontWeight: 600,
+          fontWeight: 400,
           color: "#0f172a",
           margin: "0 0 4px",
           letterSpacing: "0.08em",
@@ -121,7 +121,7 @@ function LoginContent() {
         }}>
           EURUS LIFESTYLE
         </h1>
-        <p style={{ fontSize: 13, color: "#6366f1", fontWeight: 600, marginBottom: 32, textTransform: "uppercase", letterSpacing: "0.05em" }}>ERP Control Panel</p>
+        <p style={{ fontSize: 13, color: "#6366f1", fontWeight: 400, marginBottom: 32, textTransform: "uppercase", letterSpacing: "0.05em" }}>ERP Control Panel</p>
 
         {/* Error */}
         {error && (
@@ -139,7 +139,7 @@ function LoginContent() {
             textAlign: "left",
           }}>
             <span style={{ fontSize: 16 }}>⚠️</span>
-            <span style={{ flex: 1, fontWeight: 500 }}>{error}</span>
+            <span style={{ flex: 1, fontWeight: 400 }}>{error}</span>
             <button onClick={clearError} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}>✕</button>
           </div>
         )}
@@ -147,7 +147,7 @@ function LoginContent() {
         {/* Email/Password Form */}
         <form onSubmit={handleEmailLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
+            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
             <input
               type="email"
               value={email}
@@ -159,7 +159,7 @@ function LoginContent() {
             />
           </div>
           <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Security Password</label>
+            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Security Password</label>
             <div style={{ position: "relative" }}>
               <input
                 type={showPassword ? "text" : "password"}
@@ -173,7 +173,7 @@ function LoginContent() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 400, textTransform: "uppercase" }}
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
@@ -189,7 +189,7 @@ function LoginContent() {
               border: "none",
               borderRadius: 12,
               fontSize: 14,
-              fontWeight: 600,
+              fontWeight: 400,
               color: "#fff",
               cursor: emailLoading ? "wait" : "pointer",
               transition: "all 0.2s ease",

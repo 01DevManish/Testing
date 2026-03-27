@@ -19,6 +19,7 @@ interface UserData {
   role: UserRole;
   permissions?: string[];
   dispatchPin?: string;
+  profilePic?: string;
 }
 
 interface AuthContextType {
@@ -34,6 +35,7 @@ interface AuthContextType {
   fetchAllUsers: () => Promise<UserData[]>;
   fetchEmployees: () => Promise<UserData[]>;
   updateUserRole: (uid: string, newRole: UserRole) => Promise<void>;
+  updateUserData: (uid: string, data: Partial<UserData>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -321,22 +323,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return list;
   };
 
-  const updateUserRole = async (uid: string, newRole: UserRole) => {
-    await update(ref(db, `users/${uid}`), { role: newRole });
+  const updateUserData = async (uid: string, data: Partial<UserData>) => {
+    await update(ref(db, `users/${uid}`), data);
+    
+    // If updating current user, update local state
+    if (user && user.uid === uid) {
+      const updated = { ...user, ...data };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+      setUser(updated);
+    }
     
     // Log activity
     if (user) {
       await logActivity({
         type: "user",
         action: "update",
-        title: "User Role Updated",
-        description: `Role for user ID ${uid} was updated to ${newRole} by ${user.name}.`,
+        title: "User Profile Updated",
+        description: `Profile for user ${user.uid === uid ? "themselves" : "ID " + uid} was updated by ${user.name}.`,
         userId: user.uid,
         userName: user.name,
         userRole: user.role,
-        metadata: { targetUid: uid, newRole }
+        metadata: { targetUid: uid, updatedFields: Object.keys(data) }
       });
     }
+  };
+
+  const updateUserRole = async (uid: string, newRole: UserRole) => {
+    await updateUserData(uid, { role: newRole });
   };
 
   return (
@@ -353,6 +366,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetchAllUsers,
       fetchEmployees,
       updateUserRole,
+      updateUserData,
     }}>
       {children}
     </AuthContext.Provider>

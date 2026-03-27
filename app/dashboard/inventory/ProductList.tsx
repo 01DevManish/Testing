@@ -156,7 +156,7 @@ export default function ProductList({
     const sortArrow = (key: SortKey) => sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
     const th: React.CSSProperties = {
-        padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 600,
+        padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 400,
         textTransform: "uppercase", letterSpacing: "0.07em", color: "#94a3b8",
         borderBottom: "1px solid #e2e8f0", background: "#fafbfc",
         cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", fontFamily: FONT,
@@ -202,7 +202,7 @@ export default function ProductList({
                         </select>
                         {(["all", "active", "inactive", "out-of-stock"] as const).map(f => (
                             <button key={f} onClick={() => setFilterStatus(f)}
-                                style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
+                                style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 400, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
                                 {f === "all" ? "All Status" : STATUS_CONFIG[f]?.label}
                             </button>
                         ))}
@@ -212,7 +212,7 @@ export default function ProductList({
                 {/* Bulk action bar */}
                 {selectedIds.size > 0 && isAdminOrManager && (
                     <div style={{ padding: "9px 16px", background: "rgba(99,102,241,0.04)", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
+                        <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
                         <select value={bulkAction} onChange={e => setBulkAction(e.target.value)}
                             style={{ padding: "5px 10px", fontSize: 12, borderRadius: 7, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontFamily: FONT, cursor: "pointer", outline: "none" }}>
                             <option value="">Action...</option>
@@ -226,7 +226,7 @@ export default function ProductList({
                             style={{ 
                                 padding: "5px 14px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", 
                                 color: "#fff", border: "none", borderRadius: 8, fontSize: 12, 
-                                fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+                                fontWeight: 400, fontFamily: FONT, cursor: "pointer",
                                 display: "flex", alignItems: "center", gap: 6
                             }}
                         >
@@ -242,13 +242,13 @@ export default function ProductList({
                 {/* Selection bar for non-admins (only for sharing) */}
                 {selectedIds.size > 0 && !isAdminOrManager && (
                     <div style={{ padding: "9px 16px", background: "rgba(99,102,241,0.04)", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
+                        <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
                         <button 
                             onClick={() => onShareCatalog(Array.from(selectedIds).map(id => products.find(p => p.id === id)!))}
                             style={{ 
                                 padding: "5px 14px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", 
                                 color: "#fff", border: "none", borderRadius: 8, fontSize: 12, 
-                                fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+                                fontWeight: 400, fontFamily: FONT, cursor: "pointer",
                                 display: "flex", alignItems: "center", gap: 6
                             }}
                         >
@@ -301,34 +301,34 @@ export default function ProductList({
                                                     <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg,#e2e8f0,#cbd5e1)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
                                                         {p.imageUrl
                                                             ? <img src={p.imageUrl} alt={p.productName} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                                            : <span style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", fontFamily: FONT }}>IMG</span>}
+                                                            : <span style={{ fontSize: 9, fontWeight: 400, color: "#94a3b8", fontFamily: FONT }}>IMG</span>}
                                                     </div>
                                                     <div>
-                                                        <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 13, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{p.productName}</div>
+                                                        <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 13, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{p.productName}</div>
                                                         <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>SKU: {p.sku}{p.brand ? ` · ${p.brand}` : ""}</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td style={td}>
                                                 {p.category
-                                                    ? <span style={{ padding: "3px 8px", background: "#f1f5f9", borderRadius: 6, fontSize: 11, fontWeight: 500, color: "#475569", fontFamily: FONT }}>{p.category}</span>
+                                                    ? <span style={{ padding: "3px 8px", background: "#f1f5f9", borderRadius: 6, fontSize: 11, fontWeight: 400, color: "#475569", fontFamily: FONT }}>{p.category}</span>
                                                     : <span style={{ color: "#cbd5e1", fontSize: 12, fontFamily: FONT }}>—</span>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{p.unit || "PCS"}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{p.unit || "PCS"}</div>
                                                 {p.hsnCode && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>HSN: {p.hsnCode}</div>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 13, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
+                                                <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 13, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
                                                 {p.costPrice > 0 && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice).toLocaleString("en-IN")}</div>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontWeight: 700, fontSize: 14, fontFamily: FONT, color: isLow ? "#f59e0b" : p.stock <= 0 ? "#ef4444" : "#1e293b" }}>{p.stock}</div>
-                                                {isLow && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 500, fontFamily: FONT }}>Low</div>}
-                                                {p.stock <= 0 && <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 500, fontFamily: FONT }}>Empty</div>}
+                                                <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#f59e0b" : p.stock <= 0 ? "#ef4444" : "#1e293b" }}>{p.stock}</div>
+                                                {isLow && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 400, fontFamily: FONT }}>Low</div>}
+                                                {p.stock <= 0 && <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 400, fontFamily: FONT }}>Empty</div>}
                                             </td>
                                             <td style={td}>
-                                                <span style={{ fontSize: 13, fontWeight: 600, color: "#6366f1", fontFamily: FONT }}>{p.gstRate ?? 18}%</span>
+                                                <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{p.gstRate ?? 18}%</span>
                                             </td>
                                             <td style={td}>
                                                 <Badge color={sc.color} bg={sc.bg}>{sc.label}</Badge>

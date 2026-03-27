@@ -22,6 +22,10 @@ import DashboardTab from "./DashboardTab";
 import LogsTab from "./LogsTab";
 import CatalogTab from "../inventory/CatalogTab";
 import { Product, Category, Collection } from "../inventory/types";
+import PartyRateTab from "./PartyRateTab";
+import { PartyRate, Brand } from "./types";
+import BrandsTab from "./BrandsTab";
+import ProfileTab from "./ProfileTab";
 
 export default function AdminPage() {
   const { user, userData, logout, loading } = useAuth();
@@ -31,7 +35,7 @@ export default function AdminPage() {
   const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
-  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "catalog" | "profile">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "brands" | "catalog" | "party-rates" | "profile">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -63,7 +67,12 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [fetchingCatalog, setFetchingCatalog] = useState(false);
+  const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
+  const [fetchingBrands, setFetchingBrands] = useState(false);
+
 
   const S = useMemo(() => getStyles(isMobile, isTablet, isDesktop, sidebarOpen), [isMobile, isTablet, isDesktop, sidebarOpen]);
 
@@ -138,11 +147,42 @@ export default function AdminPage() {
     }
   }, []);
 
+  const loadPartyRates = useCallback(async () => {
+    setFetchingPartyRates(true);
+    try {
+      const snap = await get(ref(db, "partyRates"));
+      const list: PartyRate[] = [];
+      if (snap.exists()) snap.forEach(d => { list.push({ id: d.key!, ...d.val() }); });
+      setPartyRates(list);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetchingPartyRates(false);
+    }
+  }, []);
+
+  const loadBrands = useCallback(async () => {
+    setFetchingBrands(true);
+    try {
+      const snap = await get(ref(db, "brands"));
+      const list: Brand[] = [];
+      if (snap.exists()) snap.forEach(d => { list.push({ id: d.key!, ...d.val() }); });
+      setBrands(list);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetchingBrands(false);
+    }
+  }, []);
+
   useEffect(() => { 
     loadUsers(); 
     loadTasks(); 
     loadCatalogData();
-  }, [loadUsers, loadTasks, loadCatalogData]);
+    loadPartyRates();
+    loadBrands();
+  }, [loadUsers, loadTasks, loadCatalogData, loadPartyRates, loadBrands]);
+
 
   if (loading || !user) return null;
   if (userData && userData.role !== "admin") return null;
@@ -380,16 +420,19 @@ export default function AdminPage() {
           setSidebarOpen={setSidebarOpen} 
           isDesktop={isDesktop} 
           currentName={currentName} 
+          userData={userData}
           handleLogout={handleLogout}
           navItems={[
             { key: "dashboard", label: "Dashboard" },
+            { key: "party-rates", label: "Party Rates" },
+            { key: "brands", label: "Create Brand" },
+            { key: "catalog", label: "Catalog Sharing" },
           ]}
           settingsItems={[
             { key: "profile", label: "Profile" },
             { key: "users", label: "Users", count: users.length },
             { key: "tasks", label: "Tasks", count: taskPendingCount > 0 ? taskPendingCount : undefined },
             { key: "logs", label: "Logs" },
-            { key: "catalog", label: "Catalog Sharing" },
           ]}
         />
 
@@ -467,27 +510,41 @@ export default function AdminPage() {
               isMobile={isMobile} 
               isTablet={isTablet} 
             />
-          ) : tab === "profile" ? (
-            <div style={{ padding: 20 }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#0f172a", marginBottom: 20 }}>My Profile</div>
-              <div style={{ background: "#fff", padding: 24, borderRadius: 16, border: "1px solid #e2e8f0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24 }}>
-                  <div style={{ width: 80, height: 80, borderRadius: 20, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 700 }}>{currentName[0]?.toUpperCase()}</div>
-                  <div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>{currentName}</div>
-                    <div style={{ fontSize: 14, color: "#64748b" }}>{userData?.role || "Admin"} • {user.email}</div>
-                  </div>
-                </div>
-                {/* Add more profile details if needed */}
-              </div>
-            </div>
-          ) : (
+          ) : tab === "party-rates" ? (
+            <PartyRateTab 
+              S={S}
+              isMobile={isMobile}
+              isTablet={isTablet}
+              partyRates={partyRates}
+              products={products}
+              fetching={fetchingPartyRates}
+              isAdmin={true}
+              loadData={loadPartyRates}
+            />
+          ) : tab === "brands" ? (
+            <BrandsTab 
+              S={S}
+              isMobile={isMobile}
+              isTablet={isTablet}
+              brands={brands}
+              fetching={fetchingBrands}
+              loadData={loadBrands}
+            />
+          ) : tab === "catalog" ? (
             <CatalogTab 
               products={products}
               categories={categories}
               collections={collections}
               loading={fetchingCatalog}
             />
+          ) : tab === "profile" ? (
+            <ProfileTab 
+              S={S}
+              isMobile={isMobile}
+              isTablet={isTablet}
+            />
+          ) : (
+            <div style={{ padding: 20, color: "#94a3b8" }}>Select a tab</div>
           )}
         </main>
 
@@ -510,7 +567,7 @@ export default function AdminPage() {
         {adminToDelete && (
           <div style={S.modalOverlay} onClick={() => !replacingAdmin && setAdminToDelete(null)}>
             <div style={{ ...S.modalCard, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
-              <h3 style={{ fontSize: 18, fontWeight: 600, color: "#1e293b", marginBottom: 12 }}>Reassign Admin Rights</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 400, color: "#1e293b", marginBottom: 12 }}>Reassign Admin Rights</h3>
               <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
                 You must assign another user as Admin before deleting <strong>{adminToDelete.name}</strong>.
               </p>

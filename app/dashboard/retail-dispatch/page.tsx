@@ -115,7 +115,7 @@ export default function AdvancedDispatchDashboard() {
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "inherit" }}>
         <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0", maxWidth: 400 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>Access Denied</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 400, color: "#0f172a", margin: "0 0 8px" }}>Access Denied</h2>
           <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 16px" }}>You do not have permission to access the Dispatch page.</p>
           <p style={{ fontSize: 12, color: "#94a3b8" }}>Redirecting to dashboard...</p>
         </div>
@@ -207,7 +207,7 @@ export default function AdvancedDispatchDashboard() {
                 <path d="M2 4h12M2 8h12M2 12h8" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             </button>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Dispatch</span>
+            <span style={{ fontSize: 15, fontWeight: 400, color: "#0f172a" }}>Dispatch</span>
           </div>
         )}
 
@@ -243,7 +243,7 @@ export default function AdvancedDispatchDashboard() {
                               setFilterStatus(s as any);
                               setActiveView("order-list");
                            }}
-                           style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                           style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 12, fontWeight: 400, cursor: "pointer", transition: "all 0.15s" }}
                            onMouseEnter={e => (e.currentTarget.style.background = "#f1f5f9")}
                            onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
                         >
@@ -263,8 +263,8 @@ export default function AdvancedDispatchDashboard() {
                 <Card key={s.label} style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: "#f8fafc", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{s.icon}</div>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{s.label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#1e293b", fontFamily: "'Segoe UI', system-ui" }}>{s.value}</div>
+                    <div style={{ fontSize: 10, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{s.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 400, color: "#1e293b", fontFamily: "'Segoe UI', system-ui" }}>{s.value}</div>
                   </div>
                 </Card>
               ))}
@@ -274,18 +274,18 @@ export default function AdvancedDispatchDashboard() {
               <div>
                 <Card style={{ padding: 0, overflow: "hidden", minHeight: 300 }}>
                   <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0 }}>Recent Dispatches</h3>
-                    <button onClick={() => setActiveView("order-list")} style={{ fontSize: 12, fontWeight: 600, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
+                    <h3 style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", margin: 0 }}>Recent Dispatches</h3>
+                    <button onClick={() => setActiveView("order-list")} style={{ fontSize: 12, fontWeight: 400, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
                   </div>
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr style={{ background: "#f8fafc" }}>
-                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Order ID</th>
-                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Party Name</th>
-                          <th style={{ padding: "12px 20px", textAlign: "center", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Total Box</th>
-                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Status</th>
-                          <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Transporter</th>
+                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Order ID</th>
+                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Party Name</th>
+                          <th style={{ padding: "12px 20px", textAlign: "center", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Total Box</th>
+                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Status</th>
+                          <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Transporter</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -299,13 +299,13 @@ export default function AdvancedDispatchDashboard() {
                         ) : (
                             orders.filter(o => o.status === "Dispatched").slice(0, 6).map(o => (
                                 <tr key={o.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                                  <td style={{ padding: "12px 20px", fontSize: 13, fontWeight: 600, color: "#475569" }}>#{o.id}</td>
+                                  <td style={{ padding: "12px 20px", fontSize: 13, fontWeight: 400, color: "#475569" }}>#{o.id}</td>
                                   <td style={{ padding: "12px 20px", fontSize: 13, color: "#64748b" }}>{o.partyName || o.customer?.name || "Unknown"}</td>
-                                  <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 700, textAlign: "center" }}>{o.bails || 0}</td>
+                                  <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 400, textAlign: "center" }}>{o.bails || 0}</td>
                                   <td style={{ padding: "12px 20px", fontSize: 11 }}>
-                                      <span style={{ padding: "4px 10px", borderRadius: 20, background: "#eef2ff", color: "#6366f1", fontWeight: 700 }}>{o.status}</span>
+                                      <span style={{ padding: "4px 10px", borderRadius: 20, background: "#eef2ff", color: "#6366f1", fontWeight: 400 }}>{o.status}</span>
                                   </td>
-                                  <td style={{ padding: "12px 20px", fontSize: 12, color: "#64748b", textAlign: "right", fontWeight: 600 }}>{o.courierPartner || o.transporterName || "—"}</td>
+                                  <td style={{ padding: "12px 20px", fontSize: 12, color: "#64748b", textAlign: "right", fontWeight: 400 }}>{o.courierPartner || o.transporterName || "—"}</td>
                                 </tr>
                             ))
                         )}
@@ -317,19 +317,19 @@ export default function AdvancedDispatchDashboard() {
 
               <div>
                 <Card style={{ padding: "24px", height: "100%", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", color: "#fff", border: "none" }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 400, marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 18 }}>⚡</span> Quick Actions
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <button onClick={() => setActiveView("create-dispatch")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                    <button onClick={() => setActiveView("create-dispatch")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
                       <span style={{ background: "rgba(99,102,241,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>➕</span>
                       Create New Dispatch
                     </button>
-                    <button onClick={() => setActiveView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                    <button onClick={() => setActiveView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
                       <span style={{ background: "rgba(139,92,246,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</span>
                       Manage All Orders
                     </button>
-                    <button onClick={() => setActiveView("scanner")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                    <button onClick={() => setActiveView("scanner")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
                       <span style={{ background: "rgba(20,184,166,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔍</span>
                       Barcode Scanner
                     </button>

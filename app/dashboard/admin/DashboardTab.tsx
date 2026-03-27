@@ -210,7 +210,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
 
   const ActivityGroup = ({ group, activities }: { group: string; activities: Activity[] }) => (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
         {group}
         <div style={{ flex: 1, height: 1, background: "#f1f5f9" }} />
       </div>
@@ -221,11 +221,11 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{a.title}</div>
+              <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b" }}>{a.title}</div>
               <div style={{ fontSize: 10, color: "#94a3b8" }}>{group === "Earlier" ? formatDate(a.timestamp) : formatTime(a.timestamp)}</div>
             </div>
             <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>{a.description}</div>
-            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 6, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 6, fontWeight: 400, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>Performed by: {a.user}</span>
               <button 
                 onClick={() => deleteActivity(a)}
@@ -243,7 +243,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   if (loading) return (
     <div style={{ padding: 100, textAlign: "center", color: "#94a3b8" }}>
       <div style={{ fontSize: 40, marginBottom: 16 }}>🔄</div>
-      <div style={{ fontWeight: 600 }}>Loading Management Data...</div>
+      <div style={{ fontWeight: 400 }}>Loading Management Data...</div>
     </div>
   );
 
@@ -254,14 +254,14 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#f59e0b")} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 700, textTransform: "uppercase" }}>Pending Tasks</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b", background: "#fef3c7", padding: "2px 8px", borderRadius: 12 }}>{tasks.filter(t => t.status !== "completed").length}</div>
+              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "uppercase" }}>Pending Tasks</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#f59e0b", background: "#fef3c7", padding: "2px 8px", borderRadius: 12 }}>{tasks.filter(t => t.status !== "completed").length}</div>
             </div>
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
               {tasks.filter(t => t.status !== "completed").map(t => (
                 <div key={t.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.title}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Assigned to: <span style={{ fontWeight: 600, color: "#475569" }}>{t.assignedToName}</span></div>
+                  <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.title}</div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Assigned to: <span style={{ fontWeight: 400, color: "#475569" }}>{t.assignedToName}</span></div>
                 </div>
               ))}
               {tasks.filter(t => t.status !== "completed").length === 0 && (
@@ -274,16 +274,16 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#10b981")} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 700, textTransform: "uppercase" }}>Today's Dispatches</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#10b981", background: "#d1fae5", padding: "2px 8px", borderRadius: 12 }}>
+              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "uppercase" }}>Today's Dispatches</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#10b981", background: "#d1fae5", padding: "2px 8px", borderRadius: 12 }}>
                 {activities.filter(a => a.type === "dispatch" && new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).length}
               </div>
             </div>
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
               {activities.filter(a => a.type === "dispatch" && new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).map(a => (
                 <div key={a.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>By: <span style={{ fontWeight: 600, color: "#475569" }}>{a.user}</span> • {new Date(a.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
+                  <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>By: <span style={{ fontWeight: 400, color: "#475569" }}>{a.user}</span> • {new Date(a.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
                 </div>
               ))}
               {activities.filter(a => a.type === "dispatch" && new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).length === 0 && (
@@ -296,18 +296,18 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#ef4444")} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 700, textTransform: "uppercase" }}>Critical Stock</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", background: "#fee2e2", padding: "2px 8px", borderRadius: 12 }}>{allProducts.filter(p => p.stock <= p.minStock).length}</div>
+              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "uppercase" }}>Critical Stock</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#ef4444", background: "#fee2e2", padding: "2px 8px", borderRadius: 12 }}>{allProducts.filter(p => p.stock <= p.minStock).length}</div>
             </div>
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
               {allProducts.filter(p => p.stock <= p.minStock).map(p => (
                 <div key={p.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, marginRight: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
                     <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{p.sku}</div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", flexShrink: 0 }}>
-                    {p.stock} <span style={{ fontSize: 10, fontWeight: 500, color: "#94a3b8" }}>{p.unit}</span>
+                  <div style={{ fontSize: 13, fontWeight: 400, color: "#ef4444", flexShrink: 0 }}>
+                    {p.stock} <span style={{ fontSize: 10, fontWeight: 400, color: "#94a3b8" }}>{p.unit}</span>
                   </div>
                 </div>
               ))}
@@ -322,7 +322,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
         {/* DISPATCH CARD */}
         <div style={S.activityCard}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>🚛 Recent Dispatches</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>🚛 Recent Dispatches</h3>
             <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 200 }}>
               <input 
                 type="text" 
@@ -355,7 +355,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
         {/* INVENTORY CARD */}
         <div style={S.activityCard}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>📦 Stock Adjustments</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>📦 Stock Adjustments</h3>
             <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 200 }}>
               <input 
                 type="text" 
@@ -389,7 +389,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
       {/* CURRENT STOCK STATUS */}
       <div style={S.activityCard}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Current Stock Status</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a" }}>Current Stock Status</h3>
           <div style={{ position: "relative", width: isMobile ? "100%" : 280 }}>
             <input 
               type="text" 
@@ -403,23 +403,23 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Product</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>SKU</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", textAlign: "right" }}>Stock</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Managed By</th>
-                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", textAlign: "center" }}>Action</th>
+                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase" }}>Product</th>
+                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase" }}>SKU</th>
+                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", textAlign: "right" }}>Stock</th>
+                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase" }}>Managed By</th>
+                <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", textAlign: "center" }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredStock.map(p => (
                 <tr key={p.id}>
-                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#1e293b", fontWeight: 600 }}>{p.productName}</td>
+                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#1e293b", fontWeight: 400 }}>{p.productName}</td>
                   <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#64748b" }}>{p.sku}</td>
-                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 14, fontWeight: 700, color: p.stock <= p.minStock ? "#ef4444" : "#10b981", textAlign: "right" }}>
-                    {p.stock} <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 500 }}>{p.unit}</span>
+                  <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 14, fontWeight: 400, color: p.stock <= p.minStock ? "#ef4444" : "#10b981", textAlign: "right" }}>
+                    {p.stock} <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 400 }}>{p.unit}</span>
                   </td>
                   <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9" }}>
-                     <div style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{p.updatedByName || p.createdByName || "System"}</div>
+                     <div style={{ fontSize: 12, color: "#475569", fontWeight: 400 }}>{p.updatedByName || p.createdByName || "System"}</div>
                      <div style={{ fontSize: 10, color: "#94a3b8" }}>{p.updatedByName ? "Last updated" : "Created"}</div>
                   </td>
                   <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", textAlign: "center" }}>

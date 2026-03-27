@@ -261,10 +261,10 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
         win.document.write(`<html><head><title>Dispatch Slip</title>
       <style>
         body{font-family:'Segoe UI',sans-serif;padding:32px;color:#111;max-width:720px;margin:auto}
-        h1{font-size:22px;font-weight:900;margin-bottom:4px}
+        h1{font-size:22px;font-weight:400;margin-bottom:4px}
         table{width:100%;border-collapse:collapse;margin-bottom:20px}
         td,th{padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;text-align:left}
-        th{background:#f9fafb;font-weight:700;color:#374151}
+        th{background:#f9fafb;font-weight:400;color:#374151}
         @media print{body{padding:16px}}
       </style>
     </head><body>${printRef.current.innerHTML}</body></html>`);
@@ -285,7 +285,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                 {/* ── Header ─────────────────────────────────────────────────────── */}
                 <div style={modalHeader}>
                     <div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
+                        <div style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", letterSpacing: "-0.02em" }}>
                             {dispatched ? "✅ Dispatch Confirmed" : pinStep ? "🔐 Confirm with PIN" : "Create Dispatch"}
                         </div>
                         {!dispatched && !pinStep && (
@@ -294,7 +294,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                             </div>
                         )}
                     </div>
-                    <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "#64748b", background: "none", border: "none", cursor: "pointer", transition: "color 0.2s" }}>
+                    <button onClick={onClose} style={{ fontSize: 13, fontWeight: 400, color: "#64748b", background: "none", border: "none", cursor: "pointer", transition: "color 0.2s" }}>
                         ← Back to Overview
                     </button>
                 </div>
@@ -313,7 +313,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                             {STEPS.map(s => (
-                                <div key={s.no} style={{ fontSize: 9, color: step >= s.no ? "#6366f1" : "#cbd5e1", fontWeight: 700, textAlign: "center", flex: 1 }}>
+                                <div key={s.no} style={{ fontSize: 9, color: step >= s.no ? "#6366f1" : "#cbd5e1", fontWeight: 400, textAlign: "center", flex: 1 }}>
                                     {s.icon}
                                 </div>
                             ))}
@@ -328,12 +328,12 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                         <div>
                             <div style={{ textAlign: "center", marginBottom: 24 }}>
                                 <div style={{ fontSize: 52, marginBottom: 8 }}>🎉</div>
-                                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Dispatch is ready!</div>
+                                <div style={{ fontSize: 16, fontWeight: 400, color: "#0f172a" }}>Dispatch is ready!</div>
                                 <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Ref: <b>{dispatchRef}</b></div>
                             </div>
 
                             <div ref={printRef} style={{ background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", padding: "20px 24px", marginBottom: 20 }}>
-                                <h1 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Eurus Lifestyle — Dispatch Slip</h1>
+                                <h1 style={{ fontSize: 20, fontWeight: 400, margin: 0 }}>Eurus Lifestyle — Dispatch Slip</h1>
                                 <div style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>Ref: {dispatchRef} &nbsp;|&nbsp; {new Date().toLocaleString()}</div>
                                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                                     <tbody>
@@ -350,7 +350,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                             ["Remarks", form.remarks || "—"],
                                         ].map(([k, v]) => (
                                             <tr key={k as string}>
-                                                <td style={{ padding: "7px 10px", border: "1px solid #e2e8f0", fontWeight: 700, background: "#f1f5f9", color: "#374151", width: "35%" }}>{k}</td>
+                                                <td style={{ padding: "7px 10px", border: "1px solid #e2e8f0", fontWeight: 400, background: "#f1f5f9", color: "#374151", width: "35%" }}>{k}</td>
                                                 <td style={{ padding: "7px 10px", border: "1px solid #e2e8f0", color: "#0f172a" }}>{v}</td>
                                             </tr>
                                         ))}
@@ -371,7 +371,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                     {!dispatched && pinStep && (
                         <div style={{ textAlign: "center" }}>
                             <div style={{ fontSize: 48, marginBottom: 12 }}>{hasPin ? "🔐" : "🆕"}</div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+                            <div style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", marginBottom: 4 }}>
                                 {hasPin ? "Enter Dispatch PIN" : "Setup Dispatch PIN"}
                             </div>
                             <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
@@ -384,10 +384,10 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                             {hasPin && (
                                 <div style={{ background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0", padding: "14px 18px", marginBottom: 24, textAlign: "left" }}>
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: 13 }}>
-                                        <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Party:</span> <b>{partyName}</b></div>
-                                        <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Product:</span> <b>{productName}</b></div>
-                                        <div className={!form.isNewProduct && form.product ? "text-red-600" : ""}><span style={{ color: "#94a3b8", fontWeight: 600 }}>Qty deducting:</span> <b>{form.quantity}</b></div>
-                                        <div><span style={{ color: "#94a3b8", fontWeight: 600 }}>Bails:</span> <b>{form.bails}</b></div>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Party:</span> <b>{partyName}</b></div>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Product:</span> <b>{productName}</b></div>
+                                        <div className={!form.isNewProduct && form.product ? "text-red-600" : ""}><span style={{ color: "#94a3b8", fontWeight: 400 }}>Qty deducting:</span> <b>{form.quantity}</b></div>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Bails:</span> <b>{form.bails}</b></div>
                                     </div>
                                 </div>
                             )}
@@ -397,18 +397,18 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     <input
                                         key={i} ref={pinRefs[i]} type="password" inputMode="numeric" maxLength={1} value={d}
                                         onChange={e => handlePinInput(i, e.target.value)} onKeyDown={e => handlePinKeyDown(i, e)}
-                                        style={{ width: 52, height: 60, borderRadius: 12, border: pinError ? "2px solid #ef4444" : "2px solid #e2e8f0", fontSize: 28, fontWeight: 900, textAlign: "center", outline: "none", background: "#fff", color: "#0f172a" }}
+                                        style={{ width: 52, height: 60, borderRadius: 12, border: pinError ? "2px solid #ef4444" : "2px solid #e2e8f0", fontSize: 28, fontWeight: 400, textAlign: "center", outline: "none", background: "#fff", color: "#0f172a" }}
                                         autoFocus={i === 0} disabled={isSaving}
                                     />
                                 ))}
                             </div>
 
-                            {pinError && <div style={{ color: "#ef4444", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>{pinError}</div>}
+                            {pinError && <div style={{ color: "#ef4444", fontSize: 13, fontWeight: 400, marginBottom: 16 }}>{pinError}</div>}
 
                             {hasPin && (
                                 <div style={{ marginBottom: 20 }}>
                                     <p style={{ fontSize: 12, color: "#94a3b8" }}>
-                                        Forgotten your PIN? <span style={{ color: "#6366f1", fontWeight: 700, cursor: "pointer" }} onClick={() => alert("Please contact your Administrator to reset your Dispatch PIN.")}>Contact Admin</span>
+                                        Forgotten your PIN? <span style={{ color: "#6366f1", fontWeight: 400, cursor: "pointer" }} onClick={() => alert("Please contact your Administrator to reset your Dispatch PIN.")}>Contact Admin</span>
                                     </p>
                                 </div>
                             )}
@@ -440,16 +440,16 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                                         style={{ ...listItem, background: form.party?.id === p.id ? "#ede9fe" : "#fff", borderColor: form.party?.id === p.id ? "#818cf8" : "#e2e8f0", position: "relative" }}>
                                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                                             <div onClick={() => setForm(f => ({ ...f, party: p }))} style={{ flex: 1, cursor: "pointer" }}>
-                                                                <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
+                                                                <div style={{ fontWeight: 400, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
                                                                 <div style={{ fontSize: 12, color: "#64748b" }}>{p.city || p.address || "No city"} {p.gst || p.gstin ? `· GST: ${p.gst || p.gstin}` : ""}</div>
                                                             </div>
                                                             
                                                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                                                 {deleteConfirmId === p.id ? (
                                                                     <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#fee2e2", padding: "4px 8px", borderRadius: 8, border: "1px solid #fecaca" }}>
-                                                                        <span style={{ fontSize: 10, fontWeight: 700, color: "#991b1b" }}>Delete?</span>
-                                                                        <button onClick={() => handleDeleteParty(p.id)} style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer", fontWeight: 700 }}>Yes</button>
-                                                                        <button onClick={() => setDeleteConfirmId(null)} style={{ background: "#94a3b8", color: "#fff", border: "none", borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer", fontWeight: 700 }}>No</button>
+                                                                        <span style={{ fontSize: 10, fontWeight: 400, color: "#991b1b" }}>Delete?</span>
+                                                                        <button onClick={() => handleDeleteParty(p.id)} style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer", fontWeight: 400 }}>Yes</button>
+                                                                        <button onClick={() => setDeleteConfirmId(null)} style={{ background: "#94a3b8", color: "#fff", border: "none", borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer", fontWeight: 400 }}>No</button>
                                                                     </div>
                                                                 ) : (
                                                                     <button 
@@ -463,7 +463,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                                                         </svg>
                                                                     </button>
                                                                 )}
-                                                                {form.party?.id === p.id && <span style={{ color: "#6366f1", fontWeight: 800, fontSize: 18 }}>✓</span>}
+                                                                {form.party?.id === p.id && <span style={{ color: "#6366f1", fontWeight: 400, fontSize: 18 }}>✓</span>}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -497,10 +497,10 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                                         style={{ ...listItem, background: form.product?.id === p.id ? "#f0fdf4" : "#fff", borderColor: form.product?.id === p.id ? "#22c55e" : "#e2e8f0" }}>
                                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                                             <div>
-                                                                <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
+                                                                <div style={{ fontWeight: 400, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
                                                                 <div style={{ fontSize: 12, color: "#64748b" }}>SKU: {p.sku} &nbsp;·&nbsp; <b className="text-emerald-600">Stock: {p.stock} {p.unit}</b></div>
                                                             </div>
-                                                            {form.product?.id === p.id && <span style={{ color: "#22c55e", fontWeight: 800, fontSize: 18 }}>✓</span>}
+                                                            {form.product?.id === p.id && <span style={{ color: "#22c55e", fontWeight: 400, fontSize: 18 }}>✓</span>}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -526,7 +526,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                         {PACKAGING_OPTIONS.map(opt => (
                                             <div key={opt} onClick={() => setForm(f => ({ ...f, packagingType: opt }))}
                                                 style={{ ...cardOption, background: form.packagingType === opt ? "#ede9fe" : "#fff", borderColor: form.packagingType === opt ? "#818cf8" : "#e2e8f0", color: form.packagingType === opt ? "#4f46e5" : "#374151" }}>
-                                                <div style={{ fontWeight: 700, fontSize: 14 }}>{opt}</div>
+                                                <div style={{ fontWeight: 400, fontSize: 14 }}>{opt}</div>
                                                 {form.packagingType === opt && <div style={{ fontSize: 18 }}>✓</div>}
                                             </div>
                                         ))}
@@ -548,13 +548,13 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, margin: "32px 0" }}>
                                         <button onClick={() => setForm(f => ({ ...f, quantity: Math.max(1, f.quantity - 1) }))} style={counterBtn}>−</button>
                                         <div style={{ textAlign: "center" }}>
-                                            <input type="number" min={1} value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 900, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
-                                            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>{form.isNewProduct ? form.newProduct.unit : form.product?.unit || "UNITS"}</div>
+                                            <input type="number" min={1} value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 400, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
+                                            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 400 }}>{form.isNewProduct ? form.newProduct.unit : form.product?.unit || "UNITS"}</div>
                                         </div>
                                         <button onClick={() => setForm(f => ({ ...f, quantity: f.quantity + 1 }))} style={counterBtn}>+</button>
                                     </div>
                                     {!form.isNewProduct && form.product && (
-                                        <div style={{ textAlign: "center", fontSize: 14, color: form.quantity > form.product.stock ? "#ef4444" : "#22c55e", fontWeight: 700 }}>
+                                        <div style={{ textAlign: "center", fontSize: 14, color: form.quantity > form.product.stock ? "#ef4444" : "#22c55e", fontWeight: 400 }}>
                                             {form.quantity > form.product.stock
                                                 ? `❌ Exceeds inventory stock (${form.product.stock} available)`
                                                 : `✓ ${form.product.stock - form.quantity} will remain in inventory`}
@@ -569,7 +569,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                                         {TRANSPORTERS.map(t => (
                                             <div key={t} onClick={() => setForm(f => ({ ...f, transporter: t }))} style={{ ...cardOption, background: form.transporter === t ? "#ede9fe" : "#fff", borderColor: form.transporter === t ? "#818cf8" : "#e2e8f0", color: form.transporter === t ? "#4f46e5" : "#374151" }}>
-                                                <div style={{ fontWeight: 700, fontSize: 14 }}>🚛 {t}</div>
+                                                <div style={{ fontWeight: 400, fontSize: 14 }}>🚛 {t}</div>
                                                 {form.transporter === t && <div style={{ fontSize: 18 }}>✓</div>}
                                             </div>
                                         ))}
@@ -584,8 +584,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, margin: "32px 0" }}>
                                         <button onClick={() => setForm(f => ({ ...f, bails: Math.max(1, f.bails - 1) }))} style={counterBtn}>−</button>
                                         <div style={{ textAlign: "center" }}>
-                                            <input type="number" min={1} value={form.bails} onChange={e => setForm(f => ({ ...f, bails: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 900, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
-                                            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>BAILS</div>
+                                            <input type="number" min={1} value={form.bails} onChange={e => setForm(f => ({ ...f, bails: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 400, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
+                                            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 400 }}>BAILS</div>
                                         </div>
                                         <button onClick={() => setForm(f => ({ ...f, bails: f.bails + 1 }))} style={counterBtn}>+</button>
                                     </div>
@@ -606,15 +606,15 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                             ["📝 Remarks", form.remarks || "—", ""],
                                         ].map(([k, v, badge], i) => (
                                             <div key={k as string} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: i < 6 ? "1px solid #e2e8f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                                <div style={{ fontSize: 13, fontWeight: 600, color: "#64748b" }}>{k}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 400, color: "#64748b" }}>{k}</div>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                    {badge && <span style={{ fontSize: 10, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: 20 }}>{badge}</span>}
-                                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", maxWidth: 200, textAlign: "right" }}>{v}</div>
+                                                    {badge && <span style={{ fontSize: 10, fontWeight: 400, background: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: 20 }}>{badge}</span>}
+                                                    <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", maxWidth: 200, textAlign: "right" }}>{v}</div>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                    <div style={{ marginTop: 16, padding: "12px 16px", background: "#fef2f2", borderRadius: 10, border: "1px solid #fecaca", fontSize: 13, color: "#991b1b", fontWeight: 700 }}>
+                                    <div style={{ marginTop: 16, padding: "12px 16px", background: "#fef2f2", borderRadius: 10, border: "1px solid #fecaca", fontSize: 13, color: "#991b1b", fontWeight: 400 }}>
                                         ⚠️ Completing this dispatch will permanently deduct stock from "{productName}" in the Inventory database.
                                     </div>
                                 </div>
@@ -641,7 +641,7 @@ function StepTitle({ icon, title, sub }: { icon: string; title: string; sub: str
     return (
         <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 28, marginBottom: 6 }}>{icon}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{title}</div>
+            <div style={{ fontSize: 18, fontWeight: 400, color: "#0f172a" }}>{title}</div>
             <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{sub}</div>
         </div>
     );
@@ -665,8 +665,8 @@ const inputStyle: React.CSSProperties = { width: "100%", padding: "11px 14px", b
 const listBox: React.CSSProperties = { border: "1.5px solid #e2e8f0", borderRadius: 12, overflow: "hidden", maxHeight: 240, overflowY: "auto" };
 const listItem: React.CSSProperties = { padding: "13px 16px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", transition: "background 0.15s", border: "none" };
 const cardOption: React.CSSProperties = { padding: "14px 16px", borderRadius: 12, border: "2px solid #e2e8f0", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.15s" };
-const counterBtn: React.CSSProperties = { width: 52, height: 52, borderRadius: 12, border: "2px solid #e2e8f0", background: "#f8fafc", fontSize: 24, fontWeight: 700, cursor: "pointer", color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" };
-const tabActive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" };
-const tabInactive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#64748b", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" };
-const btnPrimary: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };
-const btnGhost: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };
+const counterBtn: React.CSSProperties = { width: 52, height: 52, borderRadius: 12, border: "2px solid #e2e8f0", background: "#f8fafc", fontSize: 24, fontWeight: 400, cursor: "pointer", color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" };
+const tabActive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontWeight: 400, fontSize: 13, cursor: "pointer", fontFamily: "inherit" };
+const tabInactive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#64748b", fontWeight: 400, fontSize: 13, cursor: "pointer", fontFamily: "inherit" };
+const btnPrimary: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 400, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };
+const btnGhost: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#374151", fontWeight: 400, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };

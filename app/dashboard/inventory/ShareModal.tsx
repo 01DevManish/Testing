@@ -145,7 +145,7 @@ export default function ShareModal({ selectedProducts, collectionName, onClose }
                             <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </div>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: "0 0 6px", fontFamily: FONT }}>Share Catalog</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", margin: "0 0 6px", fontFamily: FONT }}>Share Catalog</h3>
                     <p style={{ fontSize: 13, color: "#64748b", margin: 0, fontFamily: FONT }}>
                         Select how you want to share the <strong>{selectedProducts.length}</strong> selected items.
                     </p>
@@ -168,7 +168,7 @@ export default function ShareModal({ selectedProducts, collectionName, onClose }
                             <svg width="18" height="18" viewBox="0 0 15 15" fill="none"><path d="M1.5 1.5h12v12h-12v-12zM1.5 9.5l3-3 3.5 3.5 3-3 2.5 2.5M4 4.5a.5.5 0 110-1 .5.5 0 010 1z" stroke="#6366f1" strokeWidth="1.2" /></svg>
                         </div>
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{sharingImages ? "Preparing Images..." : "Share / Download All Images"}</div>
+                            <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{sharingImages ? "Preparing Images..." : "Share / Download All Images"}</div>
                             <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT }}>Shares files directly or downloads them as a ZIP.</div>
                         </div>
                     </button>
@@ -189,14 +189,14 @@ export default function ShareModal({ selectedProducts, collectionName, onClose }
                             <svg width="18" height="18" viewBox="0 0 15 15" fill="none"><path d="M1.5 1.5h9l3 3v9h-12v-12z" stroke="#ef4444" strokeWidth="1.2" /><path d="M10.5 1.5v3h3" stroke="#ef4444" strokeWidth="1.2" /></svg>
                         </div>
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{sharing ? "Generating PDF..." : "Generate PDF Catalog"}</div>
+                            <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{sharing ? "Generating PDF..." : "Generate PDF Catalog"}</div>
                             <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT }}>Creates a professional PDF with photos and details.</div>
                         </div>
                     </button>
                 </div>
 
                 <div style={{ padding: "12px 14px", background: "#fdf4ff", border: "1px solid #f5d0fe", borderRadius: 10, marginBottom: 20 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#d946ef", textTransform: "uppercase", marginBottom: 4, fontFamily: FONT }}>Branding Included</div>
+                    <div style={{ fontSize: 11, fontWeight: 400, color: "#d946ef", textTransform: "uppercase", marginBottom: 4, fontFamily: FONT }}>Branding Included</div>
                     <div style={{ fontSize: 12, color: "#a21caf", fontFamily: FONT }}>All shared catalogs will include a link to <strong>euruslifestyle.in</strong>.</div>
                 </div>
 

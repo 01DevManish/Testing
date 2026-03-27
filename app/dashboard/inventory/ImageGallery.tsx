@@ -67,7 +67,7 @@ export default function ImageGallery({ images, onImagesChange, maxImages = 10 }:
                                 background: "rgba(239, 68, 68, 0.9)", color: "#fff",
                                 border: "none", cursor: "pointer",
                                 display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: 12, fontWeight: "bold"
+                                fontSize: 12, fontWeight: 400
                             }}
                         >
                             ×

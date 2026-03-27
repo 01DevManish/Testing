@@ -10,6 +10,7 @@ export interface Product {
     category: string;
     collection?: string;
     brand: string;
+    brandId?: string;
     price: number;
     costPrice: number;
     stock: number;

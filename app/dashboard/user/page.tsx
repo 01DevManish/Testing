@@ -82,7 +82,7 @@ export default function UserPage() {
       minHeight: "100vh", 
       transition: "margin-left 0.3s" 
     } as React.CSSProperties,
-    btnSecondary: { padding: "10px 18px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" } as React.CSSProperties,
+    btnSecondary: { padding: "10px 18px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" } as React.CSSProperties,
     btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
     statCard: (gradient: string) => ({
       background: "#fff", borderRadius: 16, padding: "22px 20px", border: "1px solid #e2e8f0",
@@ -104,24 +104,24 @@ export default function UserPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 8px", marginBottom: 32 }}>
           <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-            <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em" }}>User Hub</div>
+            <div style={{ fontSize: 16, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
+            <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em" }}>User Hub</div>
           </div>
         </div>
 
         {/* Nav */}
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
+        <div style={{ fontSize: 10, fontWeight: 400, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "rgba(59,130,246,0.15)", color: "#93c5fd", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: "3px solid #60a5fa", paddingLeft: 11 }}>
+          <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "rgba(59,130,246,0.15)", color: "#93c5fd", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: "3px solid #60a5fa", paddingLeft: 11 }}>
             Home
           </button>
-          <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+          <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
             Retail Dispatch
           </button>
-          <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+          <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
             E-com Dispatch
           </button>
-          <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+          <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
             Inventory
           </button>
         </nav>
@@ -131,14 +131,14 @@ export default function UserPage() {
         {/* User */}
         <div style={{ padding: "16px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: roleBg.user, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, color: "#fff", textTransform: "uppercase" }}>{currentName[0] || "U"}</div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: roleBg.user, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 15, color: "#fff", textTransform: "uppercase" }}>{currentName[0] || "U"}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
-              <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 600, textTransform: "capitalize" }}>{userData.role}</div>
+              <div style={{ fontSize: 13, fontWeight: 400, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
+              <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 400, textTransform: "capitalize" }}>{userData.role}</div>
             </div>
           </div>
         </div>
-        <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
+        <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
           Sign Out
         </button>
       </aside>
@@ -148,8 +148,8 @@ export default function UserPage() {
         {/* Top bar */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
           <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}</h1>
-            <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 500 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}</h1>
+            <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {!isDesktop && <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>}
@@ -159,7 +159,7 @@ export default function UserPage() {
         {/* ========== WELCOME CARD ========== */}
         <div style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", borderRadius: 20, padding: isMobile ? 20 : 32, marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 24, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}>
           <div style={{ color: "#fff", maxWidth: 500 }}>
-            <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, margin: "0 0 8px" }}>Welcome to Eurus Lifestyle</h2>
+            <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 400, margin: "0 0 8px" }}>Welcome to Eurus Lifestyle</h2>
             <p style={{ fontSize: isMobile ? 13 : 15, color: "#94a3b8", margin: 0, lineHeight: 1.6 }}>Your personal hub for managing your preferences, viewing updates, and exploring our latest lifestyle offerings.</p>
           </div>
           {!isMobile && <div style={{ width: 80, height: 80, borderRadius: 24, background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, border: "1px solid rgba(255,255,255,0.1)" }}>✨</div>}
@@ -175,25 +175,25 @@ export default function UserPage() {
             <div key={s.label} style={S.statCard(s.gradient)}>
               <div style={S.statStripe(s.gradient)} />
               <div style={{ width: 44, height: 44, borderRadius: 12, background: s.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", marginBottom: 14 }}>{s.icon}</div>
-              <div style={{ fontSize: 30, fontWeight: 800, color: "#0f172a", lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>{s.label}</div>
+              <div style={{ fontSize: 30, fontWeight: 400, color: "#0f172a", lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", fontWeight: 400 }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* Profile Card */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: isMobile ? 16 : 24 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 20px", color: "#0f172a" }}>Your Account Details</h3>
+          <h3 style={{ fontSize: 17, fontWeight: 400, margin: "0 0 20px", color: "#0f172a" }}>Your Account Details</h3>
           <div style={{ display: "flex", gap: 20, alignItems: "center", flexDirection: isMobile ? "column" : "row", textAlign: isMobile ? "center" : "left" }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: roleBg.user, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 32, color: "#fff", boxShadow: "0 8px 24px rgba(59,130,246,0.2)" }}>
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: roleBg.user, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 32, color: "#fff", boxShadow: "0 8px 24px rgba(59,130,246,0.2)" }}>
               {currentName[0]?.toUpperCase() || "U"}
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>{currentName}</div>
+              <div style={{ fontSize: 20, fontWeight: 400, color: "#1e293b", marginBottom: 4 }}>{currentName}</div>
               <div style={{ fontSize: 14, color: "#64748b", marginBottom: 8, display: "flex", alignItems: "center", gap: 6, justifyContent: isMobile ? "center" : "flex-start" }}>
                 <span>✉️</span> {userData.email}
               </div>
-              <div style={{ display: "inline-block", padding: "4px 12px", background: "rgba(59,130,246,0.1)", color: "#3b82f6", borderRadius: 20, fontSize: 12, fontWeight: 600, border: "1px solid rgba(59,130,246,0.2)", textTransform: "capitalize" }}>
+              <div style={{ display: "inline-block", padding: "4px 12px", background: "rgba(59,130,246,0.1)", color: "#3b82f6", borderRadius: 20, fontSize: 12, fontWeight: 400, border: "1px solid rgba(59,130,246,0.2)", textTransform: "capitalize" }}>
                 {userData.role} Status Verified ✅
               </div>
             </div>

@@ -7,16 +7,35 @@ USE eurus_erp;
 CREATE TABLE IF NOT EXISTS products (
     id VARCHAR(100) PRIMARY KEY,
     name VARCHAR(255),
+    sku VARCHAR(100),
     category VARCHAR(100),
     collection VARCHAR(100),
-    itemGroup VARCHAR(100),
+    brand VARCHAR(100),
+    brand_id VARCHAR(100),
     stock INT DEFAULT 0,
     price DECIMAL(10, 2) DEFAULT 0.00,
     status VARCHAR(50),
     updatedAt BIGINT
 );
 
--- 2. Dispatches (Orders) Table
+-- 2. Brands Table
+CREATE TABLE IF NOT EXISTS brands (
+    id VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(255),
+    logoUrl TEXT,
+    createdAt BIGINT,
+    updatedAt BIGINT
+);
+
+-- 3. Party Rates Table
+CREATE TABLE IF NOT EXISTS party_rates (
+    id VARCHAR(100) PRIMARY KEY,
+    partyName VARCHAR(255),
+    rates TEXT, -- JSON string
+    updatedAt BIGINT
+);
+
+-- 4. Dispatches (Orders) Table
 CREATE TABLE IF NOT EXISTS dispatches (
     id VARCHAR(100) PRIMARY KEY,
     partyName VARCHAR(255),
@@ -38,6 +57,7 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50),
     permissions TEXT,
     dispatchPin VARCHAR(10),
+    profilePic TEXT,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

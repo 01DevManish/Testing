@@ -19,7 +19,7 @@ export default function AdminTopBar({ S, isMobile, isTablet, isDesktop, currentN
   return (
     <div style={S.topBar}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h1 style={{ fontSize: isMobile ? 20 : isTablet ? 22 : 26, fontWeight: 500, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
+        <h1 style={{ fontSize: isMobile ? 20 : isTablet ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
         <p style={{ fontSize: 12, color: "#94a3b8", margin: "3px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
       </div>
       {!isDesktop && (

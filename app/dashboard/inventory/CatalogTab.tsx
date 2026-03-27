@@ -100,12 +100,12 @@ export default function CatalogTab({ products, categories, collections, loading 
             </Card>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>
+                <div style={{ fontSize: 13, color: "#64748b", fontWeight: 400 }}>
                     Showing <strong>{filtered.length}</strong> products
                 </div>
                 <button 
                     onClick={handleSelectAll}
-                    style={{ background: "none", border: "none", color: "#6366f1", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                    style={{ background: "none", border: "none", color: "#6366f1", fontSize: 13, fontWeight: 400, cursor: "pointer" }}
                 >
                     {selectedProducts.length === filtered.length ? "Deselect All" : "Select All Visible"}
                 </button>
@@ -145,11 +145,11 @@ export default function CatalogTab({ products, categories, collections, loading 
                                     )}
                                 </div>
                                 <div style={{ padding: "12px 14px" }}>
-                                    <div style={{ fontSize: 11, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", marginBottom: 2 }}>{p.category}</div>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
+                                    <div style={{ fontSize: 11, fontWeight: 400, color: "#6366f1", textTransform: "uppercase", marginBottom: 2 }}>{p.category}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
                                     <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>SKU: {p.sku}</div>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <div style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>₹{p.price}</div>
+                                        <div style={{ fontSize: 15, fontWeight: 400, color: "#0f172a" }}>₹{p.price}</div>
                                         <Badge 
                                             color={p.stock > 0 ? "#10b981" : "#ef4444"} 
                                             bg={p.stock > 0 ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)"}
@@ -168,7 +168,7 @@ export default function CatalogTab({ products, categories, collections, loading 
             {selectedProducts.length > 0 && (
                 <div style={floatingBar}>
                     <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                        <div style={{ fontSize: 14, fontWeight: 400, color: "#fff" }}>
                             {selectedProducts.length} Product{selectedProducts.length > 1 ? "s" : ""} Selected
                         </div>
                         <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.2)" }} />
@@ -181,7 +181,7 @@ export default function CatalogTab({ products, categories, collections, loading 
                             </BtnPrimary>
                             <button 
                                 onClick={() => setSelectedProducts([])}
-                                style={{ background: "none", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "0 10px" }}
+                                style={{ background: "none", border: "none", color: "#fff", fontSize: 13, fontWeight: 400, cursor: "pointer", padding: "0 10px" }}
                             >
                                 Clear Selection
                             </button>
@@ -193,7 +193,7 @@ export default function CatalogTab({ products, categories, collections, loading 
             {showShareModal && (
                 <ShareModal 
                     selectedProducts={selectedProducts}
-                    collectionName={selectedCollection === "all" ? "Product Catalog" : selectedCollection}
+                    collectionName={selectedCollection === "all" ? "STOCK CATALOG" : selectedCollection}
                     onClose={() => setShowShareModal(false)}
                 />
             )}
@@ -201,7 +201,7 @@ export default function CatalogTab({ products, categories, collections, loading 
     );
 }
 
-const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6, letterSpacing: "0.05em" };
+const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase", marginBottom: 6, letterSpacing: "0.05em" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: 10, fontSize: 14, outline: "none", fontFamily: FONT, background: "#fff" };
 const gridStyle: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 20 };
 const productCard: React.CSSProperties = { background: "#fff", borderRadius: 16, border: "2px solid transparent", overflow: "hidden", cursor: "pointer", transition: "all 0.2s" };

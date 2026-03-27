@@ -91,7 +91,7 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
     <div style={{ animation: "fadeInUp 0.4s ease-out" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", margin: 0 }}>System Logs</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 400, color: "#0f172a", margin: 0 }}>System Logs</h2>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Track all actions across the platform. Logs clear after 72 hours.</p>
         </div>
         <select 
@@ -108,7 +108,7 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
         </select>
         <button 
           onClick={handleClearAllLogs}
-          style={{ padding: "8px 16px", borderRadius: 8, background: "#fee2e2", color: "#ef4444", border: "1px solid #fecaca", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+          style={{ padding: "8px 16px", borderRadius: 8, background: "#fee2e2", color: "#ef4444", border: "1px solid #fecaca", fontSize: 13, fontWeight: 400, cursor: "pointer" }}
         >
           Clear All
         </button>
@@ -120,7 +120,7 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
         ) : filteredLogs.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#1e293b" }}>No logs found</div>
+            <div style={{ fontSize: 15, fontWeight: 400, color: "#1e293b" }}>No logs found</div>
             <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Activity will appear here as users interact with the system.</div>
           </div>
         ) : (
@@ -128,11 +128,11 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Time</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>User</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Action</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>Details</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", textAlign: "center" }}>Actions</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Time</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>User</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Action</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Details</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase", textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,12 +148,12 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
                         <div style={{ 
                           width: 24, height: 24, borderRadius: 12, 
                           background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 10, fontWeight: 700, color: "#6366f1"
+                          fontSize: 10, fontWeight: 400, color: "#6366f1"
                         }}>
                           {log.userName[0]?.toUpperCase()}
                         </div>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{log.userName}</div>
+                          <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b" }}>{log.userName}</div>
                           <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "capitalize" }}>{log.userRole}</div>
                         </div>
                       </div>
@@ -161,14 +161,14 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ 
                         display: "inline-flex", padding: "4px 8px", borderRadius: 4,
-                        fontSize: 11, fontWeight: 600, background: `${getTypeColor(log.type)}15`, color: getTypeColor(log.type),
+                        fontSize: 11, fontWeight: 400, background: `${getTypeColor(log.type)}15`, color: getTypeColor(log.type),
                         textTransform: "uppercase"
                       }}>
                         {log.type}: {log.action.replace("_", " ")}
                       </div>
                     </td>
                     <td style={{ padding: "14px 20px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{log.title}</div>
+                      <div style={{ fontSize: 13, fontWeight: 400, color: "#334155" }}>{log.title}</div>
                       <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{log.description}</div>
                     </td>
                     <td style={{ padding: "14px 20px", textAlign: "center" }}>

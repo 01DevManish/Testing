@@ -55,10 +55,16 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-weight: 400; /* Force normal weight */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
 }
+
+h1, h2, h3, h4, h5, h6, b, strong, th {
+  font-weight: 400 !important;
+}
+
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
@@ -188,7 +194,7 @@ body {
 .auth-input-group label {
   display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-secondary);
   margin-bottom: 8px;
   letter-spacing: 0.02em;
@@ -271,7 +277,7 @@ body {
   border: none;
   border-radius: var(--radius-md);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   font-family: inherit;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -344,7 +350,7 @@ body {
 }
 .role-option .role-label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -423,7 +429,7 @@ body {
 .auth-link {
   color: var(--accent-primary-light);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 400;
   transition: color 0.2s ease;
 }
 .auth-link:hover {
@@ -440,7 +446,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 400;
   font-size: 22px;
   color: #fff;
   margin: 0 auto 20px;
@@ -465,7 +471,7 @@ body {
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   font-family: inherit;
   cursor: pointer;
   display: flex;
@@ -549,7 +555,7 @@ body {
   background: rgba(239, 68, 68, 0.06);
   color: var(--accent-red);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   font-family: inherit;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -605,7 +611,7 @@ body {
 }
 .dash-stat-value {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--text-primary);
   line-height: 1;
   margin-bottom: 4px;
@@ -689,7 +695,7 @@ body {
   padding: 12px 24px;
   text-align: left;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -718,7 +724,7 @@ body {
   padding: 4px 12px;
   border-radius: 9999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: capitalize;
 }
 
@@ -755,7 +761,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 16px;
   color: #fff;
   flex-shrink: 0;
@@ -767,7 +773,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 14px;
   color: #fff;
   flex-shrink: 0;
@@ -779,7 +785,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 400;
   font-size: 26px;
   color: #fff;
   flex-shrink: 0;

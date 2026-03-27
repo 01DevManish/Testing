@@ -60,6 +60,7 @@ export default function InventoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [groups, setGroups] = useState<ItemGroup[]>([]);
+  const [brands, setBrands] = useState<{ id: string, name: string, logoUrl?: string }[]>([]);
   const [fetching, setFetching] = useState(true);
 
   // ── Edit modal ────────────────────────────────────────────
@@ -69,6 +70,20 @@ export default function InventoryPage() {
   const [editGallery, setEditGallery] = useState<string[]>([]);
   const editFileRef = useRef<HTMLInputElement>(null);
   const [sharingProducts, setSharingProducts] = useState<Product[] | null>(null);
+  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+  const [brandSearch, setBrandSearch] = useState("");
+  const brandRef = useRef<HTMLDivElement>(null);
+
+  // Close brand dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (brandRef.current && !brandRef.current.contains(e.target as Node)) {
+        setBrandDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   useEffect(() => { if (!loading && !user) router.replace("/"); }, [loading, user, router]);
   useEffect(() => { if (isDesktop) setSidebarOpen(false); }, [isDesktop]);
@@ -90,11 +105,12 @@ export default function InventoryPage() {
   const loadAll = useCallback(async () => {
     setFetching(true);
     try {
-      const [pSnap, cSnap, colSnap, gSnap] = await Promise.all([
+      const [pSnap, cSnap, colSnap, gSnap, bSnap] = await Promise.all([
         get(ref(db, "inventory")),
         get(ref(db, "categories")),
         get(ref(db, "collections")),
         get(ref(db, "itemGroups")),
+        get(ref(db, "brands")),
       ]);
       const toList = (snap: any) => {
         const arr: any[] = [];
@@ -107,6 +123,7 @@ export default function InventoryPage() {
       setCategories(toList(cSnap));
       setCollections(toList(colSnap));
       setGroups(toList(gSnap));
+      setBrands(toList(bSnap));
     } catch (err) { console.error(err); }
     finally { setFetching(false); }
   }, []);
@@ -118,7 +135,7 @@ export default function InventoryPage() {
   const openEdit = (p: Product) => {
     setEditProduct(p);
     setEditForm({
-      productName: p.productName, sku: p.sku, category: p.category, collection: p.collection || "", brand: p.brand,
+      productName: p.productName, sku: p.sku, category: p.category, collection: p.collection || "", brand: p.brand, brandId: p.brandId || "",
       price: p.price, costPrice: p.costPrice, stock: p.stock, minStock: p.minStock,
       status: p.status, imageUrl: p.imageUrl || "", description: p.description || "",
       unit: p.unit || "PCS", hsnCode: p.hsnCode || "", gstRate: p.gstRate ?? 18, size: p.size || "",
@@ -208,7 +225,7 @@ export default function InventoryPage() {
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f2f5", fontFamily: FONT }}>
         <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0", maxWidth: 400 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>Access Denied</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 400, color: "#0f172a", margin: "0 0 8px" }}>Access Denied</h2>
           <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 16px" }}>You do not have permission to access the Inventory page.</p>
           <p style={{ fontSize: 12, color: "#94a3b8" }}>Redirecting to dashboard...</p>
         </div>
@@ -232,6 +249,7 @@ export default function InventoryPage() {
           <CreateProduct 
             categories={categories}
             collections={collections}
+            brands={brands}
             user={{ uid: user.uid, name: currentName }}
             onCreated={() => { 
                 loadAll(); 
@@ -338,7 +356,7 @@ export default function InventoryPage() {
                   <path d="M2 4h12M2 8h12M2 12h8" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" />
                 </svg>
               </button>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", fontFamily: FONT }}>Inventory</span>
+              <span style={{ fontSize: 15, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Inventory</span>
             </div>
           )}
 
@@ -357,7 +375,7 @@ export default function InventoryPage() {
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="#64748b" strokeWidth="1.6" strokeLinecap="round" /></svg>
             </button>
 
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 20px", fontFamily: FONT }}>Edit Product</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 400, color: "#0f172a", margin: "0 0 20px", fontFamily: FONT }}>Edit Product</h3>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Item Name" required><Input value={editForm.productName} onChange={e => setEditForm({ ...editForm, productName: e.target.value })} /></FormField>
@@ -366,7 +384,98 @@ export default function InventoryPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Category"><Select value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}><option value="">Select...</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
               <FormField label="Collection"><Select value={editForm.collection || ""} onChange={e => setEditForm({ ...editForm, collection: e.target.value })}><option value="">Select...</option>{collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
-              <FormField label="Brand"><Input value={editForm.brand} onChange={e => setEditForm({ ...editForm, brand: e.target.value })} /></FormField>
+              <FormField label="Brand">
+                <div ref={brandRef} style={{ position: "relative" }}>
+                  <div 
+                    onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
+                    style={{ 
+                      width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", 
+                      borderRadius: 10, fontSize: 14, background: "#fff", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      minHeight: 44, transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {editForm.brandId ? (
+                        <>
+                          {brands.find(b => b.id === editForm.brandId)?.logoUrl && (
+                            <img 
+                              src={brands.find(b => b.id === editForm.brandId)?.logoUrl} 
+                              alt="logo" 
+                              style={{ width: 22, height: 22, objectFit: "contain", borderRadius: 4, background: "#f8fafc", padding: 2 }} 
+                            />
+                          )}
+                          <span style={{ color: "#1e293b" }}>{editForm.brand}</span>
+                        </>
+                      ) : (
+                        <span style={{ color: "#94a3b8" }}>Select Brand...</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 9, color: "#94a3b8", transform: brandDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
+                  </div>
+
+                  {brandDropdownOpen && (
+                    <div style={{ 
+                      position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4,
+                      background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
+                      boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 100,
+                      maxHeight: 220, overflowY: "auto", padding: 4,
+                      display: "flex", flexDirection: "column"
+                    }}>
+                      <div style={{ position: "sticky", top: 0, background: "#fff", padding: "2px 2px 4px", zIndex: 1 }}>
+                        <input 
+                          type="text" 
+                          placeholder="Search..." 
+                          value={brandSearch}
+                          autoFocus
+                          onChange={e => setBrandSearch(e.target.value)}
+                          style={{ 
+                            width: "100%", padding: "6px 8px", border: "1px solid #f1f5f9", 
+                            borderRadius: 6, fontSize: 12, outline: "none", background: "#f8fafc",
+                            fontFamily: FONT
+                          }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      <div 
+                        onClick={() => { setEditForm({ ...editForm, brandId: "", brand: "" }); setBrandDropdownOpen(false); setBrandSearch(""); }}
+                        style={{ padding: "8px 10px", borderRadius: 6, cursor: "pointer", fontSize: 13, color: "#64748b" }}
+                        className="brand-opt"
+                      >
+                        No Brand
+                      </div>
+                      {brands
+                        .filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase()))
+                        .map(b => (
+                        <div 
+                          key={b.id}
+                          onClick={() => { setEditForm({ ...editForm, brandId: b.id, brand: b.name }); setBrandDropdownOpen(false); setBrandSearch(""); }}
+                          style={{ 
+                            padding: "8px 10px", borderRadius: 6, cursor: "pointer", fontSize: 13,
+                            display: "flex", alignItems: "center", gap: 10,
+                            background: editForm.brandId === b.id ? "rgba(99,102,241,0.05)" : "transparent",
+                            color: editForm.brandId === b.id ? "#6366f1" : "#1e293b"
+                          }}
+                          className="brand-opt"
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: 5, background: "#f8fafc", padding: 3, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {b.logoUrl ? (
+                              <img src={b.logoUrl} alt={b.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                            ) : (
+                              <span style={{ fontSize: 12 }}>🏷️</span>
+                            )}
+                          </div>
+                          <span style={{ fontWeight: editForm.brandId === b.id ? 500 : 400 }}>{b.name}</span>
+                        </div>
+                      ))}
+                      {brands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
+                        <div style={{ padding: 15, textAlign: "center", fontSize: 11, color: "#94a3b8" }}>No results</div>
+                      )}
+                    </div>
+                  )}
+                  <style>{`.brand-opt:hover { background: #f8fafc !important; }`}</style>
+                </div>
+              </FormField>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Selling Price"><Input type="number" min="0" value={editForm.price || ""} onChange={e => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })} /></FormField>
@@ -381,7 +490,7 @@ export default function InventoryPage() {
             <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20, marginBottom: 18 }}>
               {/* Main Thumbnail Section */}
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 10, fontFamily: FONT }}>Main Thumbnail</div>
+                <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 10, fontFamily: FONT }}>Main Thumbnail</div>
                 <div
                   onClick={() => editFileRef.current?.click()}
                   style={{
@@ -423,7 +532,7 @@ export default function InventoryPage() {
 
               {/* Gallery Section */}
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 10, fontFamily: FONT }}>Gallery Images</div>
+                <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 10, fontFamily: FONT }}>Gallery Images</div>
                 <ImageGallery 
                   images={editGallery} 
                   onImagesChange={(imgs) => {

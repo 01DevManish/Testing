@@ -163,7 +163,7 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                     <Card>
                         <div style={{ padding: 24, textAlign: "center" }}>
                             <div style={{ fontSize: 40, marginBottom: 16 }}>📊</div>
-                            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: "0 0 8px" }}>Upload your Excel File</h3>
+                            <h3 style={{ fontSize: 18, fontWeight: 400, color: "#1e293b", margin: "0 0 8px" }}>Upload your Excel File</h3>
                             <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 24px", lineHeight: 1.5 }}>
                                 Make sure your file follows the required format. <br/>
                                 You can download the template on the right side.
@@ -192,14 +192,14 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                             >
                                 {fileStats ? (
                                     <div style={{ color: "#1e293b" }}>
-                                        <div style={{ fontWeight: 700, fontSize: 15 }}>{fileStats.name}</div>
+                                        <div style={{ fontWeight: 400, fontSize: 15 }}>{fileStats.name}</div>
                                         <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
                                             {(fileStats.size / 1024).toFixed(1)} KB • {fileStats.rows} products found
                                         </div>
                                     </div>
                                 ) : (
                                     <div style={{ color: "#94a3b8" }}>
-                                        <div style={{ fontSize: 13, fontWeight: 600 }}>Click to select Excel file</div>
+                                        <div style={{ fontSize: 13, fontWeight: 400 }}>Click to select Excel file</div>
                                         <div style={{ fontSize: 11, marginTop: 4 }}>Supports .xlsx, .xls, .csv</div>
                                     </div>
                                 )}
@@ -222,26 +222,26 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                         <Card>
                             <div style={{ padding: 20 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#d1fae5", color: "#065f46", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✓</div>
-                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>Import Summary</h3>
+                                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#d1fae5", color: "#065f46", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400 }}>✓</div>
+                                    <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>Import Summary</h3>
                                 </div>
                                 
                                 <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
                                     <div style={{ flex: 1, padding: 16, background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0" }}>
-                                        <div style={{ fontSize: 11, fontWeight: 700, color: "#166534", textTransform: "uppercase", marginBottom: 4 }}>Success</div>
-                                        <div style={{ fontSize: 24, fontWeight: 800, color: "#166534" }}>{results.success}</div>
+                                        <div style={{ fontSize: 11, fontWeight: 400, color: "#166534", textTransform: "uppercase", marginBottom: 4 }}>Success</div>
+                                        <div style={{ fontSize: 24, fontWeight: 400, color: "#166534" }}>{results.success}</div>
                                         <div style={{ fontSize: 12, color: "#16a34a" }}>Products Imported</div>
                                     </div>
                                     <div style={{ flex: 1, padding: 16, background: results.errors.length > 0 ? "#fef2f2" : "#f8fafc", borderRadius: 10, border: `1px solid ${results.errors.length > 0 ? "#fecaca" : "#e2e8f0"}` }}>
-                                        <div style={{ fontSize: 11, fontWeight: 700, color: results.errors.length > 0 ? "#991b1b" : "#64748b", textTransform: "uppercase", marginBottom: 4 }}>Errors</div>
-                                        <div style={{ fontSize: 24, fontWeight: 800, color: results.errors.length > 0 ? "#991b1b" : "#64748b" }}>{results.errors.length}</div>
+                                        <div style={{ fontSize: 11, fontWeight: 400, color: results.errors.length > 0 ? "#991b1b" : "#64748b", textTransform: "uppercase", marginBottom: 4 }}>Errors</div>
+                                        <div style={{ fontSize: 24, fontWeight: 400, color: results.errors.length > 0 ? "#991b1b" : "#64748b" }}>{results.errors.length}</div>
                                         <div style={{ fontSize: 12, color: results.errors.length > 0 ? "#ef4444" : "#94a3b8" }}>Issues Found</div>
                                     </div>
                                 </div>
 
                                 {results.errors.length > 0 && (
                                     <div style={{ maxHeight: 200, overflowY: "auto", padding: 12, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8 }}>Error Details:</div>
+                                        <div style={{ fontSize: 12, fontWeight: 400, color: "#475569", marginBottom: 8 }}>Error Details:</div>
                                         {results.errors.map((err, i) => (
                                             <div key={i} style={{ fontSize: 11, color: "#ef4444", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
                                                 • {err}
@@ -261,22 +261,22 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                     <Card>
                         <div style={{ padding: 20 }}>
-                            <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 12px" }}>How to use:</h4>
+                            <h4 style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", margin: "0 0 12px" }}>How to use:</h4>
                             <ul style={{ padding: 0, margin: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
                                 <li style={{ fontSize: 12, color: "#475569", display: "flex", gap: 8 }}>
-                                    <span style={{ color: "#6366f1", fontWeight: 700 }}>1.</span>
+                                    <span style={{ color: "#6366f1", fontWeight: 400 }}>1.</span>
                                     <span>Download the Excel template using the button below.</span>
                                 </li>
                                 <li style={{ fontSize: 12, color: "#475569", display: "flex", gap: 8 }}>
-                                    <span style={{ color: "#6366f1", fontWeight: 700 }}>2.</span>
+                                    <span style={{ color: "#6366f1", fontWeight: 400 }}>2.</span>
                                     <span>Fill in your product details. SKU and Name are required.</span>
                                 </li>
                                 <li style={{ fontSize: 12, color: "#475569", display: "flex", gap: 8 }}>
-                                    <span style={{ color: "#6366f1", fontWeight: 700 }}>3.</span>
+                                    <span style={{ color: "#6366f1", fontWeight: 400 }}>3.</span>
                                     <span>Upload the file and click "Start Import".</span>
                                 </li>
                                 <li style={{ fontSize: 12, color: "#475569", display: "flex", gap: 8 }}>
-                                    <span style={{ color: "#6366f1", fontWeight: 700 }}>4.</span>
+                                    <span style={{ color: "#6366f1", fontWeight: 400 }}>4.</span>
                                     <span>Once done, go to "All Items" to manually add images for each item.</span>
                                 </li>
                             </ul>
@@ -287,7 +287,7 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                                     marginTop: 20, width: "100%", padding: "10px",
                                     background: "#f1f5f9", border: "1px solid #e2e8f0",
                                     borderRadius: 8, color: "#475569", fontSize: 12,
-                                    fontWeight: 600, cursor: "pointer", display: "flex",
+                                    fontWeight: 400, cursor: "pointer", display: "flex",
                                     alignItems: "center", justifyContent: "center", gap: 8
                                 }}
                             >
@@ -301,7 +301,7 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
 
                     <Card>
                         <div style={{ padding: 20 }}>
-                            <h4 style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", margin: "0 0 8px" }}>Important Notes:</h4>
+                            <h4 style={{ fontSize: 13, fontWeight: 400, color: "#ef4444", margin: "0 0 8px" }}>Important Notes:</h4>
                             <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5 }}>
                                 • Duplicate SKUs will be automatically skipped. <br/>
                                 • Prices and Stock must be numbers. <br/>

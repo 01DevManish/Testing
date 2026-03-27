@@ -56,7 +56,7 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
         d.text("EURUS LIFESTYLE", 34, 20);
 
         d.setFontSize(18);
-        d.text(collectionName, pageWidth / 2, 35, { align: "center" });
+        d.text(collectionName.toUpperCase(), pageWidth / 2, 35, { align: "center" });
 
         d.setFont("helvetica", "normal");
         d.setFontSize(10);

@@ -15,7 +15,7 @@ import { uploadToCloudinary } from "./cloudinary";
 import { logActivity } from "../../lib/activityLogger";
 
 const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
-    productName: "", sku: "", category: "", collection: "", brand: "",
+    productName: "", sku: "", category: "", collection: "", brand: "", brandId: "",
     price: 0, costPrice: 0, stock: 0, minStock: 5,
     status: "active", imageUrl: "", description: "",
     unit: "PCS", size: "", hsnCode: "", gstRate: 18,
@@ -24,11 +24,13 @@ const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
 export default function CreateProduct({ 
     categories, 
     collections,
+    brands = [],
     user: currentUser, 
     onCreated 
 }: { 
     categories: Category[], 
     collections: Collection[],
+    brands?: { id: string, name: string, logoUrl?: string }[],
     user: { uid: string; name: string },
     onCreated?: (p: Product) => void 
 }) {
@@ -40,7 +42,21 @@ export default function CreateProduct({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [imagePreview, setImagePreview] = useState("");
     const [galleryImages, setGalleryImages] = useState<string[]>([]);
+    const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+    const [brandSearch, setBrandSearch] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
+    const brandRef = useRef<HTMLDivElement>(null);
+
+    // Auto close brand dropdown on click outside
+    React.useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (brandRef.current && !brandRef.current.contains(e.target as Node)) {
+                setBrandDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const set = (k: keyof typeof EMPTY, v: any) => {
         setForm(f => ({ ...f, [k]: v }));
@@ -224,7 +240,7 @@ export default function CreateProduct({
                     {/* Basic Info */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Basic Information</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Basic Information</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Item Name" required>
                                     <Input
@@ -257,9 +273,103 @@ export default function CreateProduct({
                                     </Select>
                                 </FormField>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Brand">
-                                    <Input value={form.brand} onChange={e => set("brand", e.target.value)} />
+                                    <div ref={brandRef} style={{ position: "relative" }}>
+                                        <div 
+                                            onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
+                                            style={{ 
+                                                width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", 
+                                                borderRadius: 10, fontSize: 14, background: "#fff", cursor: "pointer",
+                                                display: "flex", alignItems: "center", justifyContent: "space-between",
+                                                minHeight: 44, transition: "all 0.2s"
+                                            }}
+                                        >
+                                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                {form.brandId ? (
+                                                    <>
+                                                        {brands.find(b => b.id === form.brandId)?.logoUrl && (
+                                                            <img 
+                                                                src={brands.find(b => b.id === form.brandId)?.logoUrl} 
+                                                                alt="logo" 
+                                                                style={{ width: 24, height: 24, objectFit: "contain", borderRadius: 4, background: "#f8fafc", padding: 2 }} 
+                                                            />
+                                                        )}
+                                                        <span style={{ color: "#0f172a" }}>{form.brand}</span>
+                                                    </>
+                                                ) : (
+                                                    <span style={{ color: "#94a3b8" }}>Select Brand...</span>
+                                                )}
+                                            </div>
+                                            <span style={{ fontSize: 10, color: "#94a3b8", transform: brandDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
+                                        </div>
+
+                                        {brandDropdownOpen && (
+                                            <div style={{ 
+                                                position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6,
+                                                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12,
+                                                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", zIndex: 100,
+                                                maxHeight: 280, overflowY: "auto", padding: 6,
+                                                display: "flex", flexDirection: "column"
+                                            }}>
+                                                <div style={{ position: "sticky", top: 0, background: "#fff", padding: "4px 4px 6px", zIndex: 1 }}>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Search brand..." 
+                                                        value={brandSearch}
+                                                        autoFocus
+                                                        onChange={e => setBrandSearch(e.target.value)}
+                                                        style={{ 
+                                                            width: "100%", padding: "8px 10px", border: "1px solid #f1f5f9", 
+                                                            borderRadius: 8, fontSize: 13, outline: "none", background: "#f8fafc",
+                                                            fontFamily: FONT
+                                                        }}
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                                <div 
+                                                    onClick={() => { set("brandId", ""); set("brand", ""); setBrandDropdownOpen(false); setBrandSearch(""); }}
+                                                    style={{ 
+                                                        padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13,
+                                                        color: "#64748b", transition: "all 0.2s"
+                                                    }}
+                                                    className="brand-opt"
+                                                >
+                                                    No Brand
+                                                </div>
+                                                {brands
+                                                    .filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase()))
+                                                    .map(b => (
+                                                    <div 
+                                                        key={b.id}
+                                                        onClick={() => { set("brandId", b.id); set("brand", b.name); setBrandDropdownOpen(false); setBrandSearch(""); }}
+                                                        style={{ 
+                                                            padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 14,
+                                                            display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s",
+                                                            background: form.brandId === b.id ? "rgba(99,102,241,0.05)" : "transparent",
+                                                            color: form.brandId === b.id ? "#6366f1" : "#1e293b"
+                                                        }}
+                                                        className="brand-opt"
+                                                    >
+                                                        <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f8fafc", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                            {b.logoUrl ? (
+                                                                <img src={b.logoUrl} alt={b.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                                                            ) : (
+                                                                <span style={{ fontSize: 14 }}>🏷️</span>
+                                                            )}
+                                                        </div>
+                                                        <span style={{ fontWeight: form.brandId === b.id ? 500 : 400 }}>{b.name}</span>
+                                                    </div>
+                                                ))}
+                                                {brands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
+                                                    <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No brands found.</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <style>{`
+                                        .brand-opt:hover { background: #f8fafc !important; }
+                                    `}</style>
                                 </FormField>
                                 <div />
                             </div>
@@ -276,7 +386,7 @@ export default function CreateProduct({
                     {/* Pricing */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Pricing & Tax</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Pricing & Tax</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Selling Price (Rs.)" required>
                                     <Input
@@ -314,16 +424,16 @@ export default function CreateProduct({
                             {profit !== null && (
                                 <div style={{ display: "flex", gap: 16, marginTop: 14, padding: "10px 14px", background: profit >= 0 ? "#f0fdf4" : "#fef2f2", border: `1px solid ${profit >= 0 ? "#bbf7d0" : "#fecaca"}`, borderRadius: 9 }}>
                                     <span style={{ fontSize: 13, color: "#64748b", fontFamily: FONT }}>
-                                        Profit: <span style={{ color: profit >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
+                                        Profit: <span style={{ color: profit >= 0 ? "#16a34a" : "#dc2626", fontWeight: 400 }}>
                                             Rs.{profit.toLocaleString("en-IN")}
                                         </span>
                                     </span>
                                     <span style={{ fontSize: 13, color: "#64748b", fontFamily: FONT }}>
-                                        Margin: <span style={{ color: profit >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{margin}%</span>
+                                        Margin: <span style={{ color: profit >= 0 ? "#16a34a" : "#dc2626", fontWeight: 400 }}>{margin}%</span>
                                     </span>
                                     {gstAmt && (
                                         <span style={{ fontSize: 13, color: "#64748b", fontFamily: FONT }}>
-                                            GST ({form.gstRate}%): <span style={{ color: "#6366f1", fontWeight: 600 }}>Rs.{gstAmt}</span>
+                                            GST ({form.gstRate}%): <span style={{ color: "#6366f1", fontWeight: 400 }}>Rs.{gstAmt}</span>
                                         </span>
                                     )}
                                 </div>
@@ -334,7 +444,7 @@ export default function CreateProduct({
                     {/* Stock & Unit */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Stock & Unit</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Stock & Unit</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                                 <FormField label="Opening Stock">
                                     <Input
@@ -388,7 +498,7 @@ export default function CreateProduct({
                     {/* Product Image */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Images</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Images</div>
 
                             {/* Main Preview box */}
                             <div
@@ -419,7 +529,7 @@ export default function CreateProduct({
 
                             <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
                             
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Image Gallery</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Image Gallery</div>
                             <ImageGallery 
                                 images={galleryImages} 
                                 onImagesChange={handleGalleryChange} 
@@ -440,7 +550,7 @@ export default function CreateProduct({
                     {/* Status */}
                     <Card>
                         <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Status</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Status</div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                 {(["active", "inactive", "low-stock", "out-of-stock"] as const).map(s => {
                                     const colors: Record<string, { label: string; color: string; bg: string }> = {
@@ -460,7 +570,7 @@ export default function CreateProduct({
                                             transition: "all 0.15s",
                                         }}>
                                             <div style={{ width: 8, height: 8, borderRadius: "50%", background: isSelected ? c.color : "#e2e8f0", flexShrink: 0 }} />
-                                            <span style={{ fontSize: 13, fontWeight: 600, color: isSelected ? c.color : "#94a3b8", fontFamily: FONT }}>{c.label}</span>
+                                            <span style={{ fontSize: 13, fontWeight: 400, color: isSelected ? c.color : "#94a3b8", fontFamily: FONT }}>{c.label}</span>
                                         </button>
                                     );
                                 })}
@@ -471,7 +581,7 @@ export default function CreateProduct({
                     {/* Summary */}
                     <Card>
                         <div style={{ padding: "16px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Summary</div>
+                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Summary</div>
                             {[
                                 ["Name", form.productName || "—"],
                                 ["SKU", form.sku || "—"],
@@ -483,7 +593,7 @@ export default function CreateProduct({
                             ].map(([k, v]) => (
                                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid #f1f5f9" }}>
                                     <span style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{k}</span>
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", fontFamily: FONT, maxWidth: 140, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</span>
+                                    <span style={{ fontSize: 12, fontWeight: 400, color: "#1e293b", fontFamily: FONT, maxWidth: 140, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</span>
                                 </div>
                             ))}
                         </div>
