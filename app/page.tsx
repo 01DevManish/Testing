@@ -48,8 +48,11 @@ function LoginContent() {
     setEmailLoading(true);
     try {
       await loginWithEmail(email.trim(), password);
+    } catch (err: any) {
+      console.error("Login failed:", err);
+      alert(err.message || "Login failed. Please check your credentials.");
     } finally {
-      setEmailLoading(true); // Keep loading state until redirect
+      setEmailLoading(false);
     }
   };
 
