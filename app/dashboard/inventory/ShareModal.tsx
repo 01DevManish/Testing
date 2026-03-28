@@ -41,10 +41,10 @@ const processProductImage = async (
                 canvas.height = img.height;
                 ctx.drawImage(img, 0, 0);
 
-                const padding = canvas.width * 0.03;
-
-                // Overlay Text (Collection & SKU) - Left Side
-                let currentY = padding;
+                const hPadding = canvas.width * 0.005; // Minimal side gap
+                const vPadding = canvas.width * 0.10;  // Large top gap as requested
+                
+                let currentY = vPadding;
                 ctx.font = `bold ${Math.floor(canvas.width * 0.035)}px ${FONT}`;
                 ctx.textBaseline = "middle";
 
@@ -54,9 +54,9 @@ const processProductImage = async (
                     const h = Math.floor(canvas.width * 0.05);
                     const w = metrics.width + 30;
                     ctx.fillStyle = "rgba(40, 44, 42, 0.9)";
-                    ctx.fillRect(padding, currentY, w, h);
+                    ctx.fillRect(hPadding, currentY, w, h);
                     ctx.fillStyle = "#ffffff";
-                    ctx.fillText(text, padding + 15, currentY + (h / 2));
+                    ctx.fillText(text, hPadding + 15, currentY + (h / 2));
                     currentY += h + 2;
                 }
 
@@ -67,9 +67,9 @@ const processProductImage = async (
                     const sh = Math.floor(canvas.width * 0.04);
                     const sw = skuMetrics.width + 30;
                     ctx.fillStyle = "rgba(200, 215, 210, 0.9)";
-                    ctx.fillRect(padding, currentY, sw, sh);
+                    ctx.fillRect(hPadding, currentY, sw, sh);
                     ctx.fillStyle = "#000000";
-                    ctx.fillText(skuText, padding + 15, currentY + (sh / 2));
+                    ctx.fillText(skuText, hPadding + 15, currentY + (sh / 2));
                 }
 
                 const finish = () => {
@@ -85,12 +85,13 @@ const processProductImage = async (
                     logoImg.crossOrigin = "anonymous";
                     logoImg.onload = () => {
                         try {
-                            const logoH = Math.floor(canvas.width * 0.18);
+                            const logoH = Math.floor(canvas.width * 0.08);
                             const logoW = (logoImg.width / logoImg.height) * logoH;
-                            const lx = canvas.width - logoW - padding;
+                            const lx = canvas.width - logoW - hPadding;
                             ctx.fillStyle = "#ffffff";
-                            ctx.fillRect(lx - 5, padding - 5, logoW + 10, logoH + 10);
-                            ctx.drawImage(logoImg, lx, padding, logoW, logoH);
+                            // Tighter background box for more focus on logo, positioned from top
+                            ctx.fillRect(lx - 3, vPadding - 3, logoW + 6, logoH + 6);
+                            ctx.drawImage(logoImg, lx, vPadding, logoW, logoH);
                             finish();
                         } catch (e) { finish(); }
                     };

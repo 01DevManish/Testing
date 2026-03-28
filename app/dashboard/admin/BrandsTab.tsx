@@ -167,13 +167,13 @@ export default function BrandsTab({
               <div 
                 onClick={() => fileRef.current?.click()}
                 style={{ 
-                  width: "100%", height: 120, borderRadius: 12, border: "2px dashed #e2e8f0", 
+                  width: "100%", height: 100, borderRadius: 12, border: "2px dashed #e2e8f0", 
                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                   overflow: "hidden", background: "#f8fafc", position: "relative"
                 }}
               >
                 {logoPreview ? (
-                  <img src={logoPreview} alt="Logo Preview" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }} />
+                  <img src={logoPreview} alt="Logo Preview" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 5 }} />
                 ) : (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 24, marginBottom: 4 }}>🖼️</div>
@@ -181,7 +181,7 @@ export default function BrandsTab({
                   </div>
                 )}
               </div>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
+              <input ref={fileRef} type="file" accept=".jpg,.jpeg,.png,.webp,.svg,.bmp,.gif,image/*" onChange={handleFileChange} style={{ display: "none" }} />
             </div>
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
@@ -208,7 +208,7 @@ export default function BrandsTab({
                 <button onClick={() => handleDelete(b.id, b.name)} style={{ border: "none", background: "#fff1f2", color: "#ef4444", width: 26, height: 26, borderRadius: 6, cursor: "pointer", fontSize: 12 }}>🗑</button>
               </div>
               
-              <div style={{ width: 80, height: 80, borderRadius: 12, background: "#f8fafc", padding: 8, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 100, height: 60, borderRadius: 12, background: "#f8fafc", padding: 6, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img src={b.logoUrl} alt={b.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
               </div>
               <div style={{ fontSize: 15, fontWeight: 400, color: "#1e293b" }}>{b.name}</div>

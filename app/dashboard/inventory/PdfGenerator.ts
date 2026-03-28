@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Product } from "./types";
 
-const getBase64Image = async (url: string, maxWidth = 600): Promise<string | null> => {
+const getBase64Image = async (url: string, maxWidth = 600): Promise<{ data: string, width: number, height: number } | null> => {
     try {
         const response = await fetch(url);
         if (!response.ok) return null;
@@ -24,7 +24,11 @@ const getBase64Image = async (url: string, maxWidth = 600): Promise<string | nul
                 canvas.height = height;
                 const ctx = canvas.getContext("2d");
                 ctx?.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL("image/jpeg", 0.7)); // Compress to 70% quality JPEG
+                resolve({ 
+                    data: canvas.toDataURL("image/jpeg", 0.7),
+                    width,
+                    height
+                });
             };
             img.onerror = () => resolve(null);
             img.src = URL.createObjectURL(blob);
@@ -56,8 +60,8 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
         const p = products[i];
         const imgUrl = p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls[0] : null);
         if (imgUrl) {
-            const base64 = await getBase64Image(imgUrl);
-            if (base64) images[i] = base64;
+            const result = await getBase64Image(imgUrl);
+            if (result) images[i] = result.data;
         }
 
         tableData.push([
@@ -71,9 +75,11 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
     // 2. Header
     const drawHeader = async (d: jsPDF) => {
         // Logo on left side
-        const logoBase64 = await getBase64Image("/logo.png", 200);
-        if (logoBase64) {
-            d.addImage(logoBase64, "PNG", 14, 8, 24, 24);
+        const logo = await getBase64Image("/logo.png", 200);
+        if (logo) {
+            const logoH = 22; // Restored to larger size as requested
+            const logoW = (logo.width / logo.height) * logoH;
+            d.addImage(logo.data, "PNG", 14, 10, logoW, logoH);
         }
         
         d.setFont("helvetica", "bold");
