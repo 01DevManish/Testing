@@ -35,6 +35,18 @@ export default function TasksTab({
   const [uploading, setUploading] = React.useState(false);
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([]);
   const [userSearch, setUserSearch] = React.useState("");
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filteredAssignable = assignableUsers.filter(u => 
     u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
@@ -146,50 +158,76 @@ export default function TasksTab({
             <div><label style={S.label}>Task Title</label><input style={S.input} value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} /></div>
             
             <div style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
-                <label style={S.label}>Assign To ({taskForm.assignedTo.length} selected)</label>
-                <input 
-                  type="text" 
-                  placeholder="Filter users..." 
-                  value={userSearch}
-                  onChange={e => setUserSearch(e.target.value)}
-                  style={{ ...S.input, width: "auto", padding: "5px 12px", fontSize: 11, background: "#f1f5f9", borderRadius: 20, border: "none" }}
-                />
-              </div>
-              <div style={{ 
-                maxHeight: 180, overflowY: "auto", border: "1px solid #e2e8f0", 
-                borderRadius: 12, padding: 4, background: "#f8fafc",
-                display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 4
-              }}>
-                {filteredAssignable.map(u => {
-                  const isSelected = taskForm.assignedTo.includes(u.uid);
-                  return (
-                    <div 
-                      key={u.uid} 
-                      onClick={() => toggleUser(u.uid)}
+              <label style={S.label}>Assign To</label>
+              <div ref={dropdownRef} style={{ position: "relative" }}>
+                <div 
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  style={{ 
+                    ...S.input, display: "flex", justifyContent: "space-between", 
+                    alignItems: "center", cursor: "pointer", minHeight: 44,
+                    background: "#fff", borderColor: dropdownOpen ? "#6366f1" : "#e2e8f0"
+                  }}
+                >
+                  <div style={{ fontSize: 13, color: taskForm.assignedTo.length > 0 ? "#1e293b" : "#94a3b8" }}>
+                    {taskForm.assignedTo.length === 0 ? "Select Users..." : `${taskForm.assignedTo.length} users selected`}
+                  </div>
+                  <span style={{ fontSize: 10, transform: dropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
+                </div>
+
+                {dropdownOpen && (
+                  <div style={{ 
+                    position: "absolute", top: "100%", left: 0, right: 0, marginTop: 8,
+                    background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14,
+                    boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05)",
+                    zIndex: 100, padding: 8, animation: "fadeInDown 0.2s ease"
+                  }}>
+                    <input 
+                      type="text" 
+                      placeholder="Search users..." 
+                      value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)}
+                      autoFocus
                       style={{ 
-                        display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", 
-                        borderRadius: 10, cursor: "pointer", background: isSelected ? "#fff" : "transparent",
-                        border: `1px solid ${isSelected ? "#6366f1" : "transparent"}`,
-                        transition: "all 0.2s ease"
+                        ...S.input, marginBottom: 6, padding: "6px 10px", 
+                        fontSize: 12, borderRadius: 10, background: "#f8fafc",
+                        minHeight: "auto", height: 34
                       }}
-                    >
-                      <div style={{ 
-                        width: 18, height: 18, borderRadius: 5, border: "2px solid #cbd5e1",
-                        background: isSelected ? "#6366f1" : "transparent", borderColor: isSelected ? "#6366f1" : "#cbd5e1",
-                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff"
-                      }}>
-                        {isSelected && "✓"}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 400, color: isSelected ? "#6366f1" : "#475569" }}>{u.name}</div>
-                        <div style={{ fontSize: 10, color: "#94a3b8" }}>{u.role.toUpperCase()}</div>
-                      </div>
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <div style={{ maxHeight: 140, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
+                      {filteredAssignable.map(u => {
+                        const isSelected = taskForm.assignedTo.includes(u.uid);
+                        return (
+                          <div 
+                            key={u.uid} 
+                            onClick={(e) => { e.stopPropagation(); toggleUser(u.uid); }}
+                            style={{ 
+                              display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", 
+                              borderRadius: 10, cursor: "pointer", 
+                              background: isSelected ? "rgba(99,102,241,0.05)" : "transparent",
+                              transition: "all 0.15s ease"
+                            }}
+                          >
+                            <div style={{ 
+                              width: 18, height: 18, borderRadius: 6, border: "2px solid #cbd5e1",
+                              background: isSelected ? "#6366f1" : "transparent", borderColor: isSelected ? "#6366f1" : "#cbd5e1",
+                              display: "flex", alignItems: "center", justifyContent: "center", 
+                              fontSize: 10, color: "#fff", flexShrink: 0
+                            }}>
+                              {isSelected ? "✓" : ""}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 400, color: isSelected ? "#6366f1" : "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name}</div>
+                              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "capitalize" }}>{u.role}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {filteredAssignable.length === 0 && (
+                        <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12 }}>No users found.</div>
+                      )}
                     </div>
-                  );
-                })}
-                {filteredAssignable.length === 0 && (
-                    <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12, gridColumn: "1/-1" }}>No users found.</div>
+                  </div>
                 )}
               </div>
             </div>

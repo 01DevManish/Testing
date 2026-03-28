@@ -10,6 +10,7 @@ export interface UserRecord {
   role: UserRole;
   permissions?: string[];
   dispatchPin?: string;
+  requiresPasswordChange?: boolean;
 }
 
 export interface Task {

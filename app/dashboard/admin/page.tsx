@@ -217,6 +217,26 @@ export default function AdminPage() {
     }
   };
 
+  const handlePasswordReset = async (newPassword: string) => {
+    if (!editingUser) return;
+    try {
+      const res = await fetch("/api/admin/update-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: editingUser.uid,
+          newPassword,
+          adminUid: user.uid
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update password");
+    } catch (e: any) {
+      console.error(e);
+      throw e;
+    }
+  };
+
   const handleDeleteUser = async (uid: string) => {
     const userToDelete = users.find(u => u.uid === uid);
     if (!userToDelete) return;
@@ -283,7 +303,14 @@ export default function AdminPage() {
       const secondaryApp = getApps().find(a => a.name === "Secondary") || initializeApp(firebaseConfig, "Secondary");
       const secondaryAuth = getAuth(secondaryApp);
       const result = await createUserWithEmailAndPassword(secondaryAuth, newEmployee.email, newEmployee.password);
-      const nu: UserRecord = { uid: result.user.uid, email: newEmployee.email, name: newEmployee.name, role: newEmployee.role, permissions: newEmployee.permissions };
+      const nu: UserRecord = { 
+        uid: result.user.uid, 
+        email: newEmployee.email, 
+        name: newEmployee.name, 
+        role: newEmployee.role, 
+        permissions: newEmployee.permissions,
+        requiresPasswordChange: true 
+      };
       // Fire both concurrently — don't wait for signOut before Firestore write
       await Promise.all([
         signOut(secondaryAuth).catch(() => {}),
@@ -510,7 +537,7 @@ export default function AdminPage() {
               handleCreateTask={handleCreateTask} 
               handleDeleteTask={handleDeleteTask}
               handleTaskStatus={handleTaskStatus} 
-              assignableUsers={users.filter(u => u.role === "manager" || u.role === "employee")} 
+              assignableUsers={users.filter(u => u.role === "admin" || u.role === "manager" || u.role === "employee")} 
               loadTasks={loadTasks} 
             />
           ) : tab === "logs" ? (
@@ -544,7 +571,10 @@ export default function AdminPage() {
               products={products}
               categories={categories}
               collections={collections}
+              brands={brands}
               loading={fetchingCatalog}
+              isMobile={isMobile}
+              isDesktop={!isMobile}
             />
           ) : tab === "profile" ? (
             <ProfileTab 
@@ -569,6 +599,7 @@ export default function AdminPage() {
             setEditPin={setEditPin}
             savingRole={savingRole} 
             handleRoleUpdate={handleRoleUpdate} 
+            handlePasswordReset={handlePasswordReset}
             onClose={() => setEditingUser(null)} 
           />
         )}

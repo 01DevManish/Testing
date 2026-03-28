@@ -128,11 +128,11 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Time</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>User</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Action</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Details</th>
-                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "uppercase", textAlign: "center" }}>Actions</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "capitalize" }}>Time</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "capitalize" }}>User</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "capitalize" }}>Action</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "capitalize" }}>Details</th>
+                  <th style={{ padding: "14px 20px", fontSize: 12, fontWeight: 400, color: "#64748b", textTransform: "capitalize", textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,7 +162,7 @@ export default function LogsTab({ S, isMobile, isTablet }: LogsTabProps) {
                       <div style={{ 
                         display: "inline-flex", padding: "4px 8px", borderRadius: 4,
                         fontSize: 11, fontWeight: 400, background: `${getTypeColor(log.type)}15`, color: getTypeColor(log.type),
-                        textTransform: "uppercase"
+                        textTransform: "capitalize"
                       }}>
                         {log.type}: {log.action.replace("_", " ")}
                       </div>

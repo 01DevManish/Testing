@@ -194,12 +194,12 @@ export default function EmployeePage() {
           <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
           <div>
             <div style={{ fontSize: 16, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-            <div style={{ fontSize: 10, color: "#34d399", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em" }}>Employee Portal</div>
+            <div style={{ fontSize: 10, color: "#34d399", fontWeight: 400, textTransform: "capitalize", letterSpacing: "0.15em" }}>Employee Portal</div>
           </div>
         </div>
 
         {/* Nav */}
-        <div style={{ fontSize: 10, fontWeight: 400, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
+        <div style={{ fontSize: 10, fontWeight: 400, color: "#475569", textTransform: "capitalize", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <button onClick={() => router.push("/dashboard")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
             Dashboard
@@ -315,7 +315,7 @@ export default function EmployeePage() {
                       {filteredTasks.map((t) => (
                         <div key={t.id} style={{ padding: "16px", borderBottom: "1px solid #f1f5f9" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                            <span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span>
+                            <span style={{ ...S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`), textTransform: "capitalize" }}>{t.priority}</span>
                             <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>{statusConfig[t.status]?.label}</span>
                           </div>
                           <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 15, marginBottom: 4 }}>{t.title}</div>
@@ -359,7 +359,7 @@ export default function EmployeePage() {
                               )}
                               {t.createdByName && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Assigned by: {t.createdByName}</div>}
                             </td>
-                            <td style={S.td}><span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span></td>
+                            <td style={S.td}><span style={{ ...S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`), textTransform: "capitalize" }}>{t.priority}</span></td>
                             <td style={S.td}>
                               <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>
                                 {statusConfig[t.status]?.label}

@@ -16,7 +16,7 @@ import { logActivity } from "../../lib/activityLogger";
 
 const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
     productName: "", sku: "", category: "", collection: "", brand: "", brandId: "",
-    price: 0, costPrice: 0, stock: 0, minStock: 5,
+    price: 0, wholesalePrice: 0, mrp: 0, costPrice: 0, stock: 0, minStock: 5,
     status: "active", imageUrl: "", description: "",
     unit: "PCS", size: "", hsnCode: "", gstRate: 18,
 };
@@ -26,13 +26,17 @@ export default function CreateProduct({
     collections,
     brands = [],
     user: currentUser, 
-    onCreated 
+    onCreated,
+    isMobile,
+    isDesktop
 }: { 
     categories: Category[], 
     collections: Collection[],
     brands?: { id: string, name: string, logoUrl?: string }[],
-    user: { uid: string; name: string },
-    onCreated?: (p: Product) => void 
+    user: { uid: string; name: string; role: string },
+    onCreated?: (p: Product) => void,
+    isMobile?: boolean,
+    isDesktop?: boolean
 }) {
     const [form, setForm] = useState({ ...EMPTY });
     const [sizeOption, setSizeOption] = useState("");
@@ -164,6 +168,8 @@ export default function CreateProduct({
                 imageUrls: finalImageUrls,
                 status: autoStatus,
                 price: Number(form.price),
+                wholesalePrice: Number(form.wholesalePrice || 0),
+                mrp: Number(form.mrp || 0),
                 costPrice: Number(form.costPrice),
                 stock: Number(form.stock),
                 minStock: Number(form.minStock),
@@ -230,16 +236,16 @@ export default function CreateProduct({
 
             {success && <SuccessBanner message={success} onClose={() => setSuccess("")} />}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 20, alignItems: "start" }}>
 
                 {/* ── Left column — main fields ── */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
                     {/* Basic Info */}
                     <Card>
-                        <div style={{ padding: "18px 20px" }}>
+                        <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Basic Information</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Item Name" required>
                                     <Input
                                         value={form.productName}
@@ -257,7 +263,7 @@ export default function CreateProduct({
                                     {errors.sku && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{errors.sku}</div>}
                                 </FormField>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Category">
                                     <Select value={form.category} onChange={e => set("category", e.target.value)}>
                                         <option value="">Select Category...</option>
@@ -271,7 +277,7 @@ export default function CreateProduct({
                                     </Select>
                                 </FormField>
                             </div>
-                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Brand">
                                     <div ref={brandRef} style={{ position: "relative" }}>
                                         <div 
@@ -369,7 +375,7 @@ export default function CreateProduct({
                                         .brand-opt:hover { background: #f8fafc !important; }
                                     `}</style>
                                 </FormField>
-                                <div />
+                                {!isMobile && <div />}
                             </div>
                             <FormField label="Product Description">
                                 <Textarea
@@ -383,9 +389,9 @@ export default function CreateProduct({
 
                     {/* Pricing */}
                     <Card>
-                        <div style={{ padding: "18px 20px" }}>
+                        <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Pricing & Tax</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Selling Price (Rs.)" required>
                                     <Input
                                         type="number" min="0" step="0.01"
@@ -395,32 +401,47 @@ export default function CreateProduct({
                                     />
                                     {errors.price && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{errors.price}</div>}
                                 </FormField>
-                                <FormField label="Cost Price (Rs.)">
+                                <FormField label="Wholesale Price (Rs.)">
                                     <Input
                                         type="number" min="0" step="0.01"
-                                        value={form.costPrice === 0 ? "" : form.costPrice}
-                                        onChange={e => set("costPrice", Number(e.target.value) || 0)}
+                                        value={form.wholesalePrice === 0 ? "" : form.wholesalePrice}
+                                        onChange={e => set("wholesalePrice", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
+                                <FormField label="MRP (Rs.)">
+                                    <Input
+                                        type="number" min="0" step="0.01"
+                                        value={form.mrp === 0 ? "" : form.mrp}
+                                        onChange={e => set("mrp", Number(e.target.value) || 0)}
+                                    />
+                                </FormField>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                {currentUser?.role === "admin" && (
+                                    <FormField label="Cost Price (Rs.)">
+                                        <Input
+                                            type="number" min="0" step="0.01"
+                                            value={form.costPrice === 0 ? "" : form.costPrice}
+                                            onChange={e => set("costPrice", Number(e.target.value) || 0)}
+                                        />
+                                    </FormField>
+                                )}
                                 <FormField label="GST Rate">
                                     <Select value={form.gstRate} onChange={e => set("gstRate", Number(e.target.value))}>
                                         {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
                                     </Select>
                                 </FormField>
-                            </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                                 <FormField label="HSN Code">
                                     <Input
                                         value={form.hsnCode}
                                         onChange={e => set("hsnCode", e.target.value)}
                                     />
                                 </FormField>
-                                <div />
                             </div>
 
                             {/* Margin calculator */}
                             {profit !== null && (
-                                <div style={{ display: "flex", gap: 16, marginTop: 14, padding: "10px 14px", background: profit >= 0 ? "#f0fdf4" : "#fef2f2", border: `1px solid ${profit >= 0 ? "#bbf7d0" : "#fecaca"}`, borderRadius: 9 }}>
+                                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16, marginTop: 14, padding: "10px 14px", background: profit >= 0 ? "#f0fdf4" : "#fef2f2", border: `1px solid ${profit >= 0 ? "#bbf7d0" : "#fecaca"}`, borderRadius: 9 }}>
                                     <span style={{ fontSize: 13, color: "#64748b", fontFamily: FONT }}>
                                         Profit: <span style={{ color: profit >= 0 ? "#16a34a" : "#dc2626", fontWeight: 400 }}>
                                             Rs.{profit.toLocaleString("en-IN")}
@@ -441,9 +462,9 @@ export default function CreateProduct({
 
                     {/* Stock & Unit */}
                     <Card>
-                        <div style={{ padding: "18px 20px" }}>
+                        <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Stock & Unit</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
                                 <FormField label="Opening Stock">
                                     <Input
                                         type="number" min="0"
@@ -466,7 +487,7 @@ export default function CreateProduct({
                             </div>
 
                             {/* Size Selection */}
-                            <div style={{ display: "grid", gridTemplateColumns: sizeOption === "Other" ? "1fr 1fr" : "1fr", gap: 14, marginTop: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: (sizeOption === "Other" && !isMobile) ? "1fr 1fr" : "1fr", gap: 14, marginTop: 14 }}>
                                 <FormField label="Select Size">
                                     <Select value={sizeOption} onChange={e => handleSizeOption(e.target.value)}>
                                         <option value="">No specific size</option>
@@ -495,19 +516,20 @@ export default function CreateProduct({
 
                     {/* Product Image */}
                     <Card>
-                        <div style={{ padding: "18px 20px" }}>
+                        <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Images</div>
 
                             {/* Main Preview box */}
                             <div
                                 onClick={() => fileRef.current?.click()}
                                 style={{
-                                    width: "100%", aspectRatio: "1 / 1", maxHeight: 220,
+                                    width: isMobile ? "160px" : "100%", aspectRatio: "1 / 1", maxHeight: 220,
                                     borderRadius: 10, border: "2px dashed #e2e8f0",
                                     background: "#f8fafc", display: "flex",
                                     alignItems: "center", justifyContent: "center",
                                     cursor: "pointer", overflow: "hidden", marginBottom: 16,
                                     transition: "border-color 0.2s",
+                                    margin: isMobile ? "0 auto 16px" : "0 0 16px"
                                 }}
                             >
                                 {imagePreview ? (
@@ -546,35 +568,37 @@ export default function CreateProduct({
                     </Card>
 
                     {/* Status */}
-                    <Card>
-                        <div style={{ padding: "18px 20px" }}>
-                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Status</div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {(["active", "inactive", "low-stock", "out-of-stock"] as const).map(s => {
-                                    const colors: Record<string, { label: string; color: string; bg: string }> = {
-                                        active: { label: "Active", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
-                                        inactive: { label: "Inactive", color: "#94a3b8", bg: "rgba(148,163,184,0.1)" },
-                                        "low-stock": { label: "Low Stock", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-                                        "out-of-stock": { label: "Out of Stock", color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
-                                    };
-                                    const c = colors[s];
-                                    const isSelected = form.status === s;
-                                    return (
-                                        <button key={s} onClick={() => set("status", s)} style={{
-                                            padding: "10px 14px", borderRadius: 9, textAlign: "left",
-                                            border: `1.5px solid ${isSelected ? c.color : "#e2e8f0"}`,
-                                            background: isSelected ? c.bg : "#fff", cursor: "pointer",
-                                            display: "flex", alignItems: "center", gap: 10,
-                                            transition: "all 0.15s",
-                                        }}>
-                                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: isSelected ? c.color : "#e2e8f0", flexShrink: 0 }} />
-                                            <span style={{ fontSize: 13, fontWeight: 400, color: isSelected ? c.color : "#94a3b8", fontFamily: FONT }}>{c.label}</span>
-                                        </button>
-                                    );
-                                })}
+                    {!isMobile && (
+                        <Card>
+                            <div style={{ padding: "18px 20px" }}>
+                                <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Status</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {(["active", "inactive", "low-stock", "out-of-stock"] as const).map(s => {
+                                        const colors: Record<string, { label: string; color: string; bg: string }> = {
+                                            active: { label: "Active", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
+                                            inactive: { label: "Inactive", color: "#94a3b8", bg: "rgba(148,163,184,0.1)" },
+                                            "low-stock": { label: "Low Stock", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+                                            "out-of-stock": { label: "Out of Stock", color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
+                                        };
+                                        const c = colors[s];
+                                        const isSelected = form.status === s;
+                                        return (
+                                            <button key={s} onClick={() => set("status", s)} style={{
+                                                padding: "10px 14px", borderRadius: 9, textAlign: "left",
+                                                border: `1.5px solid ${isSelected ? c.color : "#e2e8f0"}`,
+                                                background: isSelected ? c.bg : "#fff", cursor: "pointer",
+                                                display: "flex", alignItems: "center", gap: 10,
+                                                transition: "all 0.15s",
+                                            }}>
+                                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: isSelected ? c.color : "#e2e8f0", flexShrink: 0 }} />
+                                                <span style={{ fontSize: 13, fontWeight: 400, color: isSelected ? c.color : "#94a3b8", fontFamily: FONT }}>{c.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-                    </Card>
+                        </Card>
+                    )}
 
                     {/* Summary */}
                     <Card>

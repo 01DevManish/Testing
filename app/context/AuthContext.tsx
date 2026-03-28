@@ -20,6 +20,7 @@ interface UserData {
   permissions?: string[];
   dispatchPin?: string;
   profilePic?: string;
+  requiresPasswordChange?: boolean;
 }
 
 interface AuthContextType {
@@ -36,6 +37,7 @@ interface AuthContextType {
   fetchEmployees: () => Promise<UserData[]>;
   updateUserRole: (uid: string, newRole: UserRole) => Promise<void>;
   updateUserData: (uid: string, data: Partial<UserData>) => Promise<void>;
+  forceChangePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -348,6 +350,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const forceChangePassword = async (newPassword: string) => {
+    if (!fbAuth.currentUser) throw new Error("No authenticated user");
+    
+    // 1. Update password in Firebase Auth
+    const { updatePassword } = await import("firebase/auth");
+    await updatePassword(fbAuth.currentUser, newPassword);
+
+    // 2. Clear flag in RTDB
+    await updateUserData(fbAuth.currentUser.uid, { requiresPasswordChange: false });
+
+    // 3. Log activity
+    await logActivity({
+      type: "user",
+      action: "update",
+      title: "Password Changed (Forced)",
+      description: `User ${user?.name} successfully changed their required password.`,
+      userId: fbAuth.currentUser.uid,
+      userName: user?.name || "Unknown",
+      userRole: user?.role || "user",
+    });
+  };
+
   const updateUserRole = async (uid: string, newRole: UserRole) => {
     await updateUserData(uid, { role: newRole });
   };
@@ -367,6 +391,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetchEmployees,
       updateUserRole,
       updateUserData,
+      forceChangePassword,
     }}>
       {children}
     </AuthContext.Provider>

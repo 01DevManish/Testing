@@ -18,14 +18,16 @@ interface Props {
     isAdminOrManager: boolean;
     onEdit: (p: Product) => void;
     onRefresh: () => void;
-    user: { uid: string; name: string };
+    user: { uid: string; name: string; role?: string };
     onCreateNew: () => void;
     onProductsChange: (updated: Product[]) => void;
     onShareCatalog: (selected: Product[]) => void;
+    isMobile?: boolean;
+    isDesktop?: boolean;
 }
 
 export default function ProductList({
-    products, categories, user, loading, isAdminOrManager, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog,
+    products, categories, user, loading, isAdminOrManager, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
 }: Props) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
@@ -146,8 +148,13 @@ export default function ProductList({
     };
 
     const exportCSV = () => {
-        const headers = ["Name", "SKU", "Category", "Brand", "Price", "Cost", "Stock", "Unit", "HSN", "GST%", "Status"];
-        const rows = filtered.map(p => [p.productName, p.sku, p.category, p.brand, p.price, p.costPrice, p.stock, p.unit, p.hsnCode, p.gstRate, p.status]);
+        const isStaff = user.role !== "admin";
+        const headers = ["Name", "SKU", "Category", "Brand", "Price", ...(isStaff ? [] : ["Cost"]), "Stock", "Unit", "HSN", "GST%", "Status", "Wholesale Price", "MRP"];
+        const rows = filtered.map(p => [
+            p.productName, p.sku, p.category, p.brand, p.price, 
+            ...(isStaff ? [] : [p.costPrice]), 
+            p.stock, p.unit, p.hsnCode, p.gstRate, p.status, p.wholesalePrice, p.mrp
+        ]);
         const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\n");
         const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: `products_${new Date().toISOString().slice(0, 10)}.csv` });
         a.click();
@@ -169,9 +176,11 @@ export default function ProductList({
     return (
         <div>
             <PageHeader title="All Products" sub={`${filtered.length} products`}>
-                {isAdminOrManager && <BtnPrimary onClick={onCreateNew}>+ Add Product</BtnPrimary>}
-                <BtnGhost onClick={exportCSV} style={{ fontSize: 13 }}>Export CSV</BtnGhost>
-                <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>Refresh</BtnGhost>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
+                    {isAdminOrManager && <BtnPrimary onClick={onCreateNew} style={isMobile ? { flex: 1, minWidth: 120 } : {}}>+ Add Product</BtnPrimary>}
+                    <BtnGhost onClick={exportCSV} style={{ fontSize: 13, flex: isMobile ? 1 : "initial" }}>Export CSV</BtnGhost>
+                    <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>↻</BtnGhost>
+                </div>
             </PageHeader>
 
             <Card>
@@ -194,18 +203,20 @@ export default function ProductList({
                     </div>
 
                     {/* Filter chips */}
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                            style={{ padding: "6px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none" }}>
+                            style={{ padding: "6px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial" }}>
                             <option value="all">All Categories</option>
                             {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
-                        {(["all", "active", "inactive", "out-of-stock"] as const).map(f => (
-                            <button key={f} onClick={() => setFilterStatus(f)}
-                                style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 400, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
-                                {f === "all" ? "All Status" : STATUS_CONFIG[f]?.label}
-                            </button>
-                        ))}
+                        <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2, flex: isMobile ? "0 0 100%" : "initial" }}>
+                            {(["all", "active", "inactive", "out-of-stock"] as const).map(f => (
+                                <button key={f} onClick={() => setFilterStatus(f)}
+                                    style={{ padding: "5px 10px", borderRadius: 20, fontSize: 10, fontWeight: 400, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
+                                    {f === "all" ? "All" : STATUS_CONFIG[f]?.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -320,7 +331,7 @@ export default function ProductList({
                                             </td>
                                             <td style={td}>
                                                 <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 13, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
-                                                {p.costPrice > 0 && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice).toLocaleString("en-IN")}</div>}
+                                                {user.role === "admin" && p.costPrice > 0 && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice).toLocaleString("en-IN")}</div>}
                                             </td>
                                             <td style={td}>
                                                 <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#f59e0b" : p.stock <= 0 ? "#ef4444" : "#1e293b" }}>{p.stock}</div>

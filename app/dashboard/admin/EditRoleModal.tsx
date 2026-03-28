@@ -16,13 +16,29 @@ interface EditRoleModalProps {
   editPin: string;
   setEditPin: (p: string) => void;
   handleRoleUpdate: () => void;
+  handlePasswordReset: (newPass: string) => Promise<void>;
   onClose: () => void;
 }
 
 export default function EditRoleModal({
   S, editingUser, editRole, setEditRole, editPermissions, setEditPermissions,
-  savingRole, editPin, setEditPin, handleRoleUpdate, onClose,
+  savingRole, editPin, setEditPin, handleRoleUpdate, handlePasswordReset, onClose,
 }: EditRoleModalProps) {
+  const [newPass, setNewPass] = React.useState("");
+  const [resetting, setResetting] = React.useState(false);
+
+  const onReset = async () => {
+    if (!newPass.trim() || newPass.length < 6) return alert("Password must be 6+ characters.");
+    setResetting(true);
+    try {
+      await handlePasswordReset(newPass);
+      setNewPass("");
+      alert("Password updated! The user will be forced to change it on their next login.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div style={S.modalOverlay} onClick={onClose}>
       <div style={S.modalCard} onClick={e => e.stopPropagation()}>
@@ -40,7 +56,7 @@ export default function EditRoleModal({
               if (r === "admin") setEditPermissions(["dispatch", "inventory", "reports", "settings", "party-rates"]);
             }}
               style={{ flex: 1, padding: "10px 6px", borderRadius: 11, cursor: "pointer", textAlign: "center", fontFamily: "inherit", border: editRole === r ? `2px solid ${roleColors[r]}` : "2px solid #e2e8f0", background: editRole === r ? `${roleColors[r]}08` : "#fff" }}>
-              <div style={{ fontSize: 12, fontWeight: 400, color: editRole === r ? roleColors[r] : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{r}</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: editRole === r ? roleColors[r] : "#94a3b8", textTransform: "capitalize", letterSpacing: "0.05em" }}>{r}</div>
             </button>
           ))}
         </div>
@@ -70,6 +86,24 @@ export default function EditRoleModal({
             style={{ ...S.input, letterSpacing: "0.5em", textAlign: "center", fontWeight: 400, fontSize: 18 }}
           />
           <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Administrators can reset user PINs if they are forgotten.</p>
+        </div>
+
+        <label style={{ ...S.label, marginBottom: 10 }}>Update Password (Min 6 chars)</label>
+        <div style={{ display: "flex", gap: 10, marginBottom: 22 }}>
+          <input 
+            type="text" 
+            placeholder="New temporary password"
+            value={newPass}
+            onChange={e => setNewPass(e.target.value)}
+            style={{ ...S.input, flex: 1, margin: 0 }}
+          />
+          <button 
+            disabled={resetting || !newPass} 
+            onClick={onReset}
+            style={{ ...S.btnSecondary, background: "#0f172a", color: "#fff", border: "none" }}
+          >
+            {resetting ? "..." : "Reset"}
+          </button>
         </div>
 
         <button onClick={handleRoleUpdate} disabled={savingRole}

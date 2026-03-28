@@ -9,15 +9,24 @@ interface CatalogTabProps {
     products: Product[];
     categories: Category[];
     collections: Collection[];
+    brands: { id: string, name: string, logoUrl?: string }[];
     loading: boolean;
+    isMobile?: boolean;
+    isDesktop?: boolean;
 }
 
-export default function CatalogTab({ products, categories, collections, loading }: CatalogTabProps) {
+export default function CatalogTab({ products, categories, collections, brands, loading, isMobile, isDesktop }: CatalogTabProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [selectedCollection, setSelectedCollection] = useState("all");
+    const [selectedSize, setSelectedSize] = useState("all");
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [showShareModal, setShowShareModal] = useState(false);
+
+    const uniqueSizes = useMemo(() => {
+        const sizes = products.map(p => p.size).filter(Boolean) as string[];
+        return Array.from(new Set(sizes)).sort();
+    }, [products]);
 
     const filtered = useMemo(() => {
         return products.filter(p => {
@@ -25,9 +34,10 @@ export default function CatalogTab({ products, categories, collections, loading 
                                  p.sku.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesCat = selectedCategory === "all" || p.category === selectedCategory;
             const matchesColl = selectedCollection === "all" || p.collection === selectedCollection;
-            return matchesSearch && matchesCat && matchesColl;
+            const matchesSize = selectedSize === "all" || p.size === selectedSize;
+            return matchesSearch && matchesCat && matchesColl && matchesSize;
         });
-    }, [products, searchTerm, selectedCategory, selectedCollection]);
+    }, [products, searchTerm, selectedCategory, selectedCollection, selectedSize]);
 
     const handleToggleSelect = (p: Product) => {
         setSelectedProducts(prev => {
@@ -55,9 +65,9 @@ export default function CatalogTab({ products, categories, collections, loading 
             />
 
             {/* Filters */}
-            <Card style={{ marginBottom: 24, padding: "16px 20px" }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
-                    <div style={{ flex: 1, minWidth: 240 }}>
+            <Card style={{ marginBottom: 24, padding: isMobile ? "12px 14px" : "16px 20px" }}>
+                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flexWrap: "wrap", gap: 16, alignItems: isMobile ? "stretch" : "center" }}>
+                    <div style={{ flex: 1, minWidth: isMobile ? "100%" : 240 }}>
                         <div style={labelStyle}>Search Products</div>
                         <input 
                             style={inputStyle} 
@@ -66,7 +76,7 @@ export default function CatalogTab({ products, categories, collections, loading 
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div style={{ width: 180 }}>
+                    <div style={{ width: isMobile ? "100%" : 180 }}>
                         <div style={labelStyle}>Category</div>
                         <select 
                             style={inputStyle}
@@ -77,7 +87,7 @@ export default function CatalogTab({ products, categories, collections, loading 
                             {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                     </div>
-                    <div style={{ width: 180 }}>
+                    <div style={{ width: isMobile ? "100%" : 180 }}>
                         <div style={labelStyle}>Collection</div>
                         <select 
                             style={inputStyle}
@@ -88,9 +98,25 @@ export default function CatalogTab({ products, categories, collections, loading 
                             {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                     </div>
+                    <div style={{ width: isMobile ? "100%" : 150 }}>
+                        <div style={labelStyle}>Size</div>
+                        <select 
+                            style={inputStyle}
+                            value={selectedSize}
+                            onChange={e => setSelectedSize(e.target.value)}
+                        >
+                            <option value="all">All Sizes</option>
+                            {uniqueSizes.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </div>
                     <div style={{ alignSelf: "flex-end" }}>
                         <BtnGhost 
-                            onClick={() => { setSearchTerm(""); setSelectedCategory("all"); setSelectedCollection("all"); }}
+                            onClick={() => { 
+                                setSearchTerm(""); 
+                                setSelectedCategory("all"); 
+                                setSelectedCollection("all"); 
+                                setSelectedSize("all");
+                            }}
                             style={{ padding: "10px 16px" }}
                         >
                             Reset
@@ -166,25 +192,31 @@ export default function CatalogTab({ products, categories, collections, loading 
 
             {/* Selection Floating Bar */}
             {selectedProducts.length > 0 && (
-                <div style={floatingBar}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-                        <div style={{ fontSize: 14, fontWeight: 400, color: "#fff" }}>
+                <div style={{ 
+                    ...floatingBar, 
+                    width: isMobile ? "calc(100% - 32px)" : "auto",
+                    bottom: isMobile ? 12 : 24,
+                }}>
+                    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", gap: isMobile ? 12 : 20 }}>
+                        <div style={{ fontSize: 14, fontWeight: 400, color: "#fff", textAlign: "center" }}>
                             {selectedProducts.length} Product{selectedProducts.length > 1 ? "s" : ""} Selected
                         </div>
-                        <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.2)" }} />
-                        <div style={{ display: "flex", gap: 8 }}>
+                        {!isMobile && <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.2)" }} />}
+                        <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto" }}>
                             <BtnPrimary 
                                 onClick={() => setShowShareModal(true)}
-                                style={{ background: "#fff", color: "#6366f1", border: "none" }}
+                                style={{ background: "#fff", color: "#6366f1", border: "none", flex: isMobile ? 1 : "initial" }}
                             >
-                                Share Selected Catalog
+                                {isMobile ? "Share Catalog" : "Share Selected Catalog"}
                             </BtnPrimary>
-                            <button 
-                                onClick={() => setSelectedProducts([])}
-                                style={{ background: "none", border: "none", color: "#fff", fontSize: 13, fontWeight: 400, cursor: "pointer", padding: "0 10px" }}
-                            >
-                                Clear Selection
-                            </button>
+                            {!isMobile && (
+                                <button 
+                                    onClick={() => setSelectedProducts([])}
+                                    style={{ background: "none", border: "none", color: "#fff", fontSize: 13, fontWeight: 400, cursor: "pointer", padding: "0 10px" }}
+                                >
+                                    Clear
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -193,6 +225,7 @@ export default function CatalogTab({ products, categories, collections, loading 
             {showShareModal && (
                 <ShareModal 
                     selectedProducts={selectedProducts}
+                    brands={brands}
                     collectionName={selectedCollection === "all" ? undefined : selectedCollection}
                     onClose={() => setShowShareModal(false)}
                 />

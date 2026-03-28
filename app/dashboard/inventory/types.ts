@@ -12,6 +12,8 @@ export interface Product {
     brand: string;
     brandId?: string;
     price: number;
+    wholesalePrice: number;
+    mrp: number;
     costPrice: number;
     stock: number;
     minStock: number;

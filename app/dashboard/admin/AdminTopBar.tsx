@@ -24,8 +24,8 @@ export default function AdminTopBar({ S, isMobile, isTablet, isDesktop, currentN
       </div>
       {!isDesktop && (
         <button onClick={() => setSidebarOpen(true)}
-          style={{ width: 40, height: 40, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
-          ☰
+          style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", color: "#6366f1", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
       )}
     </div>

@@ -242,7 +242,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#f59e0b")} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "uppercase" }}>Pending Tasks</div>
+              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "capitalize" }}>Pending Tasks</div>
               <div style={{ fontSize: 12, fontWeight: 400, color: "#f59e0b", background: "#fef3c7", padding: "2px 8px", borderRadius: 12 }}>{tasks.filter(t => t.status !== "completed").length}</div>
             </div>
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
@@ -262,7 +262,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#10b981")} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "uppercase" }}>Today's Dispatches</div>
+              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "capitalize" }}>Today's Dispatches</div>
               <div style={{ fontSize: 12, fontWeight: 400, color: "#10b981", background: "#d1fae5", padding: "2px 8px", borderRadius: 12 }}>
                 {activities.filter(a => a.type === "dispatch" && new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).length}
               </div>
@@ -284,7 +284,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#ef4444")} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "uppercase" }}>Critical Stock</div>
+              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "capitalize" }}>Critical Stock</div>
               <div style={{ fontSize: 12, fontWeight: 400, color: "#ef4444", background: "#fee2e2", padding: "2px 8px", borderRadius: 12 }}>{allProducts.filter(p => p.stock <= p.minStock).length}</div>
             </div>
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>

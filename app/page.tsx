@@ -34,11 +34,36 @@ function LoginContent() {
 
   useEffect(() => {
     if (!loading && user) {
+      if (user.requiresPasswordChange) {
+        // Stay on this page but show change password form
+        return;
+      }
       if (user.role === "admin") router.push("/dashboard/admin");
       else if (user.role === "employee" || user.role === "manager") router.push("/dashboard");
       else router.push("/dashboard/user");
     }
   }, [loading, user, router]);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [forcing, setForcing] = useState(false);
+  const { forceChangePassword } = useAuth();
+
+  const handleForceChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) return alert("Passwords do not match.");
+    if (newPassword.length < 6) return alert("Password must be at least 6 characters.");
+    setForcing(true);
+    try {
+      await forceChangePassword(newPassword);
+      alert("Password updated successfully! Welcome to EURUS.");
+      // Redirect will happen via useEffect
+    } catch (err: any) {
+      alert(err.message || "Failed to update password.");
+    } finally {
+      setForcing(false);
+    }
+  };
 
   if (!loading && user) return null;
 
@@ -148,69 +173,107 @@ function LoginContent() {
         )}
 
         {/* Email/Password Form */}
-        <form onSubmit={handleEmailLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              style={inputStyle}
-              onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "#fff"; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }}
-              required
-            />
-          </div>
-          <div style={{ textAlign: "left" }}>
-            <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Security Password</label>
-            <div style={{ position: "relative" }}>
+        {user?.requiresPasswordChange ? (
+          <form onSubmit={handleForceChange} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ textAlign: "left", padding: "12px", background: "#fef2f2", borderRadius: 12, border: "1px solid #fee2e2", marginBottom: 10 }}>
+              <p style={{ fontSize: 13, color: "#991b1b", margin: 0 }}><strong>Security Requirement:</strong> Your password was reset by an administrator. Please set a new private password to continue.</p>
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>New Private Password</label>
               <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                style={{ ...inputStyle, paddingRight: 44 }}
+                type="password"
+                placeholder="6+ characters"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                style={inputStyle}
+                required
+              />
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                style={inputStyle}
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={forcing}
+              style={{
+                width: "100%", padding: "15px 20px", background: "#6366f1", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 400, color: "#fff", cursor: forcing ? "wait" : "pointer", opacity: forcing ? 0.7 : 1, marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 10px 20px rgba(99, 102, 241, 0.15)",
+              }}
+            >
+              {forcing ? <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} /> : "SET PASSWORD & CONTINUE"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleEmailLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ textAlign: "left" }}>
+              <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Official Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                style={inputStyle}
                 onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "#fff"; }}
                 onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }}
                 required
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 400, textTransform: "uppercase" }}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
             </div>
-          </div>
-          <button
-            type="submit"
-            disabled={emailLoading}
-            style={{
-              width: "100%",
-              padding: "15px 20px",
-              background: "#0f172a",
-              border: "none",
-              borderRadius: 12,
-              fontSize: 14,
-              fontWeight: 400,
-              color: "#fff",
-              cursor: emailLoading ? "wait" : "pointer",
-              transition: "all 0.2s ease",
-              opacity: emailLoading ? 0.7 : 1,
-              marginTop: 10,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 10,
-              boxShadow: "0 10px 20px rgba(15, 23, 42, 0.15)",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {emailLoading ? (
-              <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-            ) : "SIGN IN TO ERP"}
-          </button>
-        </form>
+            <div style={{ textAlign: "left" }}>
+              <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>Security Password</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  style={{ ...inputStyle, paddingRight: 44 }}
+                  onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "#fff"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 10, fontWeight: 400, textTransform: "uppercase" }}
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={emailLoading}
+              style={{
+                width: "100%",
+                padding: "15px 20px",
+                background: "#0f172a",
+                border: "none",
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 400,
+                color: "#fff",
+                cursor: emailLoading ? "wait" : "pointer",
+                transition: "all 0.2s ease",
+                opacity: emailLoading ? 0.7 : 1,
+                marginTop: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                boxShadow: "0 10px 20px rgba(15, 23, 42, 0.15)",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {emailLoading ? (
+                <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+              ) : "SIGN IN TO ERP"}
+            </button>
+          </form>
+        )}
       </div>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

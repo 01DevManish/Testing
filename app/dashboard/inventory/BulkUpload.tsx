@@ -15,9 +15,11 @@ interface BulkUploadProps {
     collections: Collection[];
     user: { uid: string; name: string; role: string };
     onDone: () => void;
+    isMobile?: boolean;
+    isDesktop?: boolean;
 }
 
-export default function BulkUpload({ categories, collections, user, onDone }: BulkUploadProps) {
+export default function BulkUpload({ categories, collections, user, onDone, isMobile, isDesktop }: BulkUploadProps) {
     const [uploading, setUploading] = useState(false);
     const [results, setResults] = useState<{ success: number; errors: string[] } | null>(null);
     const [fileStats, setFileStats] = useState<{ name: string; size: number; rows: number } | null>(null);
@@ -78,6 +80,16 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                 reader.readAsBinaryString(file);
             });
 
+            // Optimization: Fetch all existing SKUs once to check locally
+            const inventorySnap = await get(ref(db, "inventory"));
+            const existingSkus = new Set<string>();
+            if (inventorySnap.exists()) {
+                inventorySnap.forEach(snap => {
+                    const val = snap.val();
+                    if (val.sku) existingSkus.add(val.sku.toString().trim());
+                });
+            }
+
             // Iterate and upload
             for (let i = 0; i < data.length; i++) {
                 const row = data[i];
@@ -91,10 +103,7 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                     continue;
                 }
 
-                // SKU Uniqueness check
-                const skuQuery = query(ref(db, "inventory"), orderByChild("sku"), equalTo(sku));
-                const skuSnap = await get(skuQuery);
-                if (skuSnap.exists()) {
+                if (existingSkus.has(sku)) {
                     errors.push(`Row ${rowNum}: SKU "${sku}" already exists in database.`);
                     continue;
                 }
@@ -108,6 +117,8 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
                     collection: row["Collection"]?.toString() || "",
                     brand: row["Brand"]?.toString() || "",
                     price: Number(row["Price"]) || 0,
+                    wholesalePrice: Number(row["Wholesale Price"]) || 0,
+                    mrp: Number(row["MRP"]) || 0,
                     costPrice: Number(row["Cost Price"]) || 0,
                     stock: Number(row["Stock"]) || 0,
                     minStock: Number(row["Min Stock"]) || 5,
@@ -158,7 +169,7 @@ export default function BulkUpload({ categories, collections, user, onDone }: Bu
         <div>
             <PageHeader title="Bulk Inventory Upload" sub="Upload multiple items at once using an Excel file." />
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: 24, alignItems: "start" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                     <Card>
                         <div style={{ padding: 24, textAlign: "center" }}>

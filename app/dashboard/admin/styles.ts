@@ -84,7 +84,8 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       borderRadius: 14,
       border: "1px solid #e2e8f0",
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-      overflow: "hidden" as const,
+      overflowX: "auto" as const, // Fix mobile clipping
+      WebkitOverflowScrolling: "touch" as const,
     } as React.CSSProperties,
 
     th: {

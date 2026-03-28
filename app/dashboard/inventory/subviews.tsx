@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { ref, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Category, Collection, ItemGroup, Product } from "./types";
@@ -11,7 +11,7 @@ import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, 
 // ══════════════════════════════════════════════════════════════
 // CREATE CATEGORY
 // ══════════════════════════════════════════════════════════════
-export function CreateCategory({ user, onCreated }: { user: { uid: string; name: string }, onCreated?: (c: Category) => void }) {
+export function CreateCategory({ user, onCreated, isMobile, isDesktop }: { user: { uid: string; name: string }, onCreated?: (c: Category) => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState("");
     const [desc, setDesc] = useState("");
     const [saving, setSaving] = useState(false);
@@ -72,7 +72,7 @@ export function CreateCategory({ user, onCreated }: { user: { uid: string; name:
 // ══════════════════════════════════════════════════════════════
 // CATEGORY LIST
 // ══════════════════════════════════════════════════════════════
-export function CategoryList({ categories, user, loading, onCreateNew }: { categories: Category[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void }) {
+export function CategoryList({ categories, user, loading, onCreateNew, isMobile, isDesktop }: { categories: Category[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<Category | null>(null);
     return (
         <div>
@@ -143,7 +143,13 @@ export function CategoryList({ categories, user, loading, onCreateNew }: { categ
     );
 }
 
-function EditCategoryModal({ category, user, onClose }: { category: Category; user: { uid: string; name: string }; onClose: () => void }) {
+function EditCategoryModal({ category, user, onClose, isMobile, isDesktop }: { 
+    category: Category; 
+    user: { uid: string; name: string }; 
+    onClose: () => void;
+    isMobile?: boolean;
+    isDesktop?: boolean;
+}) {
     const [name, setName] = useState(category.name);
     const [desc, setDesc] = useState(category.description || "");
     const [saving, setSaving] = useState(false);
@@ -175,7 +181,7 @@ function EditCategoryModal({ category, user, onClose }: { category: Category; us
                     <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", marginBottom: 20 }}>Edit Category</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         <FormField label="Category Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
-                        <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} /></FormField>
+                        <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
                     </div>
                     <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 24 }}>
                         <BtnGhost onClick={onClose}>Cancel</BtnGhost>
@@ -190,7 +196,7 @@ function EditCategoryModal({ category, user, onClose }: { category: Category; us
 // ══════════════════════════════════════════════════════════════
 // CREATE COLLECTION
 // ══════════════════════════════════════════════════════════════
-export function CreateCollection({ products, user, onCreated }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (c: Collection) => void }) {
+export function CreateCollection({ products, user, onCreated, isMobile, isDesktop }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (c: Collection) => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState("");
     const [desc, setDesc] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -236,7 +242,7 @@ export function CreateCollection({ products, user, onCreated }: { products: { id
         <div>
             <PageHeader title="Create Collection" sub="Group products into a named collection." />
             {success && <SuccessBanner message={success} onClose={() => setSuccess("")} />}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 18, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 360px", gap: 18, alignItems: "start" }}>
                 <Card>
                     <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
                         <FormField label="Collection Name" required>
@@ -284,7 +290,7 @@ export function CreateCollection({ products, user, onCreated }: { products: { id
 // ══════════════════════════════════════════════════════════════
 // COLLECTION LIST
 // ══════════════════════════════════════════════════════════════
-export function CollectionList({ collections, user, loading, onCreateNew, products }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[] }) {
+export function CollectionList({ collections, user, loading, onCreateNew, products, isMobile, isDesktop }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<Collection | null>(null);
     return (
         <div>
@@ -350,13 +356,15 @@ export function CollectionList({ collections, user, loading, onCreateNew, produc
                     user={user} 
                     allProducts={products || []}
                     onClose={() => setEditing(null)} 
+                    isMobile={isMobile}
+                    isDesktop={isDesktop}
                 />
             )}
         </div>
     );
 }
 
-function EditCollectionModal({ collection, user, allProducts, onClose }: { collection: Collection; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void }) {
+function EditCollectionModal({ collection, user, allProducts, onClose, isMobile, isDesktop }: { collection: Collection; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState(collection.name);
     const [desc, setDesc] = useState(collection.description || "");
     const [selected, setSelected] = useState<Set<string>>(new Set(collection.productIds || []));
@@ -394,7 +402,7 @@ function EditCollectionModal({ collection, user, allProducts, onClose }: { colle
             <Card style={{ maxWidth: 800, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
                 <div style={{ padding: 24 }}>
                     <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", marginBottom: 20 }}>Edit Collection</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             <FormField label="Collection Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
                             <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
@@ -425,7 +433,7 @@ function EditCollectionModal({ collection, user, allProducts, onClose }: { colle
 // ══════════════════════════════════════════════════════════════
 // CREATE ITEM GROUP
 // ══════════════════════════════════════════════════════════════
-export function CreateItemGroup({ products, user, onCreated }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (g: ItemGroup) => void }) {
+export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (g: ItemGroup) => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState("");
     const [desc, setDesc] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -471,7 +479,7 @@ export function CreateItemGroup({ products, user, onCreated }: { products: { id:
         <div>
             <PageHeader title="Create Item Group" sub="Group similar items for bulk management." />
             {success && <SuccessBanner message={success} onClose={() => setSuccess("")} />}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 18, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 360px", gap: 18, alignItems: "start" }}>
                 <Card>
                     <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
                         <FormField label="Group Name" required>
@@ -517,7 +525,7 @@ export function CreateItemGroup({ products, user, onCreated }: { products: { id:
 // ══════════════════════════════════════════════════════════════
 // ITEM GROUP LIST
 // ══════════════════════════════════════════════════════════════
-export function ItemGroupList({ groups, user, loading, onCreateNew, products }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[] }) {
+export function ItemGroupList({ groups, user, loading, onCreateNew, products, isMobile, isDesktop }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<ItemGroup | null>(null);
     return (
         <div>
@@ -583,13 +591,15 @@ export function ItemGroupList({ groups, user, loading, onCreateNew, products }: 
                     user={user} 
                     allProducts={products || []}
                     onClose={() => setEditing(null)} 
+                    isMobile={isMobile}
+                    isDesktop={isDesktop}
                 />
             )}
         </div>
     );
 }
 
-function EditItemGroupModal({ group, user, allProducts, onClose }: { group: ItemGroup; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void }) {
+function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDesktop }: { group: ItemGroup; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState(group.name);
     const [desc, setDesc] = useState(group.description || "");
     const [selected, setSelected] = useState<Set<string>>(new Set(group.productIds || []));
@@ -627,7 +637,7 @@ function EditItemGroupModal({ group, user, allProducts, onClose }: { group: Item
             <Card style={{ maxWidth: 800, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
                 <div style={{ padding: 24 }}>
                     <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", marginBottom: 20 }}>Edit Item Group</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             <FormField label="Group Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
                             <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
@@ -658,7 +668,14 @@ function EditItemGroupModal({ group, user, allProducts, onClose }: { group: Item
 // ══════════════════════════════════════════════════════════════
 // INVENTORY ADJUSTMENT
 // ══════════════════════════════════════════════════════════════
-export function InventoryAdjustment({ products, collections, user, onDone }: { products: Product[], collections: Collection[], user: { uid: string; name: string }, onDone?: () => void }) {
+export function InventoryAdjustment({ products, collections, user, onDone, isMobile, isDesktop }: { 
+    products: Product[]; 
+    collections: Collection[]; 
+    user: { uid: string; name: string }; 
+    onDone?: () => void; 
+    isMobile?: boolean; 
+    isDesktop?: boolean; 
+}) {
     const [search, setSearch] = useState("");
     const [filterCol, setFilterCol] = useState("all");
     const [filterSize, setFilterSize] = useState("all");
@@ -756,7 +773,7 @@ export function InventoryAdjustment({ products, collections, user, onDone }: { p
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map(p => <AdjustRow key={p.id} p={p} user={user} onRefresh={() => { onDone?.(); setSuccessMsg(`Stock updated for ${p.productName}`); }} />)}
+                            {filtered.map(p => <AdjustRow key={p.id} p={p} user={user} onRefresh={() => { onDone?.(); setSuccessMsg(`Stock updated for ${p.productName}`); }} isMobile={isMobile} />)}
                         </tbody>
                     </table>
                     {filtered.length === 0 && (
@@ -768,7 +785,7 @@ export function InventoryAdjustment({ products, collections, user, onDone }: { p
     );
 }
 
-function AdjustRow({ p, user, onRefresh }: { p: Product, user: { uid: string; name: string }, onRefresh?: () => void }) {
+function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: string; name: string }, onRefresh?: () => void, isMobile?: boolean }) {
     const [qty, setQty] = useState<number | "">(1);
     const [saving, setSaving] = useState(false);
     const [confirm, setConfirm] = useState<{ mode: "add" | "remove" } | null>(null);
@@ -992,7 +1009,7 @@ export function BarcodeView({ mode }: { mode: "create" | "print" }) {
 // ══════════════════════════════════════════════════════════════
 // OVERVIEW (ALL INVENTORY DASHBOARD)
 // ══════════════════════════════════════════════════════════════
-export function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole }: { 
+export function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole, isMobile, isDesktop }: { 
     products: Product[]; 
     categories: Category[]; 
     collections: Collection[]; 
@@ -1000,6 +1017,8 @@ export function Overview({ products, categories, collections, loading, onNavigat
     onNavigate: (view: any) => void;
     currentName: string;
     userRole: string;
+    isMobile?: boolean;
+    isDesktop?: boolean;
 }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
@@ -1007,64 +1026,77 @@ export function Overview({ products, categories, collections, loading, onNavigat
     const [breakdownSearch, setBreakdownSearch] = useState("");
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-    const total = products.length;
-    const totalStock = products.reduce((s, p) => s + (p.stock || 0), 0);
-    const inStock = products.filter(p => p.stock > p.minStock).length;
-    const outStock = products.filter(p => p.stock <= 0).length;
-    const lowStock = products.filter(p => p.stock > 0 && p.stock <= p.minStock).length;
-    
-    const totalVal = products.reduce((s, p) => s + (p.price * p.stock), 0);
+    const stats = useMemo(() => {
+        const total = products.length;
+        const totalStock = products.reduce((s, p) => s + (p.stock || 0), 0);
+        const inStock = products.filter(p => p.stock > p.minStock).length;
+        const outStock = products.filter(p => p.stock <= 0).length;
+        const lowStock = products.filter(p => p.stock > 0 && p.stock <= (p.minStock || 5)).length;
+        const totalVal = products.reduce((s, p) => s + (p.price * p.stock), 0);
+
+        const list = [
+            { label: "Total Products", value: total, color: "#6366f1" },
+            { label: "In Stock Items", value: inStock, color: "#10b981" },
+            { label: "Low Stock Alert", value: lowStock, color: "#f59e0b" },
+            { label: "Out of Stock", value: outStock, color: "#ef4444" },
+        ];
+
+        if (userRole === "admin") {
+            list.splice(1, 0, { label: "Total Stock", value: totalStock, color: "#3b82f6" });
+            list.push({ label: "Total Asset Value", value: totalVal, color: "#8b5cf6" });
+        }
+        return { list, total, totalStock, totalVal };
+    }, [products, userRole]);
 
     // Dynamic Breakdown Calculation
-    let breakdown: Record<string, number> = {};
-    if (groupBy === "category") {
-        products.forEach(p => { 
-            if (p.category) breakdown[p.category] = (breakdown[p.category] || 0) + 1; 
-        });
-    } else {
-        products.forEach(p => {
-            if (p.collection) breakdown[p.collection] = (breakdown[p.collection] || 0) + 1;
-        });
-    }
+    const breakdownData = useMemo(() => {
+        let breakdown: Record<string, number> = {};
+        if (groupBy === "category") {
+            products.forEach(p => { 
+                if (p.category) breakdown[p.category] = (breakdown[p.category] || 0) + 1; 
+            });
+        } else {
+            products.forEach(p => {
+                if (p.collection) breakdown[p.collection] = (breakdown[p.collection] || 0) + 1;
+            });
+        }
+        return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+    }, [products, groupBy]);
 
-    const filteredBreakdown = Object.entries(breakdown)
-        .filter(([name]) => name.toLowerCase().includes(breakdownSearch.toLowerCase()))
-        .sort((a, b) => b[1] - a[1]);
+    const filteredBreakdown = useMemo(() => 
+        breakdownData.filter(([name]: [string, number]) => name.toLowerCase().includes(breakdownSearch.toLowerCase())),
+        [breakdownData, breakdownSearch]
+    );
 
-    const recentProducts = [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+    const recentProducts = useMemo(() => 
+        [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
+        [products]
+    );
 
-    const filteredStock = products.filter(p => {
-        const matchQ = p.productName.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-        let matchS = true;
-        if (filterStatus === "in-stock") matchS = p.stock > p.minStock;
-        if (filterStatus === "low-stock") matchS = p.stock > 0 && p.stock <= p.minStock;
-        if (filterStatus === "out-stock") matchS = p.stock <= 0;
-        return matchQ && matchS;
-    });
+    const filteredStock = useMemo(() => 
+        products.filter((p: Product) => {
+            const matchQ = p.productName.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+            let matchS = true;
+            if (filterStatus === "in-stock") matchS = p.stock > p.minStock;
+            if (filterStatus === "low-stock") matchS = p.stock > 0 && p.stock <= p.minStock;
+            if (filterStatus === "out-stock") matchS = p.stock <= 0;
+            return matchQ && matchS;
+        }),
+        [products, searchTerm, filterStatus]
+    );
 
-    const stats: { label: string; value: string | number; color: string }[] = [
-        { label: "Total Products", value: total, color: "#6366f1" },
-        { label: "Total Stock", value: totalStock, color: "#3b82f6" },
-        { label: "In Stock Items", value: inStock, color: "#10b981" },
-        { label: "Low Stock Alert", value: lowStock, color: "#f59e0b" },
-        { label: "Out of Stock", value: outStock, color: "#ef4444" },
-    ];
-
-    if (userRole === "admin") {
-        stats.push({ label: "Total Asset Value", value: `₹${totalVal.toLocaleString("en-IN")}`, color: "#8b5cf6" });
-    }
 
     return (
         <div>
             <PageHeader title="Inventory Overview" sub="Comprehensive view of your entire stock status." />
             
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(${userRole === 'admin' ? 6 : 5}, 1fr)`, gap: 14, marginBottom: 20 }}>
-                {stats.map((s, i) => (
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : `repeat(${userRole === 'admin' ? 6 : 4}, 1fr)`, gap: 14, marginBottom: 20 }}>
+                {stats.list.map((s: { label: string; value: string | number; color: string }, i: number) => (
                     <Card key={i}>
                         <div style={{ padding: "16px 18px" }}>
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, marginBottom: 10 }} />
                             <div style={{ fontSize: 20, fontWeight: 400, color: "#1e293b", fontFamily: FONT, marginBottom: 3 }}>
-                                {s.value}
+                                {s.label === "Total Asset Value" && typeof s.value === "number" ? `₹${s.value.toLocaleString("en-IN")}` : s.value}
                             </div>
                             <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT, fontWeight: 400 }}>
                                 {s.label}
@@ -1074,7 +1106,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                 ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: 18 }}>
                 <Card>
                     <div style={{ padding: "18px 20px" }}>
                         <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Recently Added Products</div>
@@ -1082,7 +1114,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                             <EmptyState title="No Products" sub="Your inventory is currently empty." />
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column" }}>
-                                {recentProducts.map(p => (
+                                {recentProducts.map((p: Product) => (
                                     <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
                                         <div style={{ width: 44, height: 44, borderRadius: 8, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                             {p.imageUrl ? (
@@ -1136,8 +1168,8 @@ export function Overview({ products, categories, collections, loading, onNavigat
                             <div style={{ color: "#94a3b8", fontSize: 13, fontFamily: FONT, textAlign: "center", padding: "20px 0" }}>No data found.</div>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                {filteredBreakdown.slice(0, 10).map(([key, count]) => {
-                                    const pct = Math.round((count / total) * 100);
+                                {filteredBreakdown.slice(0, 10).map(([key, count]: [string, number]) => {
+                                    const pct = Math.round((count / stats.total) * 100);
                                     return (
                                         <div key={key}>
                                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>

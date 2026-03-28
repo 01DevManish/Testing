@@ -36,12 +36,12 @@ export default function AdminSidebar({
           <img src="/logo.png" alt="Logo" style={{ width: 34, height: 34, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2, flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-            <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Console</div>
+            <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "capitalize", letterSpacing: "0.15em" }}>Admin Console</div>
           </div>
         </div>
 
         {/* Nav */}
-        <div style={{ fontSize: 9, fontWeight: 400, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Navigation</div>
+        <div style={{ fontSize: 9, fontWeight: 400, color: "#475569", textTransform: "capitalize", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Navigation</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           {[
             { label: "Dashboard", key: "dashboard", isTab: true },
@@ -84,7 +84,7 @@ export default function AdminSidebar({
 
         {settingsItems && settingsItems.length > 0 && (
           <div style={{ marginTop: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 400, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Settings</div>
+            <div style={{ fontSize: 9, fontWeight: 400, color: "#475569", textTransform: "capitalize", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Settings</div>
             <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               {settingsItems.map(item => (
                 <button key={item.key} onClick={() => { setTab(item.key); if (!isDesktop) setSidebarOpen(false); }}

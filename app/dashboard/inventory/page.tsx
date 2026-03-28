@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ref, get, update, query, orderByChild, equalTo, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
@@ -43,6 +43,16 @@ function useWindowWidth() {
   return w;
 }
 
+// ── Cache (Persistence across navigation) ────────────────────
+let inventoryCache: {
+  products: Product[];
+  categories: Category[];
+  collections: Collection[];
+  groups: ItemGroup[];
+  brands: any[];
+  lastFetched: number;
+} | null = null;
+
 // ═══════════════════════════════════════════════════════════════
 export default function InventoryPage() {
   const { user, userData, logout, loading } = useAuth();
@@ -62,6 +72,48 @@ export default function InventoryPage() {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [brands, setBrands] = useState<{ id: string, name: string, logoUrl?: string }[]>([]);
   const [fetching, setFetching] = useState(true);
+
+  // Initialize from cache on mount
+  useEffect(() => {
+    if (inventoryCache) {
+        setProducts(inventoryCache.products);
+        setCategories(inventoryCache.categories);
+        setCollections(inventoryCache.collections);
+        setGroups(inventoryCache.groups);
+        setBrands(inventoryCache.brands);
+        setFetching(false);
+    } else {
+        const local = localStorage.getItem("eurus_inv_cache");
+        if (local) {
+            try {
+                const parsed = JSON.parse(local);
+                inventoryCache = parsed;
+                setProducts(parsed.products);
+                setCategories(parsed.categories);
+                setCollections(parsed.collections);
+                setGroups(parsed.groups);
+                setBrands(parsed.brands);
+                setFetching(false);
+            } catch (e) { console.error("Cache parse error", e); }
+        }
+    }
+  }, []);
+
+  // Sync state to cache whenever it changes
+  useEffect(() => {
+    if (products.length > 0 || categories.length > 0) {
+      const newCache = {
+        products,
+        categories,
+        collections,
+        groups,
+        brands,
+        lastFetched: inventoryCache?.lastFetched || Date.now()
+      };
+      inventoryCache = newCache;
+      localStorage.setItem("eurus_inv_cache", JSON.stringify(newCache));
+    }
+  }, [products, categories, collections, groups, brands]);
 
   // ── Edit modal ────────────────────────────────────────────
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -121,16 +173,48 @@ export default function InventoryPage() {
         }
         return arr;
       };
-      setProducts(toList(pSnap));
-      setCategories(toList(cSnap));
-      setCollections(toList(colSnap));
-      setGroups(toList(gSnap));
-      setBrands(toList(bSnap));
+      const pList = toList(pSnap);
+      const cList = toList(cSnap);
+      const colList = toList(colSnap);
+      const gList = toList(gSnap);
+      const bList = toList(bSnap);
+
+      setProducts(pList);
+      setCategories(cList);
+      setCollections(colList);
+      setGroups(gList);
+      setBrands(bList);
+
+      // Update global cache
+      inventoryCache = {
+        products: pList,
+        categories: cList,
+        collections: colList,
+        groups: gList,
+        brands: bList,
+        lastFetched: Date.now()
+      };
+      localStorage.setItem("eurus_inv_cache", JSON.stringify(inventoryCache));
     } catch (err) { console.error(err); }
     finally { setFetching(false); }
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => { 
+    if (inventoryCache && Date.now() - inventoryCache.lastFetched < 30000) return;
+    loadAll(); 
+  }, [loadAll]);
+
+  const productStubs = useMemo(() => 
+    products.map(p => ({ 
+      id: p.id, 
+      productName: p.productName, 
+      stock: p.stock, 
+      unit: p.unit || "PCS", 
+      minStock: p.minStock, 
+      status: p.status 
+    })), 
+    [products]
+  );
 
   const handleLogout = async () => { await logout(); router.replace("/"); };
 
@@ -145,7 +229,7 @@ export default function InventoryPage() {
 
     setEditForm({
       productName: p.productName, sku: p.sku, category: p.category, collection: p.collection || "", brand: p.brand, brandId: p.brandId || "",
-      price: p.price, costPrice: p.costPrice, stock: p.stock, minStock: p.minStock,
+      price: p.price, wholesalePrice: p.wholesalePrice || 0, mrp: p.mrp || 0, costPrice: p.costPrice, stock: p.stock, minStock: p.minStock,
       status: p.status, imageUrl: p.imageUrl || "", description: p.description || "",
       unit: p.unit || "PCS", hsnCode: p.hsnCode || "", gstRate: p.gstRate ?? 18, size: p.size || "",
     });
@@ -197,6 +281,8 @@ export default function InventoryPage() {
       imageUrls: finalImageUrls,
       status: autoStatus, 
       price: Number(editForm.price), 
+      wholesalePrice: Number(editForm.wholesalePrice || 0),
+      mrp: Number(editForm.mrp || 0),
       costPrice: Number(editForm.costPrice), 
       stock: Number(editForm.stock), 
       minStock: Number(editForm.minStock), 
@@ -220,7 +306,9 @@ export default function InventoryPage() {
         metadata: { productId: editProduct.id, oldStock: editProduct.stock, newStock: updated.stock }
       });
 
-      setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...updated } : p));
+      const finalProducts = products.map(p => p.id === editProduct.id ? { ...p, ...updated } : p);
+      setProducts(finalProducts);
+      if (inventoryCache) inventoryCache.products = finalProducts;
       setEditProduct(null); setEditForm(null);
     } catch (err: any) {
       console.error("Update Error:", err);
@@ -246,7 +334,6 @@ export default function InventoryPage() {
     );
   }
 
-  const productStubs = products.map(p => ({ id: p.id, productName: p.productName, stock: p.stock, unit: p.unit || "PCS", minStock: p.minStock, status: p.status }));
 
   // ── Route view ─────────────────────────────────────────────
   const navigate = (view: ActiveView) => {
@@ -255,6 +342,7 @@ export default function InventoryPage() {
   };
 
   const renderView = () => {
+    const commonProps = { isMobile, isDesktop };
     switch (activeView) {
       // ── Products ──────────────────────────────────────────
       case "product-create":
@@ -263,11 +351,12 @@ export default function InventoryPage() {
             categories={categories}
             collections={collections}
             brands={brands}
-            user={{ uid: user.uid, name: currentName }}
+            user={{ uid: user.uid, name: currentName, role: currentRole }}
             onCreated={() => { 
                 loadAll(); 
                 setActiveView("product-list"); 
-            }} 
+            }}
+            {...commonProps}
           />
         );
       case "product-list":
@@ -275,7 +364,7 @@ export default function InventoryPage() {
           <ProductList
             products={products}
             categories={categories}
-            user={{ uid: user.uid, name: currentName }}
+            user={{ uid: user.uid, name: currentName, role: currentRole }}
             loading={fetching}
             isAdminOrManager={isAdminOrManager}
             onEdit={openEdit}
@@ -283,37 +372,38 @@ export default function InventoryPage() {
             onCreateNew={() => navigate("product-create")}
             onProductsChange={setProducts}
             onShareCatalog={setSharingProducts}
+            {...commonProps}
           />
         );
       // ── Categories ────────────────────────────────────────
       case "category-create":
-        return <CreateCategory user={{ uid: user.uid, name: currentName }} onCreated={c => { setCategories(prev => [c, ...prev]); navigate("category-list"); }} />;
+        return <CreateCategory user={{ uid: user.uid, name: currentName }} onCreated={c => { setCategories(prev => [c, ...prev]); navigate("category-list"); }} {...commonProps} />;
       case "category-list":
-        return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("category-create")} />;
+        return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("category-create")} {...commonProps} />;
       // ── Collections ───────────────────────────────────────
       case "collections-create":
-        return <CreateCollection products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} />;
+        return <CreateCollection products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} {...commonProps} />;
       case "collections-list":
-        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("collections-create")} />;
+        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("collections-create")} {...commonProps} />;
       // ── Inventory actions ─────────────────────────────────
       case "inventory-adjustment":
-        return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} />;
+        return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} {...commonProps} />;
       case "inventory-barcode-create":
-        return <BarcodeView mode="create" />;
+        return <BarcodeView mode="create" {...commonProps} />;
       case "inventory-barcode-print":
-        return <BarcodeView mode="print" />;
+        return <BarcodeView mode="print" {...commonProps} />;
       // ── Overview ──────────────────────────────────────────
       case "overview":
-        return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} />;
+        return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} {...commonProps} />;
       // ── Item Grouping ─────────────────────────────────────
       case "grouping-create":
-        return <CreateItemGroup products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} />;
+        return <CreateItemGroup products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} {...commonProps} />;
       case "grouping-list":
-        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("grouping-create")} />;
+        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("grouping-create")} {...commonProps} />;
       case "catalog":
-        return <CatalogTab products={products} categories={categories} collections={collections} loading={fetching} />;
+        return <CatalogTab products={products} categories={categories} collections={collections} brands={brands} loading={fetching} {...commonProps} />;
       case "inventory-bulk":
-        return <BulkUpload categories={categories} collections={collections} user={{ uid: user.uid, name: currentName, role: currentRole }} onDone={() => { loadAll(); navigate("product-list"); }} />;
+        return <BulkUpload categories={categories} collections={collections} user={{ uid: user.uid, name: currentName, role: currentRole }} onDone={() => { loadAll(); navigate("product-list"); }} {...commonProps} />;
       default:
         return null;
     }
@@ -390,11 +480,11 @@ export default function InventoryPage() {
 
             <h3 style={{ fontSize: 17, fontWeight: 400, color: "#0f172a", margin: "0 0 20px", fontFamily: FONT }}>Edit Product</h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Item Name" required><Input value={editForm.productName} onChange={e => setEditForm({ ...editForm, productName: e.target.value })} /></FormField>
               <FormField label="SKU" required><Input value={editForm.sku} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} /></FormField>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Category"><Select value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}><option value="">Select...</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
               <FormField label="Collection"><Select value={editForm.collection || ""} onChange={e => setEditForm({ ...editForm, collection: e.target.value })}><option value="">Select...</option>{collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
               <FormField label="Brand">
@@ -490,26 +580,34 @@ export default function InventoryPage() {
                 </div>
               </FormField>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Selling Price"><Input type="number" min="0" value={editForm.price || ""} onChange={e => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })} /></FormField>
-              <FormField label="Cost Price"><Input type="number" min="0" value={editForm.costPrice || ""} onChange={e => setEditForm({ ...editForm, costPrice: parseFloat(e.target.value) || 0 })} /></FormField>
-              <FormField label="GST Rate"><Select value={editForm.gstRate} onChange={e => setEditForm({ ...editForm, gstRate: Number(e.target.value) })}>{GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</Select></FormField>
+              <FormField label="Wholesale Price"><Input type="number" min="0" value={editForm.wholesalePrice || ""} onChange={e => setEditForm({ ...editForm, wholesalePrice: parseFloat(e.target.value) || 0 })} /></FormField>
+              <FormField label="MRP"><Input type="number" min="0" value={editForm.mrp || ""} onChange={e => setEditForm({ ...editForm, mrp: parseFloat(e.target.value) || 0 })} /></FormField>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+              {userData?.role === "admin" && (
+                <FormField label="Cost Price"><Input type="number" min="0" value={editForm.costPrice || ""} onChange={e => setEditForm({ ...editForm, costPrice: Number(e.target.value) || 0 })} /></FormField>
+              )}
+              <FormField label="GST Rate"><Select value={editForm.gstRate} onChange={e => setEditForm({ ...editForm, gstRate: Number(e.target.value) })}>{GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</Select></FormField>
               <FormField label="Stock"><Input type="number" min="0" value={editForm.stock || ""} onChange={e => setEditForm({ ...editForm, stock: parseInt(e.target.value) || 0 })} /></FormField>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Min Stock"><Input type="number" min="0" value={editForm.minStock || ""} onChange={e => setEditForm({ ...editForm, minStock: parseInt(e.target.value) || 0 })} /></FormField>
               <FormField label="Unit"><Select value={editForm.unit} onChange={e => setEditForm({ ...editForm, unit: e.target.value })}>{UNITS.map(u => <option key={u}>{u}</option>)}</Select></FormField>
+              <FormField label="HSN Code"><Input value={editForm.hsnCode} onChange={e => setEditForm({ ...editForm, hsnCode: e.target.value })} /></FormField>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20, marginBottom: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "240px 1fr", gap: 20, marginBottom: 18 }}>
               {/* Main Thumbnail Section */}
               <div>
                 <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 10, fontFamily: FONT }}>Main Thumbnail</div>
                 <div
                   onClick={() => editFileRef.current?.click()}
                   style={{
-                    width: "100%", aspectRatio: "1/1", borderRadius: 12, border: "2px dashed #e2e8f0",
+                    width: isMobile ? "160px" : "100%", aspectRatio: "1/1", borderRadius: 12, border: "2px dashed #e2e8f0",
                     background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer", overflow: "hidden", position: "relative"
+                    cursor: "pointer", overflow: "hidden", position: "relative",
+                    margin: isMobile ? "0 auto" : "0"
                   }}
                 >
                   {editForm.imageUrl ? (
@@ -560,7 +658,7 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="HSN Code"><Input value={editForm.hsnCode} onChange={e => setEditForm({ ...editForm, hsnCode: e.target.value })} /></FormField>
               <FormField label="Main Image URL (Manual)"><Input type="url" value={editForm.imageUrl.startsWith("data:") ? "" : editForm.imageUrl} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} /></FormField>
               <FormField label="Status">
@@ -617,6 +715,7 @@ export default function InventoryPage() {
       {sharingProducts && (
         <ShareModal 
           selectedProducts={sharingProducts} 
+          brands={brands}
           onClose={() => setSharingProducts(null)} 
         />
       )}

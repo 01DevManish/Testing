@@ -52,8 +52,8 @@ export default function UsersTab({
         <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 14, marginBottom: 2 }}>{u.name}</div>
         <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={S.badge(roleColors[u.role], `${roleColors[u.role]}12`)}>{u.role}</span>
-          {u.permissions?.map(p => <span key={p} style={S.badge("#6366f1", "rgba(99,102,241,0.08)")}>{p}</span>)}
+          <span style={{ ...S.badge(roleColors[u.role], `${roleColors[u.role]}12`), textTransform: "capitalize" }}>{u.role}</span>
+          {u.permissions?.map(p => <span key={p} style={{ ...S.badge("#6366f1", "rgba(99,102,241,0.08)"), textTransform: "capitalize" }}>{p}</span>)}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -186,11 +186,11 @@ export default function UsersTab({
                       </div>
                     </td>
                     {!isTablet && <td style={S.td}>{u.email}</td>}
-                    <td style={S.td}><span style={S.badge(roleColors[u.role], `${roleColors[u.role]}12`)}>{u.role}</span></td>
+                    <td style={S.td}><span style={{ ...S.badge(roleColors[u.role], `${roleColors[u.role]}12`), textTransform: "capitalize" }}>{u.role}</span></td>
                     {!isTablet && (
                       <td style={S.td}>
                         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                          {u.permissions?.map(p => <span key={p} style={S.badge("#6366f1", "rgba(99,102,241,0.08)")}>{p.slice(0, 4)}..</span>)}
+                          {u.permissions?.map(p => <span key={p} style={{ ...S.badge("#6366f1", "rgba(99,102,241,0.08)"), textTransform: "capitalize" }}>{p.slice(0, 4)}..</span>)}
                         </div>
                       </td>
                     )}
