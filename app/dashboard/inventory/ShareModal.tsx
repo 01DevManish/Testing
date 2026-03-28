@@ -85,7 +85,7 @@ const processProductImage = async (
                     logoImg.crossOrigin = "anonymous";
                     logoImg.onload = () => {
                         try {
-                            const logoH = Math.floor(canvas.width * 0.12);
+                            const logoH = Math.floor(canvas.width * 0.18);
                             const logoW = (logoImg.width / logoImg.height) * logoH;
                             const lx = canvas.width - logoW - padding;
                             ctx.fillStyle = "#ffffff";
