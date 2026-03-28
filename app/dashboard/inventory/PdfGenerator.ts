@@ -71,9 +71,9 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
     // 2. Header
     const drawHeader = async (d: jsPDF) => {
         // Logo on left side
-        const logoBase64 = await getBase64Image("/logo.png", 150);
+        const logoBase64 = await getBase64Image("/logo.png", 200);
         if (logoBase64) {
-            d.addImage(logoBase64, "PNG", 14, 12, 16, 16);
+            d.addImage(logoBase64, "PNG", 14, 8, 24, 24);
         }
         
         d.setFont("helvetica", "bold");
