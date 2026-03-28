@@ -108,7 +108,7 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
 
     // 3. Table
     autoTable(doc, {
-        head: [["Sr.No.", "Product Image", "Product Detail", "Price"]],
+        head: [["Sr.No.", "Product Image", "Product Detail", "Wholesale Price"]],
         body: tableData,
         startY: 58,
         theme: "plain",
