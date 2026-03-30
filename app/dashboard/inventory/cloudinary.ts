@@ -1,6 +1,6 @@
 export const uploadToCloudinary = async (base64OrUrl: string): Promise<string> => {
-    if (!base64OrUrl.startsWith("data:image")) {
-        return base64OrUrl; // Already a URL or absolute path
+    if (!base64OrUrl || (!base64OrUrl.startsWith("data:") && !base64OrUrl.startsWith("http"))) {
+        return base64OrUrl;
     }
 
     try {

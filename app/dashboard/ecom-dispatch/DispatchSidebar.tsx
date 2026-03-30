@@ -28,7 +28,8 @@ const NAV_GROUPS: NavGroup[] = [
             </svg>
         ),
         items: [
-            { id: "create-dispatch", label: "Create Dispatch" },
+            { id: "rapid-dispatch", label: "Create Dispatch" },
+            { id: "create-dispatch", label: "Step-by-Step Dispatch" },
             { id: "order-list", label: "All Dispatches" },
         ],
     },
@@ -77,7 +78,7 @@ export default function DispatchSidebar({
                     <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
-                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>E-com Dispatch Hub</div>
+                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Ecommerce Dispatch Hub</div>
                     </div>
                 </div>
                 <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 400, cursor: "pointer" }}>

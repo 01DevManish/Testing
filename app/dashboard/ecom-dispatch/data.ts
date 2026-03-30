@@ -74,7 +74,7 @@ export const firestoreApi = {
   },
 
   // Atomic Stock Deduction & Status Update
-  deductStock: async (productId: string, quantityToDeduct: number): Promise<boolean> => {
+  deductStock: async (productId: string, quantityToDeduct: number, force: boolean = false): Promise<boolean> => {
     try {
       const productRef = ref(db, `inventory/${productId}`);
       const snap = await get(productRef);
@@ -83,7 +83,9 @@ export const firestoreApi = {
         const productData = snap.val();
         const currentStock = Number(productData.stock) || 0;
         const minStock = Number(productData.minStock) || 5;
-        const newStock = Math.max(0, currentStock - quantityToDeduct);
+        
+        // If not force, and stock is too low, we could return false (but user wants to allow it in rapid mode)
+        const newStock = force ? (currentStock - quantityToDeduct) : Math.max(0, currentStock - quantityToDeduct);
         
         // Auto-calculate new status
         let newStatus = productData.status || "active";
@@ -154,7 +156,7 @@ export const api = {
         type: "dispatch",
         action: "status_change",
         title: "Order Status Updated",
-        description: `E-com dispatch ${id} status changed to ${newStatus} by ${actor?.name || user}.`,
+        description: `Ecommerce dispatch ${id} status changed to ${newStatus} by ${actor?.name || user}.`,
         userId: actor?.uid || "unknown",
         userName: actor?.name || user,
         userRole: (actor?.role as any) || "staff",
@@ -208,8 +210,8 @@ export const api = {
       await logActivity({
         type: "dispatch",
         action: "create",
-        title: "New E-com Dispatch Created",
-        description: `E-com dispatch ${orderId} created for ${order.customer.name} by ${actor?.name || "Admin"}.`,
+        title: "New Ecommerce Dispatch Created",
+        description: `Ecommerce dispatch ${orderId} created for ${order.customer.name} by ${actor?.name || "Admin"}.`,
         userId: actor?.uid || "unknown",
         userName: actor?.name || "Admin",
         userRole: (actor?.role as any) || "admin",
@@ -231,8 +233,8 @@ export const api = {
       await logActivity({
         type: "dispatch",
         action: "delete",
-        title: "E-com Dispatch Deleted",
-        description: `E-com dispatch ${orderId} was permanently removed by ${actor?.name || "Admin"}.`,
+        title: "Ecommerce Dispatch Deleted",
+        description: `Ecommerce dispatch ${orderId} was permanently removed by ${actor?.name || "Admin"}.`,
         userId: actor?.uid || "unknown",
         userName: actor?.name || "Admin",
         userRole: (actor?.role as any) || "admin",

@@ -1,44 +1,127 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import ExcelJS from "exceljs";
 import * as XLSX from "xlsx";
-import { ref, get, push, set as rtdbSet, query, orderByChild, equalTo } from "firebase/database";
+import { ref, get, push, set as rtdbSet } from "firebase/database";
 import { db } from "../../lib/firebase";
-import { FONT, Product, Category, Collection } from "./types";
-import {
-    BtnPrimary, BtnGhost, Card, PageHeader, SuccessBanner, Spinner
-} from "./ui";
+import { FONT, Product, Category, Collection, UNITS, GST_RATES } from "./types";
+import { SuccessBanner, BtnPrimary, BtnGhost, Card, PageHeader } from "./ui";
 import { logActivity } from "../../lib/activityLogger";
+import { uploadToCloudinary } from "./cloudinary";
 
 interface BulkUploadProps {
     categories: Category[];
     collections: Collection[];
+    brands: { id: string; name: string }[];
     user: { uid: string; name: string; role: string };
     onDone: () => void;
     isMobile?: boolean;
     isDesktop?: boolean;
 }
 
-export default function BulkUpload({ categories, collections, user, onDone, isMobile, isDesktop }: BulkUploadProps) {
+export default function BulkUpload({ categories, collections, brands, user, onDone, isMobile, isDesktop }: BulkUploadProps) {
     const [uploading, setUploading] = useState(false);
     const [results, setResults] = useState<{ success: number; errors: string[] } | null>(null);
     const [fileStats, setFileStats] = useState<{ name: string; size: number; rows: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const downloadTemplate = () => {
+    const downloadTemplate = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("Template");
+        const dataSheet = workbook.addWorksheet("DataLists");
+        dataSheet.state = "hidden";
+
+        // Define Headers
         const headers = [
-            "Product Name", "SKU", "Category", "Collection", "Brand", 
-            "Price", "Cost Price", "Stock", "Min Stock", "Unit", 
-            "Size", "HSN Code", "GST Rate", "Description"
+            "Product Name*", "SKU*", "Category", "Collection", "Brand",
+            "Description", "Selling Price (Rs.)*", "Wholesale Price (Rs.)", "MRP (Rs.)", "Cost Price (Rs.)",
+            "GST Rate", "HSN Code", "Opening Stock", "Min Stock (Alert)", "Unit",
+            "Size", "Thumbnail URL", "Status"
         ];
-        const sampleData = [
-            ["Sample Bed Sheet", "BS-001", "Bedsheets", "Summer 2024", "Eurus", 1299, 800, 50, 10, "PCS", "King", "6304", 12, "High quality cotton bedsheet"]
-        ];
-        
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
-        XLSX.utils.book_append_sheet(wb, ws, "Template");
-        XLSX.writeFile(wb, "Inventory_Template.xlsx");
+
+        sheet.addRow(headers);
+
+        // Header Styling
+        sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+        sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
+        sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+        sheet.getRow(1).height = 25;
+
+        // Column Widths
+        sheet.columns = headers.map(() => ({ width: 22 }));
+
+        // Prepare Dropdown Lists
+        const catNames = categories.map(c => c.name);
+        const colNames = collections.map(c => c.name);
+        const brandNames = brands.map(b => b.name);
+        const unitList = UNITS;
+        const statusList = ["Active", "Inactive", "Low Stock", "Out of Stock"];
+        const gstList = GST_RATES.map(r => `${r}%`);
+
+        // Add lists to hidden sheet for data validation referencing
+        dataSheet.getColumn(1).values = catNames;
+        dataSheet.getColumn(2).values = colNames;
+        dataSheet.getColumn(3).values = brandNames;
+        dataSheet.getColumn(4).values = unitList;
+        dataSheet.getColumn(5).values = statusList;
+        dataSheet.getColumn(6).values = gstList;
+
+        // Apply Data Validation (Dropdowns) to first 100 rows
+        for (let i = 2; i <= 100; i++) {
+            // Category (C)
+            if (catNames.length > 0) {
+                sheet.getCell(`C${i}`).dataValidation = {
+                    type: "list",
+                    allowBlank: true,
+                    formulae: [`'DataLists'!$A$1:$A$${catNames.length}`]
+                };
+            }
+            // Collection (D)
+            if (colNames.length > 0) {
+                sheet.getCell(`D${i}`).dataValidation = {
+                    type: "list",
+                    allowBlank: true,
+                    formulae: [`'DataLists'!$B$1:$B$${colNames.length}`]
+                };
+            }
+            // Brand (E)
+            if (brandNames.length > 0) {
+                sheet.getCell(`E${i}`).dataValidation = {
+                    type: "list",
+                    allowBlank: true,
+                    formulae: [`'DataLists'!$C$1:$C$${brandNames.length}`]
+                };
+            }
+            // Unit (O)
+            sheet.getCell(`O${i}`).dataValidation = {
+                type: "list",
+                allowBlank: true,
+                formulae: [`'DataLists'!$D$1:$D$${unitList.length}`]
+            };
+            // Status (R)
+            sheet.getCell(`R${i}`).dataValidation = {
+                type: "list",
+                allowBlank: true,
+                formulae: [`'DataLists'!$E$1:$E$${statusList.length}`]
+            };
+            // GST Rate (K)
+            sheet.getCell(`K${i}`).dataValidation = {
+                type: "list",
+                allowBlank: true,
+                formulae: [`'DataLists'!$F$1:$F$${gstList.length}`]
+            };
+        }
+
+        // Write and Download
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "Eurus_Inventory_Template.xlsx";
+        anchor.click();
+        window.URL.revokeObjectURL(url);
     };
 
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,8 +132,7 @@ export default function BulkUpload({ categories, collections, user, onDone, isMo
         reader.onload = async (evt) => {
             const bstr = evt.target?.result;
             const wb = XLSX.read(bstr, { type: "binary" });
-            const wsname = wb.SheetNames[0];
-            const ws = wb.Sheets[wsname];
+            const ws = wb.Sheets[wb.SheetNames[0]];
             const data = XLSX.utils.sheet_to_json(ws) as any[];
 
             setFileStats({
@@ -80,55 +162,72 @@ export default function BulkUpload({ categories, collections, user, onDone, isMo
                 reader.readAsBinaryString(file);
             });
 
-            // Optimization: Fetch all existing SKUs once to check locally
             const inventorySnap = await get(ref(db, "inventory"));
             const existingSkus = new Set<string>();
             if (inventorySnap.exists()) {
                 inventorySnap.forEach(snap => {
                     const val = snap.val();
-                    if (val.sku) existingSkus.add(val.sku.toString().trim());
+                    if (val.sku) existingSkus.add(val.sku.toString().trim().toLowerCase());
                 });
             }
 
-            // Iterate and upload
             for (let i = 0; i < data.length; i++) {
                 const row = data[i];
-                const rowNum = i + 2; // 1-indexed + header row
+                const rowNum = i + 2;
                 
-                const productName = row["Product Name"]?.toString().trim();
-                const sku = row["SKU"]?.toString().trim();
+                const productName = row["Product Name*"]?.toString().trim();
+                const sku = row["SKU*"]?.toString().trim();
                 
                 if (!productName || !sku) {
                     errors.push(`Row ${rowNum}: Product Name and SKU are required.`);
                     continue;
                 }
 
-                if (existingSkus.has(sku)) {
-                    errors.push(`Row ${rowNum}: SKU "${sku}" already exists in database.`);
+                // Automatically skip the sample row if the user forgot to delete it
+                if (sku === "SKU-001" && productName === "Sample Product") {
                     continue;
                 }
 
-                // Prepare data
+                if (existingSkus.has(sku.toLowerCase())) {
+                    errors.push(`Row ${rowNum}: SKU "${sku}" already exists.`);
+                    continue;
+                }
+
+                const brandName = row["Brand"]?.toString() || "";
+                const matchedBrand = brands.find(b => b.name.toLowerCase() === brandName.toLowerCase());
+
                 const timestamp = Date.now();
+                const stock = Number(row["Opening Stock"]) || 0;
+                const minStock = Number(row["Min Stock (Alert)"]) || 5;
+                const reqStatus = row["Status"]?.toString().toLowerCase().replace(/\s+/g, "-");
+
+                // Process image URL through Cloudinary for permanent hosting
+                const rawImageUrl = row["Thumbnail URL"]?.toString() || "";
+                const finalImageUrl = rawImageUrl ? await uploadToCloudinary(rawImageUrl) : "";
+
                 const productData: Omit<Product, "id"> = {
                     productName,
                     sku,
                     category: row["Category"]?.toString() || "",
                     collection: row["Collection"]?.toString() || "",
-                    brand: row["Brand"]?.toString() || "",
-                    price: Number(row["Price"]) || 0,
-                    wholesalePrice: Number(row["Wholesale Price"]) || 0,
-                    mrp: Number(row["MRP"]) || 0,
-                    costPrice: Number(row["Cost Price"]) || 0,
-                    stock: Number(row["Stock"]) || 0,
-                    minStock: Number(row["Min Stock"]) || 5,
+                    brand: brandName,
+                    brandId: matchedBrand?.id || "",
+                    price: Number(row["Selling Price (Rs.)*"]) || 0,
+                    wholesalePrice: Number(row["Wholesale Price (Rs.)"]) || 0,
+                    mrp: Number(row["MRP (Rs.)"]) || 0,
+                    costPrice: Number(row["Cost Price (Rs.)"]) || 0,
+                    stock: stock,
+                    minStock: minStock,
                     unit: row["Unit"]?.toString() || "PCS",
                     size: row["Size"]?.toString() || "",
                     hsnCode: row["HSN Code"]?.toString() || "",
-                    gstRate: Number(row["GST Rate"]) || 18,
+                    gstRate: parseInt(row["GST Rate"]?.toString().replace("%", "")) || 18,
                     description: row["Description"]?.toString() || "",
-                    imageUrl: "", // Manual upload later
-                    status: (Number(row["Stock"]) || 0) > 0 ? "active" : "out-of-stock",
+                    imageUrl: finalImageUrl,
+                    imageUrls: [], // Manual upload later
+                    status: (reqStatus === "active" || reqStatus === "inactive" || reqStatus === "low-stock" || reqStatus === "out-of-stock") 
+                        ? reqStatus 
+                        : (stock <= 0 ? "out-of-stock" : (stock <= minStock ? "low-stock" : "active")),
                     createdAt: timestamp,
                     updatedAt: timestamp,
                     createdBy: user.uid,
@@ -140,6 +239,7 @@ export default function BulkUpload({ categories, collections, user, onDone, isMo
                 const newRef = push(ref(db, "inventory"));
                 await rtdbSet(newRef, productData);
                 successCount++;
+                existingSkus.add(sku.toLowerCase());
             }
 
             if (successCount > 0) {
@@ -253,7 +353,7 @@ export default function BulkUpload({ categories, collections, user, onDone, isMo
                                 {results.errors.length > 0 && (
                                     <div style={{ maxHeight: 200, overflowY: "auto", padding: 12, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                                         <div style={{ fontSize: 12, fontWeight: 400, color: "#475569", marginBottom: 8 }}>Error Details:</div>
-                                        {results.errors.map((err, i) => (
+                                        {results.errors.map((err: string, i: number) => (
                                             <div key={i} style={{ fontSize: 11, color: "#ef4444", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
                                                 • {err}
                                             </div>

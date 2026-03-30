@@ -47,7 +47,7 @@ export default function AdminSidebar({
             { label: "Dashboard", key: "dashboard", isTab: true },
             { label: "Inventory", path: "/dashboard/inventory" },
             { label: "Retail Dispatch", path: "/dashboard/retail-dispatch" },
-            { label: "E-com Dispatch", path: "/dashboard/ecom-dispatch" },
+            { label: "Ecommerce Dispatch", path: "/dashboard/ecom-dispatch" },
           ].map(item => (
             <button key={item.key || item.path} 
               onClick={() => { 

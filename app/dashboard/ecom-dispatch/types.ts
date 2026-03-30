@@ -6,6 +6,7 @@ export interface Product {
   quantity: number;
   price: number;
   packed: boolean;
+  sku?: string;
 }
 
 export interface Customer {
@@ -45,6 +46,8 @@ export interface Order {
   confirmedByPin?: boolean;
   dispatchType?: "retail" | "ecom";
   dispatchRef?: string;
+  platform?: string;
+  awb?: string;
   createdAt?: number;
   updatedAt?: number;
 }
@@ -91,5 +94,5 @@ export interface DispatchFormData {
 
 export const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
 
-export type ActiveView = "overview" | "create-dispatch" | "order-list" | "add-order" | "scanner";
+export type ActiveView = "overview" | "create-dispatch" | "rapid-dispatch" | "order-list" | "add-order" | "scanner";
 

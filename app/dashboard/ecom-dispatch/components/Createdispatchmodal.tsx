@@ -209,8 +209,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
             await logActivity({
                 type: "dispatch",
                 action: "create",
-                title: "New E-com Dispatch Created",
-                description: `E-com Dispatch ${dispatchRef} created for ${finalPartyName} (${form.quantity} ${form.isNewProduct ? form.newProduct.unit : form.product?.unit || "units"}) by ${userData?.name || "User"}.`,
+                title: "New Ecommerce Dispatch Created",
+                description: `Ecommerce Dispatch ${dispatchRef} created for ${finalPartyName} (${form.quantity} ${form.isNewProduct ? form.newProduct.unit : form.product?.unit || "units"}) by ${userData?.name || "User"}.`,
                 userId: user?.uid || "unknown",
                 userName: userData?.name || "User",
                 userRole: userData?.role || "staff",
@@ -237,7 +237,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
             await logActivity({
                 type: "user",
                 action: "delete",
-                title: "E-com Party Deleted",
+                title: "Ecommerce Party Deleted",
                 description: `Party "${partyToDelete?.name || "Unknown"}" was deleted by ${userData?.name || "User"}.`,
                 userId: user?.uid || "unknown",
                 userName: userData?.name || "User",

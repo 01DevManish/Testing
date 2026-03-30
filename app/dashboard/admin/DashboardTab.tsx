@@ -67,8 +67,8 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             description: val.description,
             timestamp: val.timestamp,
             user: val.userName || "System",
-            icon: val.type === "dispatch" ? (val.title.includes("E-com") ? "🛒" : "🚛") : (val.type === "inventory" ? "📦" : "🔔"),
-            color: val.type === "dispatch" ? (val.title.includes("E-com") ? "#6366f1" : "linear-gradient(135deg,#3b82f6,#2dd4bf)") : (val.type === "inventory" ? "#10b981" : "#94a3b8"),
+            icon: val.type === "dispatch" ? (val.title.includes("Ecommerce") ? "🛒" : "🚛") : (val.type === "inventory" ? "📦" : "🔔"),
+            color: val.type === "dispatch" ? (val.title.includes("Ecommerce") ? "#6366f1" : "linear-gradient(135deg,#3b82f6,#2dd4bf)") : (val.type === "inventory" ? "#10b981" : "#94a3b8"),
             metadata: val.metadata
           });
         });
@@ -113,7 +113,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
           type: "dispatch",
           action: "delete",
           title: "Dispatch Record Removed (Deep Delete)",
-          description: `Retail/E-com dispatch ${orderId} was permanently deleted via dashboard log override by ${userData?.name || "Admin"}.`,
+          description: `Retail/Ecommerce dispatch ${orderId} was permanently deleted via dashboard log override by ${userData?.name || "Admin"}.`,
           userId: user?.uid || "",
           userName: userData?.name || user?.name || "Admin",
           userRole: "admin",
@@ -169,7 +169,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
         
         if (type === "dispatch") {
             if (filter === "Retail" && !a.title.includes("Retail")) return false;
-            if (filter === "E-com" && !a.title.includes("E-com")) return false;
+            if (filter === "Ecommerce" && !a.title.includes("Ecommerce")) return false;
         }
 
         
@@ -328,7 +328,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
               >
                 <option value="all">All Types</option>
                 <option value="Retail">Retail</option>
-                <option value="E-com">E-com</option>
+                <option value="Ecommerce">Ecommerce</option>
               </select>
             </div>
           </div>

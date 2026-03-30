@@ -253,7 +253,7 @@ export default function DashboardPage() {
                 Retail Dispatch
               </button>
               <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-                E-com Dispatch
+                Ecommerce Dispatch
               </button>
             </>
           )}

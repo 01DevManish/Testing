@@ -403,7 +403,7 @@ export default function InventoryPage() {
       case "catalog":
         return <CatalogTab products={products} categories={categories} collections={collections} brands={brands} loading={fetching} {...commonProps} />;
       case "inventory-bulk":
-        return <BulkUpload categories={categories} collections={collections} user={{ uid: user.uid, name: currentName, role: currentRole }} onDone={() => { loadAll(); navigate("product-list"); }} {...commonProps} />;
+        return <BulkUpload categories={categories} collections={collections} brands={brands} user={{ uid: user.uid, name: currentName, role: currentRole }} onDone={() => { loadAll(); navigate("product-list"); }} {...commonProps} />;
       default:
         return null;
     }
