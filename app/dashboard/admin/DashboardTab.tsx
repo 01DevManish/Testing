@@ -239,7 +239,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
 
   return (
     <div style={S.tabContent}>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 20, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: 20, marginBottom: 20 }}>
          {/* PENDING TASKS CARD */}
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#f59e0b")} />
@@ -354,7 +354,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: (isMobile || isTablet) ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 20, marginBottom: 20 }}>
         {/* DISPATCH CARD */}
         <div style={S.activityCard}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -411,9 +411,9 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                     <img src={p.imageUrl || "/placeholder-prod.png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.productName}</div>
-                      <div style={{ fontSize: 13, fontWeight: 400, color: p.stock <= p.minStock ? "#ef4444" : "#10b981", marginLeft: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", minWidth: 0, gap: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.productName}</div>
+                      <div style={{ fontSize: 13, fontWeight: 400, color: p.stock <= p.minStock ? "#ef4444" : "#10b981", flexShrink: 0 }}>
                         {p.stock} <span style={{ fontSize: 10, color: "#94a3b8" }}>{p.unit}</span>
                       </div>
                     </div>

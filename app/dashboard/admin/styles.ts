@@ -69,6 +69,7 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       position: "relative" as const,
       overflow: "hidden" as const,
+      minWidth: 0,
     } as React.CSSProperties,
 
     statStripe: (gradient: string) => ({
@@ -233,6 +234,8 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       padding: isMobile ? "16px 14px" : "24px 20px",
       marginBottom: 24,
+      minWidth: 0,
+      overflow: "hidden",
     } as React.CSSProperties,
 
     activityItem: {
