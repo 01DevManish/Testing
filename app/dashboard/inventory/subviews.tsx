@@ -1047,20 +1047,40 @@ export function BarcodeView({
 
     const generateBarcodeNumber = (product: Product) => {
         // 1. Collection Code (3 digits)
-        const col = collections.find(c => c.name === product.collection);
-        const colPart = (col?.collectionCode || "000").substring(0, 3).padStart(3, "0");
+        const collectionCodes: Record<string, string> = {
+            "Duke": "417",
+            "Classic": "892",
+            "Coral": "305",
+            "Fantasy": "761",
+            "Rome": "248",
+            "Embosa": "639",
+            "Posh": "574"
+        };
+        const colPart = collectionCodes[product.collection || ""] || "000";
 
-        // 2. SKU numeric part (3 digits) - Extract ALL digits, then take 3
+        // 2. SKU numeric part (4 digits)
         const skuDigits = product.sku.replace(/\D/g, "");
-        const skuPart = skuDigits.substring(0, 3).padStart(3, "0");
+        const skuPart = skuDigits.substring(0, 4).padStart(4, "0");
 
         // 3. Style ID (3 digits)
         const stylePart = (product.styleId || "000").substring(0, 3).padStart(3, "0");
 
-        // 4. Random (4 digits for total 13)
-        const randPart = Math.floor(1000 + Math.random() * 9000).toString();
+        // 4. Size Code (3 digits)
+        const sizeMap: Record<string, string> = {
+            "Single": "001",
+            "Double": "002",
+            "King": "003",
+            "Super King": "004"
+        };
+        
+        let sizeCode = "000"; // Default / Custom
+        const prodSize = (product.size || "").toUpperCase();
+        if (prodSize.includes("SUPER KING")) sizeCode = "004";
+        else if (prodSize.includes("KING")) sizeCode = "003";
+        else if (prodSize.includes("DOUBLE")) sizeCode = "002";
+        else if (prodSize.includes("SINGLE")) sizeCode = "001";
 
-        return `${colPart}${skuPart}${stylePart}${randPart}`;
+        return `${colPart}${skuPart}${stylePart}${sizeCode}`;
     };
 
     const normalizeIds = async () => {
@@ -1200,10 +1220,10 @@ export function BarcodeView({
                         <div style={{ marginTop: 30, textAlign: "left", padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #f1f5f9" }}>
                             <div style={{ fontSize: 12, fontWeight: 400, color: "#475569", marginBottom: 8, fontFamily: FONT }}>Barcode Structure:</div>
                             <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, lineHeight: 1.6 }}>
-                                • Fixed Collection Code (3 digits)<br/>
-                                • SKU Numeric Part (3 digits)<br/>
+                                • Collection Code (3 digits - Mapped)<br/>
+                                • SKU Numeric Part (4 digits)<br/>
                                 • Style ID (3 digits)<br/>
-                                • Random Generator (4 digits)
+                                • Size Code (3 digits - Mapped)
                             </div>
                         </div>
                     </div>
