@@ -1056,7 +1056,11 @@ export function BarcodeView({
             "Embosa": "639",
             "Posh": "574"
         };
-        const colPart = collectionCodes[product.collection || ""] || "000";
+        
+        // Case-insensitive lookup
+        const prodCol = (product.collection || "").trim().toLowerCase();
+        const matchedColKey = Object.keys(collectionCodes).find(k => k.toLowerCase() === prodCol);
+        const colPart = matchedColKey ? collectionCodes[matchedColKey] : "000";
 
         // 2. SKU numeric part (3 digits)
         const skuDigits = product.sku.replace(/\D/g, "");
@@ -1071,7 +1075,7 @@ export function BarcodeView({
         };
         
         let sizeCode = "000"; // Default / Custom
-        const prodSize = (product.size || "").toUpperCase();
+        const prodSize = (product.size || "").trim().toUpperCase();
         if (prodSize.includes("SUPER KING")) sizeCode = "004";
         else if (prodSize.includes("KING")) sizeCode = "003";
         else if (prodSize.includes("DOUBLE")) sizeCode = "002";
@@ -1145,6 +1149,7 @@ export function BarcodeView({
                                 <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10 }}>
                                     <tr>
                                         <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Collection</th>
                                         <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>SKU</th>
                                         <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Action</th>
                                     </tr>
@@ -1153,6 +1158,7 @@ export function BarcodeView({
                                     {filtered.map(p => (
                                         <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                                             <td style={{ padding: "12px 14px", fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</td>
+                                            <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.collection || "—"}</td>
                                             <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.sku}</td>
                                             <td style={{ padding: "12px 14px", textAlign: "right" }}>
                                                 <button 
