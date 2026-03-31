@@ -1,5 +1,13 @@
-import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { NextRequest } from 'next/server';
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
 
 export async function POST(req: Request) {
   try {

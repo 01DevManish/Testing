@@ -1044,23 +1044,27 @@ export function BarcodeView({
     const [generatedBarcode, setGeneratedBarcode] = useState<string>("");
     const [printModalOpen, setPrintModalOpen] = useState(false);
     const [selectedSize, setSelectedSize] = useState<"50x25" | "38x25" | "100x150">("50x25");
+    
+    // Shared Mapping for Display & Generation
+    const collectionCodes: Record<string, string> = {
+        "Duke": "417",
+        "Classic": "892",
+        "Coral": "305",
+        "Fantasy": "761",
+        "Rome": "248",
+        "Embosa": "639",
+        "Posh": "574"
+    };
+
+    const getCollectionCode = (collectionName: string) => {
+        const prodCol = (collectionName || "").trim().toLowerCase();
+        const matchedColKey = Object.keys(collectionCodes).find(k => k.toLowerCase() === prodCol);
+        return matchedColKey ? collectionCodes[matchedColKey] : "000";
+    };
 
     const generateBarcodeNumber = (product: Product) => {
         // 1. Collection Code (3 digits)
-        const collectionCodes: Record<string, string> = {
-            "Duke": "417",
-            "Classic": "892",
-            "Coral": "305",
-            "Fantasy": "761",
-            "Rome": "248",
-            "Embosa": "639",
-            "Posh": "574"
-        };
-        
-        // Case-insensitive lookup
-        const prodCol = (product.collection || "").trim().toLowerCase();
-        const matchedColKey = Object.keys(collectionCodes).find(k => k.toLowerCase() === prodCol);
-        const colPart = matchedColKey ? collectionCodes[matchedColKey] : "000";
+        const colPart = getCollectionCode(product.collection || "");
 
         // 2. SKU numeric part (3 digits)
         const skuDigits = product.sku.replace(/\D/g, "");
@@ -1150,6 +1154,7 @@ export function BarcodeView({
                                     <tr>
                                         <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product</th>
                                         <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Collection</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Col No.</th>
                                         <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>SKU</th>
                                         <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Action</th>
                                     </tr>
@@ -1159,6 +1164,11 @@ export function BarcodeView({
                                         <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                                             <td style={{ padding: "12px 14px", fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</td>
                                             <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.collection || "—"}</td>
+                                            <td style={{ padding: "12px 14px" }}>
+                                                <span style={{ fontSize: 11, fontWeight: 400, color: getCollectionCode(p.collection) === "000" ? "#ef4444" : "#10b981", background: getCollectionCode(p.collection) === "000" ? "rgba(239, 68, 68, 0.05)" : "rgba(16, 185, 129, 0.05)", padding: "2px 8px", borderRadius: 6 }}>
+                                                    {getCollectionCode(p.collection)}
+                                                </span>
+                                            </td>
                                             <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.sku}</td>
                                             <td style={{ padding: "12px 14px", textAlign: "right" }}>
                                                 <button 
