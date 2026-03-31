@@ -1058,14 +1058,11 @@ export function BarcodeView({
         };
         const colPart = collectionCodes[product.collection || ""] || "000";
 
-        // 2. SKU numeric part (4 digits)
+        // 2. SKU numeric part (3 digits)
         const skuDigits = product.sku.replace(/\D/g, "");
-        const skuPart = skuDigits.substring(0, 4).padStart(4, "0");
+        const skuPart = skuDigits.substring(0, 3).padStart(3, "0");
 
-        // 3. Style ID (3 digits)
-        const stylePart = (product.styleId || "000").substring(0, 3).padStart(3, "0");
-
-        // 4. Size Code (3 digits)
+        // 3. Size Code (3 digits)
         const sizeMap: Record<string, string> = {
             "Single": "001",
             "Double": "002",
@@ -1080,7 +1077,10 @@ export function BarcodeView({
         else if (prodSize.includes("DOUBLE")) sizeCode = "002";
         else if (prodSize.includes("SINGLE")) sizeCode = "001";
 
-        return `${colPart}${skuPart}${stylePart}${sizeCode}`;
+        // 4. Random (4 digits)
+        const randPart = Math.floor(1000 + Math.random() * 9000).toString();
+
+        return `${colPart}${skuPart}${sizeCode}${randPart}`;
     };
 
     const normalizeIds = async () => {
@@ -1221,9 +1221,9 @@ export function BarcodeView({
                             <div style={{ fontSize: 12, fontWeight: 400, color: "#475569", marginBottom: 8, fontFamily: FONT }}>Barcode Structure:</div>
                             <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, lineHeight: 1.6 }}>
                                 • Collection Code (3 digits - Mapped)<br/>
-                                • SKU Numeric Part (4 digits)<br/>
-                                • Style ID (3 digits)<br/>
-                                • Size Code (3 digits - Mapped)
+                                • SKU Numeric Part (3 digits)<br/>
+                                • Size Code (3 digits - Mapped)<br/>
+                                • Random Number (4 digits)
                             </div>
                         </div>
                     </div>
