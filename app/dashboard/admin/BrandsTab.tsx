@@ -139,7 +139,6 @@ export default function BrandsTab({
           <span style={{ color: "#94a3b8" }}>🔍</span>
           <input 
             type="text" 
-            placeholder="Search brands..." 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
             style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14, fontWeight: 400 }}
@@ -157,8 +156,7 @@ export default function BrandsTab({
               <input 
                 style={{ ...S.input, fontWeight: 400 }} 
                 value={form.name} 
-                onChange={e => setForm({ ...form, name: e.target.value })} 
-                placeholder="Enter brand name..."
+                onChange={e => setForm({ ...form, name: e.target.value })}
               />
             </div>
 

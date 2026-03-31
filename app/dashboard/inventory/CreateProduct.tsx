@@ -15,7 +15,7 @@ import { uploadToCloudinary } from "./cloudinary";
 import { logActivity } from "../../lib/activityLogger";
 
 const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
-    productName: "", sku: "", category: "", collection: "", brand: "", brandId: "",
+    productName: "", sku: "", styleId: "", category: "", collection: "", brand: "", brandId: "",
     price: 0, wholesalePrice: 0, mrp: 0, costPrice: 0, stock: 0, minStock: 5,
     status: "active", imageUrl: "", description: "",
     unit: "PCS", size: "", hsnCode: "", gstRate: 18,
@@ -262,6 +262,13 @@ export default function CreateProduct({
                                     />
                                     {errors.sku && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{errors.sku}</div>}
                                 </FormField>
+                                <FormField label="Style ID (3 Digits)">
+                                    <Input
+                                        value={form.styleId || ""}
+                                        maxLength={3}
+                                        onChange={e => set("styleId", e.target.value.replace(/\D/g, ""))}
+                                    />
+                                </FormField>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Category">
@@ -319,7 +326,6 @@ export default function CreateProduct({
                                                 <div style={{ position: "sticky", top: 0, background: "#fff", padding: "4px 4px 6px", zIndex: 1 }}>
                                                     <input 
                                                         type="text" 
-                                                        placeholder="Search brand..." 
                                                         value={brandSearch}
                                                         autoFocus
                                                         onChange={e => setBrandSearch(e.target.value)}

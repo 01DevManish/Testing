@@ -183,7 +183,6 @@ export default function TasksTab({
                   }}>
                     <input 
                       type="text" 
-                      placeholder="Search users..." 
                       value={userSearch}
                       onChange={e => setUserSearch(e.target.value)}
                       autoFocus

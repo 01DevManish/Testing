@@ -10,9 +10,11 @@ interface OrderDetailsModalProps {
   onOrderUpdated: (updatedOrder: Order) => void;
   onDeleteOrder?: (id: string) => void;
   user: { uid: string; name: string; role: string };
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDeleteOrder, user }: OrderDetailsModalProps) {
+export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDeleteOrder, user, canEdit, canDelete }: OrderDetailsModalProps) {
   const [loading, setLoading] = useState(false);
   const [packingNotes, setPackingNotes] = useState(order.packedNotes || "");
   
@@ -103,10 +105,12 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDe
               onClick={() => alert("Simulating PDF Generation...")}>
               📄 Invoice PDF
             </button>
-            <button className="p-2 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg text-red-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
-              onClick={() => { if(confirm("Delete this dispatch record permanently?")) onDeleteOrder?.(order.id); }}>
-              🗑️ Delete
-            </button>
+            {canDelete && (
+              <button className="p-2 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg text-red-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
+                onClick={() => { if(confirm("Delete this dispatch record permanently?")) onDeleteOrder?.(order.id); }}>
+                🗑️ Delete
+              </button>
+            )}
             <button onClick={onClose} className="p-2 bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 rounded-lg transition-colors">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
@@ -223,10 +227,10 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDe
                     <div className="mt-4 flex justify-end">
                       <BtnPrimary 
                         onClick={handleMarkAsPacked}
-                        disabled={!allPacked || loading}
+                        disabled={!allPacked || loading || !canEdit}
                         loading={loading}
                       >
-                        Mark as Packed
+                        {canEdit ? "Mark as Packed" : "Insufficient Rights to Pack"}
                       </BtnPrimary>
                     </div>
                   </div>
@@ -292,11 +296,11 @@ export default function OrderDetailsModal({ order, onClose, onOrderUpdated, onDe
                       
                       <BtnPrimary 
                         onClick={handleDispatch}
-                        disabled={loading}
+                        disabled={loading || !canEdit}
                         loading={loading}
                         style={{ padding: "10px 32px" }}
                       >
-                        🚀 Dispatch Order
+                        {canEdit ? "🚀 Dispatch Order" : "Insufficient Rights to Dispatch"}
                       </BtnPrimary>
                     </div>
                   )}

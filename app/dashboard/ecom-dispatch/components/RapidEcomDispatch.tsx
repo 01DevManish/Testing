@@ -254,7 +254,6 @@ export default function RapidEcomDispatch({ onClose, onDispatched }: { onClose: 
                             onFocus={() => setIsScanning(true)}
                             onChange={e => setAwb(e.target.value)}
                             onKeyDown={handleAwbKeyDown}
-                            placeholder="Enter or Scan AWB Barcode..."
                             style={{ ...inputStyle, fontSize: 15, border: isScanning ? "2px solid #6366f1" : "1.5px solid #e2e8f0" }}
                         />
                     </div>
@@ -305,7 +304,6 @@ export default function RapidEcomDispatch({ onClose, onDispatched }: { onClose: 
                                         }
                                     }
                                 }}
-                                placeholder="Search Name or SKU..."
                                 style={inputStyle}
                             />
                         </div>

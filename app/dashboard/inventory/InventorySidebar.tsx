@@ -98,6 +98,18 @@ const NAV_GROUPS: NavGroup[] = [
         ),
         items: [{ id: "catalog", label: "Catalog Sharing" }],
     },
+    {
+        key: "barcode", label: "Barcode Manager",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <rect x="2" y="3" width="2" height="9" fill="currentColor" />
+                <rect x="5" y="3" width="1" height="9" fill="currentColor" />
+                <rect x="7" y="3" width="3" height="9" fill="currentColor" />
+                <rect x="11" y="3" width="2" height="9" fill="currentColor" />
+            </svg>
+        ),
+        items: [{ id: "inventory-barcode-create", label: "Barcode Generator" }],
+    },
 ];
 
 interface Props {

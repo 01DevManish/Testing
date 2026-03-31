@@ -7,6 +7,7 @@ export interface Product {
     id: string;
     productName: string;
     sku: string;
+    styleId?: string;
     category: string;
     collection?: string;
     brand: string;
@@ -47,6 +48,7 @@ export interface Category {
 export interface Collection {
     id: string;
     name: string;
+    collectionCode?: string;
     description: string;
     productIds: string[];
     createdAt: number;

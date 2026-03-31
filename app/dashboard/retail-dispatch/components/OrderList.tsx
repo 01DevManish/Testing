@@ -14,6 +14,7 @@ interface OrderListProps {
   onRefresh?: () => void;
   loading?: boolean;
   onDeleteOrder?: (id: string) => void;
+  canDelete?: boolean;
 }
 
 const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
@@ -28,7 +29,7 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; bg: stri
 
 export default function OrderList({ 
   orders, onSelectOrder, searchQuery, setSearchQuery, 
-  filterStatus, setFilterStatus, onRefresh, loading, onDeleteOrder 
+  filterStatus, setFilterStatus, onRefresh, loading, onDeleteOrder, canDelete
 }: OrderListProps) {
   
   const filtered = orders.filter(o => {
@@ -132,12 +133,14 @@ export default function OrderList({
                       <td style={{ ...td, textAlign: "right" }}>
                          <div style={{ display: "flex", gap: 5, justifyContent: "flex-end" }}>
                            <BtnGhost onClick={() => onSelectOrder(order)} style={{ padding: "5px 10px", fontSize: 12 }}>View</BtnGhost>
-                           <button 
-                             onClick={() => { if(confirm("Delete this dispatch record permanently?")) onDeleteOrder?.(order.id); }}
-                             style={{ padding: "5px 10px", background: "rgba(239,68,68,0.07)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}
-                           >
-                             Del
-                           </button>
+                           {canDelete && (
+                             <button 
+                               onClick={() => { if(confirm("Delete this dispatch record permanently?")) onDeleteOrder?.(order.id); }}
+                               style={{ padding: "5px 10px", background: "rgba(239,68,68,0.07)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}
+                             >
+                               Del
+                             </button>
+                           )}
                          </div>
                       </td>
                     </tr>

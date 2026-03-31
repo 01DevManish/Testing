@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { ref, push, set, update, remove } from "firebase/database";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
+import JsBarcode from "jsbarcode";
+import { ref, push, set, update, remove, get } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Category, Collection, ItemGroup, Product } from "./types";
 import { logActivity } from "../../lib/activityLogger";
@@ -72,12 +74,12 @@ export function CreateCategory({ user, onCreated, isMobile, isDesktop }: { user:
 // ══════════════════════════════════════════════════════════════
 // CATEGORY LIST
 // ══════════════════════════════════════════════════════════════
-export function CategoryList({ categories, user, loading, onCreateNew, isMobile, isDesktop }: { categories: Category[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void, isMobile?: boolean, isDesktop?: boolean }) {
+export function CategoryList({ categories, user, loading, canCreate, canDelete, onCreateNew, isMobile, isDesktop }: { categories: Category[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<Category | null>(null);
     return (
         <div>
             <PageHeader title="All Categories" sub={`${categories.length} categories`}>
-                <BtnPrimary onClick={onCreateNew}>+ New Category</BtnPrimary>
+                {canCreate && <BtnPrimary onClick={onCreateNew}>+ New Category</BtnPrimary>}
             </PageHeader>
             <Card>
                 {loading ? (
@@ -103,28 +105,30 @@ export function CategoryList({ categories, user, loading, onCreateNew, isMobile,
                                     >
                                         Edit
                                     </button>
-                                    <button 
-                                        onClick={async () => { 
-                                            if(confirm(`Delete category "${c.name}"?`)) {
-                                                await remove(ref(db, `categories/${c.id}`));
-                                                await logActivity({
-                                                    type: "inventory",
-                                                    action: "delete",
-                                                    title: "Category Deleted",
-                                                    description: `Category "${c.name}" was deleted by ${user.name}.`,
-                                                    userId: user.uid,
-                                                    userName: user.name,
-                                                    userRole: "admin",
-                                                    metadata: { categoryId: c.id, categoryName: c.name }
-                                                });
-                                            }
-                                        }}
-                                        style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
-                                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                                        onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                    </button>
+                                    {canDelete && (
+                                        <button 
+                                            onClick={async () => { 
+                                                if(confirm(`Delete category "${c.name}"?`)) {
+                                                    await remove(ref(db, `categories/${c.id}`));
+                                                    await logActivity({
+                                                        type: "inventory",
+                                                        action: "delete",
+                                                        title: "Category Deleted",
+                                                        description: `Category "${c.name}" was deleted by ${user.name}.`,
+                                                        userId: user.uid,
+                                                        userName: user.name,
+                                                        userRole: "admin",
+                                                        metadata: { categoryId: c.id, categoryName: c.name }
+                                                    });
+                                                }
+                                            }}
+                                            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
+                                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                                            onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -198,6 +202,7 @@ function EditCategoryModal({ category, user, onClose, isMobile, isDesktop }: {
 // ══════════════════════════════════════════════════════════════
 export function CreateCollection({ products, user, onCreated, isMobile, isDesktop }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (c: Collection) => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState("");
+    const [code, setCode] = useState("");
     const [desc, setDesc] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [saving, setSaving] = useState(false);
@@ -215,7 +220,7 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
         if (!name.trim()) { setError("Collection name is required"); return; }
         setSaving(true);
         try {
-            const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
+            const d = { name: name.trim(), collectionCode: code.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
             const newRef = push(ref(db, "collections"));
             await set(newRef, d);
             
@@ -249,6 +254,13 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
                             <Input value={name} onChange={e => { setName(e.target.value); setError(""); }}
                                 style={error ? { borderColor: "#ef4444" } : {}} />
                             {error && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{error}</div>}
+                        </FormField>
+                        <FormField label="Collection Code (3 Digits)">
+                            <Input 
+                                value={code} 
+                                maxLength={3}
+                                onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
+                            />
                         </FormField>
                         <FormField label="Description">
                             <Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
@@ -290,12 +302,12 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
 // ══════════════════════════════════════════════════════════════
 // COLLECTION LIST
 // ══════════════════════════════════════════════════════════════
-export function CollectionList({ collections, user, loading, onCreateNew, products, isMobile, isDesktop }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
+export function CollectionList({ collections, user, loading, canCreate, canDelete, onCreateNew, products, isMobile, isDesktop }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<Collection | null>(null);
     return (
         <div>
             <PageHeader title="All Collections" sub={`${collections.length} collections`}>
-                <BtnPrimary onClick={onCreateNew}>+ New Collection</BtnPrimary>
+                {canCreate && <BtnPrimary onClick={onCreateNew}>+ New Collection</BtnPrimary>}
             </PageHeader>
             <Card>
                 {loading ? (
@@ -321,28 +333,30 @@ export function CollectionList({ collections, user, loading, onCreateNew, produc
                                     >
                                         Edit
                                     </button>
-                                    <button 
-                                        onClick={async () => { 
-                                            if(confirm(`Delete collection "${c.name}"?`)) {
-                                                await remove(ref(db, `collections/${c.id}`));
-                                                await logActivity({
-                                                    type: "inventory",
-                                                    action: "delete",
-                                                    title: "Collection Deleted",
-                                                    description: `Collection "${c.name}" was deleted by ${user.name}.`,
-                                                    userId: user.uid,
-                                                    userName: user.name,
-                                                    userRole: "admin",
-                                                    metadata: { collectionId: c.id, collectionName: c.name }
-                                                });
-                                            }
-                                        }}
-                                        style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
-                                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                                        onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                    </button>
+                                    {canDelete && (
+                                        <button 
+                                            onClick={async () => { 
+                                                if(confirm(`Delete collection "${c.name}"?`)) {
+                                                    await remove(ref(db, `collections/${c.id}`));
+                                                    await logActivity({
+                                                        type: "inventory",
+                                                        action: "delete",
+                                                        title: "Collection Deleted",
+                                                        description: `Collection "${c.name}" was deleted by ${user.name}.`,
+                                                        userId: user.uid,
+                                                        userName: user.name,
+                                                        userRole: "admin",
+                                                        metadata: { collectionId: c.id, collectionName: c.name }
+                                                    });
+                                                }
+                                            }}
+                                            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
+                                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                                            onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -366,6 +380,7 @@ export function CollectionList({ collections, user, loading, onCreateNew, produc
 
 function EditCollectionModal({ collection, user, allProducts, onClose, isMobile, isDesktop }: { collection: Collection; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState(collection.name);
+    const [code, setCode] = useState(collection.collectionCode || "");
     const [desc, setDesc] = useState(collection.description || "");
     const [selected, setSelected] = useState<Set<string>>(new Set(collection.productIds || []));
     const [saving, setSaving] = useState(false);
@@ -381,7 +396,7 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
         if (!name.trim()) return;
         setSaving(true);
         try {
-            await update(ref(db, `collections/${collection.id}`), { name: name.trim(), description: desc.trim(), productIds: Array.from(selected) });
+            await update(ref(db, `collections/${collection.id}`), { name: name.trim(), collectionCode: code.trim(), description: desc.trim(), productIds: Array.from(selected) });
             await logActivity({
                 type: "inventory",
                 action: "update",
@@ -405,11 +420,18 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             <FormField label="Collection Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
+                            <FormField label="Collection Code (3 Digits)">
+                                <Input 
+                                    value={code} 
+                                    maxLength={3}
+                                    onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
+                                />
+                            </FormField>
                             <FormField label="Description"><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} /></FormField>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
-                            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." />
+                            <Input value={search} onChange={e => setSearch(e.target.value)} />
                             <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
                                 {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
                                     <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
@@ -525,12 +547,12 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
 // ══════════════════════════════════════════════════════════════
 // ITEM GROUP LIST
 // ══════════════════════════════════════════════════════════════
-export function ItemGroupList({ groups, user, loading, onCreateNew, products, isMobile, isDesktop }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
+export function ItemGroupList({ groups, user, loading, canCreate, canDelete, onCreateNew, products, isMobile, isDesktop }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<ItemGroup | null>(null);
     return (
         <div>
             <PageHeader title="All Item Groups" sub={`${groups.length} groups`}>
-                <BtnPrimary onClick={onCreateNew}>+ New Group</BtnPrimary>
+                {canCreate && <BtnPrimary onClick={onCreateNew}>+ New Group</BtnPrimary>}
             </PageHeader>
             <Card>
                 {loading ? (
@@ -556,28 +578,30 @@ export function ItemGroupList({ groups, user, loading, onCreateNew, products, is
                                     >
                                         Edit
                                     </button>
-                                    <button 
-                                        onClick={async () => { 
-                                            if(confirm(`Delete group "${g.name}"?`)) {
-                                                await remove(ref(db, `itemGroups/${g.id}`));
-                                                await logActivity({
-                                                    type: "inventory",
-                                                    action: "delete",
-                                                    title: "Item Group Deleted",
-                                                    description: `Item Group "${g.name}" was deleted by ${user.name}.`,
-                                                    userId: user.uid,
-                                                    userName: user.name,
-                                                    userRole: "admin",
-                                                    metadata: { groupId: g.id, groupName: g.name }
-                                                });
-                                            }
-                                        }}
-                                        style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
-                                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                                        onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                    </button>
+                                    {canDelete && (
+                                        <button 
+                                            onClick={async () => { 
+                                                if(confirm(`Delete group "${g.name}"?`)) {
+                                                    await remove(ref(db, `itemGroups/${g.id}`));
+                                                    await logActivity({
+                                                        type: "inventory",
+                                                        action: "delete",
+                                                        title: "Item Group Deleted",
+                                                        description: `Item Group "${g.name}" was deleted by ${user.name}.`,
+                                                        userId: user.uid,
+                                                        userName: user.name,
+                                                        userRole: "admin",
+                                                        metadata: { groupId: g.id, groupName: g.name }
+                                                    });
+                                                }
+                                            }}
+                                            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", borderRadius: 6, transition: "all 0.2s" }}
+                                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                                            onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -644,7 +668,7 @@ function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDes
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
-                            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." />
+                            <Input value={search} onChange={e => setSearch(e.target.value)} />
                             <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
                                 {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
                                     <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
@@ -978,30 +1002,344 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
 
 // ══════════════════════════════════════════════════════════════
 // BARCODE PLACEHOLDER
+// Reusable Real Barcode SVG Component
+function BarcodeSVG({ value, height = 40, width = 2, fontSize = 20, showValue = false, displayHeight }: { value: string; height?: number; width?: number; fontSize?: number; showValue?: boolean; displayHeight?: string | number }) {
+    const svgRef = useRef<SVGSVGElement>(null);
+    useEffect(() => {
+        if (svgRef.current && value) {
+            try {
+                JsBarcode(svgRef.current, value, {
+                    format: "CODE128",
+                    width: width,
+                    height: height,
+                    displayValue: showValue,
+                    fontSize: fontSize,
+                    margin: 0,
+                    background: "#ffffff",
+                    lineColor: "#000000"
+                });
+            } catch (e) {
+                console.error("Barcode Generation Error", e);
+            }
+        }
+    }, [value, height, width, fontSize, showValue]);
+
+    return <svg ref={svgRef} style={{ height: displayHeight || "auto", maxWidth: "100%" }} />;
+}
+
 // ══════════════════════════════════════════════════════════════
-export function BarcodeView({ mode }: { mode: "create" | "print" }) {
+// BARCODE MANAGER
+// ══════════════════════════════════════════════════════════════
+export function BarcodeView({ 
+    products, 
+    collections, 
+    isMobile 
+}: { 
+    products: Product[]; 
+    collections: Collection[]; 
+    isMobile?: boolean; 
+}) {
+    const [search, setSearch] = useState("");
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [generatedBarcode, setGeneratedBarcode] = useState<string>("");
+    const [printModalOpen, setPrintModalOpen] = useState(false);
+    const [selectedSize, setSelectedSize] = useState<"50x25" | "38x25" | "100x150">("50x25");
+
+    const generateBarcodeNumber = (product: Product) => {
+        // 1. Collection Code (3 digits)
+        const col = collections.find(c => c.name === product.collection);
+        const colPart = (col?.collectionCode || "000").substring(0, 3).padStart(3, "0");
+
+        // 2. SKU numeric part (3 digits) - Extract ALL digits, then take 3
+        const skuDigits = product.sku.replace(/\D/g, "");
+        const skuPart = skuDigits.substring(0, 3).padStart(3, "0");
+
+        // 3. Style ID (3 digits)
+        const stylePart = (product.styleId || "000").substring(0, 3).padStart(3, "0");
+
+        // 4. Random (4 digits for total 13)
+        const randPart = Math.floor(1000 + Math.random() * 9000).toString();
+
+        return `${colPart}${skuPart}${stylePart}${randPart}`;
+    };
+
+    const normalizeIds = async () => {
+        if (!confirm("This will assign 3-digit IDs (101, 102...) to all Collections and Products that are currently 000. Proceed?")) return;
+        
+        try {
+            // Normalize Collections
+            let colCounter = 101;
+            for (const c of collections) {
+                if (!c.collectionCode || c.collectionCode === "000") {
+                    await update(ref(db, `collections/${c.id}`), { collectionCode: String(colCounter++) });
+                }
+            }
+            
+            // Normalize Products
+            let styleCounter = 101;
+            for (const p of products) {
+                if (!p.styleId || p.styleId === "000" || p.styleId === "") {
+                    await update(ref(db, `inventory/${p.id}`), { styleId: String(styleCounter++) });
+                }
+            }
+            alert("IDs Normalized Successfully! Please refresh the page.");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to normalize IDs.");
+        }
+    };
+
+    const handleGenerate = (p: Product) => {
+        setSelectedProduct(p);
+        setGeneratedBarcode(generateBarcodeNumber(p));
+    };
+
+    const filtered = products.filter(p => 
+        p.productName.toLowerCase().includes(search.toLowerCase()) || 
+        p.sku.toLowerCase().includes(search.toLowerCase())
+    );
+
     return (
         <div>
-            <PageHeader title={mode === "create" ? "Create Barcode" : "Print Barcode"} sub={mode === "create" ? "Generate barcodes for your products." : "Print barcodes for selected products."} />
-            <Card>
-                <div style={{ padding: "60px 32px", textAlign: "center" }}>
-                    <div style={{ width: 52, height: 52, borderRadius: 12, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-                            <rect x="2" y="4" width="3" height="18" rx="1" fill="white" />
-                            <rect x="7" y="4" width="2" height="18" rx="1" fill="white" />
-                            <rect x="11" y="4" width="4" height="18" rx="1" fill="white" />
-                            <rect x="17" y="4" width="2" height="18" rx="1" fill="white" />
-                            <rect x="21" y="4" width="3" height="18" rx="1" fill="white" />
-                        </svg>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <PageHeader title="Barcode Manager" sub="Generate and manage 13-digit product barcodes." />
+                <button 
+                    onClick={normalizeIds}
+                    style={{ padding: "8px 16px", background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 13, cursor: "pointer", transition: "0.2s" }}
+                >
+                    Normalize Sequential IDs
+                </button>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 400px", gap: 20, alignItems: "start" }}>
+                <Card>
+                    <div style={{ padding: "18px 20px" }}>
+                        <div style={{ marginBottom: 16 }}>
+                            <Input 
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div style={{ overflowX: "auto", maxHeight: "60vh" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                                <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10 }}>
+                                    <tr>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>SKU</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map(p => (
+                                        <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                            <td style={{ padding: "12px 14px", fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</td>
+                                            <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.sku}</td>
+                                            <td style={{ padding: "12px 14px", textAlign: "right" }}>
+                                                <button 
+                                                    onClick={() => handleGenerate(p)}
+                                                    style={{ padding: "6px 12px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", transition: "0.2s" }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = "#4f46e5"}
+                                                    onMouseLeave={e => e.currentTarget.style.background = "#6366f1"}
+                                                >
+                                                    Generate
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {filtered.length === 0 && (
+                                <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: 14 }}>No products found.</div>
+                            )}
+                        </div>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 400, color: "#475569", marginBottom: 6, fontFamily: FONT }}>
-                        {mode === "create" ? "Barcode Generator" : "Barcode Printer"}
+                </Card>
+
+                <Card>
+                    <div style={{ padding: "24px", textAlign: "center" }}>
+                        <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 20, fontFamily: FONT }}>Barcode Preview</div>
+                        
+                        {selectedProduct && generatedBarcode ? (
+                            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: "30px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                                <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{selectedProduct.productName}</div>
+                                <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, marginBottom: 10 }}>SKU: {selectedProduct.sku}</div>
+                                
+                                {/* Visual Barcode Representation (REAL Industry Standard) - Large for screen scanning */}
+                                <div style={{ background: "#fff", padding: "10px", borderRadius: 8, display: "flex", justifyContent: "center", width: "100%", marginBottom: 15 }}>
+                                    <BarcodeSVG value={generatedBarcode} height={120} width={2.5} displayHeight={120} />
+                                </div>
+                                
+                                <div style={{ fontSize: 28, fontWeight: 700, color: "#000", fontFamily: "'Courier New', Courier, monospace", letterSpacing: 5, marginTop: 5 }}>
+                                    {generatedBarcode}
+                                </div>
+                                
+                                <div style={{ marginTop: 24, display: "flex", gap: 10, width: "100%" }}>
+                                    <button 
+                                        onClick={() => setPrintModalOpen(true)}
+                                        style={{ flex: 1, padding: "12px", background: "#f8fafc", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
+                                    >
+                                        Print Barcode
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(generatedBarcode);
+                                            alert("Barcode number copied to clipboard!");
+                                        }}
+                                        style={{ flex: 1, padding: "12px", background: "#10b981", color: "#fff", border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
+                                    >
+                                        Copy Code
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ padding: "40px 20px", color: "#94a3b8", fontSize: 14, fontFamily: FONT }}>
+                                Select a product to generate its barcode.
+                            </div>
+                        )}
+                        
+                        <div style={{ marginTop: 30, textAlign: "left", padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #f1f5f9" }}>
+                            <div style={{ fontSize: 12, fontWeight: 400, color: "#475569", marginBottom: 8, fontFamily: FONT }}>Barcode Structure:</div>
+                            <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, lineHeight: 1.6 }}>
+                                • Fixed Collection Code (3 digits)<br/>
+                                • SKU Numeric Part (3 digits)<br/>
+                                • Style ID (3 digits)<br/>
+                                • Random Generator (4 digits)
+                            </div>
+                        </div>
                     </div>
-                    <div style={{ fontSize: 13, color: "#94a3b8", fontFamily: FONT }}>
-                        {mode === "create" ? "Connect a barcode library (e.g. JsBarcode) to enable barcode generation." : "Select products and send barcodes to your printer."}
+                </Card>
+            </div>
+
+            {/* Print Selection Modal */}
+            {printModalOpen && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+                    <div style={{ background: "#fff", borderRadius: 16, padding: "24px 20px", maxWidth: 400, width: "100%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 500, color: "#0f172a", marginBottom: 16, textAlign: "center", fontFamily: FONT }}>Select Print Size</h3>
+                        
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {[
+                                { id: "50x25", label: "50 x 25 mm (Standard)", icon: "🏷️" },
+                                { id: "38x25", label: "38 x 25 mm (Small)", icon: "🔖" },
+                                { id: "100x150", label: "100 x 150 mm (Large/Shipping)", icon: "📦" }
+                            ].map(size => (
+                                <button 
+                                    key={size.id}
+                                    onClick={() => setSelectedSize(size.id as any)}
+                                    style={{ 
+                                        padding: "14px", border: "1.5px solid", borderRadius: 12, fontSize: 14, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12,
+                                        borderColor: selectedSize === size.id ? "#6366f1" : "#e2e8f0",
+                                        background: selectedSize === size.id ? "rgba(99,102,241,0.05)" : "#fff",
+                                        color: selectedSize === size.id ? "#6366f1" : "#475569",
+                                        transition: "all 0.2s"
+                                    }}
+                                >
+                                    <span style={{ fontSize: 18 }}>{size.icon}</span>
+                                    <span style={{ fontWeight: selectedSize === size.id ? 500 : 400 }}>{size.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
+                            <button 
+                                onClick={() => setPrintModalOpen(false)}
+                                style={{ flex: 1, padding: "12px", background: "transparent", border: "none", color: "#64748b", fontSize: 14, cursor: "pointer" }}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setPrintModalOpen(false);
+                                    setTimeout(() => window.print(), 100);
+                                }}
+                                style={{ flex: 2, padding: "12px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+                            >
+                                Confirm & Print
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </Card>
+            )}
+
+            {/* PRINT-ONLY COMPONENT (Portal to Body) */}
+            {typeof document !== "undefined" && createPortal(
+                <div id="print-area" className="print-only">
+                    <style>{`
+                        @media print {
+                            html, body {
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                height: 100% !important;
+                                overflow: hidden !important;
+                            }
+                            /* Hide Everything except the label */
+                            body > *:not(#print-area) { 
+                                display: none !important; 
+                            }
+                            #print-area { 
+                                display: flex !important; 
+                                position: fixed !important;
+                                top: 0 !important; left: 0 !important;
+                                width: 100% !important;
+                                height: 100% !important;
+                                background: #fff !important;
+                                padding: 0 !important;
+                                margin: 0 !important;
+                                visibility: visible !important;
+                                align-items: center;
+                                justify-content: center;
+                                z-index: 99999;
+                            }
+                            .barcode-label-container {
+                                width: 100% !important;
+                                height: 100% !important;
+                                display: flex !important;
+                                flex-direction: column;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 !important;
+                                margin: 0 !important;
+                            }
+                            @page { 
+                                margin: 0; 
+                                size: ${selectedSize === "50x25" ? "50mm 25mm" : selectedSize === "38x25" ? "38mm 25mm" : "100mm 150mm"};
+                            }
+                        }
+                        .print-only { display: none; }
+                    `}</style>
+                    
+                    {selectedProduct && generatedBarcode && (
+                        <div className="barcode-label-container" style={{ 
+                            width: selectedSize === "50x25" ? "50mm" : selectedSize === "38x25" ? "38mm" : "100mm",
+                            height: selectedSize === "50x25" ? "25mm" : selectedSize === "38x25" ? "25mm" : "150mm",
+                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                            textAlign: "center", fontFamily: "'Inter', sans-serif", fontWeight: "600",
+                            color: "#000", background: "#fff", padding: "2.5mm", boxSizing: "border-box", overflow: "hidden"
+                        }}>
+                            {/* REAL Barcode SVG - Scaled for thermal labels with ZERO internal margins but 2.5mm external padding */}
+                            <BarcodeSVG 
+                                value={generatedBarcode} 
+                                height={selectedSize === "100x150" ? 180 : 55} 
+                                width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0} 
+                                fontSize={selectedSize === "100x150" ? 30 : 16}
+                            />
+                            
+                            <div style={{ 
+                                fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt", 
+                                letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0, 
+                                fontWeight: "700",
+                                marginTop: "1mm",
+                                color: "#000",
+                                width: "100%",
+                                textOverflow: "clip",
+                                whiteSpace: "nowrap"
+                            }}>
+                                {generatedBarcode}
+                            </div>
+                        </div>
+                    )}
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
@@ -1009,7 +1347,7 @@ export function BarcodeView({ mode }: { mode: "create" | "print" }) {
 // ══════════════════════════════════════════════════════════════
 // OVERVIEW (ALL INVENTORY DASHBOARD)
 // ══════════════════════════════════════════════════════════════
-export function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole, isMobile, isDesktop }: { 
+export function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole, canCreate, canDelete, isMobile, isDesktop }: { 
     products: Product[]; 
     categories: Category[]; 
     collections: Collection[]; 
@@ -1017,6 +1355,8 @@ export function Overview({ products, categories, collections, loading, onNavigat
     onNavigate: (view: any) => void;
     currentName: string;
     userRole: string;
+    canCreate?: boolean;
+    canDelete?: boolean;
     isMobile?: boolean;
     isDesktop?: boolean;
 }) {
@@ -1243,14 +1583,16 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                                 </span>
                                             </td>
                                             <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
-                                                <button 
-                                                    onClick={() => setProductToDelete(p)}
-                                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 6, display: "inline-flex", borderRadius: 8, transition: "0.2s" }}
-                                                    onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                                                    onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
-                                                >
-                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                                </button>
+                                                {canDelete && (
+                                                    <button 
+                                                        onClick={() => setProductToDelete(p)}
+                                                        style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 6, display: "inline-flex", borderRadius: 8, transition: "0.2s" }}
+                                                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                                                        onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
+                                                    >
+                                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

@@ -71,7 +71,6 @@ export default function CatalogTab({ products, categories, collections, brands, 
                         <div style={labelStyle}>Search Products</div>
                         <input 
                             style={inputStyle} 
-                            placeholder="Search by name or SKU..." 
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />

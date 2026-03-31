@@ -182,7 +182,6 @@ function LoginContent() {
               <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>New Private Password</label>
               <input
                 type="password"
-                placeholder="6+ characters"
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 style={inputStyle}

@@ -50,6 +50,8 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   // New states for activity feeds
   const [dispatchSearch, setDispatchSearch] = useState("");
   const [dispatchFilter, setDispatchFilter] = useState("all"); 
+  const [todayDispatchFilter, setTodayDispatchFilter] = useState("all"); 
+  const [todayDispatchSearch, setTodayDispatchSearch] = useState("");
   const [inventorySearch, setInventorySearch] = useState("");
 
   useEffect(() => {
@@ -259,23 +261,66 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
          </div>
 
          {/* TODAY'S DISPATCHES CARD */}
-         <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
+         <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 280 }}>
             <div style={S.statStripe("#10b981")} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "capitalize" }}>Today's Dispatches</div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: "#10b981", background: "#d1fae5", padding: "2px 8px", borderRadius: 12 }}>
-                {activities.filter(a => a.type === "dispatch" && new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).length}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "capitalize", marginBottom: 4 }}>Today's Dispatches</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 400, color: "#10b981", background: "#d1fae5", padding: "2px 8px", borderRadius: 12 }}>
+                    {activities.filter(a => {
+                      const isToday = new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0);
+                      const isDispatch = a.type === "dispatch";
+                      const matchesFilter = todayDispatchFilter === "all" || a.title.includes(todayDispatchFilter);
+                      const matchesSearch = !todayDispatchSearch || a.title.toLowerCase().includes(todayDispatchSearch.toLowerCase()) || a.user.toLowerCase().includes(todayDispatchSearch.toLowerCase());
+                      return isToday && isDispatch && matchesFilter && matchesSearch;
+                    }).length}
+                  </div>
+                  <span style={{ fontSize: 10, color: "#94a3b8" }}>{todayDispatchFilter === "all" ? "Total" : todayDispatchFilter}</span>
+                </div>
               </div>
+              <select 
+                value={todayDispatchFilter} 
+                onChange={(e) => setTodayDispatchFilter(e.target.value)}
+                style={{ fontSize: 10, padding: "4px 8px", borderRadius: 6, border: "1px solid #e2e8f0", outline: "none", cursor: "pointer", background: "#f8fafc", color: "#475569" }}
+              >
+                <option value="all">All</option>
+                <option value="Retail">Retail</option>
+                <option value="Ecommerce">Ecommerce</option>
+              </select>
             </div>
+
+            {/* Added search input */}
+            <div style={{ marginBottom: 10 }}>
+              <input 
+                type="text"
+                value={todayDispatchSearch}
+                onChange={(e) => setTodayDispatchSearch(e.target.value)}
+                style={{ width: "100%", padding: "6px 10px", fontSize: 11, borderRadius: 6, border: "1.5px solid #f1f5f9", outline: "none", background: "#fafbfc" }}
+              />
+            </div>
+
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
-              {activities.filter(a => a.type === "dispatch" && new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).map(a => (
+              {activities.filter(a => {
+                const isToday = new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0);
+                const isDispatch = a.type === "dispatch";
+                const matchesFilter = todayDispatchFilter === "all" || a.title.includes(todayDispatchFilter);
+                const matchesSearch = !todayDispatchSearch || a.title.toLowerCase().includes(todayDispatchSearch.toLowerCase()) || a.user.toLowerCase().includes(todayDispatchSearch.toLowerCase());
+                return isToday && isDispatch && matchesFilter && matchesSearch;
+              }).map(a => (
                 <div key={a.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", flexDirection: "column" }}>
                   <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>By: <span style={{ fontWeight: 400, color: "#475569" }}>{a.user}</span> • {new Date(a.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
                 </div>
               ))}
-              {activities.filter(a => a.type === "dispatch" && new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0)).length === 0 && (
-                <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>No dispatches today.</div>
+              {activities.filter(a => {
+                const isToday = new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0);
+                const isDispatch = a.type === "dispatch";
+                const matchesFilter = todayDispatchFilter === "all" || a.title.includes(todayDispatchFilter);
+                const matchesSearch = !todayDispatchSearch || a.title.toLowerCase().includes(todayDispatchSearch.toLowerCase()) || a.user.toLowerCase().includes(todayDispatchSearch.toLowerCase());
+                return isToday && isDispatch && matchesFilter && matchesSearch;
+              }).length === 0 && (
+                <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>No {todayDispatchFilter === "all" ? "" : todayDispatchFilter.toLowerCase() + " "}dispatches found.</div>
               )}
             </div>
          </div>
@@ -316,8 +361,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>🚛 Recent Dispatches</h3>
             <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 200 }}>
               <input 
-                type="text" 
-                placeholder="Search..."
+                type="text"
                 value={dispatchSearch} 
                 onChange={(e) => setDispatchSearch(e.target.value)}
                 style={{ width: "100%", maxWidth: 160, padding: "6px 10px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
@@ -351,7 +395,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>📦 Live Inventory</h3>
             <div style={{ position: "relative", flex: 1, maxWidth: 200 }}>
               <input 
-                type="text" placeholder="Search inventory..."
+                type="text"
                 value={inventorySearch} onChange={e => setInventorySearch(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
               />

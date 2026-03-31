@@ -26,6 +26,7 @@ export default function EditRoleModal({
 }: EditRoleModalProps) {
   const [newPass, setNewPass] = React.useState("");
   const [resetting, setResetting] = React.useState(false);
+  const [expandedMod, setExpandedMod] = React.useState<string | null>(null);
 
   const onReset = async () => {
     if (!newPass.trim() || newPass.length < 6) return alert("Password must be 6+ characters.");
@@ -53,24 +54,116 @@ export default function EditRoleModal({
           {(["admin", "manager", "employee"] as UserRole[]).map(r => (
             <button key={r} onClick={() => {
               setEditRole(r);
-              if (r === "admin") setEditPermissions(["dispatch", "inventory", "reports", "settings", "party-rates"]);
+              if (r === "admin") {
+                const all = [
+                  "inventory_view", "inventory_create", "inventory_edit", "inventory_delete",
+                  "retail_view", "retail_create", "retail_edit", "retail_delete",
+                  "ecom_view", "ecom_create", "ecom_edit", "ecom_delete",
+                  "reports", "settings", "party-rates"
+                ];
+                setEditPermissions(all);
+              }
             }}
               style={{ flex: 1, padding: "10px 6px", borderRadius: 11, cursor: "pointer", textAlign: "center", fontFamily: "inherit", border: editRole === r ? `2px solid ${roleColors[r]}` : "2px solid #e2e8f0", background: editRole === r ? `${roleColors[r]}08` : "#fff" }}>
               <div style={{ fontSize: 12, fontWeight: 400, color: editRole === r ? roleColors[r] : "#94a3b8", textTransform: "capitalize", letterSpacing: "0.05em" }}>{r}</div>
             </button>
           ))}
         </div>
-        <label style={{ ...S.label, marginBottom: 10 }}>Permissions</label>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22, padding: "12px 12px", background: "#f8fafc", borderRadius: 11, border: "1px solid #e2e8f0" }}>
-          {["dispatch", "inventory", "reports", "settings", "party-rates"].map(p => (
-            <label key={p} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#475569", cursor: "pointer" }}>
-              <input type="checkbox" checked={editPermissions?.includes(p)} onChange={e => {
-                const perms = e.target.checked ? [...(editPermissions || []), p] : (editPermissions || []).filter(x => x !== p);
-                setEditPermissions(perms);
-              }} style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#6366f1" }} />
-              <span style={{ textTransform: "capitalize" }}>{p}</span>
-            </label>
-          ))}
+        <label style={{ ...S.label, marginBottom: 12 }}>Permissions</label>
+        <div style={{ padding: "8px", background: "#f8fafc", borderRadius: 14, border: "1px solid #e2e8f0", marginBottom: 22 }}>
+          {[
+            { id: "inv", name: "Inventory", prefix: "inventory" },
+            { id: "retail", name: "Retail Dispatch", prefix: "retail" },
+            { id: "ecom", name: "Ecommerce Dispatch", prefix: "ecom" }
+          ].map(mod => {
+            const actions = ["view", "create", "edit", "delete"];
+            const modPerms = actions.map(act => `${mod.prefix}_${act}`);
+            const selectedCount = modPerms.filter(p => editPermissions.includes(p)).length;
+            const isExpanded = expandedMod === mod.id;
+
+            return (
+              <div key={mod.id} style={{ 
+                marginBottom: 4, 
+                borderRadius: 10, 
+                overflow: "hidden", 
+                background: isExpanded ? "#fff" : "transparent",
+                borderWidth: 1,
+                borderStyle: "solid",
+                borderColor: isExpanded ? "#e2e8f0" : "transparent"
+              }}>
+                <div 
+                  onClick={() => setExpandedMod(isExpanded ? null : mod.id)}
+                  style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "0.2s" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b" }}>{mod.name}</div>
+                      <div style={{ fontSize: 11, color: "#64748b" }}>{selectedCount} of 4 rights assigned</div>
+                    </div>
+                  </div>
+                  <div style={{ transition: "0.2s", transform: isExpanded ? "rotate(180deg)" : "none", color: "#94a3b8" }}>▼</div>
+                </div>
+                
+                {isExpanded && (
+                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #f1f5f9" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0" }}>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const allSelected = modPerms.every(i => editPermissions.includes(i));
+                          const newPerms = allSelected 
+                            ? editPermissions.filter(p => !modPerms.includes(p)) 
+                            : [...new Set([...editPermissions, ...modPerms])];
+                          setEditPermissions(newPerms);
+                        }}
+                        style={{ background: "none", border: "none", color: "#6366f1", fontSize: 11, cursor: "pointer", fontWeight: 500 }}
+                      >
+                        { modPerms.every(i => editPermissions.includes(i)) ? "Clear All" : "Select All" }
+                      </button>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      {actions.map(action => (
+                        <label key={`${mod.id}_${action}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "#f8fafc", cursor: "pointer", fontSize: 13, color: "#475569" }}>
+                          <input 
+                            type="checkbox" 
+                            checked={editPermissions?.includes(`${mod.prefix}_${action}`)} 
+                            onChange={e => {
+                              const p = `${mod.prefix}_${action}`;
+                              const perms = e.target.checked ? [...(editPermissions || []), p] : (editPermissions || []).filter(x => x !== p);
+                              setEditPermissions(perms);
+                            }} 
+                            style={{ width: 16, height: 16, accentColor: "#6366f1" }} 
+                          />
+                          <span style={{ textTransform: "capitalize" }}>{action}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Others Group */}
+          <div style={{ marginTop: 8, padding: "12px 14px", borderTop: "1px solid #e2e8f0" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Specialized Access</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {["reports", "settings", "party-rates"].map(p => (
+                <label key={p} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 20, background: editPermissions?.includes(p) ? "rgba(99,102,241,0.06)" : "#fff", border: editPermissions?.includes(p) ? "1.5px solid #6366f1" : "1.5px solid #e2e8f0", fontSize: 12, color: editPermissions?.includes(p) ? "#6366f1" : "#64748b", cursor: "pointer" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={editPermissions?.includes(p)} 
+                    onChange={e => {
+                      const perms = e.target.checked ? [...(editPermissions || []), p] : (editPermissions || []).filter(x => x !== p);
+                      setEditPermissions(perms);
+                    }} 
+                    style={{ position: "absolute", opacity: 0 }} 
+                  />
+                  <span>{p.replace("-", " ").toUpperCase()}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
 
         <label style={{ ...S.label, marginBottom: 10 }}>Dispatch PIN (4 Digits)</label>
@@ -91,8 +184,7 @@ export default function EditRoleModal({
         <label style={{ ...S.label, marginBottom: 10 }}>Update Password (Min 6 chars)</label>
         <div style={{ display: "flex", gap: 10, marginBottom: 22 }}>
           <input 
-            type="text" 
-            placeholder="New temporary password"
+            type="text"
             value={newPass}
             onChange={e => setNewPass(e.target.value)}
             style={{ ...S.input, flex: 1, margin: 0 }}

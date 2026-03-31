@@ -16,6 +16,9 @@ interface Props {
     categories: Category[];
     loading: boolean;
     isAdminOrManager: boolean;
+    canCreate: boolean;
+    canEdit: boolean;
+    canDelete: boolean;
     onEdit: (p: Product) => void;
     onRefresh: () => void;
     user: { uid: string; name: string; role?: string };
@@ -27,7 +30,7 @@ interface Props {
 }
 
 export default function ProductList({
-    products, categories, user, loading, isAdminOrManager, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
+    products, categories, user, loading, isAdminOrManager, canCreate, canEdit, canDelete, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
 }: Props) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
@@ -71,6 +74,7 @@ export default function ProductList({
     };
 
     const handleDelete = async (id: string) => {
+        if (!canDelete) return alert("You do not have permission to delete products.");
         const p = products.find(x => x.id === id);
         if (!p) return;
         if (!confirm(`Delete "${p.productName}" permanently?`)) return;
@@ -102,6 +106,7 @@ export default function ProductList({
     const executeBulk = async () => {
         if (!bulkAction || selectedIds.size === 0) return;
         if (bulkAction === "delete") {
+            if (!canDelete) return alert("You do not have permission to delete products.");
             if (!confirm(`Delete ${selectedIds.size} products?`)) return;
             const selectedProducts = products.filter(p => selectedIds.has(p.id));
             
@@ -177,7 +182,7 @@ export default function ProductList({
         <div>
             <PageHeader title="All Products" sub={`${filtered.length} products`}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
-                    {isAdminOrManager && <BtnPrimary onClick={onCreateNew} style={isMobile ? { flex: 1, minWidth: 120 } : {}}>+ Add Product</BtnPrimary>}
+                    {canCreate && <BtnPrimary onClick={onCreateNew} style={isMobile ? { flex: 1, minWidth: 120 } : {}}>+ Add Product</BtnPrimary>}
                     <BtnGhost onClick={exportCSV} style={{ fontSize: 13, flex: isMobile ? 1 : "initial" }}>Export CSV</BtnGhost>
                     <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>↻</BtnGhost>
                 </div>
@@ -229,7 +234,7 @@ export default function ProductList({
                             <option value="">Action...</option>
                             <option value="active">Set Active</option>
                             <option value="inactive">Set Inactive</option>
-                            <option value="delete">Delete</option>
+                            {canDelete && <option value="delete">Delete</option>}
                         </select>
                         <BtnPrimary onClick={executeBulk} disabled={!bulkAction} style={{ padding: "5px 12px", fontSize: 12 }}>Apply</BtnPrimary>
                         <button 
@@ -344,11 +349,11 @@ export default function ProductList({
                                             <td style={td}>
                                                 <Badge color={sc.color} bg={sc.bg}>{sc.label}</Badge>
                                             </td>
-                                            {isAdminOrManager && (
+                                            {(canEdit || canDelete) && (
                                                 <td style={{ ...td, textAlign: "right" }}>
                                                     <div style={{ display: "flex", gap: 5, justifyContent: "flex-end" }}>
-                                                        <button onClick={() => onEdit(p)} style={{ padding: "5px 10px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}>Edit</button>
-                                                        <button onClick={() => handleDelete(p.id)} style={{ padding: "5px 10px", background: "rgba(239,68,68,0.07)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}>Del</button>
+                                                        {canEdit && <button onClick={() => onEdit(p)} style={{ padding: "5px 10px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}>Edit</button>}
+                                                        {canDelete && <button onClick={() => handleDelete(p.id)} style={{ padding: "5px 10px", background: "rgba(239,68,68,0.07)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}>Del</button>}
                                                     </div>
                                                 </td>
                                             )}

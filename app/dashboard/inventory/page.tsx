@@ -6,6 +6,7 @@ import { ref, get, update, query, orderByChild, equalTo, remove } from "firebase
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { logActivity } from "../../lib/activityLogger";
+import { hasPermission } from "../../lib/permissions";
 
 import InventorySidebar from "./InventorySidebar";
 import CreateProduct from "./CreateProduct";
@@ -142,14 +143,18 @@ export default function InventoryPage() {
   useEffect(() => { if (!loading && !user) router.replace("/"); }, [loading, user, router]);
   useEffect(() => { if (isDesktop) setSidebarOpen(false); }, [isDesktop]);
 
-  // Permission check: only admin or users with "inventory" permission can access
-  const hasAccess = userData?.role === "admin" || userData?.permissions?.includes("inventory");
+  // Permission check: only admin or users with "inventory_view" permission can access
+  const hasAccess = hasPermission(userData, "inventory_view");
   useEffect(() => {
     if (!loading && user && !hasAccess) {
       const timer = setTimeout(() => router.replace("/dashboard"), 2000);
       return () => clearTimeout(timer);
     }
   }, [loading, user, hasAccess, router]);
+
+  const canCreate = hasPermission(userData, "inventory_create");
+  const canEdit = hasPermission(userData, "inventory_edit");
+  const canDelete = hasPermission(userData, "inventory_delete");
 
   const isAdminOrManager = userData?.role === "admin" || userData?.role === "manager";
   const currentName = userData?.name || user?.name || "User";
@@ -219,6 +224,7 @@ export default function InventoryPage() {
   const handleLogout = async () => { await logout(); router.replace("/"); };
 
   const openEdit = (p: Product) => {
+    if (!canEdit) return alert("You do not have permission to edit products.");
     setEditProduct(p);
     const standardSizes = ["Single", "Double", "King", "Super King"];
     const isStandard = standardSizes.includes(p.size || "");
@@ -228,7 +234,7 @@ export default function InventoryPage() {
     setEditCustomSize(isStandard ? "" : (p.size || ""));
 
     setEditForm({
-      productName: p.productName, sku: p.sku, category: p.category, collection: p.collection || "", brand: p.brand, brandId: p.brandId || "",
+      productName: p.productName, sku: p.sku, styleId: p.styleId || "", category: p.category, collection: p.collection || "", brand: p.brand, brandId: p.brandId || "",
       price: p.price, wholesalePrice: p.wholesalePrice || 0, mrp: p.mrp || 0, costPrice: p.costPrice, stock: p.stock, minStock: p.minStock,
       status: p.status, imageUrl: p.imageUrl || "", description: p.description || "",
       unit: p.unit || "PCS", hsnCode: p.hsnCode || "", gstRate: p.gstRate ?? 18, size: p.size || "",
@@ -367,6 +373,9 @@ export default function InventoryPage() {
             user={{ uid: user.uid, name: currentName, role: currentRole }}
             loading={fetching}
             isAdminOrManager={isAdminOrManager}
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
             onEdit={openEdit}
             onRefresh={loadAll}
             onCreateNew={() => navigate("product-create")}
@@ -379,27 +388,27 @@ export default function InventoryPage() {
       case "category-create":
         return <CreateCategory user={{ uid: user.uid, name: currentName }} onCreated={c => { setCategories(prev => [c, ...prev]); navigate("category-list"); }} {...commonProps} />;
       case "category-list":
-        return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} loading={fetching} onCreateNew={() => navigate("category-create")} {...commonProps} />;
+        return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} loading={fetching} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("category-create")} {...commonProps} />;
       // ── Collections ───────────────────────────────────────
       case "collections-create":
         return <CreateCollection products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} {...commonProps} />;
       case "collections-list":
-        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("collections-create")} {...commonProps} />;
+        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("collections-create")} {...commonProps} />;
       // ── Inventory actions ─────────────────────────────────
       case "inventory-adjustment":
         return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} {...commonProps} />;
       case "inventory-barcode-create":
-        return <BarcodeView mode="create" {...commonProps} />;
+        return <BarcodeView products={products} collections={collections} {...commonProps} />;
       case "inventory-barcode-print":
-        return <BarcodeView mode="print" {...commonProps} />;
+        return <BarcodeView products={products} collections={collections} {...commonProps} />;
       // ── Overview ──────────────────────────────────────────
       case "overview":
-        return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} {...commonProps} />;
+        return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} canCreate={canCreate} {...commonProps} />;
       // ── Item Grouping ─────────────────────────────────────
       case "grouping-create":
         return <CreateItemGroup products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} {...commonProps} />;
       case "grouping-list":
-        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} onCreateNew={() => navigate("grouping-create")} {...commonProps} />;
+        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("grouping-create")} {...commonProps} />;
       case "catalog":
         return <CatalogTab products={products} categories={categories} collections={collections} brands={brands} loading={fetching} {...commonProps} />;
       case "inventory-bulk":
@@ -480,9 +489,16 @@ export default function InventoryPage() {
 
             <h3 style={{ fontSize: 17, fontWeight: 400, color: "#0f172a", margin: "0 0 20px", fontFamily: FONT }}>Edit Product</h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Item Name" required><Input value={editForm.productName} onChange={e => setEditForm({ ...editForm, productName: e.target.value })} /></FormField>
               <FormField label="SKU" required><Input value={editForm.sku} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} /></FormField>
+              <FormField label="Style ID (3 Digits)">
+                <Input
+                  value={editForm.styleId || ""}
+                  maxLength={3}
+                  onChange={e => setEditForm({ ...editForm, styleId: e.target.value.replace(/\D/g, "") })}
+                />
+              </FormField>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="Category"><Select value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}><option value="">Select...</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</Select></FormField>
@@ -528,7 +544,6 @@ export default function InventoryPage() {
                       <div style={{ position: "sticky", top: 0, background: "#fff", padding: "2px 2px 4px", zIndex: 1 }}>
                         <input 
                           type="text" 
-                          placeholder="Search..." 
                           value={brandSearch}
                           autoFocus
                           onChange={e => setBrandSearch(e.target.value)}
@@ -695,7 +710,7 @@ export default function InventoryPage() {
                   <Input value={editCustomSize} onChange={e => {
                     setEditCustomSize(e.target.value);
                     setEditForm({ ...editForm, size: e.target.value });
-                  }} placeholder="e.g. 72x78" />
+                  }} />
                 </FormField>
               )}
             </div>

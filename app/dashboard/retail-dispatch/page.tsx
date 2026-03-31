@@ -12,6 +12,7 @@ import AddOrderModal from "./components/AddOrderModal";
 import CreateDispatchModal from "./components/Createdispatchmodal";
 import DispatchSidebar from "./DispatchSidebar";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "./components/ui";
+import { hasPermission } from "../../lib/permissions";
 
 // Responsive hook
 function useWindowSize() {
@@ -100,8 +101,14 @@ export default function AdvancedDispatchDashboard() {
     }
   };
 
-  // Permission check: only admin or users with "dispatch" permission can access
-  const hasAccess = userData?.role === "admin" || userData?.permissions?.includes("dispatch");
+  // Permission flags
+  const canView = hasPermission(userData, "retail_view");
+  const canCreate = hasPermission(userData, "retail_create");
+  const canEdit = hasPermission(userData, "retail_edit");
+  const canDelete = hasPermission(userData, "retail_delete");
+
+  const hasAccess = canView;
+  
   useEffect(() => {
     if (!loading && user && !hasAccess) {
       const timer = setTimeout(() => router.replace("/dashboard"), 2000);
@@ -113,11 +120,14 @@ export default function AdvancedDispatchDashboard() {
   if (!loading && user && !hasAccess) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "inherit" }}>
-        <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0", maxWidth: 400 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-          <h2 style={{ fontSize: 20, fontWeight: 400, color: "#0f172a", margin: "0 0 8px" }}>Access Denied</h2>
-          <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 16px" }}>You do not have permission to access the Dispatch page.</p>
-          <p style={{ fontSize: 12, color: "#94a3b8" }}>Redirecting to dashboard...</p>
+        <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 24, boxShadow: "0 10px 30px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0", maxWidth: 420 }}>
+          <div style={{ fontSize: 44, marginBottom: 18 }}>🔒</div>
+          <h2 style={{ fontSize: 20, fontWeight: 500, color: "#1e293b", margin: "0 0 10px" }}>Access Restricted</h2>
+          <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.6, margin: "0 0 20px" }}>You do not have the required permissions to access the Retail Dispatch dashboard. Please contact your administrator.</p>
+          <div style={{ fontSize: 12, color: "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <div style={{ width: 14, height: 14, border: "2px solid #e2e8f0", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            Returning to dashboard...
+          </div>
         </div>
       </div>
     );
@@ -214,7 +224,7 @@ export default function AdvancedDispatchDashboard() {
         {activeView === "overview" && (
           <div className="animate-in fade-in duration-300">
             <PageHeader title="Retail Dispatch" sub="Manage and track your retail fulfillment pipeline.">
-                <BtnPrimary onClick={() => setActiveView("create-dispatch")}>🚀 Create Retail Dispatch</BtnPrimary>
+                {canCreate && <BtnPrimary onClick={() => setActiveView("create-dispatch")}>🚀 Create Retail Dispatch</BtnPrimary>}
                 <BtnGhost onClick={loadOrders} style={{ fontSize: 13 }}>↻ Refresh</BtnGhost>
             </PageHeader>
 
@@ -321,10 +331,12 @@ export default function AdvancedDispatchDashboard() {
                     <span style={{ fontSize: 18 }}>⚡</span> Quick Actions
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <button onClick={() => setActiveView("create-dispatch")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
-                      <span style={{ background: "rgba(99,102,241,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>➕</span>
-                      Create New Dispatch
-                    </button>
+                    {canCreate && (
+                      <button onClick={() => setActiveView("create-dispatch")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                        <span style={{ background: "rgba(99,102,241,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>➕</span>
+                        Create New Dispatch
+                      </button>
+                    )}
                     <button onClick={() => setActiveView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
                       <span style={{ background: "rgba(139,92,246,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</span>
                       Manage All Orders
@@ -351,7 +363,8 @@ export default function AdvancedDispatchDashboard() {
               setFilterStatus={setFilterStatus}
               onRefresh={loadOrders}
               loading={fetching}
-              onDeleteOrder={handleDeleteOrder}
+              onDeleteOrder={canDelete ? handleDeleteOrder : undefined}
+              canDelete={canDelete}
             />
           </div>
         )}
@@ -396,8 +409,10 @@ export default function AdvancedDispatchDashboard() {
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onOrderUpdated={handleOrderUpdated}
-          onDeleteOrder={handleDeleteOrder}
+          onDeleteOrder={canDelete ? handleDeleteOrder : undefined}
           user={{ uid: user.uid, name: currentName, role: currentRole }}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       )}
     </div>

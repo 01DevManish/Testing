@@ -138,7 +138,6 @@ export default function PartyRateTab({
           <span style={{ color: "#94a3b8" }}>🔍</span>
           <input 
             type="text" 
-            placeholder="Search party..." 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
             style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14 }}
@@ -156,8 +155,7 @@ export default function PartyRateTab({
               <input 
                 style={S.input} 
                 value={form.partyName} 
-                onChange={e => setForm({ ...form, partyName: e.target.value })} 
-                placeholder="Enter party name..."
+                onChange={e => setForm({ ...form, partyName: e.target.value })}
               />
             </div>
 
@@ -187,8 +185,7 @@ export default function PartyRateTab({
                       type="number" 
                       style={{ ...S.input, flex: 1 }} 
                       value={r.rate || ""} 
-                      onChange={e => updateRate(i, "rate", parseFloat(e.target.value))} 
-                      placeholder="₹ Rate"
+                      onChange={e => updateRate(i, "rate", parseFloat(e.target.value))}
                     />
                     <button onClick={() => removeRateRow(i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 18 }}>✕</button>
                   </div>

@@ -133,12 +133,19 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
             const bstr = evt.target?.result;
             const wb = XLSX.read(bstr, { type: "binary" });
             const ws = wb.Sheets[wb.SheetNames[0]];
-            const data = XLSX.utils.sheet_to_json(ws) as any[];
+            const rawData = XLSX.utils.sheet_to_json(ws) as any[];
+
+            // Strict Filter: Only rows that have a name or SKU are products
+            const filteredData = rawData.filter(row => {
+                const name = row["Product Name*"]?.toString().trim();
+                const sku = row["SKU*"]?.toString().trim();
+                return !!(name || sku);
+            });
 
             setFileStats({
                 name: file.name,
                 size: file.size,
-                rows: data.length
+                rows: filteredData.length
             });
             setResults(null);
         };
@@ -157,10 +164,25 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const wb = XLSX.read(e.target?.result, { type: "binary" });
-                    resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]));
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const raw = XLSX.utils.sheet_to_json(ws);
+                    // Strict filtering
+                    const filtered = (raw as any[]).filter(row => {
+                        const name = row["Product Name*"]?.toString().trim();
+                        const sku = row["SKU*"]?.toString().trim();
+                        return !!(name || sku);
+                    });
+                    resolve(filtered);
                 };
                 reader.readAsBinaryString(file);
             });
+
+            if (data.length === 0) {
+                errors.push("No valid products found in the file. Please check if Name and SKU columns are present.");
+                setResults({ success: 0, errors });
+                setUploading(false);
+                return;
+            }
 
             const inventorySnap = await get(ref(db, "inventory"));
             const existingSkus = new Set<string>();
@@ -175,71 +197,88 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                 const row = data[i];
                 const rowNum = i + 2;
                 
-                const productName = row["Product Name*"]?.toString().trim();
-                const sku = row["SKU*"]?.toString().trim();
-                
-                if (!productName || !sku) {
-                    errors.push(`Row ${rowNum}: Product Name and SKU are required.`);
-                    continue;
+                try {
+                    const productName = row["Product Name*"]?.toString().trim();
+                    const sku = row["SKU*"]?.toString().trim();
+                    
+                    if (!productName || !sku) {
+                        errors.push(`Row ${rowNum}: Product Name and SKU are both required.`);
+                        continue;
+                    }
+
+                    // Skip the sample row
+                    if (sku === "SKU-001" && productName === "Sample Product") {
+                        continue;
+                    }
+
+                    if (existingSkus.has(sku.toLowerCase())) {
+                        errors.push(`Row ${rowNum}: SKU "${sku}" already exists in the system.`);
+                        continue;
+                    }
+
+                    const brandName = row["Brand"]?.toString().trim() || "";
+                    const matchedBrand = brands.find(b => b.name.toLowerCase() === brandName.toLowerCase());
+
+                    const timestamp = Date.now();
+                    const stock = Number(row["Opening Stock"]) || 0;
+                    const minStock = Number(row["Min Stock (Alert)"]) || 5;
+                    const reqStatus = row["Status"]?.toString().trim().toLowerCase().replace(/\s+/g, "-");
+
+                    // Image processing
+                    let finalImageUrl = "";
+                    let rawImageUrl = row["Thumbnail URL"]?.toString().trim() || "";
+                    if (rawImageUrl) {
+                        try {
+                            // Dropbox Fix: dl=0 points to a webpage, dl=1 points to the file itself
+                            if (rawImageUrl.includes("dropbox.com")) {
+                                rawImageUrl = rawImageUrl.replace("dl=0", "dl=1").replace("raw=0", "raw=1");
+                            }
+                            finalImageUrl = await uploadToCloudinary(rawImageUrl);
+                        } catch (imgErr: any) {
+                            console.warn(`Row ${rowNum}: Image upload failed, continuing without image.`, imgErr);
+                            // We don't fail the whole product for one image, just warn and continue with empty
+                        }
+                    }
+
+                    const productData: Omit<Product, "id"> = {
+                        productName,
+                        sku,
+                        category: row["Category"]?.toString().trim() || "",
+                        collection: row["Collection"]?.toString().trim() || "",
+                        brand: brandName,
+                        brandId: matchedBrand?.id || "",
+                        price: Number(row["Selling Price (Rs.)*"]) || 0,
+                        wholesalePrice: Number(row["Wholesale Price (Rs.)"]) || 0,
+                        mrp: Number(row["MRP (Rs.)"]) || 0,
+                        costPrice: Number(row["Cost Price (Rs.)"]) || 0,
+                        stock: stock,
+                        minStock: minStock,
+                        unit: row["Unit"]?.toString().trim() || "PCS",
+                        size: row["Size"]?.toString().trim() || "",
+                        hsnCode: row["HSN Code"]?.toString().trim() || "",
+                        gstRate: parseInt(row["GST Rate"]?.toString().replace("%", "").trim()) || 18,
+                        description: row["Description"]?.toString().trim() || "",
+                        imageUrl: finalImageUrl,
+                        imageUrls: [],
+                        status: (reqStatus === "active" || reqStatus === "inactive" || reqStatus === "low-stock" || reqStatus === "out-of-stock") 
+                            ? reqStatus 
+                            : (stock <= 0 ? "out-of-stock" : (stock <= minStock ? "low-stock" : "active")),
+                        createdAt: timestamp,
+                        updatedAt: timestamp,
+                        createdBy: user.uid,
+                        createdByName: user.name,
+                        updatedBy: user.uid,
+                        updatedByName: user.name
+                    };
+
+                    const newRef = push(ref(db, "inventory"));
+                    await rtdbSet(newRef, productData);
+                    successCount++;
+                    existingSkus.add(sku.toLowerCase());
+                } catch (innerErr: any) {
+                    console.error(`Error in row ${rowNum}:`, innerErr);
+                    errors.push(`Row ${rowNum}: ${innerErr.message || "Failed to save product."}`);
                 }
-
-                // Automatically skip the sample row if the user forgot to delete it
-                if (sku === "SKU-001" && productName === "Sample Product") {
-                    continue;
-                }
-
-                if (existingSkus.has(sku.toLowerCase())) {
-                    errors.push(`Row ${rowNum}: SKU "${sku}" already exists.`);
-                    continue;
-                }
-
-                const brandName = row["Brand"]?.toString() || "";
-                const matchedBrand = brands.find(b => b.name.toLowerCase() === brandName.toLowerCase());
-
-                const timestamp = Date.now();
-                const stock = Number(row["Opening Stock"]) || 0;
-                const minStock = Number(row["Min Stock (Alert)"]) || 5;
-                const reqStatus = row["Status"]?.toString().toLowerCase().replace(/\s+/g, "-");
-
-                // Process image URL through Cloudinary for permanent hosting
-                const rawImageUrl = row["Thumbnail URL"]?.toString() || "";
-                const finalImageUrl = rawImageUrl ? await uploadToCloudinary(rawImageUrl) : "";
-
-                const productData: Omit<Product, "id"> = {
-                    productName,
-                    sku,
-                    category: row["Category"]?.toString() || "",
-                    collection: row["Collection"]?.toString() || "",
-                    brand: brandName,
-                    brandId: matchedBrand?.id || "",
-                    price: Number(row["Selling Price (Rs.)*"]) || 0,
-                    wholesalePrice: Number(row["Wholesale Price (Rs.)"]) || 0,
-                    mrp: Number(row["MRP (Rs.)"]) || 0,
-                    costPrice: Number(row["Cost Price (Rs.)"]) || 0,
-                    stock: stock,
-                    minStock: minStock,
-                    unit: row["Unit"]?.toString() || "PCS",
-                    size: row["Size"]?.toString() || "",
-                    hsnCode: row["HSN Code"]?.toString() || "",
-                    gstRate: parseInt(row["GST Rate"]?.toString().replace("%", "")) || 18,
-                    description: row["Description"]?.toString() || "",
-                    imageUrl: finalImageUrl,
-                    imageUrls: [], // Manual upload later
-                    status: (reqStatus === "active" || reqStatus === "inactive" || reqStatus === "low-stock" || reqStatus === "out-of-stock") 
-                        ? reqStatus 
-                        : (stock <= 0 ? "out-of-stock" : (stock <= minStock ? "low-stock" : "active")),
-                    createdAt: timestamp,
-                    updatedAt: timestamp,
-                    createdBy: user.uid,
-                    createdByName: user.name,
-                    updatedBy: user.uid,
-                    updatedByName: user.name
-                };
-
-                const newRef = push(ref(db, "inventory"));
-                await rtdbSet(newRef, productData);
-                successCount++;
-                existingSkus.add(sku.toLowerCase());
             }
 
             if (successCount > 0) {
