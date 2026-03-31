@@ -1089,7 +1089,17 @@ export function BarcodeView({
         const colPart = getCollectionCode(product.collection || "");
         const skuPart = getSkuPart(product.sku);
         const sizeCode = getSizeCode(product.size || "");
-        const randPart = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        // Generate a deterministic 4-digit part from the product's unique ID
+        // This ensures the last 4 digits NEVER change for a specific product.
+        const idStr = (product.id || "0000").replace(/[^a-zA-Z0-0]/g, "");
+        let idHash = 0;
+        for (let i = 0; i < idStr.length; i++) {
+            idHash = ((idHash << 5) - idHash) + idStr.charCodeAt(i);
+            idHash |= 0;
+        }
+        const randPart = Math.abs(idHash % 9000 + 1000).toString();
+        
         return `${colPart}${skuPart}${sizeCode}${randPart}`;
     };
 
@@ -1120,18 +1130,20 @@ export function BarcodeView({
     };
 
     const handleGenerate = async (p: Product) => {
-        setSelectedProduct(p);
+        // Use the most up-to-date product from the list to avoid stale props
+        const currentP = products.find(x => x.id === p.id) || p;
+        setSelectedProduct(currentP);
         
-        const expectedColPart = getCollectionCode(p.collection || "");
-        const expectedSkuPart = getSkuPart(p.sku);
-        const expectedSizeCode = getSizeCode(p.size || "");
+        const expectedColPart = getCollectionCode(currentP.collection || "");
+        const expectedSkuPart = getSkuPart(currentP.sku);
+        const expectedSizeCode = getSizeCode(currentP.size || "");
         
-        let needsNew = !p.barcode;
-        if (p.barcode) {
+        let needsNew = !currentP.barcode;
+        if (currentP.barcode) {
             // Validate if existing barcode matches current specs
-            const existingCol = p.barcode.substring(0, 3);
-            const existingSku = p.barcode.substring(3, 6);
-            const existingSize = p.barcode.substring(6, 9);
+            const existingCol = currentP.barcode.substring(0, 3);
+            const existingSku = currentP.barcode.substring(3, 6);
+            const existingSize = currentP.barcode.substring(6, 9);
             
             if (existingCol !== expectedColPart || 
                 existingSku !== expectedSkuPart || 
@@ -1141,16 +1153,17 @@ export function BarcodeView({
         }
         
         if (needsNew) {
-            const code = generateBarcodeNumber(p);
+            const code = generateBarcodeNumber(currentP);
             try {
-                await update(ref(db, `inventory/${p.id}`), { barcode: code });
+                // Update Firebase and notify parent immediately if possible
+                await update(ref(db, `inventory/${currentP.id}`), { barcode: code });
                 setGeneratedBarcode(code);
             } catch (e) {
                 console.error(e);
                 alert("Failed to save barcode to database.");
             }
         } else {
-            setGeneratedBarcode(p.barcode!);
+            setGeneratedBarcode(currentP.barcode!);
         }
     };
 
