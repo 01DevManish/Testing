@@ -58,6 +58,10 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
         const unitList = UNITS;
         const statusList = ["Active", "Inactive", "Low Stock", "Out of Stock"];
         const gstList = GST_RATES.map(r => `${r}%`);
+        const sizeList = [
+            "Single", "Double", "Queen", "King", "Super King",
+            "Single Fitted", "Double Fitted", "Queen Fitted", "King Fitted"
+        ];
 
         // Add lists to hidden sheet for data validation referencing
         dataSheet.getColumn(1).values = catNames;
@@ -66,6 +70,7 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
         dataSheet.getColumn(4).values = unitList;
         dataSheet.getColumn(5).values = statusList;
         dataSheet.getColumn(6).values = gstList;
+        dataSheet.getColumn(7).values = sizeList;
 
         // Apply Data Validation (Dropdowns) to first 100 rows
         for (let i = 2; i <= 100; i++) {
@@ -110,6 +115,12 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                 type: "list",
                 allowBlank: true,
                 formulae: [`'DataLists'!$F$1:$F$${gstList.length}`]
+            };
+            // Size (P)
+            sheet.getCell(`P${i}`).dataValidation = {
+                type: "list",
+                allowBlank: true,
+                formulae: [`'DataLists'!$G$1:$G$${sizeList.length}`]
             };
         }
 

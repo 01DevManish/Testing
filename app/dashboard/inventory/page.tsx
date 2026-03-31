@@ -216,7 +216,9 @@ export default function InventoryPage() {
       stock: p.stock, 
       unit: p.unit || "PCS", 
       minStock: p.minStock, 
-      status: p.status 
+      status: p.status,
+      collection: p.collection,
+      category: p.category
     })), 
     [products]
   );
@@ -391,9 +393,9 @@ export default function InventoryPage() {
         return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} loading={fetching} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("category-create")} {...commonProps} />;
       // ── Collections ───────────────────────────────────────
       case "collections-create":
-        return <CreateCollection products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} {...commonProps} />;
+        return <CreateCollection products={products} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} {...commonProps} />;
       case "collections-list":
-        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("collections-create")} {...commonProps} />;
+        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={products} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("collections-create")} {...commonProps} />;
       // ── Inventory actions ─────────────────────────────────
       case "inventory-adjustment":
         return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} {...commonProps} />;
@@ -406,9 +408,9 @@ export default function InventoryPage() {
         return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} canCreate={canCreate} {...commonProps} />;
       // ── Item Grouping ─────────────────────────────────────
       case "grouping-create":
-        return <CreateItemGroup products={productStubs} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} {...commonProps} />;
+        return <CreateItemGroup products={products} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} {...commonProps} />;
       case "grouping-list":
-        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={productStubs} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("grouping-create")} {...commonProps} />;
+        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={products} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("grouping-create")} {...commonProps} />;
       case "catalog":
         return <CatalogTab products={products} categories={categories} collections={collections} brands={brands} loading={fetching} {...commonProps} />;
       case "inventory-bulk":
@@ -700,8 +702,13 @@ export default function InventoryPage() {
                   <option value="">No specific size</option>
                   <option value="Single">Single</option>
                   <option value="Double">Double</option>
+                  <option value="Queen">Queen</option>
                   <option value="King">King</option>
                   <option value="Super King">Super King</option>
+                  <option value="Single Fitted">Single Fitted</option>
+                  <option value="Double Fitted">Double Fitted</option>
+                  <option value="Queen Fitted">Queen Fitted</option>
+                  <option value="King Fitted">King Fitted</option>
                   <option value="Other">Other / Custom</option>
                 </Select>
               </FormField>

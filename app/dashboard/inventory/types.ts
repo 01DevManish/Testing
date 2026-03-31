@@ -32,6 +32,7 @@ export interface Product {
     createdByName?: string;
     updatedBy?: string;
     updatedByName?: string;
+    barcode?: string;
 }
 
 // ── Category ───────────────────────────────────────────────────

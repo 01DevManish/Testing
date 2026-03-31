@@ -302,7 +302,7 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
 // ══════════════════════════════════════════════════════════════
 // COLLECTION LIST
 // ══════════════════════════════════════════════════════════════
-export function CollectionList({ collections, user, loading, canCreate, canDelete, onCreateNew, products, isMobile, isDesktop }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
+export function CollectionList({ collections, user, loading, canCreate, canDelete, onCreateNew, products, isMobile, isDesktop }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void; products?: Product[], isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<Collection | null>(null);
     return (
         <div>
@@ -323,7 +323,9 @@ export function CollectionList({ collections, user, loading, canCreate, canDelet
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
-                                    <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>{c.productIds?.length ?? 0} products</div>
+                                    <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>
+                                        {products?.filter(p => p.collection?.trim().toLowerCase() === c.name.trim().toLowerCase()).length ?? 0} products
+                                    </div>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
@@ -547,7 +549,7 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
 // ══════════════════════════════════════════════════════════════
 // ITEM GROUP LIST
 // ══════════════════════════════════════════════════════════════
-export function ItemGroupList({ groups, user, loading, canCreate, canDelete, onCreateNew, products, isMobile, isDesktop }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void; products?: { id: string; productName: string }[], isMobile?: boolean, isDesktop?: boolean }) {
+export function ItemGroupList({ groups, user, loading, canCreate, canDelete, onCreateNew, products, isMobile, isDesktop }: { groups: ItemGroup[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void; products?: Product[], isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<ItemGroup | null>(null);
     return (
         <div>
@@ -1080,9 +1082,14 @@ export function BarcodeView({
         
         let sizeCode = "000"; // Default / Custom
         const prodSize = (product.size || "").trim().toUpperCase();
-        if (prodSize.includes("SUPER KING")) sizeCode = "004";
-        else if (prodSize.includes("KING")) sizeCode = "003";
+        if (prodSize.includes("SUPER KING")) sizeCode = "005";
+        else if (prodSize.includes("KING FITTED")) sizeCode = "009";
+        else if (prodSize.includes("KING")) sizeCode = "004";
+        else if (prodSize.includes("QUEEN FITTED")) sizeCode = "008";
+        else if (prodSize.includes("QUEEN")) sizeCode = "003";
+        else if (prodSize.includes("DOUBLE FITTED")) sizeCode = "007";
         else if (prodSize.includes("DOUBLE")) sizeCode = "002";
+        else if (prodSize.includes("SINGLE FITTED")) sizeCode = "006";
         else if (prodSize.includes("SINGLE")) sizeCode = "001";
 
         // 4. Random (4 digits)
@@ -1117,9 +1124,20 @@ export function BarcodeView({
         }
     };
 
-    const handleGenerate = (p: Product) => {
+    const handleGenerate = async (p: Product) => {
         setSelectedProduct(p);
-        setGeneratedBarcode(generateBarcodeNumber(p));
+        if (p.barcode) {
+            setGeneratedBarcode(p.barcode);
+        } else {
+            const code = generateBarcodeNumber(p);
+            try {
+                await update(ref(db, `inventory/${p.id}`), { barcode: code });
+                setGeneratedBarcode(code);
+            } catch (e) {
+                console.error(e);
+                alert("Failed to save barcode to database.");
+            }
+        }
     };
 
     const filtered = products.filter(p => 
@@ -1165,8 +1183,8 @@ export function BarcodeView({
                                             <td style={{ padding: "12px 14px", fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</td>
                                             <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.collection || "—"}</td>
                                             <td style={{ padding: "12px 14px" }}>
-                                                <span style={{ fontSize: 11, fontWeight: 400, color: getCollectionCode(p.collection) === "000" ? "#ef4444" : "#10b981", background: getCollectionCode(p.collection) === "000" ? "rgba(239, 68, 68, 0.05)" : "rgba(16, 185, 129, 0.05)", padding: "2px 8px", borderRadius: 6 }}>
-                                                    {getCollectionCode(p.collection)}
+                                                <span style={{ fontSize: 11, fontWeight: 400, color: getCollectionCode(p.collection || "") === "000" ? "#ef4444" : "#10b981", background: getCollectionCode(p.collection || "") === "000" ? "rgba(239, 68, 68, 0.05)" : "rgba(16, 185, 129, 0.05)", padding: "2px 8px", borderRadius: 6 }}>
+                                                    {getCollectionCode(p.collection || "")}
                                                 </span>
                                             </td>
                                             <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.sku}</td>

@@ -499,8 +499,13 @@ export default function CreateProduct({
                                         <option value="">No specific size</option>
                                         <option value="Single">Single</option>
                                         <option value="Double">Double</option>
+                                        <option value="Queen">Queen</option>
                                         <option value="King">King</option>
                                         <option value="Super King">Super King</option>
+                                        <option value="Single Fitted">Single Fitted</option>
+                                        <option value="Double Fitted">Double Fitted</option>
+                                        <option value="Queen Fitted">Queen Fitted</option>
+                                        <option value="King Fitted">King Fitted</option>
                                         <option value="Other">Other / Custom</option>
                                     </Select>
                                 </FormField>
