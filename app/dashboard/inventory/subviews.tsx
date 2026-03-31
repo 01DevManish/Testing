@@ -1064,37 +1064,32 @@ export function BarcodeView({
         return matchedColKey ? collectionCodes[matchedColKey] : "000";
     };
 
+
+
+    const getSizeCode = (size: string) => {
+        const s = (size || "").trim().toUpperCase();
+        if (s.includes("SUPER KING")) return "005";
+        if (s.includes("KING FITTED")) return "009";
+        if (s.includes("KING")) return "004";
+        if (s.includes("QUEEN FITTED")) return "008";
+        if (s.includes("QUEEN")) return "003";
+        if (s.includes("DOUBLE FITTED")) return "007";
+        if (s.includes("DOUBLE")) return "002";
+        if (s.includes("SINGLE FITTED")) return "006";
+        if (s.includes("SINGLE")) return "001";
+        return "000";
+    };
+
+    const getSkuPart = (sku: string) => {
+        const skuDigits = (sku || "").replace(/\D/g, "");
+        return skuDigits.substring(0, 3).padStart(3, "0");
+    };
+
     const generateBarcodeNumber = (product: Product) => {
-        // 1. Collection Code (3 digits)
         const colPart = getCollectionCode(product.collection || "");
-
-        // 2. SKU numeric part (3 digits)
-        const skuDigits = product.sku.replace(/\D/g, "");
-        const skuPart = skuDigits.substring(0, 3).padStart(3, "0");
-
-        // 3. Size Code (3 digits)
-        const sizeMap: Record<string, string> = {
-            "Single": "001",
-            "Double": "002",
-            "King": "003",
-            "Super King": "004"
-        };
-        
-        let sizeCode = "000"; // Default / Custom
-        const prodSize = (product.size || "").trim().toUpperCase();
-        if (prodSize.includes("SUPER KING")) sizeCode = "005";
-        else if (prodSize.includes("KING FITTED")) sizeCode = "009";
-        else if (prodSize.includes("KING")) sizeCode = "004";
-        else if (prodSize.includes("QUEEN FITTED")) sizeCode = "008";
-        else if (prodSize.includes("QUEEN")) sizeCode = "003";
-        else if (prodSize.includes("DOUBLE FITTED")) sizeCode = "007";
-        else if (prodSize.includes("DOUBLE")) sizeCode = "002";
-        else if (prodSize.includes("SINGLE FITTED")) sizeCode = "006";
-        else if (prodSize.includes("SINGLE")) sizeCode = "001";
-
-        // 4. Random (4 digits)
+        const skuPart = getSkuPart(product.sku);
+        const sizeCode = getSizeCode(product.size || "");
         const randPart = Math.floor(1000 + Math.random() * 9000).toString();
-
         return `${colPart}${skuPart}${sizeCode}${randPart}`;
     };
 
@@ -1126,9 +1121,26 @@ export function BarcodeView({
 
     const handleGenerate = async (p: Product) => {
         setSelectedProduct(p);
+        
+        const expectedColPart = getCollectionCode(p.collection || "");
+        const expectedSkuPart = getSkuPart(p.sku);
+        const expectedSizeCode = getSizeCode(p.size || "");
+        
+        let needsNew = !p.barcode;
         if (p.barcode) {
-            setGeneratedBarcode(p.barcode);
-        } else {
+            // Validate if existing barcode matches current specs
+            const existingCol = p.barcode.substring(0, 3);
+            const existingSku = p.barcode.substring(3, 6);
+            const existingSize = p.barcode.substring(6, 9);
+            
+            if (existingCol !== expectedColPart || 
+                existingSku !== expectedSkuPart || 
+                existingSize !== expectedSizeCode) {
+                needsNew = true;
+            }
+        }
+        
+        if (needsNew) {
             const code = generateBarcodeNumber(p);
             try {
                 await update(ref(db, `inventory/${p.id}`), { barcode: code });
@@ -1137,6 +1149,8 @@ export function BarcodeView({
                 console.error(e);
                 alert("Failed to save barcode to database.");
             }
+        } else {
+            setGeneratedBarcode(p.barcode!);
         }
     };
 

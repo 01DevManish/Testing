@@ -238,21 +238,9 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
     </div>
   );
 
-  const isAdminOrManager = userData?.role === "admin" || userData?.role === "manager";
-
   return (
     <div style={S.tabContent}>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 20, marginBottom: 20 }}>
-        {isAdminOrManager && (
-          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", justifyContent: "center", background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", borderColor: "transparent" }}>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", fontWeight: 400, marginBottom: 4 }}>Total Asset Value</div>
-            <div style={{ fontSize: 28, fontWeight: 400, color: "#fff", letterSpacing: "-0.02em" }}>
-              ₹{allProducts.reduce((acc, p) => acc + (p.stock * (p.costPrice || 0)), 0).toLocaleString("en-IN")}
-            </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 6 }}>Based on current stock cost price</div>
-            <div style={{ position: "absolute", right: -20, bottom: -20, fontSize: 80, opacity: 0.1, color: "#fff" }}>💰</div>
-          </div>
-        )}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: 20, marginBottom: 20 }}>
          {/* PENDING TASKS CARD */}
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#f59e0b")} />
