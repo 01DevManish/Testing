@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import { useData } from "../../context/DataContext";
 import { api } from "./data";
 import { Order, OrderStatus, ActiveView } from "./types";
 import OrderList from "./components/OrderList";
@@ -33,8 +34,14 @@ export default function AdvancedDispatchDashboard() {
   const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [fetching, setFetching] = useState(true);
+  const { 
+    orders: allOrders, setOrders, 
+    loading: fetchingGlobal, refreshData: loadOrders 
+  } = useData();
+
+  // Filter for retail dispatches
+  const orders = useMemo(() => allOrders.filter(o => o.dispatchType === "retail" || !o.dispatchType), [allOrders]);
+  const fetching = fetchingGlobal;
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,22 +54,6 @@ export default function AdvancedDispatchDashboard() {
   // Scanner & Modal State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [scannedUnknownId, setScannedUnknownId] = useState("");
-
-  const loadOrders = async () => {
-    setFetching(true);
-    try {
-      const data = await api.getOrders();
-      // Filter for retail dispatches (also include undefined for legacy consistency)
-      const filtered = data.filter(o => o.dispatchType === "retail" || !o.dispatchType);
-      setOrders(filtered);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFetching(false);
-    }
-  };
-
-  useEffect(() => { loadOrders(); }, []);
 
   useEffect(() => {
     if (isDesktop) setSidebarOpen(false);

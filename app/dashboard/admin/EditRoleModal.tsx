@@ -41,7 +41,7 @@ export default function EditRoleModal({
   };
 
   return (
-    <div style={S.modalOverlay} onClick={onClose}>
+    <div style={S.modalOverlay}>
       <div style={S.modalCard} onClick={e => e.stopPropagation()}>
         <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: 8, background: "#f1f5f9", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
         <div style={{ textAlign: "center", marginBottom: 22 }}>

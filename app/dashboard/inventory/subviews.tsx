@@ -8,7 +8,7 @@ import { db } from "../../lib/firebase";
 import { FONT, Category, Collection, ItemGroup, Product } from "./types";
 import { logActivity } from "../../lib/activityLogger";
 import { deleteFromCloudinary } from "./cloudinary";
-import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader, EmptyState } from "./ui";
+import { Input, Textarea, FormField, BtnPrimary, BtnSecondary, BtnGhost, SuccessBanner, Card, PageHeader, EmptyState } from "./ui";
 
 // ══════════════════════════════════════════════════════════════
 // CREATE CATEGORY
@@ -76,10 +76,39 @@ export function CreateCategory({ user, onCreated, isMobile, isDesktop }: { user:
 // ══════════════════════════════════════════════════════════════
 export function CategoryList({ categories, user, loading, canCreate, canDelete, onCreateNew, isMobile, isDesktop }: { categories: Category[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<Category | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [search, setSearch] = useState("");
+    
+    // Increased to 12 items to show more categories at once
+    const ITEMS_PER_PAGE = 12;
+
+    const filtered = useMemo(() => {
+        const q = search.toLowerCase().trim();
+        if (!q) return categories;
+        return categories.filter(c => c.name.toLowerCase().includes(q));
+    }, [search, categories]);
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginatedItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    useEffect(() => { setCurrentPage(1); }, [search]);
     return (
         <div>
-            <PageHeader title="All Categories" sub={`${categories.length} categories`}>
-                {canCreate && <BtnPrimary onClick={onCreateNew}>+ New Category</BtnPrimary>}
+            <PageHeader title="All Categories" sub={`${filtered.length} matching categories`}>
+                <div style={{ display: "flex", gap: 12 }}>
+                    <div style={{ position: "relative" }}>
+                        <Input 
+                            placeholder="Find Category..." 
+                            value={search} 
+                            onChange={e => setSearch(e.target.value)} 
+                            style={{ paddingRight: 32, minWidth: 220 }}
+                        />
+                        <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </span>
+                    </div>
+                    {canCreate && <BtnPrimary onClick={onCreateNew} style={{ whiteSpace: "nowrap" }}>+ New Category</BtnPrimary>}
+                </div>
             </PageHeader>
             <Card>
                 {loading ? (
@@ -88,8 +117,8 @@ export function CategoryList({ categories, user, loading, canCreate, canDelete, 
                     <EmptyState title="No categories yet" sub="Create your first category to organize products." />
                 ) : (
                     <div>
-                        {categories.map((c, i) => (
-                            <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "13px 18px", borderBottom: i < categories.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                        {paginatedItems.map((c, i) => (
+                            <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "13px 18px", borderBottom: i < paginatedItems.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                                 <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 14 }}>
                                     <span style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT }}>{c.name[0]?.toUpperCase()}</span>
                                 </div>
@@ -132,6 +161,28 @@ export function CategoryList({ categories, user, loading, canCreate, canDelete, 
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+                {/* PAGINATION CONTROLS */}
+                {totalPages > 1 && (
+                    <div style={{ padding: "14px 18px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <button
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(p => p - 1)}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === 1 ? "#f8fafc" : "#fff", color: currentPage === 1 ? "#cbd5e1" : "#475569", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 500, fontFamily: FONT }}
+                        >
+                            Previous
+                        </button>
+                        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500, fontFamily: FONT }}>
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === totalPages ? "#f8fafc" : "#fff", color: currentPage === totalPages ? "#cbd5e1" : "#475569", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 500, fontFamily: FONT }}
+                        >
+                            Next
+                        </button>
                     </div>
                 )}
             </Card>
@@ -223,7 +274,19 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
         if (!name.trim()) { setError("Collection name is required"); return; }
         setSaving(true);
         try {
-            const d = { name: name.trim(), collectionCode: code.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
+            // If code is empty, generate a deterministic one
+            let finalCode = code.trim();
+            if (!finalCode) {
+                const n = name.trim().toLowerCase();
+                let hash = 0;
+                for (let i = 0; i < n.length; i++) {
+                    hash = ((hash << 5) - hash) + n.charCodeAt(i);
+                    hash |= 0;
+                }
+                finalCode = Math.abs(hash % 892 + 108).toString().padStart(3, "0");
+            }
+
+            const d = { name: name.trim(), collectionCode: finalCode, description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
             const newRef = push(ref(db, "collections"));
             await set(newRef, d);
 
@@ -338,10 +401,39 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
 // ══════════════════════════════════════════════════════════════
 export function CollectionList({ collections, user, loading, canCreate, canDelete, onCreateNew, products, isMobile, isDesktop }: { collections: Collection[]; user: { uid: string; name: string }, loading: boolean; canCreate?: boolean; canDelete?: boolean; onCreateNew: () => void; products?: Product[], isMobile?: boolean, isDesktop?: boolean }) {
     const [editing, setEditing] = useState<Collection | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [search, setSearch] = useState("");
+    
+    // Increased to 12 items to show more collections at once
+    const ITEMS_PER_PAGE = 12;
+
+    const filtered = useMemo(() => {
+        const q = search.toLowerCase().trim();
+        if (!q) return collections;
+        return collections.filter(c => c.name.toLowerCase().includes(q));
+    }, [search, collections]);
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginatedItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    useEffect(() => { setCurrentPage(1); }, [search]);
     return (
         <div>
-            <PageHeader title="All Collections" sub={`${collections.length} collections`}>
-                {canCreate && <BtnPrimary onClick={onCreateNew}>+ New Collection</BtnPrimary>}
+            <PageHeader title="All Collections" sub={`${filtered.length} collections matching`}>
+                <div style={{ display: "flex", gap: 12 }}>
+                    <div style={{ position: "relative" }}>
+                        <Input 
+                            placeholder="Find Collection..." 
+                            value={search} 
+                            onChange={e => setSearch(e.target.value)} 
+                            style={{ paddingRight: 32, minWidth: 220 }}
+                        />
+                        <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </span>
+                    </div>
+                    {canCreate && <BtnPrimary onClick={onCreateNew} style={{ whiteSpace: "nowrap" }}>+ New Collection</BtnPrimary>}
+                </div>
             </PageHeader>
             <Card>
                 {loading ? (
@@ -350,13 +442,20 @@ export function CollectionList({ collections, user, loading, canCreate, canDelet
                     <EmptyState title="No collections yet" sub="Create a collection to group related products." />
                 ) : (
                     <div>
-                        {collections.map((c, i) => (
-                            <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "13px 18px", borderBottom: i < collections.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                        {paginatedItems.map((c, i) => (
+                            <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "13px 18px", borderBottom: i < paginatedItems.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                                 <div style={{ width: 36, height: 36, borderRadius: 9, background: "linear-gradient(135deg,#8b5cf6,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 14 }}>
                                     <span style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT }}>{c.name[0]?.toUpperCase()}</span>
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", fontFamily: FONT }}>{c.name}</div>
+                                        {c.collectionCode && (
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.1)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>
+                                                {c.collectionCode}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>
                                         {products?.filter(p => p.collection?.trim().toLowerCase() === c.name.trim().toLowerCase()).length ?? 0} products
                                     </div>
@@ -396,6 +495,28 @@ export function CollectionList({ collections, user, loading, canCreate, canDelet
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+                {/* PAGINATION CONTROLS */}
+                {totalPages > 1 && (
+                    <div style={{ padding: "14px 18px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <button
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(p => p - 1)}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === 1 ? "#f8fafc" : "#fff", color: currentPage === 1 ? "#cbd5e1" : "#475569", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 500, fontFamily: FONT }}
+                        >
+                            Previous
+                        </button>
+                        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500, fontFamily: FONT }}>
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === totalPages ? "#f8fafc" : "#fff", color: currentPage === totalPages ? "#cbd5e1" : "#475569", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 500, fontFamily: FONT }}
+                        >
+                            Next
+                        </button>
                     </div>
                 )}
             </Card>
@@ -836,6 +957,8 @@ export function InventoryAdjustment({ products, collections, user, onDone, isMob
     const [filterCol, setFilterCol] = useState("all");
     const [filterSize, setFilterSize] = useState("all");
     const [successMsg, setSuccessMsg] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 4;
 
     const sizes = [
         "Single", "Double", "Queen", "King", "Super King",
@@ -849,19 +972,31 @@ export function InventoryAdjustment({ products, collections, user, onDone, isMob
         }
     }, [successMsg]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, filterCol, filterSize]);
+
     const filtered = products.filter(p => {
-        const matchSearch = p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
+        const q = search.toLowerCase();
+        const matchSearch = 
+            p.productName.toLowerCase().includes(q) || 
+            p.sku.toLowerCase().includes(q) ||
+            p.brand?.toLowerCase().includes(q) ||
+            p.category?.toLowerCase().includes(q) ||
+            p.collection?.toLowerCase().includes(q);
+            
         const matchSize = filterSize === "all" || p.unit === filterSize || p.size === filterSize;
 
         let matchCol = true;
         if (filterCol !== "all") {
-            const c = collections.find(x => x.id === filterCol);
-            if (c) matchCol = c.productIds?.includes(p.id);
-            else matchCol = false;
+            matchCol = (p.collection === filterCol);
         }
 
         return matchSearch && matchSize && matchCol;
     });
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginatedItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return (
         <div style={{ position: "relative" }}>
@@ -936,7 +1071,7 @@ export function InventoryAdjustment({ products, collections, user, onDone, isMob
                     </div>
                     <select value={filterCol} onChange={e => setFilterCol(e.target.value)} style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Collections</option>
-                        {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
                     <select value={filterSize} onChange={e => setFilterSize(e.target.value)} style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Sizes / Units</option>
@@ -956,13 +1091,55 @@ export function InventoryAdjustment({ products, collections, user, onDone, isMob
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map(p => <AdjustRow key={p.id} p={p} user={user} onRefresh={() => { onDone?.(); setSuccessMsg(`Stock updated for ${p.productName}`); }} isMobile={isMobile} />)}
+                            {paginatedItems.map(p => <AdjustRow key={p.id} p={p} user={user} onRefresh={() => { onDone?.(); setSuccessMsg(`Stock updated for ${p.productName}`); }} isMobile={isMobile} />)}
                         </tbody>
                     </table>
                     {filtered.length === 0 && (
                         <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: 14 }}>No products match your filters.</div>
                     )}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div style={{ padding: "16px 20px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
+                        <div style={{ fontSize: 12, color: "#64748b", fontFamily: FONT }}>
+                            Showing <strong>{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</strong> - <strong>{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}</strong> of <strong>{filtered.length}</strong> products
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                style={{
+                                    padding: "6px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                                    background: currentPage === 1 ? "#f8fafc" : "#fff",
+                                    color: currentPage === 1 ? "#cbd5e1" : "#475569",
+                                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                                    fontSize: 12, fontWeight: 500, fontFamily: FONT, transition: "0.2s"
+                                }}
+                            >
+                                Previous
+                            </button>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#1e293b", padding: "0 12px", fontFamily: FONT, background: "#f1f5f9", borderRadius: 10 }}>
+                                <span style={{ fontWeight: 600 }}>{currentPage}</span>
+                                <span style={{ color: "#94a3b8" }}>/</span>
+                                <span>{totalPages}</span>
+                            </div>
+                            <button
+                                disabled={currentPage >= totalPages}
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                style={{
+                                    padding: "6px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                                    background: currentPage >= totalPages ? "#f8fafc" : "#fff",
+                                    color: currentPage >= totalPages ? "#cbd5e1" : "#475569",
+                                    cursor: currentPage >= totalPages ? "not-allowed" : "pointer",
+                                    fontSize: 12, fontWeight: 500, fontFamily: FONT, transition: "0.2s"
+                                }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </Card>
         </div>
     );
@@ -1192,11 +1369,15 @@ function BarcodeSVG({ value, height = 40, width = 2, fontSize = 20, showValue = 
 export function BarcodeView({
     products,
     collections,
-    isMobile
+    user,
+    isMobile,
+    isDesktop
 }: {
     products: Product[];
     collections: Collection[];
+    user: { uid: string; name: string };
     isMobile?: boolean;
+    isDesktop?: boolean;
 }) {
     const [search, setSearch] = useState("");
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -1209,7 +1390,15 @@ export function BarcodeView({
     const ITEMS_PER_PAGE = 4;
 
     // Shared Mapping for Display & Generation
+    // ── Collection Codes (Persistent & Deterministic) ──────────────────
     const collectionCodes: Record<string, string> = {
+        "Royal": "101",
+        "Veera": "102",
+        "Petal": "103",
+        "Home Satin": "104",
+        "Cotton Linen": "105",
+        "Rise N Shine": "106",
+        "Cozy Nest": "107",
         "Duke": "417",
         "Classic": "892",
         "Coral": "305",
@@ -1221,8 +1410,60 @@ export function BarcodeView({
 
     const getCollectionCode = (collectionName: string) => {
         const prodCol = (collectionName || "").trim().toLowerCase();
+        
+        // 1. Try to find the actual collection object to get its persistent code
+        const colObj = collections.find(c => c.name.toLowerCase() === prodCol);
+        if (colObj?.collectionCode) return colObj.collectionCode;
+        
+        // 2. Check fallback map (case-insensitive)
         const matchedColKey = Object.keys(collectionCodes).find(k => k.toLowerCase() === prodCol);
-        return matchedColKey ? collectionCodes[matchedColKey] : "000";
+        if (matchedColKey) return collectionCodes[matchedColKey];
+
+        // 3. Generate deterministic code if absolutely missing
+        let titleHash = 0;
+        for (let i = 0; i < prodCol.length; i++) {
+            titleHash = ((titleHash << 5) - titleHash) + prodCol.charCodeAt(i);
+            titleHash |= 0;
+        }
+        const dynamicCode = Math.abs(titleHash % 892 + 108).toString().padStart(3, "0");
+        return dynamicCode;
+    };
+
+    const handleAutoAssignCodes = async () => {
+        if (!confirm("This will assign unique 3-digit codes to all collections that don't have one yet. Ready?")) return;
+        let count = 0;
+        try {
+            // Explicit mapping for major collections as requested
+            const mapping: Record<string, string> = {
+                "royal": "101",
+                "veera": "102", "vera": "102",
+                "petal": "103",
+                "home satin": "104",
+                "cotton linen": "105",
+                "rise n shine": "106",
+                "cozy nest": "107"
+            };
+
+            for (const col of collections) {
+                if (col.collectionCode) continue;
+
+                const nameLower = col.name.toLowerCase().trim();
+                let newCode = "";
+                
+                if (mapping[nameLower]) {
+                    newCode = mapping[nameLower];
+                } else {
+                    newCode = getCollectionCode(col.name);
+                }
+
+                await update(ref(db, `collections/${col.id}`), { collectionCode: newCode });
+                count++;
+            }
+            alert(`Succesfully assigned codes to ${count} collections.`);
+        } catch (e) {
+            console.error(e);
+            alert("Assignment failed. Check console.");
+        }
     };
 
 
@@ -1242,17 +1483,30 @@ export function BarcodeView({
     };
 
     const getSkuPart = (sku: string) => {
-        const skuDigits = (sku || "").replace(/\D/g, "");
-        return skuDigits.substring(0, 3).padStart(3, "0");
+        const p = (sku || "").replace(/\D/g, "");
+        return p.substring(p.length - 3).padStart(3, "0");
+    };
+
+    const getStylePart = (styleId: string) => {
+        const s = (styleId || "").replace(/\D/g, "");
+        if (s) return s.substring(s.length - 3).padStart(3, "0");
+        
+        // Hashing fallback for alphanumeric Style IDs
+        let h = 0;
+        const cleanStyle = (styleId || "GEN").toUpperCase();
+        for (let i = 0; i < cleanStyle.length; i++) {
+            h = ((h << 5) - h) + cleanStyle.charCodeAt(i);
+            h |= 0;
+        }
+        return Math.abs(h % 900 + 100).toString();
     };
 
     const generateBarcodeNumber = (product: Product) => {
         const colPart = getCollectionCode(product.collection || "");
         const skuPart = getSkuPart(product.sku);
-        const sizeCode = getSizeCode(product.size || "");
+        const stylePart = getStylePart(product.styleId || "");
 
-        // Generate a deterministic 4-digit part from the product's unique ID
-        // This ensures the last 4 digits NEVER change for a specific product.
+        // Deterministic 4-digit ID part
         const idStr = (product.id || "0000").replace(/[^a-zA-Z0-0]/g, "");
         let idHash = 0;
         for (let i = 0; i < idStr.length; i++) {
@@ -1261,7 +1515,7 @@ export function BarcodeView({
         }
         const randPart = Math.abs(idHash % 9000 + 1000).toString();
 
-        return `${colPart}${skuPart}${sizeCode}${randPart}`;
+        return `${colPart}${skuPart}${stylePart}${randPart}`;
     };
 
     const toggleSelect = (id: string) => {
@@ -1317,18 +1571,17 @@ export function BarcodeView({
 
         const expectedColPart = getCollectionCode(currentP.collection || "");
         const expectedSkuPart = getSkuPart(currentP.sku);
-        const expectedSizeCode = getSizeCode(currentP.size || "");
+        const expectedStylePart = getStylePart(currentP.styleId || "");
 
         let needsNew = !currentP.barcode;
         if (currentP.barcode) {
-            // Validate if existing barcode matches current specs
             const existingCol = currentP.barcode.substring(0, 3);
             const existingSku = currentP.barcode.substring(3, 6);
-            const existingSize = currentP.barcode.substring(6, 9);
+            const existingStyle = currentP.barcode.substring(6, 9);
 
             if (existingCol !== expectedColPart ||
                 existingSku !== expectedSkuPart ||
-                existingSize !== expectedSizeCode) {
+                existingStyle !== expectedStylePart) {
                 needsNew = true;
             }
         }
@@ -1336,7 +1589,6 @@ export function BarcodeView({
         if (needsNew) {
             const code = generateBarcodeNumber(currentP);
             try {
-                // Update Firebase and notify parent immediately if possible
                 await update(ref(db, `inventory/${currentP.id}`), { barcode: code });
                 setGeneratedBarcode(code);
             } catch (e) {
@@ -1348,10 +1600,38 @@ export function BarcodeView({
         }
     };
 
-    const filtered = useMemo(() => products.filter(p =>
-        p.productName.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase())
-    ), [products, search]);
+    const [isResetting, setIsResetting] = useState(false);
+    const handleResetAllBarcodes = async () => {
+        if (!confirm("Are you sure? This will regenerate barcodes for ALL products shown below to match the new structure.")) return;
+        setIsResetting(true);
+        let count = 0;
+        try {
+            for (const p of filtered) {
+                const newCode = generateBarcodeNumber(p);
+                if (p.barcode !== newCode) {
+                    await update(ref(db, `inventory/${p.id}`), { barcode: newCode });
+                    count++;
+                }
+            }
+            alert(`Succesfully reset and updated ${count} barcodes.`);
+        } catch (e) {
+            console.error(e);
+            alert("Failed to reset barcodes. Check console for details.");
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
+    const filtered = useMemo(() => products.filter(p => {
+        const q = search.toLowerCase();
+        return (
+            p.productName.toLowerCase().includes(q) || 
+            p.sku.toLowerCase().includes(q) ||
+            p.brand?.toLowerCase().includes(q) ||
+            p.category?.toLowerCase().includes(q) ||
+            p.collection?.toLowerCase().includes(q)
+        );
+    }), [products, search]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -1683,7 +1963,7 @@ export function BarcodeView({
                             }}>
                                 <BarcodeSVG
                                     value={p.barcode || generateBarcodeNumber(p)}
-                                    height={selectedSize === "100x150" ? 180 : 55}
+                                    height={selectedSize === "100x150" ? 170 : 48}
                                     width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0}
                                     fontSize={selectedSize === "100x150" ? 30 : 16}
                                 />
@@ -1691,13 +1971,22 @@ export function BarcodeView({
                                     fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt",
                                     letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0,
                                     fontWeight: "700",
-                                    marginTop: "1mm",
+                                    marginTop: "0.5mm",
                                     color: "#000",
                                     width: "100%",
                                     textOverflow: "clip",
                                     whiteSpace: "nowrap"
                                 }}>
                                     {p.barcode || generateBarcodeNumber(p)}
+                                </div>
+                                <div style={{
+                                    fontSize: selectedSize === "100x150" ? "16pt" : selectedSize === "50x25" ? "6.5pt" : "5.5pt",
+                                    fontWeight: "500",
+                                    marginTop: "0.2mm",
+                                    color: "#000",
+                                    opacity: 0.7
+                                }}>
+                                    SKU: {p.sku}
                                 </div>
                             </div>
                         ))
@@ -1712,7 +2001,7 @@ export function BarcodeView({
                             {/* REAL Barcode SVG - Scaled for thermal labels with ZERO internal margins but 2.5mm external padding */}
                             <BarcodeSVG
                                 value={generatedBarcode}
-                                height={selectedSize === "100x150" ? 180 : 55}
+                                height={selectedSize === "100x150" ? 170 : 48}
                                 width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0}
                                 fontSize={selectedSize === "100x150" ? 30 : 16}
                             />
@@ -1721,13 +2010,22 @@ export function BarcodeView({
                                 fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt",
                                 letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0,
                                 fontWeight: "700",
-                                marginTop: "1mm",
+                                marginTop: "0.5mm",
                                 color: "#000",
                                 width: "100%",
                                 textOverflow: "clip",
                                 whiteSpace: "nowrap"
                             }}>
                                 {generatedBarcode}
+                            </div>
+                            <div style={{
+                                fontSize: selectedSize === "100x150" ? "16pt" : selectedSize === "50x25" ? "6.5pt" : "5.5pt",
+                                fontWeight: "500",
+                                marginTop: "0.2mm",
+                                color: "#000",
+                                opacity: 0.7
+                            }}>
+                                SKU: {selectedProduct.sku}
                             </div>
                         </div>
                     )}

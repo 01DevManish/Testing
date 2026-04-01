@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ref, get, update, query, orderByChild, equalTo, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
+import { useData } from "../../context/DataContext";
 import { logActivity } from "../../lib/activityLogger";
 import { hasPermission } from "../../lib/permissions";
 
@@ -44,16 +45,6 @@ function useWindowWidth() {
   return w;
 }
 
-// ── Cache (Persistence across navigation) ────────────────────
-let inventoryCache: {
-  products: Product[];
-  categories: Category[];
-  collections: Collection[];
-  groups: ItemGroup[];
-  brands: any[];
-  lastFetched: number;
-} | null = null;
-
 // ═══════════════════════════════════════════════════════════════
 export default function InventoryPage() {
   const { user, userData, logout, loading } = useAuth();
@@ -66,55 +57,15 @@ export default function InventoryPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>("overview");
 
-  // ── Data ──────────────────────────────────────────────────
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [groups, setGroups] = useState<ItemGroup[]>([]);
-  const [brands, setBrands] = useState<{ id: string, name: string, logoUrl?: string }[]>([]);
-  const [fetching, setFetching] = useState(true);
-
-  // Initialize from cache on mount
-  useEffect(() => {
-    if (inventoryCache) {
-        setProducts(inventoryCache.products);
-        setCategories(inventoryCache.categories);
-        setCollections(inventoryCache.collections);
-        setGroups(inventoryCache.groups);
-        setBrands(inventoryCache.brands);
-        setFetching(false);
-    } else {
-        const local = localStorage.getItem("eurus_inv_cache");
-        if (local) {
-            try {
-                const parsed = JSON.parse(local);
-                inventoryCache = parsed;
-                setProducts(parsed.products);
-                setCategories(parsed.categories);
-                setCollections(parsed.collections);
-                setGroups(parsed.groups);
-                setBrands(parsed.brands);
-                setFetching(false);
-            } catch (e) { console.error("Cache parse error", e); }
-        }
-    }
-  }, []);
-
-  // Sync state to cache whenever it changes
-  useEffect(() => {
-    if (products.length > 0 || categories.length > 0) {
-      const newCache = {
-        products,
-        categories,
-        collections,
-        groups,
-        brands,
-        lastFetched: inventoryCache?.lastFetched || Date.now()
-      };
-      inventoryCache = newCache;
-      localStorage.setItem("eurus_inv_cache", JSON.stringify(newCache));
-    }
-  }, [products, categories, collections, groups, brands]);
+  // ── Data from Global Cache ────────────────────────────────
+  const { 
+    products, setProducts,
+    categories, setCategories,
+    collections, setCollections,
+    groups, setGroups,
+    brands, setBrands,
+    loading: fetching, refreshData 
+  } = useData();
 
   // ── Edit modal ────────────────────────────────────────────
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -162,52 +113,8 @@ export default function InventoryPage() {
   const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
 
   const loadAll = useCallback(async () => {
-    setFetching(true);
-    try {
-      const [pSnap, cSnap, colSnap, gSnap, bSnap] = await Promise.all([
-        get(ref(db, "inventory")),
-        get(ref(db, "categories")),
-        get(ref(db, "collections")),
-        get(ref(db, "itemGroups")),
-        get(ref(db, "brands")),
-      ]);
-      const toList = (snap: any) => {
-        const arr: any[] = [];
-        if (snap.exists()) {
-          snap.forEach((d: any) => { arr.push({ id: d.key, ...d.val() }); });
-        }
-        return arr;
-      };
-      const pList = toList(pSnap);
-      const cList = toList(cSnap);
-      const colList = toList(colSnap);
-      const gList = toList(gSnap);
-      const bList = toList(bSnap);
-
-      setProducts(pList);
-      setCategories(cList);
-      setCollections(colList);
-      setGroups(gList);
-      setBrands(bList);
-
-      // Update global cache
-      inventoryCache = {
-        products: pList,
-        categories: cList,
-        collections: colList,
-        groups: gList,
-        brands: bList,
-        lastFetched: Date.now()
-      };
-      localStorage.setItem("eurus_inv_cache", JSON.stringify(inventoryCache));
-    } catch (err) { console.error(err); }
-    finally { setFetching(false); }
-  }, []);
-
-  useEffect(() => { 
-    if (inventoryCache && Date.now() - inventoryCache.lastFetched < 30000) return;
-    loadAll(); 
-  }, [loadAll]);
+    refreshData();
+  }, [refreshData]);
 
   const productStubs = useMemo(() => 
     products.map(p => ({ 
@@ -316,7 +223,6 @@ export default function InventoryPage() {
 
       const finalProducts = products.map(p => p.id === editProduct.id ? { ...p, ...updated } : p);
       setProducts(finalProducts);
-      if (inventoryCache) inventoryCache.products = finalProducts;
       setEditProduct(null); setEditForm(null);
     } catch (err: any) {
       console.error("Update Error:", err);
@@ -401,9 +307,9 @@ export default function InventoryPage() {
       case "inventory-adjustment":
         return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} {...commonProps} />;
       case "inventory-barcode-create":
-        return <BarcodeView products={products} collections={collections} {...commonProps} />;
+        return <BarcodeView products={products} collections={collections} user={{ uid: user.uid, name: currentName }} {...commonProps} />;
       case "inventory-barcode-print":
-        return <BarcodeView products={products} collections={collections} {...commonProps} />;
+        return <BarcodeView products={products} collections={collections} user={{ uid: user.uid, name: currentName }} {...commonProps} />;
       // ── Overview ──────────────────────────────────────────
       case "overview":
         return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} canCreate={canCreate} {...commonProps} />;
@@ -479,10 +385,8 @@ export default function InventoryPage() {
         </main>
       </div>
 
-      {/* ── Edit Product Modal ─────────────────────────────────── */}
       {editProduct && editForm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(8px)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={() => setEditProduct(null)}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(8px)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "#fff", borderRadius: 16, padding: "26px 24px", maxWidth: 640, width: "100%", maxHeight: "92vh", overflowY: "auto", position: "relative" }}
             onClick={e => e.stopPropagation()}>
 

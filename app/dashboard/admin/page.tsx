@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "../../context/AuthContext";
+import { useData } from "../../context/DataContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { ref, get, push, remove, update, set } from "firebase/database";
@@ -35,11 +36,17 @@ export default function AdminPage() {
   const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
+  const { 
+    users: allUsers, setUsers,
+    products, partyRates, setPartyRates,
+    brands, setBrands,
+    categories, collections,
+    loading: fetchingGlobal, refreshData 
+  } = useData();
+
+  // ── UI State ──────────────────────────────────────────────
   const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "brands" | "catalog" | "party-rates" | "profile">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [fetchingUsers, setFetchingUsers] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<"all" | UserRole>("all");
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -64,14 +71,12 @@ export default function AdminPage() {
   const [savingTask, setSavingTask] = useState(false);
   const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "in-progress" | "completed">("all");
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [fetchingCatalog, setFetchingCatalog] = useState(false);
-  const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
-  const [fetchingBrands, setFetchingBrands] = useState(false);
+  // Global fetching aliases
+  const users = useMemo(() => allUsers.filter(u => u.email !== "01devmanish@gmail.com"), [allUsers]);
+  const fetchingUsers = fetchingGlobal;
+  const fetchingPartyRates = fetchingGlobal;
+  const fetchingBrands = fetchingGlobal;
+  const fetchingCatalog = fetchingGlobal;
 
 
   const S = useMemo(() => getStyles(isMobile, isTablet, isDesktop, sidebarOpen), [isMobile, isTablet, isDesktop, sidebarOpen]);
@@ -84,24 +89,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (isDesktop) setSidebarOpen(false);
   }, [isDesktop]);
-
-  const loadUsers = useCallback(async () => {
-    setFetchingUsers(true);
-    try { 
-      const s = await get(ref(db, "users")); 
-      let l: UserRecord[] = []; 
-      if (s.exists()) {
-        s.forEach(d => { l.push(d.val() as UserRecord); });
-      }
-      // Hide only the secret developer admin from all UI displays
-      l = l.filter(u => u.email !== "01devmanish@gmail.com");
-      setUsers(l); 
-    } catch (e) { 
-      console.error("Failed to load users:", e); 
-    } finally { 
-      setFetchingUsers(false); 
-    }
-  }, []);
 
   const loadTasks = useCallback(async () => {
     setFetchingTasks(true);
@@ -120,68 +107,9 @@ export default function AdminPage() {
     }
   }, []);
 
-  const loadCatalogData = useCallback(async () => {
-    setFetchingCatalog(true);
-    try {
-      const [prodSnap, catSnap, collSnap] = await Promise.all([
-        get(ref(db, "inventory")),
-        get(ref(db, "categories")),
-        get(ref(db, "collections"))
-      ]);
-      
-      const prods: Product[] = [];
-      if (prodSnap.exists()) prodSnap.forEach(d => { prods.push({ id: d.key as string, ...d.val() } as Product); });
-      setProducts(prods);
-
-      const cats: Category[] = [];
-      if (catSnap.exists()) catSnap.forEach(d => { cats.push({ id: d.key as string, ...d.val() } as Category); });
-      setCategories(cats);
-
-      const colls: Collection[] = [];
-      if (collSnap.exists()) collSnap.forEach(d => { colls.push({ id: d.key as string, ...d.val() } as Collection); });
-      setCollections(colls);
-    } catch (e) {
-      console.error("Failed to load catalog data:", e);
-    } finally {
-      setFetchingCatalog(false);
-    }
-  }, []);
-
-  const loadPartyRates = useCallback(async () => {
-    setFetchingPartyRates(true);
-    try {
-      const snap = await get(ref(db, "partyRates"));
-      const list: PartyRate[] = [];
-      if (snap.exists()) snap.forEach(d => { list.push({ id: d.key!, ...d.val() }); });
-      setPartyRates(list);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFetchingPartyRates(false);
-    }
-  }, []);
-
-  const loadBrands = useCallback(async () => {
-    setFetchingBrands(true);
-    try {
-      const snap = await get(ref(db, "brands"));
-      const list: Brand[] = [];
-      if (snap.exists()) snap.forEach(d => { list.push({ id: d.key!, ...d.val() }); });
-      setBrands(list);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFetchingBrands(false);
-    }
-  }, []);
-
   useEffect(() => { 
-    loadUsers(); 
     loadTasks(); 
-    loadCatalogData();
-    loadPartyRates();
-    loadBrands();
-  }, [loadUsers, loadTasks, loadCatalogData, loadPartyRates, loadBrands]);
+  }, [loadTasks]);
 
 
   if (loading || !user) return null;
@@ -517,7 +445,7 @@ export default function AdminPage() {
                 setEditPermissions(u.permissions || []); 
                 setEditPin(u.dispatchPin || "");
               }} 
-              loadUsers={loadUsers} 
+              loadUsers={refreshData} 
             />
           ) : tab === "tasks" ? (
             <TasksTab 
@@ -555,7 +483,7 @@ export default function AdminPage() {
               products={products}
               fetching={fetchingPartyRates}
               isAdmin={true}
-              loadData={loadPartyRates}
+              loadData={refreshData}
             />
           ) : tab === "brands" ? (
             <BrandsTab 
@@ -564,7 +492,7 @@ export default function AdminPage() {
               isTablet={isTablet}
               brands={brands}
               fetching={fetchingBrands}
-              loadData={loadBrands}
+              loadData={refreshData}
             />
           ) : tab === "catalog" ? (
             <CatalogTab 
@@ -605,8 +533,13 @@ export default function AdminPage() {
         )}
 
         {adminToDelete && (
-          <div style={S.modalOverlay} onClick={() => !replacingAdmin && setAdminToDelete(null)}>
-            <div style={{ ...S.modalCard, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+          <div style={S.modalOverlay}>
+            <div style={{ ...S.modalCard, maxWidth: 400, position: "relative" }} onClick={e => e.stopPropagation()}>
+              <button 
+                onClick={() => setAdminToDelete(null)} 
+                disabled={replacingAdmin}
+                style={{ position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: 8, background: "#f1f5f9", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontFamily: "inherit" }}
+              >✕</button>
               <h3 style={{ fontSize: 18, fontWeight: 400, color: "#1e293b", marginBottom: 12 }}>Reassign Admin Rights</h3>
               <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
                 You must assign another user as Admin before deleting <strong>{adminToDelete.name}</strong>.

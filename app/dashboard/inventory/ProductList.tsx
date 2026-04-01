@@ -36,13 +36,13 @@ export default function ProductList({
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
     const [filterCol, setFilterCol] = useState("all");
-    const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "out-of-stock">("all");
+    const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "out-of-stock" | "low-stock">("all");
     const [sortKey, setSortKey] = useState<SortKey>("createdAt");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkAction, setBulkAction] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 10;
+    const ITEMS_PER_PAGE = 4;
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -53,11 +53,25 @@ export default function ProductList({
         let list = [...products];
         if (searchTerm) {
             const q = searchTerm.toLowerCase();
-            list = list.filter(p => p.productName?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q));
+            list = list.filter(p => 
+                p.productName?.toLowerCase().includes(q) || 
+                p.sku?.toLowerCase().includes(q) || 
+                p.brand?.toLowerCase().includes(q) ||
+                p.category?.toLowerCase().includes(q) ||
+                p.collection?.toLowerCase().includes(q)
+            );
         }
         if (filterCat !== "all") list = list.filter(p => p.category === filterCat);
         if (filterCol !== "all") list = list.filter(p => p.collection === filterCol);
-        if (filterStatus !== "all") list = list.filter(p => p.status === filterStatus);
+        if (filterStatus !== "all") {
+            if (filterStatus === "out-of-stock") {
+                list = list.filter(p => (p.status as string) === "out-of-stock" || (p.stock || 0) <= 0);
+            } else if (filterStatus === "low-stock") {
+                list = list.filter(p => (p.status as string) === "low-stock" || ((p.stock || 0) > 0 && (p.stock || 0) <= (p.minStock || 5)));
+            } else {
+                list = list.filter(p => (p.status as string) === filterStatus);
+            }
+        }
         list.sort((a, b) => {
             let va: any = a[sortKey]; let vb: any = b[sortKey];
             if (sortKey === "createdAt") { va = va || 0; vb = vb || 0; }
@@ -355,7 +369,9 @@ export default function ProductList({
                             <tbody>
                                 {paginatedItems.map(p => {
                                     const isLow = p.stock > 0 && p.stock <= (p.minStock || 5);
-                                    const sc = STATUS_CONFIG[p.status] || STATUS_CONFIG.active;
+                                    const isOut = (p.stock || 0) <= 0;
+                                    const effectiveStatus = isOut ? "out-of-stock" : (isLow ? "low-stock" : p.status);
+                                    const sc = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.active;
                                     return (
                                         <tr key={p.id} style={{ background: "#fff" }}
                                             onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}

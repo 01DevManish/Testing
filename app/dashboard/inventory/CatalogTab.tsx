@@ -24,6 +24,16 @@ export default function CatalogTab({ products, categories, collections, brands, 
     const [showShareModal, setShowShareModal] = useState(false);
     const [shareOutOfStock, setShareOutOfStock] = useState(false);
 
+    const uniqueCategories = useMemo(() => {
+        const cats = products.map(p => p.category).filter(Boolean) as string[];
+        return Array.from(new Set(cats)).sort();
+    }, [products]);
+
+    const uniqueCollections = useMemo(() => {
+        const cols = products.map(p => p.collection).filter(Boolean) as string[];
+        return Array.from(new Set(cols)).sort();
+    }, [products]);
+
     const uniqueSizes = useMemo(() => {
         const sizes = products.map(p => p.size).filter(Boolean) as string[];
         return Array.from(new Set(sizes)).sort();
@@ -90,7 +100,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                             onChange={e => setSelectedCategory(e.target.value)}
                         >
                             <option value="all">All Categories</option>
-                            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
                     <div style={{ width: isMobile ? "100%" : 180 }}>
@@ -101,7 +111,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                             onChange={e => setSelectedCollection(e.target.value)}
                         >
                             <option value="all">All Collections</option>
-                            {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            {uniqueCollections.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
                     <div style={{ width: isMobile ? "100%" : 150 }}>

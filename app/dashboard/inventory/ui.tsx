@@ -108,6 +108,32 @@ export function BtnPrimary({ children, loading, disabled, onClick, style }: {
     );
 }
 
+// ── Secondary Button ───────────────────────────────────────────
+export function BtnSecondary({ children, loading, disabled, onClick, style }: {
+    children: React.ReactNode; loading?: boolean; disabled?: boolean;
+    onClick?: () => void; style?: React.CSSProperties;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled || loading}
+            style={{
+                padding: "10px 20px", background: "#f8fafc", color: "#475569",
+                border: "1px solid #e2e8f0", borderRadius: 9, fontSize: 13, fontWeight: 500,
+                fontFamily: FONT, cursor: disabled || loading ? "not-allowed" : "pointer",
+                display: "inline-flex", alignItems: "center", gap: 7,
+                opacity: disabled || loading ? 0.6 : 1, transition: "0.2s",
+                ...style,
+            }}
+        >
+            {loading && (
+                <span style={{ width: 13, height: 13, border: "2px solid rgba(0,0,0,0.1)", borderTopColor: "#6366f1", borderRadius: "50%", display: "inline-block", animation: "spin-slow 0.7s linear infinite" }} />
+            )}
+            {children}
+        </button>
+    );
+}
+
 // ── Ghost Button ───────────────────────────────────────────────
 export function BtnGhost({ children, onClick, style, disabled }: { children: React.ReactNode; onClick?: () => void; style?: React.CSSProperties; disabled?: boolean }) {
     return (

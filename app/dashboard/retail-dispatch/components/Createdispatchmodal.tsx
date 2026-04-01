@@ -64,6 +64,37 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
     const [dbParties, setDbParties] = useState<Party[]>([]);
     const [dbProducts, setDbProducts] = useState<Product[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [isVerifyingGst, setIsVerifyingGst] = useState(false);
+
+    const handleVerifyGst = async (gstin: string) => {
+        if (!gstin || gstin.length !== 15) {
+            alert("Please enter a valid 15-digit GST number.");
+            return;
+        }
+        setIsVerifyingGst(true);
+        try {
+            const res = await fetch(`/api/gst?gstin=${gstin}`);
+            const result = await res.json();
+            if (result.success && result.data) {
+                setForm(f => ({
+                    ...f,
+                    newParty: {
+                        ...f.newParty,
+                        name: result.data.legalName,
+                        city: result.data.city,
+                        gst: gstin
+                    }
+                }));
+            } else {
+                alert(result.error || "GSTIN validation failed.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to verify GST. Please check your connection.");
+        } finally {
+            setIsVerifyingGst(false);
+        }
+    };
 
     useEffect(() => {
         firestoreApi.getParties().then(res => setDbParties(res));
@@ -473,9 +504,29 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                         </>
                                     ) : (
                                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                            <input value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} />
-                                            <input value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} />
-                                            <input value={form.newParty.gst} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, gst: e.target.value } }))} style={inputStyle} />
+                                            <div style={{ display: "flex", gap: 8 }}>
+                                                <input 
+                                                    placeholder="GST Number" 
+                                                    value={form.newParty.gst} 
+                                                    onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, gst: e.target.value.toUpperCase() } }))} 
+                                                    style={{ ...inputStyle, flex: 1 }} 
+                                                />
+                                                <button 
+                                                    onClick={() => handleVerifyGst(form.newParty.gst)}
+                                                    disabled={isVerifyingGst || !form.newParty.gst}
+                                                    style={{ 
+                                                        ...btnPrimary, 
+                                                        padding: "0 16px", 
+                                                        background: isVerifyingGst ? "#e2e8f0" : "#6366f1",
+                                                        color: isVerifyingGst ? "#94a3b8" : "#fff",
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {isVerifyingGst ? "..." : "Verify GST"}
+                                                </button>
+                                            </div>
+                                            <input placeholder="Party Name" value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} />
+                                            <input placeholder="City" value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} />
                                         </div>
                                     )}
                                 </div>

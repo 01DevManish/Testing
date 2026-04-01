@@ -75,7 +75,7 @@ export default function EmployeePage() {
     try {
       const [rateSnap, prodSnap] = await Promise.all([
         get(ref(db, "partyRates")),
-        get(ref(db, "products"))
+        get(ref(db, "inventory"))
       ]);
       const rates: PartyRate[] = [];
       if (rateSnap.exists()) rateSnap.forEach(d => { rates.push({ id: d.key!, ...d.val() }); });

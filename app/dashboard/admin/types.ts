@@ -73,10 +73,32 @@ export const statusConfig: Record<string, { label: string; color: string; bg: st
   completed: { label: "Completed", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
 
+export interface PartyDetails {
+  companyName: string;
+  ownerName: string;
+  address: string;
+  state: string;
+  district: string;
+  pincode: string;
+  contactNo: string;
+  gstNo: string;
+  panNo: string;
+  adharNo: string;
+  email: string;
+}
+
 export interface PartyRate {
   id: string;
   partyName: string;
-  rates: { productName: string; rate: number }[];
+  billTo?: PartyDetails;
+  shipTo?: Omit<PartyDetails, "gstNo" | "panNo">;
+  sameAsBillTo?: boolean;
+  rates: { 
+    productName: string; 
+    rate: number;
+    packagingType?: string;
+    packagingCost?: number;
+  }[];
   updatedAt: number;
 }
 
