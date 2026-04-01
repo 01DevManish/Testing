@@ -372,6 +372,7 @@ export default function InventoryPage() {
           <ProductList
             products={products}
             categories={categories}
+            collections={collections}
             user={{ uid: user.uid, name: currentName, role: currentRole }}
             loading={fetching}
             isAdminOrManager={isAdminOrManager}

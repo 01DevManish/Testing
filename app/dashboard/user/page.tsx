@@ -104,7 +104,7 @@ export default function UserPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 8px", marginBottom: 32 }}>
           <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
           <div>
-            <div style={{ fontSize: 16, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
+            <div style={{ fontSize: 16, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
             <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em" }}>User Hub</div>
           </div>
         </div>

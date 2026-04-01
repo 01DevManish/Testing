@@ -35,7 +35,7 @@ export default function AdminSidebar({
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 6px", marginBottom: 28 }}>
           <img src="/logo.png" alt="Logo" style={{ width: 34, height: 34, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2, flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: 15, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>Eurus Lifestyle</div>
+            <div style={{ fontSize: 15, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
             <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "capitalize", letterSpacing: "0.15em" }}>Admin Console</div>
           </div>
         </div>

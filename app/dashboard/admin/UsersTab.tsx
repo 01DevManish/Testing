@@ -88,15 +88,95 @@ export default function UsersTab({
         </div>
 
         {/* Search + filter row */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, flex: 1, minWidth: 160 }}>
-            <span style={{ color: "#94a3b8", fontSize: 14, flexShrink: 0 }}>🔍</span>
-            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 13, width: "100%", fontFamily: "inherit" }} />
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 10, 
+            padding: "10px 16px", 
+            background: "#f1f5f9", 
+            borderRadius: 24, 
+            flex: 1, 
+            minWidth: 200,
+            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+            border: "1.5px solid transparent",
+            boxShadow: "none",
+            outline: "none"
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.background = "#fff";
+            e.currentTarget.style.borderColor = "#6366f1";
+            e.currentTarget.style.boxShadow = "0 8px 24px -8px rgba(99,102,241,0.15)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.background = "#f1f5f9";
+            e.currentTarget.style.borderColor = "transparent";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              placeholder="Search User " 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)} 
+              style={{ 
+                background: "transparent", 
+                border: "none", 
+                outline: "none", 
+                boxShadow: "none",
+                color: "#1e293b", 
+                fontSize: 14, 
+                width: "100%", 
+                fontFamily: "inherit",
+                fontWeight: 400,
+                WebkitAppearance: "none",
+                padding: 0,
+                margin: 0
+              }} 
+            />
           </div>
-          <select value={filterRole} onChange={e => setFilterRole(e.target.value as "all" | UserRole)}
-            style={{ padding: "9px 32px 9px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, color: "#475569", fontSize: 13, fontFamily: "inherit", cursor: "pointer", outline: "none", appearance: "none" as const, minWidth: 130 }}>
-            <option value="all">All Roles</option><option value="admin">Admins</option><option value="manager">Managers</option><option value="employee">Employees</option>
-          </select>
+          <div style={{ position: "relative", minWidth: 140 }}>
+            <select 
+              value={filterRole} 
+              onChange={e => setFilterRole(e.target.value as "all" | UserRole)}
+              style={{ 
+                width: "100%",
+                padding: "10px 36px 10px 16px", 
+                background: "#f1f5f9", 
+                border: "1.5px solid transparent", 
+                borderRadius: 24, 
+                color: "#475569", 
+                fontSize: 14, 
+                fontFamily: "inherit", 
+                cursor: "pointer", 
+                outline: "none", 
+                boxShadow: "none",
+                appearance: "none",
+                fontWeight: 400,
+                transition: "all 0.2s"
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.background = "#fff";
+                e.currentTarget.style.borderColor = "#6366f1";
+                e.currentTarget.style.boxShadow = "0 8px 24px -8px rgba(99,102,241,0.12)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.background = "#f1f5f9";
+                e.currentTarget.style.borderColor = "transparent";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              <option value="all">All Roles</option>
+              <option value="admin">Admins</option>
+              <option value="manager">Managers</option>
+              <option value="employee">Employees</option>
+            </select>
+            <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#94a3b8", fontSize: 10 }}>▼</div>
+          </div>
         </div>
       </div>
 

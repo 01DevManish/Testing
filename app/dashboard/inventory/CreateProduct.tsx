@@ -269,22 +269,6 @@ export default function CreateProduct({
                                         onChange={e => set("styleId", e.target.value.replace(/\D/g, ""))}
                                     />
                                 </FormField>
-                            </div>
-                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
-                                <FormField label="Category">
-                                    <Select value={form.category} onChange={e => set("category", e.target.value)}>
-                                        <option value="">Select Category...</option>
-                                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                    </Select>
-                                </FormField>
-                                <FormField label="Collection">
-                                    <Select value={form.collection || ""} onChange={e => set("collection", e.target.value)}>
-                                        <option value="">Select Collection...</option>
-                                        {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                    </Select>
-                                </FormField>
-                            </div>
-                             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Brand">
                                     <div ref={brandRef} style={{ position: "relative" }}>
                                         <div 
@@ -381,8 +365,22 @@ export default function CreateProduct({
                                         .brand-opt:hover { background: #f8fafc !important; }
                                     `}</style>
                                 </FormField>
-                                {!isMobile && <div />}
                             </div>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                <FormField label="Category">
+                                    <Select value={form.category} onChange={e => set("category", e.target.value)}>
+                                        <option value="">Select Category...</option>
+                                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                    </Select>
+                                </FormField>
+                                <FormField label="Collection">
+                                    <Select value={form.collection || ""} onChange={e => set("collection", e.target.value)}>
+                                        <option value="">Select Collection...</option>
+                                        {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                    </Select>
+                                </FormField>
+                            </div>
+
                             <FormField label="Product Description">
                                 <Textarea
                                     value={form.description}

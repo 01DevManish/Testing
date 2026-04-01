@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import JSZip from "jszip";
 import { Product, FONT } from "./types";
 import { BtnPrimary, BtnGhost } from "./ui";
 import { generateCatalogPdf } from "./PdfGenerator";
@@ -22,7 +21,8 @@ const processProductImage = async (
     imageBlob: Blob, 
     logoUrl?: string, 
     collectionName?: string, 
-    sku?: string
+    sku?: string,
+    totalImages: number = 1
 ): Promise<Blob> => {
     return new Promise((resolve) => {
         const imageUrl = URL.createObjectURL(imageBlob);
@@ -34,12 +34,16 @@ const processProductImage = async (
         img.onload = () => {
             try {
                 const canvas = document.createElement("canvas");
+                // Standard compression/resizing for high quality sharing
+                const MAX_WIDTH = 800; 
+                let scale = 1;
+                if (img.width > MAX_WIDTH) { scale = MAX_WIDTH / img.width; }
+                
+                canvas.width = Math.floor(img.width * scale);
+                canvas.height = Math.floor(img.height * scale);
                 const ctx = canvas.getContext("2d");
-                if (!ctx) { cleanup(); return resolve(imageBlob); }
-
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
+                if (!ctx) return cleanup();
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 const hPadding = canvas.width * 0.005; // Minimal side gap
                 const vPadding = canvas.width * 0.10;  // Large top gap as requested
@@ -73,10 +77,12 @@ const processProductImage = async (
                 }
 
                 const finish = () => {
+                    // Standard JPEG compression
+                    const quality = 0.85;
                     canvas.toBlob(blob => {
                         cleanup();
                         resolve(blob || imageBlob);
-                    }, "image/jpeg", 0.92);
+                    }, "image/jpeg", quality);
                 };
 
                 // Add Brand Logo Overlay - Right Side
@@ -120,26 +126,26 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
     const [sharingImages, setSharingImages] = useState(false);
     const [processedFiles, setProcessedFiles] = useState<File[] | null>(null);
 
-    const handleShareImages = async () => {
-        if (processedFiles) {
-            // STEP 2: Actual Share (Direct user activation)
-            try {
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: processedFiles })) {
-                    await navigator.share({
-                        files: processedFiles,
-                        title: "Eurus Lifestyle Catalog",
-                        text: `Check out these ${processedFiles.length} items from Eurus Lifestyle!`
-                    });
-                    onClose(); // Auto-close on successful share
-                    return;
-                }
-            } catch (err: any) {
-                if (err.name === "AbortError") return;
-                console.warn("Native share failed", err);
+    const handleShareBatch = async (batchFiles: File[]) => {
+        try {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: batchFiles })) {
+                await navigator.share({
+                    files: batchFiles,
+                    title: "Eurus Lifestyle Catalog",
+                    text: `Check out these ${batchFiles.length} items from Eurus Lifestyle!`
+                });
+            } else {
+                alert("Browser cannot natively share this batch (OS file size or count limit exceeded).");
             }
-            // If share fails or unsupported, fall back to ZIP handled in STEP 1
-            return;
+        } catch (err: any) {
+            if (err.name === "AbortError") return;
+            console.warn("Native share failed", err);
+            alert("Sharing this batch failed on your device's sharing menu.");
         }
+    };
+
+    const handleShareImages = async () => {
+        if (processedFiles) return;
 
         // STEP 1: Process Images
         const allImages: { url: string, productName: string, sku: string }[] = [];
@@ -158,9 +164,6 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
 
         setSharingImages(true);
         try {
-            const zip = new JSZip();
-            const folder = zip.folder("Eurus_Lifestyle_Images");
-            
             const fetchPromises = allImages.map(async (img, idx) => {
                 const product = selectedProducts.find(p => p.sku === img.sku);
                 const brand = brands?.find(b => b.id === product?.brandId || b.name === product?.brand);
@@ -171,10 +174,9 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
                     const response = await fetch(img.url);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const originalBlob = await response.blob();
-                    const processedBlob = await processProductImage(originalBlob, logoUrl, prodCollection, img.sku);
+                    const processedBlob = await processProductImage(originalBlob, logoUrl, prodCollection, img.sku, allImages.length);
                     
                     const fileName = `${img.productName.replace(/[^a-z0-9]/gi, '_')}_${img.sku}_${idx}.jpg`;
-                    folder?.file(fileName, processedBlob);
                     return { blob: processedBlob, fileName };
                 } catch (err) {
                     console.error("Image share item failed", img.url, err);
@@ -191,24 +193,7 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
             if (files.length === 0) throw new Error("No images could be processed.");
 
             const fileObjects = files.map(f => new File([f.blob], f.fileName, { type: "image/jpeg" }));
-            
-            // Limit to 5 for maximum compatibility on first try
-            const finalFiles = fileObjects.length > 10 ? fileObjects.slice(0, 10) : fileObjects;
-            
-            const canShareFiles = typeof (navigator as any).canShare === 'function' && (navigator as any).canShare({ files: finalFiles });
-            if (typeof (navigator as any).share === 'function' && canShareFiles) {
-                setProcessedFiles(finalFiles);
-                // We'll show a "Share Now" button to the user
-            } else {
-                // Fallback to ZIP immediately if native share definitely not supported
-                const content = await zip.generateAsync({ type: "blob" });
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(content);
-                link.download = `Eurus_Images_${new Date().getTime()}.zip`;
-                link.click();
-                URL.revokeObjectURL(link.href);
-                alert("Direct sharing not supported on this browser. Downloading images as a ZIP instead.");
-            }
+            setProcessedFiles(fileObjects);
         } catch (err: any) {
             alert(`Failed: ${err.message}`);
         } finally {
@@ -288,31 +273,57 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
-                    <button 
-                        onClick={handleShareImages}
-                        disabled={sharingImages}
-                        style={{ 
-                            padding: "16px", background: processedFiles ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#f8fafc", 
-                            border: `1.5px solid ${processedFiles ? "#22c55e" : "#e2e8f0"}`, 
-                            borderRadius: 12, textAlign: "left", cursor: sharingImages ? "not-allowed" : "pointer", 
-                            transition: "all 0.2s", display: "flex", alignItems: "center", gap: 14,
-                            opacity: sharingImages ? 0.6 : 1, color: processedFiles ? "#fff" : "inherit"
-                        }}
-                        onMouseEnter={e => !sharingImages && !processedFiles && (e.currentTarget.style.borderColor = "#6366f1")}
-                        onMouseLeave={e => !sharingImages && !processedFiles && (e.currentTarget.style.borderColor = "#e2e8f0")}
-                    >
-                        <div style={{ width: 36, height: 36, borderRadius: 9, background: processedFiles ? "rgba(255,255,255,0.2)" : "#e0e7ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <svg width="18" height="18" viewBox="0 0 15 15" fill="none"><path d="M1.5 1.5h12v12h-12v-12zM1.5 9.5l3-3 3.5 3.5 3-3 2.5 2.5M4 4.5a.5.5 0 110-1 .5.5 0 010 1z" stroke={processedFiles ? "#fff" : "#6366f1"} strokeWidth="1.2" /></svg>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: processedFiles ? 600 : 400, fontFamily: FONT }}>
-                                {sharingImages ? "Processing..." : processedFiles ? "✅ CLICK TO SHARE NOW" : "Share Branded Images"}
+                    {!processedFiles ? (
+                        <button 
+                            onClick={handleShareImages}
+                            disabled={sharingImages}
+                            style={{ 
+                                padding: "16px", background: "#f8fafc", 
+                                border: `1.5px solid #e2e8f0`, 
+                                borderRadius: 12, textAlign: "left", cursor: sharingImages ? "not-allowed" : "pointer", 
+                                transition: "all 0.2s", display: "flex", alignItems: "center", gap: 14,
+                                opacity: sharingImages ? 0.6 : 1, color: "inherit"
+                            }}
+                            onMouseEnter={e => !sharingImages && (e.currentTarget.style.borderColor = "#6366f1")}
+                            onMouseLeave={e => !sharingImages && (e.currentTarget.style.borderColor = "#e2e8f0")}
+                        >
+                            <div style={{ width: 36, height: 36, borderRadius: 9, background: "#e0e7ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <svg width="18" height="18" viewBox="0 0 15 15" fill="none"><path d="M1.5 1.5h12v12h-12v-12zM1.5 9.5l3-3 3.5 3.5 3-3 2.5 2.5M4 4.5a.5.5 0 110-1 .5.5 0 010 1z" stroke="#6366f1" strokeWidth="1.2" /></svg>
                             </div>
-                            <div style={{ fontSize: 11, color: processedFiles ? "rgba(255,255,255,0.8)" : "#64748b", fontFamily: FONT }}>
-                                {processedFiles ? "Tap here to open WhatsApp/Email" : "Processes images with your logo & SKU first."}
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 14, fontWeight: 400, fontFamily: FONT }}>
+                                    {sharingImages ? "Processing..." : "Share Branded Images"}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT }}>
+                                    Processes images with your logo & SKU first.
+                                </div>
                             </div>
+                        </button>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4, fontFamily: FONT }}>
+                                {processedFiles.length > 10 ? "We've split your images into batches to prevent your phone from blocking the share." : "Ready to share!"}
+                            </div>
+                            {Array.from({ length: Math.ceil(processedFiles.length / 10) }).map((_, i) => {
+                                const start = i * 10;
+                                const end = Math.min(start + 10, processedFiles.length);
+                                const batchFiles = processedFiles.slice(start, end);
+                                return (
+                                    <button 
+                                        key={i}
+                                        onClick={() => handleShareBatch(batchFiles)}
+                                        style={{ padding: "14px 16px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "0.2s" }}
+                                    >
+                                        <span style={{ fontWeight: 600, fontSize: 14, fontFamily: FONT, display: "flex", alignItems: "center", gap: 8 }}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            Share Batch {i + 1}
+                                        </span>
+                                        <span style={{ fontSize: 12, opacity: 0.9, fontFamily: FONT }}>Items {start + 1} to {end}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
-                    </button>
+                    )}
 
                     {!processedFiles && (
                         <button 

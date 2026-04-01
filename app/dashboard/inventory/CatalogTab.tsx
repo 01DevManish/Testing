@@ -22,6 +22,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
     const [selectedSize, setSelectedSize] = useState("all");
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [shareOutOfStock, setShareOutOfStock] = useState(false);
 
     const uniqueSizes = useMemo(() => {
         const sizes = products.map(p => p.size).filter(Boolean) as string[];
@@ -35,9 +36,14 @@ export default function CatalogTab({ products, categories, collections, brands, 
             const matchesCat = selectedCategory === "all" || p.category === selectedCategory;
             const matchesColl = selectedCollection === "all" || p.collection === selectedCollection;
             const matchesSize = selectedSize === "all" || p.size === selectedSize;
-            return matchesSearch && matchesCat && matchesColl && matchesSize;
+            const matchesStock = shareOutOfStock ? true : (p.stock || 0) > 0;
+            return matchesSearch && matchesCat && matchesColl && matchesSize && matchesStock;
         });
-    }, [products, searchTerm, selectedCategory, selectedCollection, selectedSize]);
+    }, [products, searchTerm, selectedCategory, selectedCollection, selectedSize, shareOutOfStock]);
+
+    const finalSelectedProducts = useMemo(() => {
+        return shareOutOfStock ? selectedProducts : selectedProducts.filter(p => (p.stock || 0) > 0);
+    }, [selectedProducts, shareOutOfStock]);
 
     const handleToggleSelect = (p: Product) => {
         setSelectedProducts(prev => {
@@ -73,6 +79,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                             style={inputStyle} 
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
+                            placeholder="Search Product / SKU"
                         />
                     </div>
                     <div style={{ width: isMobile ? "100%" : 180 }}>
@@ -108,6 +115,17 @@ export default function CatalogTab({ products, categories, collections, brands, 
                             {uniqueSizes.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                     </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, alignSelf: "flex-end", height: 40 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#f8fafc", padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", transition: "all 0.2s" }}>
+                            <input 
+                                type="checkbox" 
+                                checked={shareOutOfStock}
+                                onChange={e => setShareOutOfStock(e.target.checked)}
+                                style={{ width: 16, height: 16, accentColor: "#6366f1", cursor: "pointer", margin: 0 }}
+                            />
+                            <span style={{ fontSize: 13, color: "#475569", fontWeight: 500, fontFamily: FONT }}>Share Out of Stock</span>
+                        </label>
+                    </div>
                     <div style={{ alignSelf: "flex-end" }}>
                         <BtnGhost 
                             onClick={() => { 
@@ -115,6 +133,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                                 setSelectedCategory("all"); 
                                 setSelectedCollection("all"); 
                                 setSelectedSize("all");
+                                setShareOutOfStock(false);
                             }}
                             style={{ padding: "10px 16px" }}
                         >
@@ -190,7 +209,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
             )}
 
             {/* Selection Floating Bar */}
-            {selectedProducts.length > 0 && (
+            {finalSelectedProducts.length > 0 && (
                 <div style={{ 
                     ...floatingBar, 
                     width: isMobile ? "calc(100% - 32px)" : "auto",
@@ -198,7 +217,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                 }}>
                     <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", gap: isMobile ? 12 : 20 }}>
                         <div style={{ fontSize: 14, fontWeight: 400, color: "#fff", textAlign: "center" }}>
-                            {selectedProducts.length} Product{selectedProducts.length > 1 ? "s" : ""} Selected
+                            {finalSelectedProducts.length} Product{finalSelectedProducts.length > 1 ? "s" : ""} Selected
                         </div>
                         {!isMobile && <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.2)" }} />}
                         <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto" }}>
@@ -223,7 +242,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
 
             {showShareModal && (
                 <ShareModal 
-                    selectedProducts={selectedProducts}
+                    selectedProducts={finalSelectedProducts}
                     brands={brands}
                     collectionName={selectedCollection === "all" ? undefined : selectedCollection}
                     onClose={() => setShowShareModal(false)}

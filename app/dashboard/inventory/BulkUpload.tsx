@@ -22,117 +22,126 @@ interface BulkUploadProps {
 
 export default function BulkUpload({ categories, collections, brands, user, onDone, isMobile, isDesktop }: BulkUploadProps) {
     const [uploading, setUploading] = useState(false);
+    const [downloading, setDownloading] = useState(false);
     const [results, setResults] = useState<{ success: number; errors: string[] } | null>(null);
     const [fileStats, setFileStats] = useState<{ name: string; size: number; rows: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const downloadTemplate = async () => {
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet("Template");
-        const dataSheet = workbook.addWorksheet("DataLists");
-        dataSheet.state = "hidden";
+        try {
+            setDownloading(true);
+            const workbook = new ExcelJS.Workbook();
+            const sheet = workbook.addWorksheet("Template");
+            const dataSheet = workbook.addWorksheet("DataLists");
+            dataSheet.state = "hidden";
 
-        // Define Headers
-        const headers = [
-            "Product Name*", "SKU*", "Category", "Collection", "Brand",
-            "Description", "Selling Price (Rs.)*", "Wholesale Price (Rs.)", "MRP (Rs.)", "Cost Price (Rs.)",
-            "GST Rate", "HSN Code", "Opening Stock", "Min Stock (Alert)", "Unit",
-            "Size", "Thumbnail URL", "Status"
-        ];
+            // Define Headers
+            const headers = [
+                "Product Name*", "SKU*", "Category", "Collection", "Brand",
+                "Description", "Selling Price (Rs.)*", "Wholesale Price (Rs.)", "MRP (Rs.)", "Cost Price (Rs.)",
+                "GST Rate", "HSN Code", "Opening Stock", "Min Stock (Alert)", "Unit",
+                "Size", "Thumbnail URL", "Status"
+            ];
 
-        sheet.addRow(headers);
+            sheet.addRow(headers);
 
-        // Header Styling
-        sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-        sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
-        sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
-        sheet.getRow(1).height = 25;
+            // Header Styling
+            sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+            sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
+            sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+            sheet.getRow(1).height = 25;
 
-        // Column Widths
-        sheet.columns = headers.map(() => ({ width: 22 }));
+            // Column Widths
+            sheet.columns = headers.map(() => ({ width: 22 }));
 
-        // Prepare Dropdown Lists
-        const catNames = categories.map(c => c.name);
-        const colNames = collections.map(c => c.name);
-        const brandNames = brands.map(b => b.name);
-        const unitList = UNITS;
-        const statusList = ["Active", "Inactive", "Low Stock", "Out of Stock"];
-        const gstList = GST_RATES.map(r => `${r}%`);
-        const sizeList = [
-            "Single", "Double", "Queen", "King", "Super King",
-            "Single Fitted", "Double Fitted", "Queen Fitted", "King Fitted"
-        ];
+            // Prepare Dropdown Lists - DYNAMICALLY fetching latest data
+            const catNames = categories.map(c => c.name);
+            const colNames = collections.map(c => c.name);
+            const brandNames = brands.map(b => b.name);
+            const unitList = UNITS;
+            const statusList = ["Active", "Inactive", "Low Stock", "Out of Stock"];
+            const gstList = GST_RATES.map(r => `${r}%`);
+            const sizeList = [
+                "Single", "Double", "Queen", "King", "Super King",
+                "Single Fitted", "Double Fitted", "Queen Fitted", "King Fitted"
+            ];
 
-        // Add lists to hidden sheet for data validation referencing
-        dataSheet.getColumn(1).values = catNames;
-        dataSheet.getColumn(2).values = colNames;
-        dataSheet.getColumn(3).values = brandNames;
-        dataSheet.getColumn(4).values = unitList;
-        dataSheet.getColumn(5).values = statusList;
-        dataSheet.getColumn(6).values = gstList;
-        dataSheet.getColumn(7).values = sizeList;
+            // Add lists to hidden sheet for data validation referencing
+            if (catNames.length > 0) dataSheet.getColumn(1).values = catNames;
+            if (colNames.length > 0) dataSheet.getColumn(2).values = colNames;
+            if (brandNames.length > 0) dataSheet.getColumn(3).values = brandNames;
+            dataSheet.getColumn(4).values = unitList;
+            dataSheet.getColumn(5).values = statusList;
+            dataSheet.getColumn(6).values = gstList;
+            dataSheet.getColumn(7).values = sizeList;
 
-        // Apply Data Validation (Dropdowns) to first 100 rows
-        for (let i = 2; i <= 100; i++) {
-            // Category (C)
-            if (catNames.length > 0) {
-                sheet.getCell(`C${i}`).dataValidation = {
+            // Apply Data Validation (Dropdowns) to first 500 rows
+            for (let i = 2; i <= 500; i++) {
+                // Category (C)
+                if (catNames.length > 0) {
+                    sheet.getCell(`C${i}`).dataValidation = {
+                        type: "list",
+                        allowBlank: true,
+                        formulae: [`'DataLists'!$A$1:$A$${catNames.length}`]
+                    };
+                }
+                // Collection (D)
+                if (colNames.length > 0) {
+                    sheet.getCell(`D${i}`).dataValidation = {
+                        type: "list",
+                        allowBlank: true,
+                        formulae: [`'DataLists'!$B$1:$B$${colNames.length}`]
+                    };
+                }
+                // Brand (E)
+                if (brandNames.length > 0) {
+                    sheet.getCell(`E${i}`).dataValidation = {
+                        type: "list",
+                        allowBlank: true,
+                        formulae: [`'DataLists'!$C$1:$C$${brandNames.length}`]
+                    };
+                }
+                // Unit (O)
+                sheet.getCell(`O${i}`).dataValidation = {
                     type: "list",
                     allowBlank: true,
-                    formulae: [`'DataLists'!$A$1:$A$${catNames.length}`]
+                    formulae: [`'DataLists'!$D$1:$D$${unitList.length}`]
                 };
-            }
-            // Collection (D)
-            if (colNames.length > 0) {
-                sheet.getCell(`D${i}`).dataValidation = {
+                // Status (R)
+                sheet.getCell(`R${i}`).dataValidation = {
                     type: "list",
                     allowBlank: true,
-                    formulae: [`'DataLists'!$B$1:$B$${colNames.length}`]
+                    formulae: [`'DataLists'!$E$1:$E$${statusList.length}`]
                 };
-            }
-            // Brand (E)
-            if (brandNames.length > 0) {
-                sheet.getCell(`E${i}`).dataValidation = {
+                // GST Rate (K)
+                sheet.getCell(`K${i}`).dataValidation = {
                     type: "list",
                     allowBlank: true,
-                    formulae: [`'DataLists'!$C$1:$C$${brandNames.length}`]
+                    formulae: [`'DataLists'!$F$1:$F$${gstList.length}`]
+                };
+                // Size (P)
+                sheet.getCell(`P${i}`).dataValidation = {
+                    type: "list",
+                    allowBlank: true,
+                    formulae: [`'DataLists'!$G$1:$G$${sizeList.length}`]
                 };
             }
-            // Unit (O)
-            sheet.getCell(`O${i}`).dataValidation = {
-                type: "list",
-                allowBlank: true,
-                formulae: [`'DataLists'!$D$1:$D$${unitList.length}`]
-            };
-            // Status (R)
-            sheet.getCell(`R${i}`).dataValidation = {
-                type: "list",
-                allowBlank: true,
-                formulae: [`'DataLists'!$E$1:$E$${statusList.length}`]
-            };
-            // GST Rate (K)
-            sheet.getCell(`K${i}`).dataValidation = {
-                type: "list",
-                allowBlank: true,
-                formulae: [`'DataLists'!$F$1:$F$${gstList.length}`]
-            };
-            // Size (P)
-            sheet.getCell(`P${i}`).dataValidation = {
-                type: "list",
-                allowBlank: true,
-                formulae: [`'DataLists'!$G$1:$G$${sizeList.length}`]
-            };
+
+            // Write and Download
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = "Eurus_Inventory_Template.xlsx";
+            anchor.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error generating template:", error);
+            alert("Failed to generate template. Please try again.");
+        } finally {
+            setDownloading(false);
         }
-
-        // Write and Download
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        const url = window.URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = "Eurus_Inventory_Template.xlsx";
-        anchor.click();
-        window.URL.revokeObjectURL(url);
     };
 
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -444,18 +453,29 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                             
                             <button
                                 onClick={downloadTemplate}
+                                disabled={downloading}
                                 style={{
                                     marginTop: 20, width: "100%", padding: "10px",
-                                    background: "#f1f5f9", border: "1px solid #e2e8f0",
-                                    borderRadius: 8, color: "#475569", fontSize: 12,
-                                    fontWeight: 400, cursor: "pointer", display: "flex",
-                                    alignItems: "center", justifyContent: "center", gap: 8
+                                    background: downloading ? "#e2e8f0" : "#f1f5f9", 
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: 8, color: downloading ? "#94a3b8" : "#475569", fontSize: 12,
+                                    fontWeight: 400, cursor: downloading ? "not-allowed" : "pointer", display: "flex",
+                                    alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.2s"
                                 }}
                             >
-                                <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
-                                    <path d="M7.5 10.5v-7M10.5 7.5L7.5 10.5 4.5 7.5M2.5 12.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                                Download Template
+                                {downloading ? (
+                                    <>
+                                        <div className="animate-spin" style={{ width: 14, height: 14, border: "2px solid #cbd5e1", borderTopColor: "#6366f1", borderRadius: "50%" }} />
+                                        Generating Dynamic Template...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+                                            <path d="M7.5 10.5v-7M10.5 7.5L7.5 10.5 4.5 7.5M2.5 12.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        Download Template
+                                    </>
+                                )}
                             </button>
                         </div>
                     </Card>

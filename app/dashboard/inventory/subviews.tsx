@@ -27,7 +27,7 @@ export function CreateCategory({ user, onCreated, isMobile, isDesktop }: { user:
             const d = { name: name.trim(), description: desc.trim(), createdAt: Date.now() };
             const newRef = push(ref(db, "categories"));
             await set(newRef, d);
-            
+
             // Log activity
             await logActivity({
                 type: "inventory",
@@ -99,16 +99,16 @@ export function CategoryList({ categories, user, loading, canCreate, canDelete, 
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
-                                    <button 
+                                    <button
                                         onClick={() => setEditing(c)}
                                         style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 400, fontFamily: FONT }}
                                     >
                                         Edit
                                     </button>
                                     {canDelete && (
-                                        <button 
-                                            onClick={async () => { 
-                                                if(confirm(`Delete category "${c.name}"?`)) {
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm(`Delete category "${c.name}"?`)) {
                                                     await remove(ref(db, `categories/${c.id}`));
                                                     await logActivity({
                                                         type: "inventory",
@@ -137,19 +137,19 @@ export function CategoryList({ categories, user, loading, canCreate, canDelete, 
             </Card>
 
             {editing && (
-                <EditCategoryModal 
-                    category={editing} 
-                    user={user} 
-                    onClose={() => setEditing(null)} 
+                <EditCategoryModal
+                    category={editing}
+                    user={user}
+                    onClose={() => setEditing(null)}
                 />
             )}
         </div>
     );
 }
 
-function EditCategoryModal({ category, user, onClose, isMobile, isDesktop }: { 
-    category: Category; 
-    user: { uid: string; name: string }; 
+function EditCategoryModal({ category, user, onClose, isMobile, isDesktop }: {
+    category: Category;
+    user: { uid: string; name: string };
     onClose: () => void;
     isMobile?: boolean;
     isDesktop?: boolean;
@@ -209,6 +209,9 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
     const [success, setSuccess] = useState("");
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
+    const [itemPage, setItemPage] = useState(1);
+
+    useEffect(() => { setItemPage(1); }, [search]);
 
     const toggle = (id: string) => {
         const s = new Set(selected);
@@ -223,7 +226,7 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
             const d = { name: name.trim(), collectionCode: code.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
             const newRef = push(ref(db, "collections"));
             await set(newRef, d);
-            
+
             // Log activity
             await logActivity({
                 type: "inventory",
@@ -256,8 +259,8 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
                             {error && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontFamily: FONT }}>{error}</div>}
                         </FormField>
                         <FormField label="Collection Code (3 Digits)">
-                            <Input 
-                                value={code} 
+                            <Input
+                                value={code}
                                 maxLength={3}
                                 onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
                             />
@@ -276,21 +279,52 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
                         <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>
                             Add Products ({selected.size} selected)
                         </div>
-                        <Input 
-                            value={search} 
+                        <Input
+                            value={search}
                             onChange={e => setSearch(e.target.value)}
+                            placeholder="Search Product / SKU"
                             style={{ marginBottom: 12, height: 36, fontSize: 12 }}
                         />
-                        <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                        <div style={{ maxHeight: 380, overflowY: "auto", border: "1px solid #f1f5f9", borderRadius: 8 }}>
                             {products.length === 0 ? (
                                 <div style={{ padding: "20px 0", textAlign: "center", color: "#94a3b8", fontSize: 13, fontFamily: FONT }}>No products available</div>
-                            ) : products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
-                                <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
-                                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
-                                        style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
-                                    <span style={{ fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</span>
-                                </label>
-                            ))}
+                            ) : products
+                                .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
+                                .slice((itemPage - 1) * 5, itemPage * 5)
+                                .map(p => (
+                                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", transition: "0.2s" }}>
+                                        <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
+                                            style={{ width: 15, height: 15, accentColor: "#6366f1", cursor: "pointer" }} />
+                                        <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                            {(p as any).imageUrl ? <img src={(p as any).imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10 }}>📦</span>}
+                                        </div>
+                                        <div style={{ display: "flex", flexDirection: "column" }}>
+                                            <span style={{ fontSize: 12, fontWeight: 500, color: "#1e293b", fontFamily: FONT, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.productName}</span>
+                                            <span style={{ fontSize: 10, color: "#64748b", fontFamily: FONT }}>SKU: {(p as any).sku || "N/A"}</span>
+                                        </div>
+                                    </label>
+                                ))}
+                            {products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length === 0 && products.length > 0 && (
+                                <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No items found</div>
+                            )}
+                        </div>
+                        {/* Simple Pagination */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                            <button
+                                disabled={itemPage === 1}
+                                onClick={() => setItemPage(p => p - 1)}
+                                style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: itemPage === 1 ? "#f8fafc" : "#fff", color: itemPage === 1 ? "#cbd5e1" : "#475569", cursor: itemPage === 1 ? "not-allowed" : "pointer", fontSize: 11 }}
+                            >
+                                Prev
+                            </button>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
+                            <button
+                                disabled={itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
+                                onClick={() => setItemPage(p => p + 1)}
+                                style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
+                            >
+                                Next
+                            </button>
                         </div>
                     </div>
                 </Card>
@@ -329,16 +363,16 @@ export function CollectionList({ collections, user, loading, canCreate, canDelet
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(c.createdAt).toLocaleDateString("en-IN")}</div>
-                                    <button 
+                                    <button
                                         onClick={() => setEditing(c)}
                                         style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 400, fontFamily: FONT }}
                                     >
                                         Edit
                                     </button>
                                     {canDelete && (
-                                        <button 
-                                            onClick={async () => { 
-                                                if(confirm(`Delete collection "${c.name}"?`)) {
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm(`Delete collection "${c.name}"?`)) {
                                                     await remove(ref(db, `collections/${c.id}`));
                                                     await logActivity({
                                                         type: "inventory",
@@ -367,11 +401,11 @@ export function CollectionList({ collections, user, loading, canCreate, canDelet
             </Card>
 
             {editing && (
-                <EditCollectionModal 
-                    collection={editing} 
-                    user={user} 
+                <EditCollectionModal
+                    collection={editing}
+                    user={user}
                     allProducts={products || []}
-                    onClose={() => setEditing(null)} 
+                    onClose={() => setEditing(null)}
                     isMobile={isMobile}
                     isDesktop={isDesktop}
                 />
@@ -387,6 +421,9 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
     const [selected, setSelected] = useState<Set<string>>(new Set(collection.productIds || []));
     const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState("");
+    const [itemPage, setItemPage] = useState(1);
+
+    useEffect(() => { setItemPage(1); }, [search]);
 
     const toggle = (id: string) => {
         const s = new Set(selected);
@@ -423,8 +460,8 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             <FormField label="Collection Name" required><Input value={name} onChange={e => setName(e.target.value)} /></FormField>
                             <FormField label="Collection Code (3 Digits)">
-                                <Input 
-                                    value={code} 
+                                <Input
+                                    value={code}
                                     maxLength={3}
                                     onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
                                 />
@@ -433,14 +470,42 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
-                            <Input value={search} onChange={e => setSearch(e.target.value)} />
+                            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Product / SKU" />
                             <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-                                {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
-                                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
-                                        <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
-                                        <span style={{ fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</span>
-                                    </label>
-                                ))}
+                                {allProducts
+                                    .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
+                                    .slice((itemPage - 1) * 5, itemPage * 5)
+                                    .map(p => (
+                                        <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                                            <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
+                                                style={{ width: 15, height: 15, accentColor: "#6366f1", cursor: "pointer" }} />
+                                            <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                {(p as any).imageUrl ? <img src={(p as any).imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10 }}>📦</span>}
+                                            </div>
+                                            <div style={{ display: "flex", flexDirection: "column" }}>
+                                                <span style={{ fontSize: 12, fontWeight: 500, color: "#1e293b", fontFamily: FONT, maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.productName}</span>
+                                                <span style={{ fontSize: 10, color: "#64748b", fontFamily: FONT }}>SKU: {(p as any).sku || "N/A"}</span>
+                                            </div>
+                                        </label>
+                                    ))}
+                            </div>
+                            {/* Simple Pagination */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                                <button
+                                    disabled={itemPage === 1}
+                                    onClick={() => setItemPage(p => p - 1)}
+                                    style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: itemPage === 1 ? "#f8fafc" : "#fff", color: itemPage === 1 ? "#cbd5e1" : "#475569", cursor: itemPage === 1 ? "not-allowed" : "pointer", fontSize: 11 }}
+                                >
+                                    Prev
+                                </button>
+                                <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
+                                <button
+                                    disabled={itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
+                                    onClick={() => setItemPage(p => p + 1)}
+                                    style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
+                                >
+                                    Next
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -457,7 +522,7 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
 // ══════════════════════════════════════════════════════════════
 // CREATE ITEM GROUP
 // ══════════════════════════════════════════════════════════════
-export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop }: { products: { id: string; productName: string }[]; user: { uid: string; name: string }, onCreated?: (g: ItemGroup) => void, isMobile?: boolean, isDesktop?: boolean }) {
+export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop }: { products: Product[]; user: { uid: string; name: string }, onCreated?: (g: ItemGroup) => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState("");
     const [desc, setDesc] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -465,6 +530,9 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
     const [success, setSuccess] = useState("");
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
+    const [itemPage, setItemPage] = useState(1);
+
+    useEffect(() => { setItemPage(1); }, [search]);
 
     const toggle = (id: string) => {
         const s = new Set(selected);
@@ -479,7 +547,7 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
             const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
             const newRef = push(ref(db, "itemGroups"));
             await set(newRef, d);
-            
+
             // Log activity
             await logActivity({
                 type: "inventory",
@@ -525,19 +593,50 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
                         <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>
                             Add Items ({selected.size} selected)
                         </div>
-                        <Input 
-                            value={search} 
+                        <Input
+                            value={search}
                             onChange={e => setSearch(e.target.value)}
+                            placeholder="Search Product / SKU"
                             style={{ marginBottom: 12, height: 36, fontSize: 12 }}
                         />
-                        <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                            {products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
-                                <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
-                                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
-                                        style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
-                                    <span style={{ fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</span>
-                                </label>
-                            ))}
+                        <div style={{ maxHeight: 380, overflowY: "auto", border: "1px solid #f1f5f9", borderRadius: 8 }}>
+                            {products
+                                .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()))
+                                .slice((itemPage - 1) * 5, itemPage * 5)
+                                .map(p => (
+                                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", transition: "0.2s" }}>
+                                        <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
+                                            style={{ width: 15, height: 15, accentColor: "#6366f1", cursor: "pointer" }} />
+                                        <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                            {p.imageUrl ? <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10 }}>📦</span>}
+                                        </div>
+                                        <div style={{ display: "flex", flexDirection: "column" }}>
+                                            <span style={{ fontSize: 12, fontWeight: 500, color: "#1e293b", fontFamily: FONT, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.productName}</span>
+                                            <span style={{ fontSize: 10, color: "#64748b", fontFamily: FONT }}>SKU: {p.sku}</span>
+                                        </div>
+                                    </label>
+                                ))}
+                            {products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length === 0 && (
+                                <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No items found</div>
+                            )}
+                        </div>
+                        {/* Simple Pagination */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                            <button
+                                disabled={itemPage === 1}
+                                onClick={() => setItemPage(p => p - 1)}
+                                style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: itemPage === 1 ? "#f8fafc" : "#fff", color: itemPage === 1 ? "#cbd5e1" : "#475569", cursor: itemPage === 1 ? "not-allowed" : "pointer", fontSize: 11 }}
+                            >
+                                Prev
+                            </button>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
+                            <button
+                                disabled={itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length}
+                                onClick={() => setItemPage(p => p + 1)}
+                                style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
+                            >
+                                Next
+                            </button>
                         </div>
                     </div>
                 </Card>
@@ -574,16 +673,16 @@ export function ItemGroupList({ groups, user, loading, canCreate, canDelete, onC
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <div style={{ fontSize: 11, color: "#cbd5e1", fontFamily: FONT }}>{new Date(g.createdAt).toLocaleDateString("en-IN")}</div>
-                                    <button 
+                                    <button
                                         onClick={() => setEditing(g)}
                                         style={{ background: "#f1f5f9", border: "none", cursor: "pointer", color: "#475569", padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 400, fontFamily: FONT }}
                                     >
                                         Edit
                                     </button>
                                     {canDelete && (
-                                        <button 
-                                            onClick={async () => { 
-                                                if(confirm(`Delete group "${g.name}"?`)) {
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm(`Delete group "${g.name}"?`)) {
                                                     await remove(ref(db, `itemGroups/${g.id}`));
                                                     await logActivity({
                                                         type: "inventory",
@@ -612,11 +711,11 @@ export function ItemGroupList({ groups, user, loading, canCreate, canDelete, onC
             </Card>
 
             {editing && (
-                <EditItemGroupModal 
-                    group={editing} 
-                    user={user} 
+                <EditItemGroupModal
+                    group={editing}
+                    user={user}
                     allProducts={products || []}
-                    onClose={() => setEditing(null)} 
+                    onClose={() => setEditing(null)}
                     isMobile={isMobile}
                     isDesktop={isDesktop}
                 />
@@ -625,12 +724,15 @@ export function ItemGroupList({ groups, user, loading, canCreate, canDelete, onC
     );
 }
 
-function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDesktop }: { group: ItemGroup; user: { uid: string; name: string }; allProducts: { id: string; productName: string }[]; onClose: () => void, isMobile?: boolean, isDesktop?: boolean }) {
+function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDesktop }: { group: ItemGroup; user: { uid: string; name: string }; allProducts: Product[]; onClose: () => void, isMobile?: boolean, isDesktop?: boolean }) {
     const [name, setName] = useState(group.name);
     const [desc, setDesc] = useState(group.description || "");
     const [selected, setSelected] = useState<Set<string>>(new Set(group.productIds || []));
     const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState("");
+    const [itemPage, setItemPage] = useState(1);
+
+    useEffect(() => { setItemPage(1); }, [search]);
 
     const toggle = (id: string) => {
         const s = new Set(selected);
@@ -670,14 +772,42 @@ function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDes
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Manage Products ({selected.size})</div>
-                            <Input value={search} onChange={e => setSearch(e.target.value)} />
-                            <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-                                {allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase())).map(p => (
-                                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
-                                        <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
-                                        <span style={{ fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</span>
-                                    </label>
-                                ))}
+                            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Product / SKU" />
+                            <div style={{ maxHeight: 320, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+                                {allProducts
+                                    .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
+                                    .slice((itemPage - 1) * 5, itemPage * 5)
+                                    .map(p => (
+                                        <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                                            <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
+                                                style={{ width: 15, height: 15, accentColor: "#6366f1", cursor: "pointer" }} />
+                                            <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                {(p as any).imageUrl ? <img src={(p as any).imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10 }}>📦</span>}
+                                            </div>
+                                            <div style={{ display: "flex", flexDirection: "column" }}>
+                                                <span style={{ fontSize: 12, fontWeight: 500, color: "#1e293b", fontFamily: FONT, maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.productName}</span>
+                                                <span style={{ fontSize: 10, color: "#64748b", fontFamily: FONT }}>SKU: {(p as any).sku || "N/A"}</span>
+                                            </div>
+                                        </label>
+                                    ))}
+                            </div>
+                            {/* Simple Pagination */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                                <button
+                                    disabled={itemPage === 1}
+                                    onClick={() => setItemPage(p => p - 1)}
+                                    style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: itemPage === 1 ? "#f8fafc" : "#fff", color: itemPage === 1 ? "#cbd5e1" : "#475569", cursor: itemPage === 1 ? "not-allowed" : "pointer", fontSize: 11 }}
+                                >
+                                    Prev
+                                </button>
+                                <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
+                                <button
+                                    disabled={itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
+                                    onClick={() => setItemPage(p => p + 1)}
+                                    style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
+                                >
+                                    Next
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -694,24 +824,23 @@ function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDes
 // ══════════════════════════════════════════════════════════════
 // INVENTORY ADJUSTMENT
 // ══════════════════════════════════════════════════════════════
-export function InventoryAdjustment({ products, collections, user, onDone, isMobile, isDesktop }: { 
-    products: Product[]; 
-    collections: Collection[]; 
-    user: { uid: string; name: string }; 
-    onDone?: () => void; 
-    isMobile?: boolean; 
-    isDesktop?: boolean; 
+export function InventoryAdjustment({ products, collections, user, onDone, isMobile, isDesktop }: {
+    products: Product[];
+    collections: Collection[];
+    user: { uid: string; name: string };
+    onDone?: () => void;
+    isMobile?: boolean;
+    isDesktop?: boolean;
 }) {
     const [search, setSearch] = useState("");
     const [filterCol, setFilterCol] = useState("all");
     const [filterSize, setFilterSize] = useState("all");
     const [successMsg, setSuccessMsg] = useState("");
 
-    const sizes = Array.from(new Set([
-        ...products.map(p => p.unit).filter(Boolean), 
-        ...products.map(p => p.size).filter(Boolean),
-        "Single", "Double", "King", "Super King"
-    ]));
+    const sizes = [
+        "Single", "Double", "Queen", "King", "Super King",
+        "Single Fitted", "Double Fitted", "Queen Fitted", "King Fitted"
+    ];
 
     useEffect(() => {
         if (successMsg) {
@@ -723,7 +852,7 @@ export function InventoryAdjustment({ products, collections, user, onDone, isMob
     const filtered = products.filter(p => {
         const matchSearch = p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
         const matchSize = filterSize === "all" || p.unit === filterSize || p.size === filterSize;
-        
+
         let matchCol = true;
         if (filterCol !== "all") {
             const c = collections.find(x => x.id === filterCol);
@@ -747,18 +876,18 @@ export function InventoryAdjustment({ products, collections, user, onDone, isMob
 
             {/* Success Notification */}
             {successMsg && (
-                <div style={{ 
-                    position: "fixed", 
-                    top: 24, 
-                    left: "50%", 
-                    transform: "translateX(-50%)", 
-                    background: "#10b981", 
-                    color: "#fff", 
-                    padding: "16px 24px", 
-                    borderRadius: 16, 
-                    boxShadow: "0 20px 25px -5px rgba(16,185,129,0.2), 0 8px 10px -6px rgba(16,185,129,0.1)", 
-                    zIndex: 3000, 
-                    fontWeight: 400, 
+                <div style={{
+                    position: "fixed",
+                    top: 24,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "#10b981",
+                    color: "#fff",
+                    padding: "16px 24px",
+                    borderRadius: 16,
+                    boxShadow: "0 20px 25px -5px rgba(16,185,129,0.2), 0 8px 10px -6px rgba(16,185,129,0.1)",
+                    zIndex: 3000,
+                    fontWeight: 400,
                     fontSize: 15,
                     fontFamily: FONT,
                     display: "flex",
@@ -771,11 +900,39 @@ export function InventoryAdjustment({ products, collections, user, onDone, isMob
                 </div>
             )}
             <PageHeader title="Inventory Adjustment" sub="Quickly add or remove stock and adjust quantities in one place." />
-            
+
             <Card style={{ marginBottom: 20 }}>
                 <div style={{ padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                        <Input value={search} onChange={e => setSearch(e.target.value)} />
+                    <div style={{ flex: 1, minWidth: 240 }}>
+                        <div style={{
+                            display: "flex", alignItems: "center", gap: 10, padding: "10px 16px",
+                            background: search ? "#fff" : "#f8fafc",
+                            border: "1.5px solid",
+                            borderColor: search ? "#6366f1" : "#e2e8f0",
+                            borderRadius: 12,
+                            transition: "all 0.2s ease",
+                            boxShadow: search ? "0 4px 10px rgba(99,102,241,0.08)" : "none",
+                        }}>
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color: search ? "#6366f1" : "#94a3b8", flexShrink: 0 }}>
+                                <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667zM14 14l-2.9-2.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            <input
+                                type="text"
+                                placeholder="Search Product / SKU"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                style={{
+                                    background: "transparent", border: "none", outline: "none",
+                                    color: "#1e293b", fontSize: 14, width: "100%", fontFamily: FONT,
+                                    boxShadow: "none"
+                                }}
+                            />
+                            {search && (
+                                <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex", padding: 2 }}>
+                                    <svg width="10" height="10" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <select value={filterCol} onChange={e => setFilterCol(e.target.value)} style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Collections</option>
@@ -822,7 +979,7 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
         const q = Number(qty);
         if (!q || q <= 0) { setConfirm(null); return; }
         if (mode === "remove" && q > p.stock) { alert("Cannot remove more stock than available."); setConfirm(null); return; }
-        
+
         setSaving(true);
         try {
             const newStock = mode === "add" ? p.stock + q : p.stock - q;
@@ -832,9 +989,9 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
                 else if (newStock <= p.minStock) autoStatus = "low-stock";
                 else autoStatus = "active";
             }
-            await update(ref(db, `inventory/${p.id}`), { 
-                stock: newStock, 
-                status: autoStatus, 
+            await update(ref(db, `inventory/${p.id}`), {
+                stock: newStock,
+                status: autoStatus,
                 updatedAt: Date.now(),
                 updatedBy: user.uid,
                 updatedByName: user.name
@@ -855,7 +1012,7 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
             setQty(1);
             setConfirm(null);
             onRefresh?.();
-        } catch(e) { console.error(e); alert("Update failed"); setConfirm(null); }
+        } catch (e) { console.error(e); alert("Update failed"); setConfirm(null); }
         finally { setSaving(false); }
     };
 
@@ -882,8 +1039,8 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
             </td>
             <td style={{ padding: "14px 16px", textAlign: "right", position: "relative" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                    <input 
-                        type="number" min="1" value={qty} 
+                    <input
+                        type="number" min="1" value={qty}
                         onChange={e => setQty(e.target.value === "" ? "" : Math.max(1, parseInt(e.target.value) || 1))}
                         style={{ width: 60, padding: "8px", border: "1.5px solid #e2e8f0", borderRadius: 8, textAlign: "center", fontSize: 14, fontWeight: 400, outline: "none" }}
                     />
@@ -892,33 +1049,33 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
                 </div>
 
                 {confirm && (
-                    <div style={{ 
-                        position: "fixed", 
-                        inset: 0, 
-                        background: "rgba(15,23,42,0.65)", 
-                        backdropFilter: "blur(6px)", 
-                        zIndex: 2000, 
-                        display: "flex", 
-                        alignItems: "center", 
+                    <div style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(15,23,42,0.65)",
+                        backdropFilter: "blur(6px)",
+                        zIndex: 2000,
+                        display: "flex",
+                        alignItems: "center",
                         justifyContent: "center",
                         padding: 20
                     }}>
-                        <div style={{ 
-                            width: "100%", 
-                            maxWidth: 420, 
-                            background: "#fff", 
-                            borderRadius: 24, 
-                            padding: "40px", 
+                        <div style={{
+                            width: "100%",
+                            maxWidth: 420,
+                            background: "#fff",
+                            borderRadius: 24,
+                            padding: "40px",
                             textAlign: "center",
                             boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
                             animation: "scaleIn 0.2s ease-out"
                         }}>
                             {/* Header Icon */}
-                            <div style={{ 
-                                width: 80, 
-                                height: 80, 
-                                borderRadius: 40, 
-                                background: confirm.mode === "add" ? "#f0fdf4" : "#fef2f2", 
+                            <div style={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: 40,
+                                background: confirm.mode === "add" ? "#f0fdf4" : "#fef2f2",
                                 color: confirm.mode === "add" ? "#10b981" : "#ef4444",
                                 display: "flex",
                                 alignItems: "center",
@@ -933,7 +1090,7 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
                                 {confirm.mode === "add" ? "Add Stock" : "Remove Stock"}?
                             </h3>
                             <p style={{ fontSize: 15, color: "#64748b", fontWeight: 400, margin: "0 0 24px", fontFamily: FONT, lineHeight: 1.5 }}>
-                                You are adjusting <strong>{qty} {p.unit || "units"}</strong> for:<br/>
+                                You are adjusting <strong>{qty} {p.unit || "units"}</strong> for:<br />
                                 <span style={{ color: "#1e293b", fontWeight: 400 }}>{p.productName}</span>
                             </p>
 
@@ -953,17 +1110,17 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
                             </div>
 
                             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                <button 
-                                    onClick={handleAdjust} 
-                                    style={{ 
-                                        width: "100%", 
-                                        padding: "16px", 
-                                        background: confirm.mode === "add" ? "#10b981" : "#ef4444", 
-                                        color: "#fff", 
-                                        border: "none", 
-                                        borderRadius: 14, 
-                                        fontSize: 16, 
-                                        fontWeight: 400, 
+                                <button
+                                    onClick={handleAdjust}
+                                    style={{
+                                        width: "100%",
+                                        padding: "16px",
+                                        background: confirm.mode === "add" ? "#10b981" : "#ef4444",
+                                        color: "#fff",
+                                        border: "none",
+                                        borderRadius: 14,
+                                        fontSize: 16,
+                                        fontWeight: 400,
                                         cursor: "pointer",
                                         transition: "all 0.2s",
                                         boxShadow: `0 4px 12px ${confirm.mode === "add" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`
@@ -971,17 +1128,17 @@ function AdjustRow({ p, user, onRefresh, isMobile }: { p: Product, user: { uid: 
                                 >
                                     Confirm {confirm.mode === "add" ? "Addition" : "Removal"}
                                 </button>
-                                <button 
-                                    onClick={() => setConfirm(null)} 
-                                    style={{ 
-                                        width: "100%", 
-                                        padding: "16px", 
-                                        background: "#fff", 
-                                        color: "#64748b", 
-                                        border: "1.5px solid #e2e8f0", 
-                                        borderRadius: 14, 
-                                        fontSize: 16, 
-                                        fontWeight: 400, 
+                                <button
+                                    onClick={() => setConfirm(null)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "16px",
+                                        background: "#fff",
+                                        color: "#64748b",
+                                        border: "1.5px solid #e2e8f0",
+                                        borderRadius: 14,
+                                        fontSize: 16,
+                                        fontWeight: 400,
                                         cursor: "pointer"
                                     }}
                                 >
@@ -1032,21 +1189,25 @@ function BarcodeSVG({ value, height = 40, width = 2, fontSize = 20, showValue = 
 // ══════════════════════════════════════════════════════════════
 // BARCODE MANAGER
 // ══════════════════════════════════════════════════════════════
-export function BarcodeView({ 
-    products, 
-    collections, 
-    isMobile 
-}: { 
-    products: Product[]; 
-    collections: Collection[]; 
-    isMobile?: boolean; 
+export function BarcodeView({
+    products,
+    collections,
+    isMobile
+}: {
+    products: Product[];
+    collections: Collection[];
+    isMobile?: boolean;
 }) {
     const [search, setSearch] = useState("");
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [generatedBarcode, setGeneratedBarcode] = useState<string>("");
     const [printModalOpen, setPrintModalOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isBulkPrint, setIsBulkPrint] = useState(false);
     const [selectedSize, setSelectedSize] = useState<"50x25" | "38x25" | "100x150">("50x25");
-    
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 4;
+
     // Shared Mapping for Display & Generation
     const collectionCodes: Record<string, string> = {
         "Duke": "417",
@@ -1089,7 +1250,7 @@ export function BarcodeView({
         const colPart = getCollectionCode(product.collection || "");
         const skuPart = getSkuPart(product.sku);
         const sizeCode = getSizeCode(product.size || "");
-        
+
         // Generate a deterministic 4-digit part from the product's unique ID
         // This ensures the last 4 digits NEVER change for a specific product.
         const idStr = (product.id || "0000").replace(/[^a-zA-Z0-0]/g, "");
@@ -1099,59 +1260,79 @@ export function BarcodeView({
             idHash |= 0;
         }
         const randPart = Math.abs(idHash % 9000 + 1000).toString();
-        
+
         return `${colPart}${skuPart}${sizeCode}${randPart}`;
     };
 
-    const normalizeIds = async () => {
-        if (!confirm("This will assign 3-digit IDs (101, 102...) to all Collections and Products that are currently 000. Proceed?")) return;
-        
-        try {
-            // Normalize Collections
-            let colCounter = 101;
-            for (const c of collections) {
-                if (!c.collectionCode || c.collectionCode === "000") {
-                    await update(ref(db, `collections/${c.id}`), { collectionCode: String(colCounter++) });
-                }
-            }
-            
-            // Normalize Products
-            let styleCounter = 101;
-            for (const p of products) {
-                if (!p.styleId || p.styleId === "000" || p.styleId === "") {
-                    await update(ref(db, `inventory/${p.id}`), { styleId: String(styleCounter++) });
-                }
-            }
-            alert("IDs Normalized Successfully! Please refresh the page.");
-        } catch (e) {
-            console.error(e);
-            alert("Failed to normalize IDs.");
+    const toggleSelect = (id: string) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedIds(next);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filtered.length && filtered.length > 0) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filtered.map(p => p.id)));
         }
+    };
+
+    const handleBulkPrint = async () => {
+        if (selectedIds.size === 0) return;
+
+        const productsToPrint = products.filter(p => selectedIds.has(p.id));
+        for (const p of productsToPrint) {
+            const expectedColPart = getCollectionCode(p.collection || "");
+            const expectedSkuPart = getSkuPart(p.sku);
+            const expectedSizeCode = getSizeCode(p.size || "");
+
+            let needsNew = !p.barcode;
+            if (p.barcode) {
+                const existingCol = p.barcode.substring(0, 3);
+                const existingSku = p.barcode.substring(3, 6);
+                const existingSize = p.barcode.substring(6, 9);
+                if (existingCol !== expectedColPart || existingSku !== expectedSkuPart || existingSize !== expectedSizeCode) {
+                    needsNew = true;
+                }
+            }
+
+            if (needsNew) {
+                const code = generateBarcodeNumber(p);
+                try {
+                    await update(ref(db, `inventory/${p.id}`), { barcode: code });
+                } catch (e) { console.error(e); }
+            }
+        }
+
+        setIsBulkPrint(true);
+        setPrintModalOpen(true);
     };
 
     const handleGenerate = async (p: Product) => {
         // Use the most up-to-date product from the list to avoid stale props
         const currentP = products.find(x => x.id === p.id) || p;
         setSelectedProduct(currentP);
-        
+
         const expectedColPart = getCollectionCode(currentP.collection || "");
         const expectedSkuPart = getSkuPart(currentP.sku);
         const expectedSizeCode = getSizeCode(currentP.size || "");
-        
+
         let needsNew = !currentP.barcode;
         if (currentP.barcode) {
             // Validate if existing barcode matches current specs
             const existingCol = currentP.barcode.substring(0, 3);
             const existingSku = currentP.barcode.substring(3, 6);
             const existingSize = currentP.barcode.substring(6, 9);
-            
-            if (existingCol !== expectedColPart || 
-                existingSku !== expectedSkuPart || 
+
+            if (existingCol !== expectedColPart ||
+                existingSku !== expectedSkuPart ||
                 existingSize !== expectedSizeCode) {
                 needsNew = true;
             }
         }
-        
+
         if (needsNew) {
             const code = generateBarcodeNumber(currentP);
             try {
@@ -1167,56 +1348,127 @@ export function BarcodeView({
         }
     };
 
-    const filtered = products.filter(p => 
-        p.productName.toLowerCase().includes(search.toLowerCase()) || 
+    const filtered = useMemo(() => products.filter(p =>
+        p.productName.toLowerCase().includes(search.toLowerCase()) ||
         p.sku.toLowerCase().includes(search.toLowerCase())
-    );
+    ), [products, search]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search]);
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginatedItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return (
         <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <PageHeader title="Barcode Manager" sub="Generate and manage 13-digit product barcodes." />
-                <button 
-                    onClick={normalizeIds}
-                    style={{ padding: "8px 16px", background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 13, cursor: "pointer", transition: "0.2s" }}
-                >
-                    Normalize Sequential IDs
-                </button>
+                {selectedIds.size > 0 && (
+                    <button
+                        onClick={handleBulkPrint}
+                        style={{ padding: "10px 20px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 500, cursor: "pointer", boxShadow: "0 4px 12px rgba(99,102,241,0.25)", transition: "0.2s" }}
+                    >
+                        Print Selected ({selectedIds.size})
+                    </button>
+                )}
             </div>
-            
+
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 400px", gap: 20, alignItems: "start" }}>
                 <Card>
                     <div style={{ padding: "18px 20px" }}>
                         <div style={{ marginBottom: 16 }}>
-                            <Input 
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                            />
+                            <div style={{
+                                display: "flex", alignItems: "center", gap: 12, padding: "12px 18px",
+                                background: search ? "#fff" : "#f8fafc",
+                                border: "1.5px solid",
+                                borderColor: search ? "#6366f1" : "#e2e8f0",
+                                borderRadius: 16,
+                                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                boxShadow: search ? "0 4px 12px rgba(99,102,241,0.12)" : "0 2px 4px rgba(0,0,0,0.02)",
+                            }}>
+                                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ color: search ? "#6366f1" : "#94a3b8", flexShrink: 0, transition: "color 0.3s" }}>
+                                    <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667zM14 14l-2.9-2.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="Search Product / SKU"
+                                    style={{
+                                        background: "transparent", border: "none", outline: "none",
+                                        color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT,
+                                        fontWeight: 400, boxShadow: "none"
+                                    }}
+                                />
+                                <style>{`
+                                    input::placeholder { color: #94a3b8; opacity: 0.8; }
+                                    div > input[type="text"]:focus { 
+                                        border-color: transparent !important; 
+                                        box-shadow: none !important; 
+                                    }
+                                `}</style>
+                                {search && (
+                                    <button
+                                        onClick={() => setSearch("")}
+                                        style={{
+                                            background: "#f1f5f9", border: "none", cursor: "pointer",
+                                            color: "#64748b", padding: 4, borderRadius: "50%",
+                                            display: "flex", alignItems: "center", justifyContent: "center"
+                                        }}
+                                    >
+                                        <svg width="10" height="10" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div style={{ overflowX: "auto", maxHeight: "60vh" }}>
                             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                                 <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10 }}>
                                     <tr>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Collection</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Col No.</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>SKU</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Action</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", width: 40 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.size === filtered.length && filtered.length > 0}
+                                                onChange={toggleSelectAll}
+                                                style={{ cursor: "pointer" }}
+                                            />
+                                        </th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Image</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>SKU</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Collection</th>
+                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filtered.map(p => (
-                                        <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "12px 14px", fontSize: 13, color: "#1e293b", fontFamily: FONT }}>{p.productName}</td>
-                                            <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.collection || "—"}</td>
+                                    {paginatedItems.map(p => (
+                                        <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9", background: selectedIds.has(p.id) ? "rgba(99,102,241,0.02)" : "transparent" }}>
                                             <td style={{ padding: "12px 14px" }}>
-                                                <span style={{ fontSize: 11, fontWeight: 400, color: getCollectionCode(p.collection || "") === "000" ? "#ef4444" : "#10b981", background: getCollectionCode(p.collection || "") === "000" ? "rgba(239, 68, 68, 0.05)" : "rgba(16, 185, 129, 0.05)", padding: "2px 8px", borderRadius: 6 }}>
-                                                    {getCollectionCode(p.collection || "")}
-                                                </span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(p.id)}
+                                                    onChange={() => toggleSelect(p.id)}
+                                                    style={{ cursor: "pointer" }}
+                                                />
                                             </td>
-                                            <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>{p.sku}</td>
+                                            <td style={{ padding: "8px 14px" }}>
+                                                <div style={{ width: 36, height: 36, borderRadius: 8, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                    {p.imageUrl ? (
+                                                        <img src={p.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                    ) : (
+                                                        <span style={{ fontSize: 10, color: "#cbd5e1" }}>📦</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: "12px 14px", fontSize: 13, color: "#1e293b", fontWeight: 400, fontFamily: FONT }}>{p.sku}</td>
+                                            <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}>
+                                                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                                    <span>{p.collection || "—"}</span>
+                                                    <span style={{ fontSize: 10, color: "#94a3b8" }}>#{getCollectionCode(p.collection || "")}</span>
+                                                </div>
+                                            </td>
                                             <td style={{ padding: "12px 14px", textAlign: "right" }}>
-                                                <button 
+                                                <button
                                                     onClick={() => handleGenerate(p)}
                                                     style={{ padding: "6px 12px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", transition: "0.2s" }}
                                                     onMouseEnter={e => e.currentTarget.style.background = "#4f46e5"}
@@ -1233,35 +1485,66 @@ export function BarcodeView({
                                 <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: 14 }}>No products found.</div>
                             )}
                         </div>
+
+                        {/* Pagination moved out of overflowX div */}
+                        {filtered.length > 0 && (
+                            <div style={{ padding: "16px 0 0", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                                <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
+                                </div>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        style={{ padding: "6px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: currentPage === 1 ? "#f8fafc" : "#fff", color: currentPage === 1 ? "#cbd5e1" : "#475569", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 500, transition: "0.2s" }}
+                                    >
+                                        Prev
+                                    </button>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#1e293b", padding: "0 10px", fontWeight: 600 }}>
+                                        {currentPage} / {totalPages}
+                                    </div>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        style={{ padding: "6px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: currentPage === totalPages ? "#f8fafc" : "#fff", color: currentPage === totalPages ? "#cbd5e1" : "#475569", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 500, transition: "0.2s" }}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Card>
 
                 <Card>
                     <div style={{ padding: "24px", textAlign: "center" }}>
                         <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 20, fontFamily: FONT }}>Barcode Preview</div>
-                        
+
                         {selectedProduct && generatedBarcode ? (
                             <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: "30px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                                 <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{selectedProduct.productName}</div>
                                 <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, marginBottom: 10 }}>SKU: {selectedProduct.sku}</div>
-                                
+
                                 {/* Visual Barcode Representation (REAL Industry Standard) - Large for screen scanning */}
                                 <div style={{ background: "#fff", padding: "10px", borderRadius: 8, display: "flex", justifyContent: "center", width: "100%", marginBottom: 15 }}>
                                     <BarcodeSVG value={generatedBarcode} height={120} width={2.5} displayHeight={120} />
                                 </div>
-                                
+
                                 <div style={{ fontSize: 28, fontWeight: 700, color: "#000", fontFamily: "'Courier New', Courier, monospace", letterSpacing: 5, marginTop: 5 }}>
                                     {generatedBarcode}
                                 </div>
-                                
+
                                 <div style={{ marginTop: 24, display: "flex", gap: 10, width: "100%" }}>
-                                    <button 
-                                        onClick={() => setPrintModalOpen(true)}
+                                    <button
+                                        onClick={() => {
+                                            setIsBulkPrint(false);
+                                            setPrintModalOpen(true);
+                                        }}
                                         style={{ flex: 1, padding: "12px", background: "#f8fafc", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
                                     >
                                         Print Barcode
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(generatedBarcode);
                                             alert("Barcode number copied to clipboard!");
@@ -1277,13 +1560,13 @@ export function BarcodeView({
                                 Select a product to generate its barcode.
                             </div>
                         )}
-                        
+
                         <div style={{ marginTop: 30, textAlign: "left", padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #f1f5f9" }}>
                             <div style={{ fontSize: 12, fontWeight: 400, color: "#475569", marginBottom: 8, fontFamily: FONT }}>Barcode Structure:</div>
                             <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, lineHeight: 1.6 }}>
-                                • Collection Code (3 digits - Mapped)<br/>
-                                • SKU Numeric Part (3 digits)<br/>
-                                • Size Code (3 digits - Mapped)<br/>
+                                • Collection Code (3 digits - Mapped)<br />
+                                • SKU Numeric Part (3 digits)<br />
+                                • Size Code (3 digits - Mapped)<br />
                                 • Random Number (4 digits)
                             </div>
                         </div>
@@ -1296,17 +1579,17 @@ export function BarcodeView({
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
                     <div style={{ background: "#fff", borderRadius: 16, padding: "24px 20px", maxWidth: 400, width: "100%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
                         <h3 style={{ fontSize: 16, fontWeight: 500, color: "#0f172a", marginBottom: 16, textAlign: "center", fontFamily: FONT }}>Select Print Size</h3>
-                        
+
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {[
                                 { id: "50x25", label: "50 x 25 mm (Standard)", icon: "🏷️" },
                                 { id: "38x25", label: "38 x 25 mm (Small)", icon: "🔖" },
                                 { id: "100x150", label: "100 x 150 mm (Large/Shipping)", icon: "📦" }
                             ].map(size => (
-                                <button 
+                                <button
                                     key={size.id}
                                     onClick={() => setSelectedSize(size.id as any)}
-                                    style={{ 
+                                    style={{
                                         padding: "14px", border: "1.5px solid", borderRadius: 12, fontSize: 14, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12,
                                         borderColor: selectedSize === size.id ? "#6366f1" : "#e2e8f0",
                                         background: selectedSize === size.id ? "rgba(99,102,241,0.05)" : "#fff",
@@ -1319,18 +1602,19 @@ export function BarcodeView({
                                 </button>
                             ))}
                         </div>
-                        
+
                         <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
-                            <button 
+                            <button
                                 onClick={() => setPrintModalOpen(false)}
                                 style={{ flex: 1, padding: "12px", background: "transparent", border: "none", color: "#64748b", fontSize: 14, cursor: "pointer" }}
                             >
                                 Cancel
                             </button>
-                            <button 
+                            <button
                                 onClick={() => {
                                     setPrintModalOpen(false);
-                                    setTimeout(() => window.print(), 100);
+                                    // Give more time for multiple SVGs to render via useEffect
+                                    setTimeout(() => window.print(), 800);
                                 }}
                                 style={{ flex: 2, padding: "12px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
                             >
@@ -1349,47 +1633,76 @@ export function BarcodeView({
                             html, body {
                                 margin: 0 !important;
                                 padding: 0 !important;
-                                height: 100% !important;
-                                overflow: hidden !important;
                             }
                             /* Hide Everything except the label */
                             body > *:not(#print-area) { 
                                 display: none !important; 
                             }
                             #print-area { 
-                                display: flex !important; 
-                                position: fixed !important;
-                                top: 0 !important; left: 0 !important;
+                                display: block !important; 
+                                position: relative !important;
                                 width: 100% !important;
-                                height: 100% !important;
                                 background: #fff !important;
                                 padding: 0 !important;
                                 margin: 0 !important;
                                 visibility: visible !important;
-                                align-items: center;
-                                justify-content: center;
                                 z-index: 99999;
                             }
                             .barcode-label-container {
-                                width: 100% !important;
-                                height: 100% !important;
+                                width: ${selectedSize === "50x25" ? "50mm" : selectedSize === "38x25" ? "38mm" : "100mm"} !important;
+                                height: ${selectedSize === "50x25" ? "25mm" : selectedSize === "38x25" ? "25mm" : "150mm"} !important;
                                 display: flex !important;
                                 flex-direction: column;
                                 align-items: center;
                                 justify-content: center;
                                 padding: 0 !important;
                                 margin: 0 !important;
+                                box-sizing: border-box !important;
+                                break-inside: avoid !important;
                             }
                             @page { 
                                 margin: 0; 
                                 size: ${selectedSize === "50x25" ? "50mm 25mm" : selectedSize === "38x25" ? "38mm 25mm" : "100mm 150mm"};
                             }
+                            .page-break {
+                                page-break-after: always !important;
+                                break-after: page !important;
+                            }
                         }
                         .print-only { display: none; }
                     `}</style>
-                    
-                    {selectedProduct && generatedBarcode && (
-                        <div className="barcode-label-container" style={{ 
+
+                    {isBulkPrint ? (
+                        products.filter(p => selectedIds.has(p.id)).map(p => (
+                            <div key={p.id} className="barcode-label-container page-break" style={{
+                                width: selectedSize === "50x25" ? "50mm" : selectedSize === "38x25" ? "38mm" : "100mm",
+                                height: selectedSize === "50x25" ? "25mm" : selectedSize === "38x25" ? "25mm" : "150mm",
+                                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                                textAlign: "center", fontFamily: "'Inter', sans-serif", fontWeight: "600",
+                                color: "#000", background: "#fff", padding: "2.5mm", boxSizing: "border-box", overflow: "hidden"
+                            }}>
+                                <BarcodeSVG
+                                    value={p.barcode || generateBarcodeNumber(p)}
+                                    height={selectedSize === "100x150" ? 180 : 55}
+                                    width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0}
+                                    fontSize={selectedSize === "100x150" ? 30 : 16}
+                                />
+                                <div style={{
+                                    fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt",
+                                    letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0,
+                                    fontWeight: "700",
+                                    marginTop: "1mm",
+                                    color: "#000",
+                                    width: "100%",
+                                    textOverflow: "clip",
+                                    whiteSpace: "nowrap"
+                                }}>
+                                    {p.barcode || generateBarcodeNumber(p)}
+                                </div>
+                            </div>
+                        ))
+                    ) : selectedProduct && generatedBarcode && (
+                        <div className="barcode-label-container" style={{
                             width: selectedSize === "50x25" ? "50mm" : selectedSize === "38x25" ? "38mm" : "100mm",
                             height: selectedSize === "50x25" ? "25mm" : selectedSize === "38x25" ? "25mm" : "150mm",
                             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -1397,16 +1710,16 @@ export function BarcodeView({
                             color: "#000", background: "#fff", padding: "2.5mm", boxSizing: "border-box", overflow: "hidden"
                         }}>
                             {/* REAL Barcode SVG - Scaled for thermal labels with ZERO internal margins but 2.5mm external padding */}
-                            <BarcodeSVG 
-                                value={generatedBarcode} 
-                                height={selectedSize === "100x150" ? 180 : 55} 
-                                width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0} 
+                            <BarcodeSVG
+                                value={generatedBarcode}
+                                height={selectedSize === "100x150" ? 180 : 55}
+                                width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0}
                                 fontSize={selectedSize === "100x150" ? 30 : 16}
                             />
-                            
-                            <div style={{ 
-                                fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt", 
-                                letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0, 
+
+                            <div style={{
+                                fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt",
+                                letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0,
                                 fontWeight: "700",
                                 marginTop: "1mm",
                                 color: "#000",
@@ -1428,10 +1741,10 @@ export function BarcodeView({
 // ══════════════════════════════════════════════════════════════
 // OVERVIEW (ALL INVENTORY DASHBOARD)
 // ══════════════════════════════════════════════════════════════
-export function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole, canCreate, canDelete, isMobile, isDesktop }: { 
-    products: Product[]; 
-    categories: Category[]; 
-    collections: Collection[]; 
+export function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole, canCreate, canDelete, isMobile, isDesktop }: {
+    products: Product[];
+    categories: Category[];
+    collections: Collection[];
     loading: boolean;
     onNavigate: (view: any) => void;
     currentName: string;
@@ -1446,6 +1759,12 @@ export function Overview({ products, categories, collections, loading, onNavigat
     const [groupBy, setGroupBy] = useState<"category" | "collection">("category");
     const [breakdownSearch, setBreakdownSearch] = useState("");
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+    const [stockPage, setStockPage] = useState(1);
+    const STOCK_ITEMS_PER_PAGE = 4;
+
+    useEffect(() => {
+        setStockPage(1);
+    }, [searchTerm, filterStatus]);
 
     const stats = useMemo(() => {
         const total = products.length;
@@ -1473,8 +1792,8 @@ export function Overview({ products, categories, collections, loading, onNavigat
     const breakdownData = useMemo(() => {
         let breakdown: Record<string, number> = {};
         if (groupBy === "category") {
-            products.forEach(p => { 
-                if (p.category) breakdown[p.category] = (breakdown[p.category] || 0) + 1; 
+            products.forEach(p => {
+                if (p.category) breakdown[p.category] = (breakdown[p.category] || 0) + 1;
             });
         } else {
             products.forEach(p => {
@@ -1484,17 +1803,17 @@ export function Overview({ products, categories, collections, loading, onNavigat
         return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
     }, [products, groupBy]);
 
-    const filteredBreakdown = useMemo(() => 
+    const filteredBreakdown = useMemo(() =>
         breakdownData.filter(([name]: [string, number]) => name.toLowerCase().includes(breakdownSearch.toLowerCase())),
         [breakdownData, breakdownSearch]
     );
 
-    const recentProducts = useMemo(() => 
+    const recentProducts = useMemo(() =>
         [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
         [products]
     );
 
-    const filteredStock = useMemo(() => 
+    const filteredStock = useMemo(() =>
         products.filter((p: Product) => {
             const matchQ = p.productName.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
             let matchS = true;
@@ -1506,11 +1825,17 @@ export function Overview({ products, categories, collections, loading, onNavigat
         [products, searchTerm, filterStatus]
     );
 
+    const paginatedStock = useMemo(() => {
+        const sorted = [...filteredStock].sort((a, b) => (a.stock || 0) - (b.stock || 0));
+        return sorted.slice((stockPage - 1) * STOCK_ITEMS_PER_PAGE, stockPage * STOCK_ITEMS_PER_PAGE);
+    }, [filteredStock, stockPage]);
+
+    const totalStockPages = Math.ceil(filteredStock.length / STOCK_ITEMS_PER_PAGE);
 
     return (
         <div>
             <PageHeader title="Inventory Overview" sub="Comprehensive view of your entire stock status." />
-            
+
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : `repeat(${userRole === 'admin' ? 6 : 4}, 1fr)`, gap: 14, marginBottom: 20 }}>
                 {stats.list.map((s: { label: string; value: string | number; color: string }, i: number) => (
                     <Card key={i}>
@@ -1565,8 +1890,8 @@ export function Overview({ products, categories, collections, loading, onNavigat
                     <div style={{ padding: "18px 20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                             <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Products by {groupBy === "category" ? "Category" : "Collection"}</div>
-                            <select 
-                                value={groupBy} 
+                            <select
+                                value={groupBy}
                                 onChange={(e) => setGroupBy(e.target.value as any)}
                                 style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 11, background: "#f8fafc", outline: "none", cursor: "pointer" }}
                             >
@@ -1575,14 +1900,27 @@ export function Overview({ products, categories, collections, loading, onNavigat
                             </select>
                         </div>
 
-                        <div style={{ marginBottom: 12 }}>
-                            <input 
-                                type="text"
-                                placeholder={`Filter ${groupBy}...`}
-                                value={breakdownSearch}
-                                onChange={(e) => setBreakdownSearch(e.target.value)}
-                                style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, outline: "none", fontFamily: FONT }}
-                            />
+                        <div style={{ marginBottom: 14 }}>
+                            <div style={{
+                                display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+                                background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10,
+                                transition: "all 0.2s"
+                            }}>
+                                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ color: "#94a3b8", flexShrink: 0 }}>
+                                    <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667zM14 14l-2.9-2.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    placeholder={groupBy === "category" ? "Search Category" : "Search Collection"}
+                                    value={breakdownSearch}
+                                    onChange={(e) => setBreakdownSearch(e.target.value)}
+                                    style={{
+                                        width: "100%", background: "transparent", border: "none",
+                                        fontSize: 12, outline: "none", fontFamily: FONT, color: "#1e293b",
+                                        boxShadow: "none"
+                                    }}
+                                />
+                            </div>
                         </div>
 
                         {filteredBreakdown.length === 0 ? (
@@ -1615,17 +1953,41 @@ export function Overview({ products, categories, collections, loading, onNavigat
                     <div style={{ padding: "18px 20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
                             <div style={{ fontSize: 15, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Detailed Stock Levels</div>
-                            <div style={{ display: "flex", gap: 8, flex: 1, maxWidth: 450, justifyContent: "flex-end" }}>
-                                <input
-                                    type="text"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, fontFamily: FONT, outline: "none", flex: 1 }}
-                                />
+                            <div style={{ display: "flex", gap: 10, flex: 1, maxWidth: 480, justifyContent: "flex-end", alignItems: "center" }}>
+                                <div style={{
+                                    display: "flex", alignItems: "center", gap: 10, padding: "8px 14px",
+                                    background: searchTerm ? "#fff" : "#f8fafc",
+                                    border: "1.5px solid",
+                                    borderColor: searchTerm ? "#6366f1" : "#e2e8f0",
+                                    borderRadius: 12,
+                                    flex: 1,
+                                    transition: "all 0.2s ease",
+                                    boxShadow: searchTerm ? "0 4px 10px rgba(99,102,241,0.08)" : "none",
+                                }}>
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color: searchTerm ? "#6366f1" : "#94a3b8", flexShrink: 0 }}>
+                                        <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667zM14 14l-2.9-2.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                    <input
+                                        type="text"
+                                        placeholder="Search Product / SKU"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        style={{
+                                            background: "transparent", border: "none", outline: "none",
+                                            color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT,
+                                            boxShadow: "none"
+                                        }}
+                                    />
+                                    {searchTerm && (
+                                        <button onClick={() => setSearchTerm("")} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex", padding: 2 }}>
+                                            <svg width="10" height="10" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                                        </button>
+                                    )}
+                                </div>
                                 <select
                                     value={filterStatus}
                                     onChange={(e) => setFilterStatus(e.target.value)}
-                                    style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, fontFamily: FONT, outline: "none", background: "#f8fafc", cursor: "pointer", width: 130 }}
+                                    style={{ padding: "9px 12px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 13, fontFamily: FONT, outline: "none", background: "#f8fafc", cursor: "pointer", width: 140 }}
                                 >
                                     <option value="all">All Status</option>
                                     <option value="in-stock">In Stock</option>
@@ -1634,55 +1996,100 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                 </select>
                             </div>
                         </div>
+                        <style>{`
+                            input::placeholder { color: #94a3b8; opacity: 0.7; }
+                        `}</style>
                         <div style={{ overflowX: "auto", maxHeight: 400 }}>
                             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                                <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                                <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
                                     <tr>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>Product</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>SKU</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Available Pieces</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
-                                        <th style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Actions</th>
+                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>Product Details</th>
+                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>SKU</th>
+                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Available Pieces</th>
+                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Stock Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {[...filteredStock].sort((a,b) => a.stock - b.stock).map(p => (
-                                        <tr key={p.id} style={{ transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#1e293b", fontWeight: 400, fontFamily: FONT }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                                    <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f1f5f9", overflow: "hidden", border: "1px solid #e2e8f0", flexShrink: 0 }}>
-                                                        {p.imageUrl ? <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
+                                    {paginatedStock.map(p => (
+                                        <tr key={p.id} style={{ transition: "all 0.2s ease" }} onMouseEnter={e => e.currentTarget.style.background = "#f8faff"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                                    <div style={{ width: 42, height: 42, borderRadius: 10, background: "#fff", overflow: "hidden", border: "1.5px solid #f1f5f9", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}>
+                                                        {p.imageUrl ? <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📦</div>}
                                                     </div>
-                                                    {p.productName}
+                                                    <div style={{ display: "flex", flexDirection: "column" }}>
+                                                        <span style={{ fontSize: 13, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{p.productName}</span>
+                                                        <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>{p.category}</span>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#64748b", fontWeight: 400, fontFamily: FONT }}>{p.sku}</td>
-                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontSize: 14, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 400, fontFamily: FONT, textAlign: "right" }}>{p.stock}</td>
-                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9" }}>
-                                                <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 20, background: p.stock <= 0 ? "#fef2f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4", color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontWeight: 400, border: `1px solid ${p.stock <= 0 ? "#fecaca" : p.stock <= p.minStock ? "#fde68a" : "#bbf7d0"}` }}>
-                                                    {p.stock <= 0 ? "Out of Stock" : p.stock <= p.minStock ? "Low Stock" : "In Stock"}
-                                                </span>
+                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 13, color: "#64748b", fontWeight: 400, fontFamily: FONT, whiteSpace: "nowrap" }}>
+                                                {p.sku}
                                             </td>
-                                            <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
-                                                {canDelete && (
-                                                    <button 
-                                                        onClick={() => setProductToDelete(p)}
-                                                        style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 6, display: "inline-flex", borderRadius: 8, transition: "0.2s" }}
-                                                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                                                        onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
-                                                    >
-                                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                                    </button>
-                                                )}
+                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 15, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 500, fontFamily: FONT, textAlign: "right" }}>{p.stock}</td>
+                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", textAlign: "right" }}>
+                                                <div style={{
+                                                    display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20,
+                                                    background: p.stock <= 0 ? "#fff1f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4",
+                                                    color: p.stock <= 0 ? "#e11d48" : p.stock <= p.minStock ? "#d97706" : "#15803d",
+                                                    fontWeight: 500, fontSize: 11, fontFamily: FONT,
+                                                    border: `1px solid ${p.stock <= 0 ? "#fecaca" : p.stock <= p.minStock ? "#fde68a" : "#bbf7d0"}`,
+                                                    whiteSpace: "nowrap"
+                                                }}>
+                                                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", flexShrink: 0 }} />
+                                                    {p.stock <= 0 ? "Out of Stock" : p.stock <= p.minStock ? "Low Stock" : "In Stock"}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                             {filteredStock.length === 0 && (
-                                <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: 14, fontFamily: FONT }}>No products match your search/filter.</div>
+                                <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8", fontSize: 13, fontFamily: FONT }}>No products match your current search/filter.</div>
                             )}
                         </div>
+
+                        {/* Inventory Pagination Controls */}
+                        {totalStockPages > 1 && (
+                            <div style={{ padding: "20px 0 0", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ fontSize: 12, color: "#64748b", fontFamily: FONT }}>
+                                    Showing <strong>{((stockPage - 1) * STOCK_ITEMS_PER_PAGE) + 1}</strong> - <strong>{Math.min(stockPage * STOCK_ITEMS_PER_PAGE, filteredStock.length)}</strong> of <strong>{filteredStock.length}</strong> products
+                                </div>
+                                <div style={{ display: "flex", gap: 8 }}>
+                                    <button
+                                        disabled={stockPage === 1}
+                                        onClick={() => setStockPage(p => p - 1)}
+                                        style={{
+                                            padding: "6px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                                            background: stockPage === 1 ? "#f8fafc" : "#fff",
+                                            color: stockPage === 1 ? "#cbd5e1" : "#475569",
+                                            cursor: stockPage === 1 ? "not-allowed" : "pointer",
+                                            fontSize: 12, fontWeight: 500, fontFamily: FONT, transition: "0.2s"
+                                        }}
+                                    >
+                                        Previous
+                                    </button>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#1e293b", padding: "0 12px", fontFamily: FONT, background: "#f1f5f9", borderRadius: 10 }}>
+                                        <span style={{ fontWeight: 600 }}>{stockPage}</span>
+                                        <span style={{ color: "#94a3b8" }}>/</span>
+                                        <span>{totalStockPages}</span>
+                                    </div>
+                                    <button
+                                        disabled={stockPage >= totalStockPages}
+                                        onClick={() => setStockPage(p => p + 1)}
+                                        style={{
+                                            padding: "6px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                                            background: stockPage >= totalStockPages ? "#f8fafc" : "#fff",
+                                            color: stockPage >= totalStockPages ? "#cbd5e1" : "#475569",
+                                            cursor: stockPage >= totalStockPages ? "not-allowed" : "pointer",
+                                            fontSize: 12, fontWeight: 500, fontFamily: FONT, transition: "0.2s"
+                                        }}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Card>
             </div>
@@ -1706,11 +2113,11 @@ export function Overview({ products, categories, collections, loading, onNavigat
                             </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            <button 
+                            <button
                                 onClick={async () => {
                                     try {
                                         await remove(ref(db, `inventory/${productToDelete.id}`));
-                                        
+
                                         // Delete images from Cloudinary
                                         if (productToDelete.imageUrl) await deleteFromCloudinary(productToDelete.imageUrl);
                                         if (productToDelete.imageUrls && productToDelete.imageUrls.length > 0) {
@@ -1718,7 +2125,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                         }
 
                                         setProductToDelete(null);
-                                    } catch(e) { console.error(e); alert("Failed to delete."); }
+                                    } catch (e) { console.error(e); alert("Failed to delete."); }
                                 }}
                                 style={{ background: "#ef4444", color: "#fff", border: "none", width: "100%", padding: "16px", borderRadius: 14, fontSize: 16, fontWeight: 400, cursor: "pointer" }}
                             >

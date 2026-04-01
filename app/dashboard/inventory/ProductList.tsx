@@ -1,19 +1,20 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { ref, remove, update } from "firebase/database";
 import { db } from "../../lib/firebase";
-import { FONT, Product, Category, STATUS_CONFIG } from "./types";
+import { FONT, Product, Category, Collection, STATUS_CONFIG } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
 import { logActivity } from "../../lib/activityLogger";
 import { deleteFromCloudinary } from "./cloudinary";
 
-type SortKey = "productName" | "category" | "price" | "stock" | "status" | "createdAt";
+type SortKey = "productName" | "category" | "collection" | "price" | "stock" | "status" | "createdAt";
 type SortDir = "asc" | "desc";
 
 interface Props {
     products: Product[];
     categories: Category[];
+    collections: Collection[];
     loading: boolean;
     isAdminOrManager: boolean;
     canCreate: boolean;
@@ -30,15 +31,18 @@ interface Props {
 }
 
 export default function ProductList({
-    products, categories, user, loading, isAdminOrManager, canCreate, canEdit, canDelete, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
+    products, categories, collections, user, loading, isAdminOrManager, canCreate, canEdit, canDelete, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
 }: Props) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
+    const [filterCol, setFilterCol] = useState("all");
     const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "out-of-stock">("all");
     const [sortKey, setSortKey] = useState<SortKey>("createdAt");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkAction, setBulkAction] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -52,6 +56,7 @@ export default function ProductList({
             list = list.filter(p => p.productName?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q));
         }
         if (filterCat !== "all") list = list.filter(p => p.category === filterCat);
+        if (filterCol !== "all") list = list.filter(p => p.collection === filterCol);
         if (filterStatus !== "all") list = list.filter(p => p.status === filterStatus);
         list.sort((a, b) => {
             let va: any = a[sortKey]; let vb: any = b[sortKey];
@@ -62,7 +67,14 @@ export default function ProductList({
             return 0;
         });
         return list;
-    }, [products, searchTerm, filterCat, filterStatus, sortKey, sortDir]);
+    }, [products, searchTerm, filterCat, filterCol, filterStatus, sortKey, sortDir]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterCat, filterCol, filterStatus]);
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginatedItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const toggleSelect = (id: string) => {
         const next = new Set(selectedIds);
@@ -192,17 +204,53 @@ export default function ProductList({
                 {/* Filters */}
                 <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid #e2e8f0" }}>
                     {/* Search */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 9, marginBottom: 10 }}>
-                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ color: "#94a3b8", flexShrink: 0 }}>
-                            <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4" />
-                            <path d="M9 9L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                    <div style={{ 
+                        display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", 
+                        background: searchTerm ? "#fff" : "#f8fafc", 
+                        border: "1.5px solid", 
+                        borderColor: searchTerm ? "#6366f1" : "#e2e8f0",
+                        borderRadius: 16, 
+                        marginBottom: 16, 
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        boxShadow: searchTerm ? "0 4px 12px rgba(99,102,241,0.12)" : "0 2px 4px rgba(0,0,0,0.02)",
+                    }}>
+                        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ color: searchTerm ? "#6366f1" : "#94a3b8", flexShrink: 0, transition: "color 0.3s" }}>
+                            <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667zM14 14l-2.9-2.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                        <input type="text" value={searchTerm}
+                        <input 
+                            type="text" 
+                            value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT }} />
+                            placeholder="Search Product / SKU"
+                            style={{ 
+                                background: "transparent", border: "none", outline: "none", 
+                                color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT,
+                                fontWeight: 400,
+                                // Override global focus styles effectively
+                                boxShadow: "none"
+                            }} 
+                        />
+                        <style>{`
+                            input::placeholder { color: #94a3b8; opacity: 0.8; }
+                            /* Force disable global focus rectangle for this specific input */
+                            div > input[type="text"]:focus { 
+                                border-color: transparent !important; 
+                                box-shadow: none !important; 
+                            }
+                        `}</style>
                         {searchTerm && (
-                            <button onClick={() => setSearchTerm("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 0, display: "flex" }}>
-                                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                            <button 
+                                onClick={() => setSearchTerm("")} 
+                                style={{ 
+                                    background: "#f1f5f9", border: "none", cursor: "pointer", 
+                                    color: "#64748b", padding: 4, borderRadius: "50%",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    transition: "all 0.2s"
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#e2e8f0"}
+                                onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}
+                            >
+                                <svg width="10" height="10" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
                             </button>
                         )}
                     </div>
@@ -210,9 +258,14 @@ export default function ProductList({
                     {/* Filter chips */}
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                            style={{ padding: "6px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial" }}>
+                            style={{ padding: "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial" }}>
                             <option value="all">All Categories</option>
                             {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                        <select value={filterCol} onChange={e => setFilterCol(e.target.value)}
+                            style={{ padding: "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial" }}>
+                            <option value="all">All Collections</option>
+                            {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                         <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2, flex: isMobile ? "0 0 100%" : "initial" }}>
                             {(["all", "active", "inactive", "out-of-stock"] as const).map(f => (
@@ -290,7 +343,7 @@ export default function ProductList({
                                             style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
                                     </th>
                                     <th style={th} onClick={() => handleSort("productName")}>Product{sortArrow("productName")}</th>
-                                    <th style={th} onClick={() => handleSort("category")}>Category{sortArrow("category")}</th>
+                                    <th style={th} onClick={() => handleSort("collection")}>Collection{sortArrow("collection")}</th>
                                     <th style={th}>Unit / HSN</th>
                                     <th style={th} onClick={() => handleSort("price")}>Price{sortArrow("price")}</th>
                                     <th style={th} onClick={() => handleSort("stock")}>Stock{sortArrow("stock")}</th>
@@ -300,7 +353,7 @@ export default function ProductList({
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map(p => {
+                                {paginatedItems.map(p => {
                                     const isLow = p.stock > 0 && p.stock <= (p.minStock || 5);
                                     const sc = STATUS_CONFIG[p.status] || STATUS_CONFIG.active;
                                     return (
@@ -326,8 +379,8 @@ export default function ProductList({
                                                 </div>
                                             </td>
                                             <td style={td}>
-                                                {p.category
-                                                    ? <span style={{ padding: "3px 8px", background: "#f1f5f9", borderRadius: 6, fontSize: 11, fontWeight: 400, color: "#475569", fontFamily: FONT }}>{p.category}</span>
+                                                {p.collection
+                                                    ? <span style={{ padding: "3px 8px", background: "rgba(99,102,241,0.06)", borderRadius: 6, fontSize: 11, fontWeight: 500, color: "#6366f1", fontFamily: FONT, border: "1px solid rgba(99,102,241,0.1)" }}>{p.collection}</span>
                                                     : <span style={{ color: "#cbd5e1", fontSize: 12, fontFamily: FONT }}>—</span>}
                                             </td>
                                             <td style={td}>
@@ -365,11 +418,78 @@ export default function ProductList({
                     </div>
                 )}
 
-                {/* Footer */}
+                {/* Footer with Pagination */}
                 {!loading && filtered.length > 0 && (
-                    <div style={{ padding: "10px 18px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "#94a3b8", flexWrap: "wrap", gap: 6, fontFamily: FONT }}>
-                        <span>Showing {filtered.length} of {products.length}</span>
-                        <span>Total Value: Rs.{filtered.reduce((s, p) => s + (Number(p.price) || 0) * (Number(p.stock) || 0), 0).toLocaleString("en-IN")}</span>
+                    <div style={{ 
+                        padding: "16px 20px", 
+                        borderTop: "1px solid #f1f5f9", 
+                        display: "flex", 
+                        justifyContent: "space-between", 
+                        alignItems: "center", 
+                        fontSize: 12, 
+                        color: "#64748b", 
+                        flexWrap: "wrap", 
+                        gap: 16, 
+                        fontFamily: FONT,
+                        background: "#fff"
+                    }}>
+                        <div style={{ flex: 1, minWidth: 150 }}>
+                            Showing <span style={{ color: "#1e293b", fontWeight: 500 }}>{(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}</span> of <span style={{ color: "#1e293b", fontWeight: 500 }}>{filtered.length} items</span>
+
+                        </div>
+
+                        {/* Pagination Controls */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{ 
+                                    padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === 1 ? "#f8fafc" : "#fff", 
+                                    color: currentPage === 1 ? "#cbd5e1" : "#475569", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 11, transition: "0.2s"
+                                }}
+                            >
+                                Previous
+                            </button>
+                            
+                            <div style={{ display: "flex", gap: 4 }}>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
+                                    .map((p, i, arr) => (
+                                        <React.Fragment key={p}>
+                                            {i > 0 && arr[i-1] !== p - 1 && <span style={{ padding: "0 4px" }}>...</span>}
+                                            <button 
+                                                onClick={() => setCurrentPage(p)}
+                                                style={{ 
+                                                    width: 28, height: 28, borderRadius: 8, border: "1.5px solid", 
+                                                    borderColor: currentPage === p ? "#6366f1" : "transparent",
+                                                    background: currentPage === p ? "rgba(99,102,241,0.08)" : "transparent",
+                                                    color: currentPage === p ? "#6366f1" : "#64748b",
+                                                    fontWeight: currentPage === p ? 600 : 400,
+                                                    cursor: "pointer", fontSize: 11, transition: "0.2s"
+                                                }}
+                                            >
+                                                {p}
+                                            </button>
+                                        </React.Fragment>
+                                    ))
+                                }
+                            </div>
+
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{ 
+                                    padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === totalPages ? "#f8fafc" : "#fff", 
+                                    color: currentPage === totalPages ? "#cbd5e1" : "#475569", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 11, transition: "0.2s"
+                                }}
+                            >
+                                Next
+                            </button>
+                        </div>
+
+                        <div style={{ flex: 1, textAlign: "right", color: "#94a3b8", fontWeight: 400 }}>
+                            Page {currentPage} of {totalPages}
+                        </div>
                     </div>
                 )}
             </Card>

@@ -54,6 +54,11 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   const [todayDispatchFilter, setTodayDispatchFilter] = useState("all"); 
   const [todayDispatchSearch, setTodayDispatchSearch] = useState("");
   const [inventorySearch, setInventorySearch] = useState("");
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [criticalPage, setCriticalPage] = useState(1);
+
+  // Reset pagination when searching
+  useEffect(() => { setInventoryPage(1); }, [inventorySearch]);
 
   useEffect(() => {
     // 1. Listen for Activities (Live)
@@ -334,7 +339,10 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
               <div style={{ fontSize: 12, fontWeight: 400, color: "#ef4444", background: "#fee2e2", padding: "2px 8px", borderRadius: 12 }}>{allProducts.filter(p => p.stock <= p.minStock).length}</div>
             </div>
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
-              {allProducts.filter(p => p.stock <= p.minStock).map(p => (
+              {allProducts
+                .filter(p => p.stock <= p.minStock)
+                .slice((criticalPage - 1) * 2, criticalPage * 2)
+                .map(p => (
                 <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: "#f8fafc", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
                     <img src={p.imageUrl || "/placeholder-prod.png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -352,6 +360,27 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                 <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>All stock levels are healthy.</div>
               )}
             </div>
+
+            {/* Critical Stock Pagination */}
+            {allProducts.filter(p => p.stock <= p.minStock).length > 2 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, padding: "10px 4px 0", borderTop: "1px solid #f1f5f9" }}>
+                <button 
+                  disabled={criticalPage === 1}
+                  onClick={() => setCriticalPage(p => p - 1)}
+                  style={{ ...S.btnSecondary, padding: "4px 10px", fontSize: 10, opacity: criticalPage === 1 ? 0.5 : 1, cursor: criticalPage === 1 ? "not-allowed" : "pointer", minWidth: 50 }}
+                >
+                  Prev
+                </button>
+                <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 400 }}>Page {criticalPage}</div>
+                <button 
+                  disabled={criticalPage * 2 >= allProducts.filter(p => p.stock <= p.minStock).length}
+                  onClick={() => setCriticalPage(p => p + 1)}
+                  style={{ ...S.btnSecondary, padding: "4px 10px", fontSize: 10, opacity: (criticalPage * 2 >= allProducts.filter(p => p.stock <= p.minStock).length) ? 0.5 : 1, cursor: (criticalPage * 2 >= allProducts.filter(p => p.stock <= p.minStock).length) ? "not-allowed" : "pointer", minWidth: 50 }}
+                >
+                  Next
+                </button>
+              </div>
+            )}
          </div>
       </div>
 
@@ -397,15 +426,16 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             <div style={{ position: "relative", flex: 1, maxWidth: 200 }}>
               <input 
                 type="text"
+                placeholder="Search Product / SKU"
                 value={inventorySearch} onChange={e => setInventorySearch(e.target.value)}
                 style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
               />
             </div>
           </div>
-          <div style={{ maxHeight: 400, overflowY: "auto", paddingRight: 4 }}>
+          <div style={{ maxHeight: 420, overflowY: "auto", paddingRight: 4 }}>
             {allProducts
               .filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase()))
-              .slice(0, 50)
+              .slice((inventoryPage - 1) * 5, inventoryPage * 5)
               .map(p => (
                 <div key={p.id} style={{ ...S.activityItem, padding: "10px", borderBottom: "1px solid #f8fafc", borderRadius: 10, marginBottom: 4, background: p.stock <= p.minStock ? "rgba(239, 68, 68, 0.03)" : "transparent", display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f8fafc", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
@@ -427,10 +457,31 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                   </div>
                 </div>
               ))}
-            {allProducts.length === 0 && (
+            {allProducts.filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase())).length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8", fontSize: 13 }}>No inventory found.</div>
             )}
           </div>
+
+          {/* Inventory Pagination */}
+          {allProducts.filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase())).length > 5 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, padding: "10px 4px 0", borderTop: "1px solid #f1f5f9" }}>
+              <button 
+                disabled={inventoryPage === 1}
+                onClick={() => setInventoryPage(p => p - 1)}
+                style={{ ...S.btnSecondary, padding: "5px 12px", fontSize: 11, opacity: inventoryPage === 1 ? 0.5 : 1, cursor: inventoryPage === 1 ? "not-allowed" : "pointer" }}
+              >
+                Prev
+              </button>
+              <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>Page {inventoryPage}</div>
+              <button 
+                disabled={inventoryPage * 5 >= allProducts.filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase())).length}
+                onClick={() => setInventoryPage(p => p + 1)}
+                style={{ ...S.btnSecondary, padding: "5px 12px", fontSize: 11, opacity: (inventoryPage * 5 >= allProducts.filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase())).length) ? 0.5 : 1, cursor: (inventoryPage * 5 >= allProducts.filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase())).length) ? "not-allowed" : "pointer" }}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
