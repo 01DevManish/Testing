@@ -1980,13 +1980,13 @@ export function BarcodeView({
                                     {p.barcode || generateBarcodeNumber(p)}
                                 </div>
                                 <div style={{
-                                    fontSize: selectedSize === "100x150" ? "16pt" : selectedSize === "50x25" ? "6.5pt" : "5.5pt",
-                                    fontWeight: "500",
-                                    marginTop: "0.2mm",
+                                    fontSize: selectedSize === "100x150" ? "14pt" : selectedSize === "50x25" ? "7pt" : "6pt",
+                                    fontWeight: "700",
+                                    marginTop: "0.3mm",
                                     color: "#000",
-                                    opacity: 0.7
+                                    letterSpacing: selectedSize === "100x150" ? 2 : 0.5
                                 }}>
-                                    SKU: {p.sku}
+                                    {p.sku}
                                 </div>
                             </div>
                         ))
@@ -2019,13 +2019,13 @@ export function BarcodeView({
                                 {generatedBarcode}
                             </div>
                             <div style={{
-                                fontSize: selectedSize === "100x150" ? "16pt" : selectedSize === "50x25" ? "6.5pt" : "5.5pt",
-                                fontWeight: "500",
-                                marginTop: "0.2mm",
+                                fontSize: selectedSize === "100x150" ? "14pt" : selectedSize === "50x25" ? "7pt" : "6pt",
+                                fontWeight: "700",
+                                marginTop: "0.3mm",
                                 color: "#000",
-                                opacity: 0.7
+                                letterSpacing: selectedSize === "100x150" ? 2 : 0.5
                             }}>
-                                SKU: {selectedProduct.sku}
+                                {selectedProduct.sku}
                             </div>
                         </div>
                     )}

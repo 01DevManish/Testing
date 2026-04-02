@@ -75,7 +75,7 @@ export const statusConfig: Record<string, { label: string; color: string; bg: st
 
 export interface PartyDetails {
   companyName: string;
-  ownerName: string;
+  traderName: string; // Renamed from ownerName
   address: string;
   state: string;
   district: string;
@@ -98,6 +98,9 @@ export interface PartyRate {
     rate: number;
     packagingType?: string;
     packagingCost?: number;
+    discount?: number;
+    discountType?: "amount" | "percentage";
+    gstRate?: number;
   }[];
   updatedAt: number;
 }

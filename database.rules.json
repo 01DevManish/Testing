@@ -1,0 +1,54 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+
+    "inventory": {
+      ".indexOn": ["sku", "category", "status", "createdAt", "updatedAt", "brand", "collection"]
+    },
+
+    "users": {
+      ".indexOn": ["role", "email"]
+    },
+
+    "activities": {
+      ".indexOn": ["timestamp", "type"]
+    },
+
+    "dispatches": {
+      ".indexOn": ["status", "createdAt", "partyName"]
+    },
+
+    "tasks": {
+      ".indexOn": ["assignedTo", "status", "createdAt"]
+    },
+
+    "partyRates": {
+      ".indexOn": ["partyName"]
+    },
+
+    "categories": {
+      ".indexOn": ["name", "createdAt"]
+    },
+
+    "collections": {
+      ".indexOn": ["name", "createdAt"]
+    },
+
+    "itemGroups": {
+      ".indexOn": ["name", "createdAt"]
+    },
+
+    "brands": {
+      ".indexOn": ["name"]
+    },
+
+    "parties": {
+      ".indexOn": ["name", "createdAt"]
+    },
+
+    "transporters": {
+      ".indexOn": ["name"]
+    }
+  }
+}

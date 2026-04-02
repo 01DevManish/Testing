@@ -6,9 +6,6 @@ import { useEffect, useState, useCallback } from "react";
 import { ref, get, update, remove, query, orderByChild, equalTo, onValue } from "firebase/database";
 import { db } from "../lib/firebase";
 import type { UserRole } from "../context/AuthContext";
-import PartyRateTab from "./admin/PartyRateTab";
-import { PartyRate } from "./admin/types";
-import { Product } from "./inventory/types";
 import { getStyles } from "./admin/styles";
 import ProfileTab from "./admin/ProfileTab";
 
@@ -58,10 +55,7 @@ export default function DashboardPage() {
   const [employees, setEmployees] = useState<UserRecord[]>([]);
   const [fetchingEmployees, setFetchingEmployees] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [view, setView] = useState<"dashboard" | "party-rates" | "profile">("dashboard");
-  const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
+  const [view, setView] = useState<"dashboard" | "profile">("dashboard");
 
   // Auth guard + admin redirect
   useEffect(() => {
@@ -119,32 +113,11 @@ export default function DashboardPage() {
     finally { setFetchingEmployees(false); }
   }, [currentRole]);
 
-  const loadPartyRates = useCallback(async () => {
-    if (!userData?.permissions?.includes("party-rates")) return;
-    setFetchingPartyRates(true);
-    try {
-      const [rateSnap, prodSnap] = await Promise.all([
-        get(ref(db, "partyRates")),
-        get(ref(db, "inventory"))
-      ]);
-      const rates: PartyRate[] = [];
-      if (rateSnap.exists()) rateSnap.forEach(d => { rates.push({ id: d.key!, ...d.val() }); });
-      setPartyRates(rates);
 
-      const prods: Product[] = [];
-      if (prodSnap.exists()) prodSnap.forEach(d => { prods.push({ id: d.key!, ...d.val() }); });
-      setProducts(prods);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFetchingPartyRates(false);
-    }
-  }, [userData]);
 
   useEffect(() => { 
     loadEmployees(); 
-    loadPartyRates();
-  }, [loadEmployees, loadPartyRates]);
+  }, [loadEmployees]);
 
   // Mark task as done
   const markDone = async (taskId: string) => {
@@ -237,15 +210,28 @@ export default function DashboardPage() {
         {/* Nav */}
         <div style={{ fontSize: 10, fontWeight: 400, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <button onClick={() => setView("dashboard")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "dashboard" ? "rgba(99,102,241,0.15)" : "transparent", color: view === "dashboard" ? "#a5b4fc" : "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "dashboard" ? "3px solid #818cf8" : "none", paddingLeft: view === "dashboard" ? 11 : 14 }}>
+          <button onClick={() => setView("dashboard")} style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 10, 
+            padding: "11px 14px", 
+            borderRadius: 10, 
+            border: "none", 
+            background: view === "dashboard" ? "rgba(99,102,241,0.15)" : "transparent", 
+            color: view === "dashboard" ? "#a5b4fc" : "#94a3b8", 
+            fontSize: 14, 
+            fontWeight: 400, 
+            fontFamily: "inherit", 
+            cursor: "pointer", 
+            transition: "all 0.2s", 
+            textAlign: "left", 
+            borderLeft: view === "dashboard" ? "3px solid #818cf8" : "none", 
+            paddingLeft: view === "dashboard" ? 11 : 14 
+          }}>
             Dashboard
           </button>
 
-          {userData?.permissions?.includes("party-rates") && (
-            <button onClick={() => setView("party-rates")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "party-rates" ? "rgba(99,102,241,0.15)" : "transparent", color: view === "party-rates" ? "#a5b4fc" : "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "party-rates" ? "3px solid #818cf8" : "none", paddingLeft: view === "party-rates" ? 11 : 14 }}>
-              Party Rates
-            </button>
-          )}
+
           
           {((userData?.role as string) === "admin" || userData?.permissions?.includes("dispatch")) && (
             <>
@@ -263,7 +249,24 @@ export default function DashboardPage() {
             </button>
           )}
           
-          <button onClick={() => setView("profile")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "profile" ? "rgba(99,102,241,0.15)" : "transparent", color: view === "profile" ? "#a5b4fc" : "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "profile" ? "3px solid #818cf8" : "none", paddingLeft: view === "profile" ? 11 : 14 }}>
+          <button onClick={() => setView("profile")} style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 10, 
+            padding: "11px 14px", 
+            borderRadius: 10, 
+            border: "none", 
+            background: view === "profile" ? "rgba(99,102,241,0.15)" : "transparent", 
+            color: view === "profile" ? "#a5b4fc" : "#94a3b8", 
+            fontSize: 14, 
+            fontWeight: 400, 
+            fontFamily: "inherit", 
+            cursor: "pointer", 
+            transition: "all 0.2s", 
+            textAlign: "left", 
+            borderLeft: view === "profile" ? "3px solid #818cf8" : "none", 
+            paddingLeft: view === "profile" ? 11 : 14 
+          }}>
             My Profile
           </button>
         </nav>
@@ -413,22 +416,11 @@ export default function DashboardPage() {
               </div>
             </div>
           </>
-        ) : view === "profile" ? (
+        ) : (
           <ProfileTab 
             S={adminStyles}
             isMobile={isMobile}
             isTablet={isTablet}
-          />
-        ) : (
-          <PartyRateTab 
-            S={adminStyles}
-            isMobile={isMobile}
-            isTablet={isTablet}
-            partyRates={partyRates}
-            products={products}
-            fetching={fetchingPartyRates}
-            isAdmin={false}
-            loadData={loadPartyRates}
           />
         )}
 

@@ -198,7 +198,12 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
         const product = products.find(p => p.productName === r.productName);
         const sku = product?.sku || "N/A";
         const pkgCost = r.packagingCost || 0;
-        const total = Number(r.rate || 0) + Number(pkgCost);
+        
+        const base = Number(r.rate || 0) + Number(pkgCost);
+        const disc = r.discountType === "percentage" ? (base * (r.discount || 0) / 100) : Number(r.discount || 0);
+        const subtotal = Math.max(0, base - disc);
+        const gstAmt = (subtotal * (r.gstRate || 0)) / 100;
+        const total = subtotal + gstAmt;
 
         const imgUrl = product?.imageUrl || (product?.imageUrls && product?.imageUrls.length > 0 ? product.imageUrls[0] : null);
         if (imgUrl) {
@@ -213,7 +218,9 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
             r.packagingType || "-",
             pkgCost > 0 ? `Rs. ${pkgCost}` : "-",
             `Rs. ${r.rate}`,
-            `Rs. ${total}`
+            r.discount > 0 ? (r.discountType === "percentage" ? `${r.discount}%` : `Rs. ${r.discount}`) : "-",
+            `${r.gstRate || 0}%`,
+            `Rs. ${total.toFixed(2)}`
         ]);
     }
 
@@ -276,37 +283,39 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
 
     // 3. Table
     autoTable(doc, {
-        head: [["Sr. No.", "Image", "Product & SKU", "Pkg Type", "Pkg Price", "Rate", "Total Price"]],
+        head: [["Sr. No.", "Image", "Product & SKU", "Pkg Type", "Pkg Price", "Rate", "Disc.", "GST", "Total Price"]],
         body: tableData,
         startY: tableStartY,
         theme: "plain",
         headStyles: { 
             fillColor: [248, 250, 252], 
             textColor: [15, 23, 42], 
-            fontSize: 9, 
+            fontSize: 8, 
             fontStyle: "bold",
             lineWidth: 0.1,
             lineColor: [226, 232, 240],
-            minCellHeight: 10,
-            cellPadding: 4,
+            minCellHeight: 8,
+            cellPadding: 3,
             halign: "center"
         },
         bodyStyles: { 
-            fontSize: 9, 
-            cellPadding: 6,
+            fontSize: 8, 
+            cellPadding: 3,
             lineWidth: 0.1,
             lineColor: [226, 232, 240],
             valign: "middle",
-            minCellHeight: 40
+            minCellHeight: 35
         },
         columnStyles: {
-            0: { cellWidth: 15, halign: "center" },
-            1: { cellWidth: 32, halign: "center" },
+            0: { cellWidth: 12, halign: "center" },
+            1: { cellWidth: 24, halign: "center" },
             2: { cellWidth: "auto" },
-            3: { cellWidth: 26 },
-            4: { cellWidth: 20, halign: "right" },
-            5: { cellWidth: 20, halign: "right" },
-            6: { cellWidth: 24, halign: "right", fontStyle: "bold", textColor: [79, 70, 229] }
+            3: { cellWidth: 20 },
+            4: { cellWidth: 16, halign: "right" },
+            5: { cellWidth: 16, halign: "right" },
+            6: { cellWidth: 16, halign: "right" },
+            7: { cellWidth: 12, halign: "right" },
+            8: { cellWidth: 26, halign: "right", fontStyle: "bold", textColor: [0, 0, 0] }
         },
         didDrawCell: (data) => {
             if (data.column.index === 1 && data.cell.section === "body") {

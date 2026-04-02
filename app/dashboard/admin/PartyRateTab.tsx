@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { PartyRate } from "./types";
-import { Product } from "../inventory/types";
+import { Product, GST_RATES } from "../inventory/types";
 
 import type { AdminStyles } from "./styles";
 import { ref, set, push, remove, update } from "firebase/database";
@@ -40,9 +40,9 @@ export default function PartyRateTab({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({
     partyName: "",
-    billTo: { companyName: "", ownerName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
+    billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
     sameAsBillTo: true,
-    shipTo: { companyName: "", ownerName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
+    shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
     rates: []
   });
   const [saving, setSaving] = useState(false);
@@ -69,7 +69,7 @@ export default function PartyRateTab({
           billTo: {
             ...prev.billTo,
             companyName: result.data.companyName,
-            ownerName: result.data.ownerName,
+            traderName: result.data.traderName || result.data.ownerName || "",
             address: result.data.address,
             state: result.data.state,
             district: result.data.district,
@@ -98,9 +98,9 @@ export default function PartyRateTab({
     setEditingId(null);
     setForm({
       partyName: "",
-      billTo: { companyName: "", ownerName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
+      billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
       sameAsBillTo: true,
-      shipTo: { companyName: "", ownerName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
+      shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
       rates: []
     });
     setShowForm(true);
@@ -109,7 +109,7 @@ export default function PartyRateTab({
   const openAdminEditModal = (pr: PartyRate) => {
     if (!isAdmin) return;
     setEditingId(pr.id);
-    const defaultSection = { companyName: "", ownerName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" };
+    const defaultSection = { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" };
     setForm({ 
       partyName: pr.partyName || "", 
       billTo: { ...defaultSection, ...(pr.billTo || {}) },
@@ -157,7 +157,7 @@ export default function PartyRateTab({
         sameAsBillTo: form.sameAsBillTo,
         shipTo: form.sameAsBillTo ? {
           companyName: b.companyName,
-          ownerName: b.ownerName,
+          traderName: b.traderName || b.ownerName || "",
           address: b.address,
           state: b.state,
           district: b.district,
@@ -190,9 +190,9 @@ export default function PartyRateTab({
       setEditingId(null);
       setForm({
         partyName: "",
-        billTo: { companyName: "", ownerName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
+        billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
         sameAsBillTo: true,
-        shipTo: { companyName: "", ownerName: "", address: "", state: "", district: "", pincode: "", contactNo: "", email: "" },
+        shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", email: "" },
         rates: []
       });
       setGstVerified(false);
@@ -280,8 +280,16 @@ export default function PartyRateTab({
     const safeRateSearch = rateSearch.toLowerCase();
     
     // Compute enhanced list and unique filter sets
-    const mappedRates = (viewingRateList.rates || []).map((r, originalIdx) => {
+    const mappedRates = (viewingRateList.rates || []).map((r: any, originalIdx: number) => {
       const product = products.find(p => p.productName === r.productName || p.name === r.productName);
+      const base = Number(r.rate || 0) + Number(r.packagingCost || 0);
+      const discountVal = (r.discountType || "amount") === "percentage" 
+        ? (base * (r.discount || 0) / 100) 
+        : Number(r.discount || 0);
+      const subtotal = Math.max(0, base - discountVal);
+      const gstAmt = (subtotal * (r.gstRate || 0)) / 100;
+      const finalTotal = subtotal + gstAmt;
+
       return {
         ...r,
         originalIdx,
@@ -291,7 +299,9 @@ export default function PartyRateTab({
         collection: product?.collection || "",
         size: product?.size || "",
         pkgCost: r.packagingCost || 0,
-        total: Number(r.rate || 0) + Number(r.packagingCost || 0)
+        subtotal,
+        gstAmount: gstAmt,
+        total: finalTotal
       };
     });
 
@@ -416,11 +426,13 @@ export default function PartyRateTab({
                   </th>
                   <th style={{ ...S.th, width: 60, textAlign: "center" }}>Image</th>
                   <th style={{ ...S.th, textAlign: "left" }}>Product & SKU</th>
-                  <th style={{ ...S.th, textAlign: "left" }}>Pkg Type</th>
-                  <th style={{ ...S.th, textAlign: "right" }}>Pkg Price</th>
-                  <th style={{ ...S.th, textAlign: "right" }}>Product Price</th>
-                  <th style={{ ...S.th, textAlign: "right", background: "#eef2ff", color: "#4f46e5" }}>Total Price</th>
-                  <th style={{ ...S.th, width: 80, textAlign: "center" }}>Action</th>
+                   <th style={{ ...S.th, textAlign: "left" }}>Pkg Type</th>
+                   <th style={{ ...S.th, textAlign: "right" }}>Pkg Price</th>
+                   <th style={{ ...S.th, textAlign: "right" }}>Product Price</th>
+                   <th style={{ ...S.th, textAlign: "right" }}>Discount</th>
+                   <th style={{ ...S.th, textAlign: "right" }}>GST (%)</th>
+                   <th style={{ ...S.th, textAlign: "right", background: "#eef2ff", color: "#4f46e5" }}>Total Price</th>
+                   <th style={{ ...S.th, width: 80, textAlign: "center" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -442,10 +454,14 @@ export default function PartyRateTab({
                         <div style={{ fontWeight: 500, color: "#1e293b", fontSize: 14 }}>{r.productName}</div>
                         <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{r.sku}</div>
                       </td>
-                      <td style={{ ...S.td, color: "#64748b", fontSize: 13 }}>{r.packagingType || "-"}</td>
-                      <td style={{ ...S.td, textAlign: "right", color: "#64748b", fontSize: 13 }}>{r.pkgCost > 0 ? `₹${r.pkgCost}` : "-"}</td>
-                      <td style={{ ...S.td, textAlign: "right", color: "#64748b", fontSize: 13 }}>₹{r.rate}</td>
-                      <td style={{ ...S.td, textAlign: "right", fontWeight: 600, color: "#4f46e5", background: "#fbfbff" }}>₹{r.total}</td>
+                       <td style={{ ...S.td, color: "#64748b", fontSize: 13 }}>{r.packagingType || "-"}</td>
+                       <td style={{ ...S.td, textAlign: "right", color: "#64748b", fontSize: 13 }}>{r.pkgCost > 0 ? `₹${r.pkgCost}` : "-"}</td>
+                       <td style={{ ...S.td, textAlign: "right", color: "#64748b", fontSize: 13 }}>₹{r.rate}</td>
+                       <td style={{ ...S.td, textAlign: "right", color: "#ef4444", fontSize: 13 }}>
+                         {r.discount > 0 ? (r.discountType === "percentage" ? `${r.discount}%` : `₹${r.discount}`) : "-"}
+                       </td>
+                       <td style={{ ...S.td, textAlign: "right", color: "#6366f1", fontSize: 13 }}>{r.gstRate || 0}%</td>
+                       <td style={{ ...S.td, textAlign: "right", fontWeight: 600, color: "#1e293b", background: "#fbfbff" }}>₹{r.total.toFixed(2)}</td>
                       <td style={{ ...S.td, textAlign: "center" }}>
                         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
                           <button 
@@ -586,31 +602,68 @@ export default function PartyRateTab({
                     </select>
                   </div>
 
-                  <div>
-                    <label style={S.label}>Packaging Cost (₹)</label>
-                    <input 
-                      type="number" 
-                      style={S.input} 
-                      value={editingRateProduct.packagingCost || 0} 
-                      onChange={e => setEditingRateProduct({ ...editingRateProduct, packagingCost: e.target.value })} 
-                    />
-                  </div>
+                   <div>
+                     <label style={S.label}>Packaging Cost (₹)</label>
+                     <input 
+                       type="number" 
+                       style={S.input} 
+                       value={editingRateProduct.packagingCost || 0} 
+                       onChange={e => setEditingRateProduct({ ...editingRateProduct, packagingCost: e.target.value })} 
+                     />
+                   </div>
+
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                     <div>
+                       <label style={S.label}>Discount</label>
+                       <input 
+                         type="number" 
+                         style={S.input} 
+                         value={editingRateProduct.discount || 0} 
+                         onChange={e => setEditingRateProduct({ ...editingRateProduct, discount: e.target.value })} 
+                       />
+                     </div>
+                     <div>
+                       <label style={S.label}>Type</label>
+                       <select 
+                         style={S.input} 
+                         value={editingRateProduct.discountType || "amount"} 
+                         onChange={e => setEditingRateProduct({ ...editingRateProduct, discountType: e.target.value })}
+                       >
+                         <option value="amount">Fixed (₹)</option>
+                         <option value="percentage">Percentage (%)</option>
+                       </select>
+                     </div>
+                   </div>
+
+                   <div>
+                     <label style={S.label}>GST Rate (%)</label>
+                     <select 
+                       style={S.input} 
+                       value={editingRateProduct.gstRate ?? 18} 
+                       onChange={e => setEditingRateProduct({ ...editingRateProduct, gstRate: parseInt(e.target.value) })}
+                     >
+                       {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
+                     </select>
+                   </div>
 
                   <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
                     <button onClick={() => setEditingRateProduct(null)} style={{ ...S.btnSecondary, flex: 1 }}>Cancel</button>
                     <button 
                       onClick={() => {
                         const party = editingRateProduct.originalParty;
-                        const updatedRates = (party.rates || []).map((r: any) => 
-                          r.productName === editingRateProduct.productName 
-                            ? { 
-                                productName: r.productName, 
-                                rate: parseFloat(editingRateProduct.rate),
-                                packagingType: editingRateProduct.packagingType || "",
-                                packagingCost: parseFloat(editingRateProduct.packagingCost || "0")
-                              } 
-                            : r
-                        );
+                         const updatedRates = (party.rates || []).map((r: any) => 
+                           r.productName === editingRateProduct.productName 
+                             ? { 
+                                 productName: r.productName, 
+                                 rate: parseFloat(editingRateProduct.rate),
+                                 packagingType: editingRateProduct.packagingType || "",
+                                 packagingCost: parseFloat(editingRateProduct.packagingCost || "0"),
+                                 discount: parseFloat(editingRateProduct.discount || "0"),
+                                 discountType: editingRateProduct.discountType || "amount",
+                                 gstRate: parseInt(editingRateProduct.gstRate || "0")
+                               } 
+                             : r
+                         );
                         
                         // Use existing update logic
                         const partyRef = ref(db, `partyRates/${party.id}`);
@@ -714,7 +767,13 @@ export default function PartyRateTab({
                     const search = productSearch.toLowerCase();
                     return (p.productName || p.name || "").toLowerCase().includes(search) || (p.sku || "").toLowerCase().includes(search);
                   }).slice(0, 10).map(p => (
-                    <div key={p.id} onClick={() => setSelectedProduct(p)} style={{ padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                    <div key={p.id} onClick={() => {
+                      setSelectedProduct(p);
+                      const rateInput = document.getElementById("new-rate-val") as HTMLInputElement;
+                      if (rateInput) rateInput.value = (p.wholesalePrice || p.price || 0).toString();
+                      const gstSelect = document.getElementById("new-gst-rate") as HTMLSelectElement;
+                      if (gstSelect) gstSelect.value = (p.gstRate || 18).toString();
+                    }} style={{ padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                       <div style={{ fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{p.productName || p.name}</div>
                       <div style={{ fontSize: 11, color: "#94a3b8" }}>SKU: {p.sku} | MRP: ₹{p.mrp || p.price || 0}</div>
                     </div>
@@ -752,28 +811,54 @@ export default function PartyRateTab({
               <input id="new-pkg-cost" type="number" style={S.input} placeholder="0.00" />
             </div>
 
+            <div style={{ flex: "1 1 140px" }}>
+              <label style={S.label}>Discount</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <input id="new-discount-val" type="number" style={{ ...S.input, flex: 1 }} placeholder="0" />
+                <select id="new-discount-type" style={{ ...S.input, width: 60, padding: '0 4px', fontSize: 11 }}>
+                  <option value="amount">₹</option>
+                  <option value="percentage">%</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ flex: "1 1 100px" }}>
+              <label style={S.label}>GST (%)</label>
+              <select id="new-gst-rate" style={S.input} defaultValue={selectedProduct?.gstRate || 18}>
+                {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
+              </select>
+            </div>
+
             <div style={{ flex: "0 0 auto", alignSelf: "flex-end" }}>
               <button 
                 onClick={() => {
                   const pVal = document.getElementById("new-rate-val") as HTMLInputElement;
                   const pType = document.getElementById("new-pkg-type") as HTMLInputElement;
                   const pCost = document.getElementById("new-pkg-cost") as HTMLInputElement;
-                  if (selectedProduct && pVal?.value) {
-                     const existing = viewingParty?.rates || [];
-                     const pName = selectedProduct?.productName || selectedProduct?.name || "";
-                     const updated = [...existing.filter(r => r.productName !== pName), { 
-                        productName: pName, 
-                        rate: parseFloat(pVal.value),
-                        packagingType: pType?.value || "",
-                        packagingCost: parseFloat(pCost?.value || "0")
-                     }];
-                     handleUpdateProductRates(updated);
-                     setSelectedProduct(null);
-                     setProductSearch("");
-                     if (pVal) pVal.value = "";
-                     if (pType) pType.value = "";
-                     if (pCost) pCost.value = "";
-                  } else {
+                   if (selectedProduct && pVal?.value) {
+                      const pDisc = document.getElementById("new-discount-val") as HTMLInputElement;
+                      const pDiscType = document.getElementById("new-discount-type") as HTMLSelectElement;
+                      const pGst = document.getElementById("new-gst-rate") as HTMLSelectElement;
+
+                      const existing = viewingParty?.rates || [];
+                      const pName = selectedProduct?.productName || selectedProduct?.name || "";
+                      const updated = [...existing.filter(r => r.productName !== pName), { 
+                         productName: pName, 
+                         rate: parseFloat(pVal.value),
+                         packagingType: pType?.value || "",
+                         packagingCost: parseFloat(pCost?.value || "0"),
+                         discount: parseFloat(pDisc?.value || "0"),
+                         discountType: pDiscType?.value || "amount",
+                         gstRate: parseInt(pGst?.value || "0")
+                      }];
+                      handleUpdateProductRates(updated);
+                      setSelectedProduct(null);
+                      setProductSearch("");
+                      if (pVal) pVal.value = "";
+                      if (pType) pType.value = "";
+                      if (pCost) pCost.value = "";
+                      if (pDisc) pDisc.value = "";
+                   } else {
                      alert("Please select a product and enter a rate.");
                   }
                 }}
@@ -793,32 +878,47 @@ export default function PartyRateTab({
               <thead style={{ background: "#f8fafc" }}>
                 <tr>
                   <th style={{ ...S.th, textAlign: "left" }}>Product Name</th>
-                  <th style={{ ...S.th, textAlign: "left" }}>Packaging Type</th>
+                  <th style={{ ...S.th, textAlign: "left" }}>Pkg Type</th>
                   <th style={{ ...S.th, textAlign: "right" }}>Pkg Cost</th>
-                  <th style={{ ...S.th, textAlign: "right" }}>Party Rate</th>
+                  <th style={{ ...S.th, textAlign: "right" }}>Rate</th>
+                  <th style={{ ...S.th, textAlign: "right" }}>Discount</th>
+                  <th style={{ ...S.th, textAlign: "right" }}>GST (%)</th>
+                  <th style={{ ...S.th, textAlign: "right" }}>Final Total</th>
                   <th style={{ ...S.th, width: 80, textAlign: "center" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {(viewingParty?.rates || []).map((r, idx) => (
-                  <tr key={idx}>
-                    <td style={S.td}>{r.productName}</td>
-                    <td style={{ ...S.td, color: "#64748b" }}>{r.packagingType || "N/A"}</td>
-                    <td style={{ ...S.td, textAlign: "right", color: "#64748b" }}>{(r.packagingCost || 0) > 0 ? `₹${r.packagingCost || 0}` : "₹0"}</td>
-                    <td style={{ ...S.td, textAlign: "right", fontWeight: 500, color: "#1e293b" }}>₹{r.rate}</td>
-                    <td style={{ ...S.td, textAlign: "center" }}>
-                      <button 
-                        onClick={() => {
-                          if (confirm(`Remove custom rate for ${r.productName}?`)) {
-                            const updated = (viewingParty.rates || []).filter((_, i) => i !== idx);
-                            handleUpdateProductRates(updated);
-                          }
-                        }}
-                        style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}
-                      >✕</button>
-                    </td>
-                  </tr>
-                ))}
+                {(viewingParty?.rates || []).map((r, idx) => {
+                  const base = Number(r.rate || 0) + Number(r.packagingCost || 0);
+                  const disc = (r.discountType || "amount") === "percentage" ? (base * (r.discount || 0) / 100) : Number(r.discount || 0);
+                  const subtotal = Math.max(0, base - disc);
+                  const total = subtotal + (subtotal * (r.gstRate || 0) / 100);
+                  
+                  return (
+                    <tr key={idx}>
+                      <td style={S.td}>{r.productName}</td>
+                      <td style={{ ...S.td, color: "#64748b" }}>{r.packagingType || "N/A"}</td>
+                      <td style={{ ...S.td, textAlign: "right", color: "#64748b" }}>{(r.packagingCost || 0) > 0 ? `₹${r.packagingCost || 0}` : "₹0"}</td>
+                      <td style={{ ...S.td, textAlign: "right", fontWeight: 500, color: "#1e293b" }}>₹{r.rate}</td>
+                      <td style={{ ...S.td, textAlign: "right", color: "#ef4444" }}>
+                        {(r.discount || 0) > 0 ? ((r.discountType || "amount") === "percentage" ? `${r.discount}%` : `₹${r.discount}`) : "-"}
+                      </td>
+                      <td style={{ ...S.td, textAlign: "right", color: "#6366f1" }}>{r.gstRate || 0}%</td>
+                      <td style={{ ...S.td, textAlign: "right", fontWeight: 600, color: "#1e293b" }}>₹{total.toFixed(2)}</td>
+                      <td style={{ ...S.td, textAlign: "center" }}>
+                        <button 
+                          onClick={() => {
+                            if (confirm(`Remove custom rate for ${r.productName}?`)) {
+                              const updated = (viewingParty.rates || []).filter((_, i) => i !== idx);
+                              handleUpdateProductRates(updated);
+                            }
+                          }}
+                          style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}
+                        >✕</button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {(!viewingParty?.rates || viewingParty?.rates?.length === 0) && (
                   <tr>
                     <td colSpan={5} style={{ ...S.td, textAlign: "center", padding: 32, color: "#94a3b8", fontStyle: "italic" }}>
@@ -913,8 +1013,8 @@ export default function PartyRateTab({
                   <input style={S.input} value={form?.billTo?.companyName || ""} onChange={e => setForm({ ...form, billTo: { ...form.billTo, companyName: e.target.value } })} />
                 </div>
                 <div>
-                  <label style={S.label}>Owner Name</label>
-                  <input style={S.input} value={form?.billTo?.ownerName || ""} onChange={e => setForm({ ...form, billTo: { ...form.billTo, ownerName: e.target.value } })} />
+                  <label style={S.label}>Trader Name</label>
+                  <input style={S.input} value={form?.billTo?.traderName || form?.billTo?.ownerName || ""} onChange={e => setForm({ ...form, billTo: { ...form.billTo, traderName: e.target.value } })} />
                 </div>
                 <div style={{ gridColumn: isMobile ? "span 2" : "span 2" }}>
                   <label style={S.label}>Full Address *</label>
@@ -1023,8 +1123,8 @@ export default function PartyRateTab({
                     <input style={S.input} value={form?.shipTo?.companyName || ""} onChange={e => setForm({ ...form, shipTo: { ...form.shipTo, companyName: e.target.value } })} />
                   </div>
                   <div>
-                    <label style={S.label}>Owner Name</label>
-                    <input style={S.input} value={form?.shipTo?.ownerName || ""} onChange={e => setForm({ ...form, shipTo: { ...form.shipTo, ownerName: e.target.value } })} />
+                    <label style={S.label}>Trader Name</label>
+                    <input style={S.input} value={form?.shipTo?.traderName || form?.shipTo?.ownerName || ""} onChange={e => setForm({ ...form, shipTo: { ...form.shipTo, traderName: e.target.value } })} />
                   </div>
                   <div style={{ gridColumn: isMobile ? "span 2" : "span 2" }}>
                     <label style={S.label}>Full Address</label>
