@@ -4,35 +4,35 @@
     ".write": "auth != null",
 
     "inventory": {
-      ".indexOn": ["sku", "category", "status", "createdAt", "updatedAt", "brand", "collection"]
+      ".indexOn": ["sku", "barcode", "productName", "category", "collection", "brand", "brandId", "size", "status", "price", "wholesalePrice", "mrp", "costPrice", "stock", "gstRate", "hsnCode", "unit", "createdAt", "updatedAt", "createdBy"]
     },
 
     "users": {
-      ".indexOn": ["role", "email"]
+      ".indexOn": ["role", "email", "name", "uid"]
     },
 
     "activities": {
-      ".indexOn": ["timestamp", "type"]
+      ".indexOn": ["timestamp", "type", "action", "userId", "userRole"]
     },
 
     "dispatches": {
-      ".indexOn": ["status", "createdAt", "partyName"]
+      ".indexOn": ["status", "createdAt", "updatedAt", "partyName", "partyId", "transporterName", "transporterId", "dispatchType", "platform", "paymentStatus", "trackingId", "awb", "courierPartner", "dispatchDate"]
     },
 
     "tasks": {
-      ".indexOn": ["assignedTo", "status", "createdAt"]
+      ".indexOn": ["assignedTo", "status", "priority", "createdAt", "createdBy", "expiresAt", "completedAt", "assignedToRole"]
     },
 
     "partyRates": {
-      ".indexOn": ["partyName"]
+      ".indexOn": ["partyName", "updatedAt"]
     },
 
     "categories": {
-      ".indexOn": ["name", "createdAt"]
+      ".indexOn": ["name", "createdAt", "createdBy"]
     },
 
     "collections": {
-      ".indexOn": ["name", "createdAt"]
+      ".indexOn": ["name", "collectionCode", "createdAt"]
     },
 
     "itemGroups": {
@@ -40,15 +40,15 @@
     },
 
     "brands": {
-      ".indexOn": ["name"]
-    },
-
-    "parties": {
       ".indexOn": ["name", "createdAt"]
     },
 
+    "parties": {
+      ".indexOn": ["name", "phone", "gstin", "createdAt"]
+    },
+
     "transporters": {
-      ".indexOn": ["name"]
+      ".indexOn": ["name", "phone", "createdAt"]
     }
   }
 }
