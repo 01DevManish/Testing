@@ -258,21 +258,28 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     const minStock = Number(row["Min Stock (Alert)"]) || 5;
                     const reqStatus = row["Status"]?.toString().trim().toLowerCase().replace(/\s+/g, "-");
 
-                    // Image processing
+                    // Image processing: Skip upload if it's already a Cloudinary URL from our account
                     let finalImageUrl = "";
                     let rawImageUrl = row["Thumbnail URL"]?.toString().trim() || "";
                     if (rawImageUrl) {
                         try {
-                            // Dropbox Fix: dl=0 points to a webpage, dl=1 points to the file itself
-                            if (rawImageUrl.includes("dropbox.com")) {
-                                rawImageUrl = rawImageUrl.replace("dl=0", "dl=1").replace("raw=0", "raw=1");
+                            const cloudName = "dd4hmahlm"; // Our Cloudinary cloud name
+                            if (rawImageUrl.includes(`res.cloudinary.com/${cloudName}`)) {
+                                // Already uploaded to our account, skip and use existing URL
+                                finalImageUrl = rawImageUrl;
+                            } else {
+                                // Dropbox Fix: dl=0 points to a webpage, dl=1 points to the file itself
+                                if (rawImageUrl.includes("dropbox.com")) {
+                                    rawImageUrl = rawImageUrl.replace("dl=0", "dl=1").replace("raw=0", "raw=1");
+                                }
+                                finalImageUrl = await uploadToCloudinary(rawImageUrl);
                             }
-                            finalImageUrl = await uploadToCloudinary(rawImageUrl);
                         } catch (imgErr: any) {
-                            console.warn(`Row ${rowNum}: Image upload failed, continuing without image.`, imgErr);
-                            // We don't fail the whole product for one image, just warn and continue with empty
+                            console.warn(`Row ${rowNum}: Image processing failed, continuing without image.`, imgErr);
+                            // Fallback to existing or empty if upload fails
                         }
                     }
+
 
                     const productData: Omit<Product, "id"> = {
                         productName,
