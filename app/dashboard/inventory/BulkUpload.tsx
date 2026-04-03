@@ -399,15 +399,14 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
 
                                 {uploading ? (
                                     <div style={{ color: "#1e293b" }}>
-                                        <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
-                                            Processing... {progress} / {totalRows}
+                                        <div style={{ fontSize: 24, fontWeight: 600, color: "#6366f1", marginBottom: 4 }}>
+                                            {totalRows > 0 ? Math.round((progress / totalRows) * 100) : 0}%
                                         </div>
-                                        <div style={{ fontSize: 13, color: "#64748b" }}>
-                                            Please don't close this tab until finished.
+                                        <div style={{ fontSize: 13, fontWeight: 500, color: "#1e293b", marginBottom: 8 }}>
+                                            Processing: {progress} of {totalRows} Items
                                         </div>
                                     </div>
                                 ) : fileStats ? (
-
                                     <div style={{ color: "#1e293b" }}>
                                         <div style={{ fontWeight: 400, fontSize: 15 }}>{fileStats.name}</div>
                                         <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
@@ -422,17 +421,43 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                                 )}
                             </div>
 
+                            {uploading && (
+                                <div style={{ marginBottom: 24, padding: "0 20px" }}>
+                                    <div style={{ 
+                                        width: "100%", height: 10, background: "#f1f5f9", 
+                                        borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0",
+                                        boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)"
+                                    }}>
+                                        <div style={{ 
+                                            height: "100%", background: "linear-gradient(90deg, #6366f1, #8b5cf6)", 
+                                            width: `${totalRows > 0 ? (progress / totalRows) * 100 : 0}%`,
+                                            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+                                        }} />
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+                                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                                            Total Products: <span style={{ fontWeight: 600, color: "#1e293b" }}>{totalRows}</span>
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                                            Done: <span style={{ fontWeight: 600, color: "#6366f1" }}>{progress}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-                                {fileStats && !results && (
-                                    <BtnPrimary onClick={startUpload} loading={uploading} disabled={uploading}>
+                                {fileStats && !results && !uploading && (
+                                    <BtnPrimary onClick={startUpload}>
                                         Start Import
                                     </BtnPrimary>
                                 )}
-                                <BtnGhost onClick={() => { setFileStats(null); if(fileInputRef.current) fileInputRef.current.value = ""; setResults(null); setProgress(0); }} disabled={uploading}>
-                                    Clear
-                                </BtnGhost>
-
+                                {!uploading && (
+                                    <BtnGhost onClick={() => { setFileStats(null); if(fileInputRef.current) fileInputRef.current.value = ""; setResults(null); setProgress(0); }}>
+                                        Clear
+                                    </BtnGhost>
+                                )}
                             </div>
+
                         </div>
                     </Card>
 
