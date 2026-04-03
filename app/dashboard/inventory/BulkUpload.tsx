@@ -26,6 +26,9 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
     const [downloading, setDownloading] = useState(false);
     const [results, setResults] = useState<{ success: number; updated: number; errors: string[] } | null>(null);
     const [fileStats, setFileStats] = useState<{ name: string; size: number; rows: number } | null>(null);
+    const [progress, setProgress] = useState(0);
+    const [totalRows, setTotalRows] = useState(0);
+
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -180,6 +183,8 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
         const errors: string[] = [];
         let successCount = 0;
         let updateCount = 0;
+        setProgress(0);
+
 
 
         try {
@@ -201,6 +206,9 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                 reader.readAsBinaryString(file);
             });
 
+            setTotalRows(data.length);
+
+
             if (data.length === 0) {
                 errors.push("No valid products found in the file. Please check if Name and SKU columns are present.");
                 setResults({ success: 0, updated: 0, errors });
@@ -220,7 +228,9 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
 
 
             for (let i = 0; i < data.length; i++) {
+                setProgress(i + 1);
                 const row = data[i];
+
                 const rowNum = i + 2;
                 
                 try {
@@ -374,10 +384,30 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                                     cursor: uploading ? "not-allowed" : "pointer",
                                     transition: "all 0.2s",
                                     marginBottom: 20,
-                                    borderColor: fileStats ? "#6366f1" : "#e2e8f0"
+                                    borderColor: fileStats ? "#6366f1" : "#e2e8f0",
+                                    position: "relative",
+                                    overflow: "hidden"
                                 }}
                             >
-                                {fileStats ? (
+                                {uploading && (
+                                    <div style={{
+                                        position: "absolute", bottom: 0, left: 0, height: 4,
+                                        background: "#6366f1", width: `${(progress / totalRows) * 100}%`,
+                                        transition: "width 0.3s ease"
+                                    }} />
+                                )}
+
+                                {uploading ? (
+                                    <div style={{ color: "#1e293b" }}>
+                                        <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                                            Processing... {progress} / {totalRows}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: "#64748b" }}>
+                                            Please don't close this tab until finished.
+                                        </div>
+                                    </div>
+                                ) : fileStats ? (
+
                                     <div style={{ color: "#1e293b" }}>
                                         <div style={{ fontWeight: 400, fontSize: 15 }}>{fileStats.name}</div>
                                         <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
@@ -398,9 +428,10 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                                         Start Import
                                     </BtnPrimary>
                                 )}
-                                <BtnGhost onClick={() => { setFileStats(null); if(fileInputRef.current) fileInputRef.current.value = ""; setResults(null); }} disabled={uploading}>
+                                <BtnGhost onClick={() => { setFileStats(null); if(fileInputRef.current) fileInputRef.current.value = ""; setResults(null); setProgress(0); }} disabled={uploading}>
                                     Clear
                                 </BtnGhost>
+
                             </div>
                         </div>
                     </Card>
