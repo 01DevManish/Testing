@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowManishFullAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::273517699422:user/Manish"
+      },
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::eurusimages",
+        "arn:aws:s3:::eurusimages/*"
+      ]
+    }
+  ]
+}
