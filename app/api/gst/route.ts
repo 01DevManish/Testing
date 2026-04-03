@@ -8,38 +8,48 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "GSTIN is required" }, { status: 400 });
     }
 
-    const apiKey = process.env.GST_API_KEY || "fec9b7469b8955016f06a76da9686184";
-    const url = `https://sheet.gstincheck.co.in/check/${apiKey}/${gstin}`;
+    const apiKey = process.env.GST_API_KEY || "ODU3MjgzOTQ3OTM5NzAzMjc2NTA";
+    const url = `https://www.knowyourgst.com/developers/gstincall/?gstin=${gstin}`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: {
+                "passthrough": apiKey
+            }
+        });
         
         if (!response.ok) {
             const errorText = await response.text();
             console.error("GST API Proxy Error:", response.status, errorText);
             return NextResponse.json({ 
                 success: false, 
-                error: `GST Service Error (${response.status}): Please check your API key or internet.` 
+                error: `GST Service Error (${response.status}): Please check your API key.` 
             }, { status: response.status });
         }
 
         const data = await response.json();
         console.log("GST API Data Received:", data);
 
-        if (data.flag === true && data.data) {
-            const d = data.data;
-            const addr = d.pradr?.addr || {};
+        // knowyourgst.com returns status_code: 1 for success
+        if (data.status_code === 1) {
+            const addr = data.adress || {}; // Note: there is a typo in the API response field name: 'adress'
             
+            // Build a human-readable address
+            const fullAddress = [
+                addr.floor, addr.bno, addr.bname, addr.street, 
+                addr.location, addr.city, addr.state, addr.pincode
+            ].filter(Boolean).join(", ").replace(/ , /g, ", ").trim();
+
             return NextResponse.json({
                 success: true,
                 data: {
-                    companyName: d.tradeNam || d.lgnm || "Unknown",
-                    ownerName: d.lgnm || d.tradeNam || "Unknown",
-                    address: d.pradr?.adr || `${addr.bno || ""}, ${addr.bnm || ""}, ${addr.st || ""}, ${addr.loc || ""}, ${addr.city || ""}, ${addr.dst || ""}, ${addr.stcd || ""} - ${addr.pncd || ""}`.replace(/^, /, "").replace(/ , /g, ", ").trim(),
+                    companyName: data["trade-name"] || data["legal-name"] || "Unknown",
+                    ownerName: data["legal-name"] || data["trade-name"] || "Unknown",
+                    address: fullAddress || "Unknown",
                     city: addr.city || "Unknown",
-                    district: addr.dst || "Unknown",
-                    state: addr.stcd || "Unknown",
-                    pincode: addr.pncd || ""
+                    district: addr.location || addr.city || "Unknown",
+                    state: addr.state || "Unknown",
+                    pincode: addr.pincode || ""
                 }
             });
         }
@@ -50,3 +60,4 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: false, error: `Connection failed: ${error.message}` }, { status: 500 });
     }
 }
+
