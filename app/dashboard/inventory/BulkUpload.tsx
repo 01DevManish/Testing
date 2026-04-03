@@ -3,7 +3,8 @@
 import React, { useState, useRef } from "react";
 import ExcelJS from "exceljs";
 import * as XLSX from "xlsx";
-import { ref, get, push, set as rtdbSet } from "firebase/database";
+import { ref, get, push, update, set as rtdbSet } from "firebase/database";
+
 import { db } from "../../lib/firebase";
 import { FONT, Product, Category, Collection, UNITS, GST_RATES } from "./types";
 import { SuccessBanner, BtnPrimary, BtnGhost, Card, PageHeader } from "./ui";
@@ -23,8 +24,9 @@ interface BulkUploadProps {
 export default function BulkUpload({ categories, collections, brands, user, onDone, isMobile, isDesktop }: BulkUploadProps) {
     const [uploading, setUploading] = useState(false);
     const [downloading, setDownloading] = useState(false);
-    const [results, setResults] = useState<{ success: number; errors: string[] } | null>(null);
+    const [results, setResults] = useState<{ success: number; updated: number; errors: string[] } | null>(null);
     const [fileStats, setFileStats] = useState<{ name: string; size: number; rows: number } | null>(null);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const downloadTemplate = async () => {
@@ -177,6 +179,8 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
         setUploading(true);
         const errors: string[] = [];
         let successCount = 0;
+        let updateCount = 0;
+
 
         try {
             const file = fileInputRef.current.files[0];
@@ -199,19 +203,21 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
 
             if (data.length === 0) {
                 errors.push("No valid products found in the file. Please check if Name and SKU columns are present.");
-                setResults({ success: 0, errors });
+                setResults({ success: 0, updated: 0, errors });
+
                 setUploading(false);
                 return;
             }
 
             const inventorySnap = await get(ref(db, "inventory"));
-            const existingSkus = new Set<string>();
+            const skuMap = new Map<string, string>(); // sku -> id
             if (inventorySnap.exists()) {
                 inventorySnap.forEach(snap => {
                     const val = snap.val();
-                    if (val.sku) existingSkus.add(val.sku.toString().trim().toLowerCase());
+                    if (val.sku) skuMap.set(val.sku.toString().trim().toLowerCase(), snap.key!);
                 });
             }
+
 
             for (let i = 0; i < data.length; i++) {
                 const row = data[i];
@@ -231,10 +237,8 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                         continue;
                     }
 
-                    if (existingSkus.has(sku.toLowerCase())) {
-                        errors.push(`Row ${rowNum}: SKU "${sku}" already exists in the system.`);
-                        continue;
-                    }
+                    const existingId = skuMap.get(sku.toLowerCase());
+
 
                     const brandName = row["Brand"]?.toString().trim() || "";
                     const matchedBrand = brands.find(b => b.name.toLowerCase() === brandName.toLowerCase());
@@ -291,10 +295,22 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                         updatedByName: user.name
                     };
 
-                    const newRef = push(ref(db, "inventory"));
-                    await rtdbSet(newRef, productData);
-                    successCount++;
-                    existingSkus.add(sku.toLowerCase());
+                    if (existingId) {
+                        // UPDATE Existing Product
+                        const { createdAt, createdBy, createdByName, ...updateData } = productData as any;
+                        await update(ref(db, `inventory/${existingId}`), {
+                            ...updateData,
+                            updatedAt: timestamp
+                        });
+                        updateCount++;
+                    } else {
+                        // CREATE New Product
+                        const newRef = push(ref(db, "inventory"));
+                        await rtdbSet(newRef, productData);
+                        successCount++;
+                        skuMap.set(sku.toLowerCase(), newRef.key!);
+                    }
+
                 } catch (innerErr: any) {
                     console.error(`Error in row ${rowNum}:`, innerErr);
                     errors.push(`Row ${rowNum}: ${innerErr.message || "Failed to save product."}`);
@@ -310,16 +326,17 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     userId: user.uid,
                     userName: user.name,
                     userRole: user.role,
-                    metadata: { count: successCount }
+                    metadata: { created: successCount, updated: updateCount }
                 });
             }
 
-            setResults({ success: successCount, errors });
+            setResults({ success: successCount, updated: updateCount, errors });
         } catch (err) {
             console.error(err);
             errors.push("An unexpected error occurred during upload.");
-            setResults({ success: successCount, errors });
+            setResults({ success: successCount, updated: updateCount, errors });
         } finally {
+
             setUploading(false);
         }
     };
@@ -396,18 +413,21 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                                     <h3 style={{ fontSize: 16, fontWeight: 400, color: "#0f172a", margin: 0 }}>Import Summary</h3>
                                 </div>
                                 
-                                <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
-                                    <div style={{ flex: 1, padding: 16, background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0" }}>
-                                        <div style={{ fontSize: 11, fontWeight: 400, color: "#166534", textTransform: "uppercase", marginBottom: 4 }}>Success</div>
-                                        <div style={{ fontSize: 24, fontWeight: 400, color: "#166534" }}>{results.success}</div>
-                                        <div style={{ fontSize: 12, color: "#16a34a" }}>Products Imported</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+                                    <div style={{ padding: 16, background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0", textAlign: "center" }}>
+                                        <div style={{ fontSize: 10, fontWeight: 500, color: "#166534", textTransform: "uppercase", marginBottom: 4 }}>Created</div>
+                                        <div style={{ fontSize: 24, fontWeight: 600, color: "#166534" }}>{results.success}</div>
                                     </div>
-                                    <div style={{ flex: 1, padding: 16, background: results.errors.length > 0 ? "#fef2f2" : "#f8fafc", borderRadius: 10, border: `1px solid ${results.errors.length > 0 ? "#fecaca" : "#e2e8f0"}` }}>
-                                        <div style={{ fontSize: 11, fontWeight: 400, color: results.errors.length > 0 ? "#991b1b" : "#64748b", textTransform: "uppercase", marginBottom: 4 }}>Errors</div>
-                                        <div style={{ fontSize: 24, fontWeight: 400, color: results.errors.length > 0 ? "#991b1b" : "#64748b" }}>{results.errors.length}</div>
-                                        <div style={{ fontSize: 12, color: results.errors.length > 0 ? "#ef4444" : "#94a3b8" }}>Issues Found</div>
+                                    <div style={{ padding: 16, background: "#eff6ff", borderRadius: 10, border: "1px solid #bfdbfe", textAlign: "center" }}>
+                                        <div style={{ fontSize: 10, fontWeight: 500, color: "#1e40af", textTransform: "uppercase", marginBottom: 4 }}>Updated</div>
+                                        <div style={{ fontSize: 24, fontWeight: 600, color: "#1e40af" }}>{results.updated}</div>
+                                    </div>
+                                    <div style={{ padding: 16, background: results.errors.length > 0 ? "#fef2f2" : "#f8fafc", borderRadius: 10, border: `1px solid ${results.errors.length > 0 ? "#fecaca" : "#e2e8f0"}`, textAlign: "center" }}>
+                                        <div style={{ fontSize: 10, fontWeight: 500, color: results.errors.length > 0 ? "#991b1b" : "#64748b", textTransform: "uppercase", marginBottom: 4 }}>Errors</div>
+                                        <div style={{ fontSize: 24, fontWeight: 600, color: results.errors.length > 0 ? "#991b1b" : "#64748b" }}>{results.errors.length}</div>
                                     </div>
                                 </div>
+
 
                                 {results.errors.length > 0 && (
                                     <div style={{ maxHeight: 200, overflowY: "auto", padding: 12, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
@@ -484,7 +504,7 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                         <div style={{ padding: 20 }}>
                             <h4 style={{ fontSize: 13, fontWeight: 400, color: "#ef4444", margin: "0 0 8px" }}>Important Notes:</h4>
                             <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5 }}>
-                                • Duplicate SKUs will be automatically skipped. <br/>
+                                • Existing SKUs will be updated with new values. <br/>
                                 • Prices and Stock must be numbers. <br/>
                                 • Large files might take a few moments to process.
                             </div>

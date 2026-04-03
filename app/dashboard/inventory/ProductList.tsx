@@ -7,6 +7,8 @@ import { FONT, Product, Category, Collection, STATUS_CONFIG } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
 import { logActivity } from "../../lib/activityLogger";
 import { deleteFromCloudinary } from "./cloudinary";
+import ExcelJS from "exceljs";
+
 
 type SortKey = "productName" | "category" | "collection" | "price" | "stock" | "status" | "createdAt";
 type SortDir = "asc" | "desc";
@@ -178,17 +180,93 @@ export default function ProductList({
         setSelectedIds(new Set()); setBulkAction("");
     };
 
-    const exportCSV = () => {
-        const isStaff = user.role !== "admin";
-        const headers = ["Name", "SKU", "Category", "Brand", "Price", ...(isStaff ? [] : ["Cost"]), "Stock", "Unit", "HSN", "GST%", "Status", "Wholesale Price", "MRP"];
-        const rows = filtered.map(p => [
-            p.productName, p.sku, p.category, p.brand, p.price, 
-            ...(isStaff ? [] : [p.costPrice]), 
-            p.stock, p.unit, p.hsnCode, p.gstRate, p.status, p.wholesalePrice, p.mrp
-        ]);
-        const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\n");
-        const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: `products_${new Date().toISOString().slice(0, 10)}.csv` });
-        a.click();
+    const exportExcelForBulkEdit = async () => {
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet("Inventory_Bulk_Edit");
+
+            const headers = [
+                "Product Name*", "SKU*", "Category", "Collection", "Brand",
+                "Description", "Selling Price (Rs.)*", "Wholesale Price (Rs.)", "MRP (Rs.)", "Cost Price (Rs.)",
+                "GST Rate", "HSN Code", "Opening Stock", "Min Stock (Alert)", "Unit",
+                "Size", "Thumbnail URL", "Status"
+            ];
+
+            worksheet.addRow(headers);
+
+            // Styling
+            worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+            worksheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
+            worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+            worksheet.getRow(1).height = 25;
+            worksheet.columns = headers.map(() => ({ width: 22 }));
+
+            // Data mapping
+            filtered.forEach(p => {
+                worksheet.addRow([
+                    p.productName || "",
+                    p.sku || "",
+                    p.category || "",
+                    p.collection || "",
+                    p.brand || "",
+                    p.description || "",
+                    p.price || 0,
+                    p.wholesalePrice || 0,
+                    p.mrp || 0,
+                    p.costPrice || 0,
+                    `${p.gstRate || 18}%`,
+                    p.hsnCode || "",
+                    p.stock || 0,
+                    p.minStock || 5,
+                    p.unit || "PCS",
+                    p.size || "",
+                    p.imageUrl || "",
+                    p.status || "active"
+                ]);
+            });
+
+            // Unlock all cells first
+            worksheet.eachRow((row, rowNumber) => {
+                row.eachCell((cell) => {
+                    cell.protection = { locked: false };
+                });
+            });
+
+            // Lock specific columns: SKU(2), Category(3), Collection(4), Brand(5), GST(11), HSN(12), Size(16)
+            const lockedCols = [2, 3, 4, 5, 11, 12, 16];
+
+            lockedCols.forEach(colIndex => {
+                const col = worksheet.getColumn(colIndex);
+                col.eachCell((cell) => {
+                    cell.protection = { locked: true };
+                });
+            });
+
+            // Protect the sheet
+            await worksheet.protect("", {
+                selectLockedCells: true,
+                selectUnlockedCells: true,
+                formatCells: true,
+                formatColumns: true,
+                formatRows: true,
+                insertRows: false,
+                insertColumns: false,
+                deleteRows: false,
+                deleteColumns: false
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `inventory_bulk_edit_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Export error:", error);
+            alert("Failed to export Excel file.");
+        }
     };
 
     const sortArrow = (key: SortKey) => sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : "";
@@ -209,7 +287,7 @@ export default function ProductList({
             <PageHeader title="All Products" sub={`${filtered.length} products`}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
                     {canCreate && <BtnPrimary onClick={onCreateNew} style={isMobile ? { flex: 1, minWidth: 120 } : {}}>+ Add Product</BtnPrimary>}
-                    <BtnGhost onClick={exportCSV} style={{ fontSize: 13, flex: isMobile ? 1 : "initial" }}>Export CSV</BtnGhost>
+                    <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: 13, flex: isMobile ? 1 : "initial" }}>Export for Bulk Edit</BtnGhost>
                     <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>↻</BtnGhost>
                 </div>
             </PageHeader>

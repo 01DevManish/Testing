@@ -12,15 +12,22 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "dd4hmahlm";
-    const apiKey = process.env.CLOUDINARY_API_KEY || "253667214247696";
-    const apiSecret = process.env.CLOUDINARY_API_SECRET || "nlLGSypdD6J5dXjUZ0RRItDtf5Y";
-
-    const timestamp = Math.round(new Date().getTime() / 1000);
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
     
-    // Cloudinary signature: parameters in alphabetical order, then api_secret
+    if (!cloudName || !apiKey || !apiSecret) {
+        throw new Error("Cloudinary configuration missing in server environment.");
+    }
+
+    const timestamp = Math.round(new Date().getTime() / 1000).toString();
+    
+    // Cloudinary signature: all parameter strings (except file, api_key, and signature)
+    // sorted alphabetically, then joined with '&', then append api_secret (without '&')
+    // Since we only sign 'timestamp', the logic is simple:
     const stringToSign = `timestamp=${timestamp}${apiSecret}`;
     const signature = crypto.createHash('sha1').update(stringToSign).digest('hex');
+
 
     const cloudinaryFormData = new FormData();
     cloudinaryFormData.append('file', file as any);
