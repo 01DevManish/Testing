@@ -43,6 +43,7 @@ export default function PartyRateTab({
     billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
     sameAsBillTo: true,
     shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
+    transporter: "",
     rates: []
   });
   const [saving, setSaving] = useState(false);
@@ -101,6 +102,7 @@ export default function PartyRateTab({
       billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
       sameAsBillTo: true,
       shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
+      transporter: "",
       rates: []
     });
     setShowForm(true);
@@ -115,6 +117,7 @@ export default function PartyRateTab({
       billTo: { ...defaultSection, ...(pr.billTo || {}) },
       sameAsBillTo: pr.sameAsBillTo !== undefined ? pr.sameAsBillTo : true,
       shipTo: { ...defaultSection, ...(pr.shipTo || {}) },
+      transporter: pr.transporter || "",
       rates: pr.rates || []
     });
     setGstVerified(!!pr.billTo?.gstNo);
@@ -167,6 +170,7 @@ export default function PartyRateTab({
           email: b.email,
         } : form.shipTo,
         rates: form.rates.filter((r: any) => r.productName && r.rate > 0),
+        transporter: form.transporter || "",
         updatedAt: Date.now()
       };
 
@@ -193,6 +197,7 @@ export default function PartyRateTab({
         billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
         sameAsBillTo: true,
         shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", email: "" },
+        transporter: "",
         rates: []
       });
       setGstVerified(false);
@@ -655,12 +660,13 @@ export default function PartyRateTab({
                            r.productName === editingRateProduct.productName 
                              ? { 
                                  productName: r.productName, 
+                                 sku: r.sku || editingRateProduct.sku || "",
                                  rate: parseFloat(editingRateProduct.rate),
                                  packagingType: editingRateProduct.packagingType || "",
                                  packagingCost: parseFloat(editingRateProduct.packagingCost || "0"),
                                  discount: parseFloat(editingRateProduct.discount || "0"),
                                  discountType: editingRateProduct.discountType || "amount",
-                                 gstRate: parseInt(editingRateProduct.gstRate || "0")
+                                 gstRate: parseInt(editingRateProduct.gstRate || "18")
                                } 
                              : r
                          );
@@ -718,17 +724,20 @@ export default function PartyRateTab({
             </div>
           </div>
           <div style={{ padding: 12, background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
-            <div style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", textTransform: "uppercase", marginBottom: 8 }}>Ship To Details</div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", textTransform: "uppercase", marginBottom: 8 }}>Logistics Details</div>
             <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.5 }}>
-              {viewingParty.sameAsBillTo ? (
-                <span style={{ fontStyle: "italic", color: "#64748b" }}>Same as Billing Address</span>
-              ) : (
-                <>
-                  <strong>{viewingParty.shipTo?.companyName}</strong><br/>
-                  {viewingParty.shipTo?.address}, {viewingParty.shipTo?.district}, {viewingParty.shipTo?.state} - {viewingParty.shipTo?.pincode}<br/>
-                  Contact: {viewingParty.shipTo?.contactNo}
-                </>
-              )}
+              <strong>Preferred Transporter:</strong> {viewingParty.transporter || "Not set"}<br/>
+              <div style={{ marginTop: 8, borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>
+                <strong>Shipping Address:</strong><br/>
+                {viewingParty.sameAsBillTo ? (
+                  <span style={{ fontStyle: "italic", color: "#64748b" }}>Same as Billing Address</span>
+                ) : (
+                  <>
+                    {viewingParty.shipTo?.companyName}<br/>
+                    {viewingParty.shipTo?.address}, {viewingParty.shipTo?.district}, {viewingParty.shipTo?.state} - {viewingParty.shipTo?.pincode}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -844,6 +853,7 @@ export default function PartyRateTab({
                       const pName = selectedProduct?.productName || selectedProduct?.name || "";
                       const updated = [...existing.filter(r => r.productName !== pName), { 
                          productName: pName, 
+                         sku: selectedProduct?.sku || "",
                          rate: parseFloat(pVal.value),
                          packagingType: pType?.value || "",
                          packagingCost: parseFloat(pCost?.value || "0"),
@@ -878,6 +888,7 @@ export default function PartyRateTab({
               <thead style={{ background: "#f8fafc" }}>
                 <tr>
                   <th style={{ ...S.th, textAlign: "left" }}>Product Name</th>
+                  <th style={{ ...S.th, textAlign: "left" }}>SKU</th>
                   <th style={{ ...S.th, textAlign: "left" }}>Pkg Type</th>
                   <th style={{ ...S.th, textAlign: "right" }}>Pkg Cost</th>
                   <th style={{ ...S.th, textAlign: "right" }}>Rate</th>
@@ -897,6 +908,7 @@ export default function PartyRateTab({
                   return (
                     <tr key={idx}>
                       <td style={S.td}>{r.productName}</td>
+                      <td style={{ ...S.td, color: "#64748b", fontSize: 12 }}>{r.sku || "—"}</td>
                       <td style={{ ...S.td, color: "#64748b" }}>{r.packagingType || "N/A"}</td>
                       <td style={{ ...S.td, textAlign: "right", color: "#64748b" }}>{(r.packagingCost || 0) > 0 ? `₹${r.packagingCost || 0}` : "₹0"}</td>
                       <td style={{ ...S.td, textAlign: "right", fontWeight: 500, color: "#1e293b" }}>₹{r.rate}</td>
@@ -944,7 +956,6 @@ export default function PartyRateTab({
               Create Party
             </button>
           )}
-          <button onClick={loadData} style={S.btnSecondary}>↻ Refresh</button>
         </div>
       </div>
 
@@ -1102,6 +1113,10 @@ export default function PartyRateTab({
                 <div>
                   <label style={S.label}>Aadhar No</label>
                   <input style={S.input} value={form?.billTo?.adharNo || ""} onChange={e => setForm({ ...form, billTo: { ...form.billTo, adharNo: e.target.value } })} />
+                </div>
+                <div>
+                  <label style={S.label}>Transport Name</label>
+                  <input style={S.input} value={form.transporter || ""} onChange={e => setForm({ ...form, transporter: e.target.value })} placeholder="Transport Name" />
                 </div>
               </div>
             </div>

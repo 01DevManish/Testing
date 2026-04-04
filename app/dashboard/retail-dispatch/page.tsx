@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { ref, onValue } from "firebase/database";
+import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { api } from "./data";
@@ -11,9 +13,16 @@ import Scanner from "./components/Scanner";
 import OrderDetailsModal from "./components/OrderDetailsModal";
 import AddOrderModal from "./components/AddOrderModal";
 import CreateDispatchModal from "./components/Createdispatchmodal";
+import CreatePackingList from "./components/CreatePackingList";
+import AllPackingLists from "./components/AllPackingLists";
+import CreateDispatchList from "./components/CreateDispatchList";
+import AllDispatchLists from "./components/AllDispatchLists";
+import PackingListDetailsModal from "./components/PackingListDetailsModal";
+import NotificationBell from "../../components/NotificationBell";
 import DispatchSidebar from "./DispatchSidebar";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "./components/ui";
 import { hasPermission } from "../../lib/permissions";
+import MessagingTab from "../../components/MessagingTab";
 
 // Responsive hook
 function useWindowSize() {
@@ -31,29 +40,37 @@ export default function AdvancedDispatchDashboard() {
   const router = useRouter();
   const { width } = useWindowSize();
   const isMobile = width < 640;
-  const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
   const { 
     orders: allOrders, setOrders, 
+    users, 
     loading: fetchingGlobal, refreshData: loadOrders 
   } = useData();
 
-  // Filter for retail dispatches
   const orders = useMemo(() => allOrders.filter(o => o.dispatchType === "retail" || !o.dispatchType), [allOrders]);
   const fetching = fetchingGlobal;
 
-  // Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<OrderStatus | "All">("All");
-
-  // Layout State
   const [activeView, setActiveView] = useState<ActiveView>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Scanner & Modal State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [scannedUnknownId, setScannedUnknownId] = useState("");
+  const [editingPackingList, setEditingPackingList] = useState<any>(null);
+  const [viewingPackingList, setViewingPackingList] = useState<any>(null);
+  const [packingLists, setPackingLists] = useState<any[]>([]);
+  const [statsDate, setStatsDate] = useState(new Date().toISOString().split('T')[0]);
+
+  useEffect(() => {
+    const listsRef = ref(db, "packingLists");
+    const unsubscribe = onValue(listsRef, (snapshot) => {
+      const data: any[] = [];
+      snapshot.forEach((child) => { data.push({ id: child.key, ...child.val() }); });
+      setPackingLists(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (isDesktop) setSidebarOpen(false);
@@ -92,12 +109,10 @@ export default function AdvancedDispatchDashboard() {
     }
   };
 
-  // Permission flags
   const canView = hasPermission(userData, "retail_view");
   const canCreate = hasPermission(userData, "retail_create");
   const canEdit = hasPermission(userData, "retail_edit");
   const canDelete = hasPermission(userData, "retail_delete");
-
   const hasAccess = canView;
   
   useEffect(() => {
@@ -111,14 +126,11 @@ export default function AdvancedDispatchDashboard() {
   if (!loading && user && !hasAccess) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "inherit" }}>
-        <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 24, boxShadow: "0 10px 30px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0", maxWidth: 420 }}>
+        <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 24, boxShadow: "0 10px 30px rgba(0,0,0,0.45)", border: "1px solid #e2e8f0", maxWidth: 420 }}>
           <div style={{ fontSize: 44, marginBottom: 18 }}>🔒</div>
           <h2 style={{ fontSize: 20, fontWeight: 500, color: "#1e293b", margin: "0 0 10px" }}>Access Restricted</h2>
-          <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.6, margin: "0 0 20px" }}>You do not have the required permissions to access the Retail Dispatch dashboard. Please contact your administrator.</p>
-          <div style={{ fontSize: 12, color: "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <div style={{ width: 14, height: 14, border: "2px solid #e2e8f0", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-            Returning to dashboard...
-          </div>
+          <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.6, margin: "0 0 20px" }}>You do not have the required permissions to access the Retail Dispatch dashboard.</p>
+          <div style={{ width: 14, height: 14, border: "2px solid #e2e8f0", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
         </div>
       </div>
     );
@@ -126,18 +138,15 @@ export default function AdvancedDispatchDashboard() {
 
   const todayDate = new Date().toISOString().split('T')[0];
   const stats = {
-    total: orders.length,
+    todayPacking: packingLists.filter(l => new Date(l.createdAt).toISOString().split('T')[0] === todayDate).length,
+    todayDispatch: orders.filter(o => o.status === "Dispatched" && o.logs?.some(log => log.status === "Dispatched" && log.timestamp.startsWith(todayDate))).length,
+    filteredDispatch: orders.filter(o => o.status === "Dispatched" && o.logs?.some(log => log.status === "Dispatched" && log.timestamp.startsWith(statsDate))).length,
     pending: orders.filter(o => o.status === "Pending").length,
-    packed: orders.filter(o => o.status === "Packed").length,
-    dispatchedToday: orders.filter(o => o.status === "Dispatched" && o.logs.some(l => l.status === "Dispatched" && l.timestamp.startsWith(todayDate))).length,
-    failed: 0
   };
 
   const currentRole = userData?.role || "employee";
   const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
   const currentName = userData?.name || user?.name || "User";
-
-  const SIDEBAR_WIDTH = 260;
 
   const S = {
     sidebarMobileOverlay: {
@@ -171,13 +180,11 @@ export default function AdvancedDispatchDashboard() {
         @keyframes spin { to { transform: rotate(360deg); } }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
-        input:focus, select:focus, textarea:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .no-focus-ring:focus { outline: none !important; border-color: #cbd5e1 !important; box-shadow: none !important; }
       `}</style>
 
-      {/* Mobile overlay */}
       <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />
 
-      {/* SIDEBAR */}
       <div style={{
         position: "fixed", top: 0, left: 0, bottom: 0,
         zIndex: 200,
@@ -198,9 +205,7 @@ export default function AdvancedDispatchDashboard() {
         />
       </div>
 
-      {/* Main Content */}
       <main style={S.main}>
-        {/* Mobile top bar */}
         {!isDesktop && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
             <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>
@@ -214,196 +219,158 @@ export default function AdvancedDispatchDashboard() {
 
         {activeView === "overview" && (
           <div className="animate-in fade-in duration-300">
-            <PageHeader title="Retail Dispatch" sub="Manage and track your retail fulfillment pipeline.">
-                {canCreate && <BtnPrimary onClick={() => setActiveView("create-dispatch")}>🚀 Create Retail Dispatch</BtnPrimary>}
-                <BtnGhost onClick={loadOrders} style={{ fontSize: 13 }}>↻ Refresh</BtnGhost>
-            </PageHeader>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <PageHeader title="Retail Dispatch" sub="Manage and track your retail fulfillment pipeline." />
+              <NotificationBell />
+            </div>
 
-            {/* NEW: Global Search on Overview */}
-            <Card style={{ padding: "18px 20px", marginBottom: 24, background: "linear-gradient(to bottom right, #fff, #f8fafc)" }}>
-               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-                  <div style={{ flex: 1, minWidth: 280, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10 }}>
-                     <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ color: "#94a3b8" }}>
-                        <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.6" />
-                        <path d="M10 10L13.5 13.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                     </svg>
-                     <input 
-                        type="text" 
-                        onChange={(e) => {
-                           setSearchQuery(e.target.value);
-                           if (e.target.value) setActiveView("order-list");
-                        }}
-                        style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14, fontFamily: "'Segoe UI', system-ui", color: "#1e293b" }}
-                     />
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                     {["Pending", "Packed", "Dispatched"].map(s => (
-                        <button 
-                           key={s} 
-                           onClick={() => {
-                              setFilterStatus(s as any);
-                              setActiveView("order-list");
-                           }}
-                           style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 12, fontWeight: 400, cursor: "pointer", transition: "all 0.15s" }}
-                           onMouseEnter={e => (e.currentTarget.style.background = "#f1f5f9")}
-                           onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
-                        >
-                           {s}
-                        </button>
-                     ))}
-                  </div>
-               </div>
-            </Card>
-
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
               {[
-                { label: "Today's Dispatched", value: stats.dispatchedToday, color: "emerald", icon: "🚚" },
-                { label: "Pending Orders", value: stats.pending, color: "amber", icon: "🕒" },
-                { label: "Ready to Ship", value: stats.packed, color: "indigo", icon: "📦" },
+                { label: "Today's Packing", value: stats.todayPacking, color: "#6366f1", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg> },
+                { label: "Today's Dispatch", value: stats.todayDispatch, color: "#10b981", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg> },
+                { 
+                  label: "Total Dispatch", value: stats.filteredDispatch, color: "#3b82f6", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>,
+                },
+                { label: "Pending Orders", value: stats.pending, color: "#f59e0b", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg> },
               ].map(s => (
                 <Card key={s.label} style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: "#f8fafc", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{s.icon}</div>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{s.label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 400, color: "#1e293b", fontFamily: "'Segoe UI', system-ui" }}>{s.value}</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: `${s.color}10`, color: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      {s.label}
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#1e293b" }}>{s.value}</div>
                   </div>
                 </Card>
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "2fr 1fr" : "1fr", gap: 24 }}>
-              <div>
-                <Card style={{ padding: 0, overflow: "hidden", minHeight: 300 }}>
-                  <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", margin: 0 }}>Recent Dispatches</h3>
-                    <button onClick={() => setActiveView("order-list")} style={{ fontSize: 12, fontWeight: 400, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
+            <Card style={{ padding: "16px 20px", marginBottom: 24 }}>
+               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+                  <div style={{ flex: 1, minWidth: 280, display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12 }}>
+                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                     <input 
+                        className="no-focus-ring"
+                        type="text" 
+                        placeholder="Search Party / Employee"
+                        onChange={(e) => {
+                           setSearchQuery(e.target.value);
+                           if (e.target.value) setActiveView("order-list");
+                        }}
+                        style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14, fontWeight: 500, color: "#1e293b" }}
+                     />
                   </div>
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ background: "#f8fafc" }}>
-                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Order ID</th>
-                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Party Name</th>
-                          <th style={{ padding: "12px 20px", textAlign: "center", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Total Box</th>
-                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Status</th>
-                          <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 11, fontWeight: 400, color: "#64748b", textTransform: "uppercase" }}>Transporter</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {orders.filter(o => o.status === "Dispatched").slice(0, 6).length === 0 ? (
-                            <tr>
-                                <td colSpan={5} style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-                                    <div style={{ fontSize: 32, marginBottom: 12 }}>🚚</div>
-                                    No recent dispatches found.
-                                </td>
-                            </tr>
-                        ) : (
-                            orders.filter(o => o.status === "Dispatched").slice(0, 6).map(o => (
-                                <tr key={o.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                                  <td style={{ padding: "12px 20px", fontSize: 13, fontWeight: 400, color: "#475569" }}>#{o.id}</td>
-                                  <td style={{ padding: "12px 20px", fontSize: 13, color: "#64748b" }}>{o.partyName || o.customer?.name || "Unknown"}</td>
-                                  <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 400, textAlign: "center" }}>{o.bails || 0}</td>
-                                  <td style={{ padding: "12px 20px", fontSize: 11 }}>
-                                      <span style={{ padding: "4px 10px", borderRadius: 20, background: "#eef2ff", color: "#6366f1", fontWeight: 400 }}>{o.status}</span>
-                                  </td>
-                                  <td style={{ padding: "12px 20px", fontSize: 12, color: "#64748b", textAlign: "right", fontWeight: 400 }}>{o.courierPartner || o.transporterName || "—"}</td>
-                                </tr>
-                            ))
-                        )}
-                      </tbody>
-                    </table>
+                  <div style={{ display: "flex", gap: 8 }}>
+                     {["Pending", "Packed", "Dispatched"].map(s => (
+                        <button key={s} onClick={() => { setFilterStatus(s as any); setActiveView("order-list"); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>{s}</button>
+                     ))}
                   </div>
-                </Card>
-              </div>
+               </div>
+            </Card>
 
-              <div>
-                <Card style={{ padding: "24px", height: "100%", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", color: "#fff", border: "none" }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 400, marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>⚡</span> Quick Actions
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24 }}>
+              <Card style={{ padding: 0, overflow: "hidden", minHeight: 450 }}>
+                <div style={{ padding: "18px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 600, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                    Recent Dispatches
                   </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {canCreate && (
-                      <button onClick={() => setActiveView("create-dispatch")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
-                        <span style={{ background: "rgba(99,102,241,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>➕</span>
-                        Create New Dispatch
-                      </button>
-                    )}
-                    <button onClick={() => setActiveView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
-                      <span style={{ background: "rgba(139,92,246,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</span>
-                      Manage All Orders
-                    </button>
-                    <button onClick={() => setActiveView("scanner")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
-                      <span style={{ background: "rgba(20,184,166,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔍</span>
-                      Barcode Scanner
-                    </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f8fafc", padding: "4px 8px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8" }}>DATE:</span>
+                      <input 
+                        type="date" 
+                        value={statsDate} 
+                        onChange={(e) => setStatsDate(e.target.value)}
+                        style={{ fontSize: 12, border: "none", background: "transparent", outline: "none", color: "#1e293b", fontWeight: 700 }}
+                      />
+                    </div>
+                    <button onClick={() => setActiveView("order-list")} style={{ fontSize: 12, fontWeight: 600, color: "#6366f1", background: "#f5f3ff", padding: "8px 16px", borderRadius: 10, border: "none", cursor: "pointer" }}>View All History →</button>
                   </div>
-                </Card>
-              </div>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc" }}>
+                        {["Dispatch ID", "Party Name", "Items", "Total Box", "Status", "Transporter", "LR No."].map(h => (
+                          <th key={h} style={{ padding: "14px 24px", textAlign: h === "LR No." ? "right" : (h === "Items" || h === "Total Box" || h === "Status") ? "center" : "left", fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        // Logic to filter by date if selected, otherwise show last 12
+                        const tableOrders: Order[] = statsDate 
+                          ? orders.filter(o => o.logs?.some(l => l.status === "Dispatched" && l.timestamp.startsWith(statsDate)))
+                          : orders.slice(0, 12);
+                        
+                        if (tableOrders.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} style={{ padding: "80px 24px", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                                No dispatches found for {statsDate || "this period"}.
+                              </td>
+                            </tr>
+                          );
+                        }
+                        
+                        return tableOrders.map((o: Order) => {
+                        const sColor = o.status === "Dispatched" ? "#10b981" : o.status === "Packed" ? "#6366f1" : "#f59e0b";
+                        return (
+                          <tr key={o.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            <td style={{ padding: "16px 24px", fontSize: 13, fontWeight: 700 }}>#{o.id}</td>
+                            <td style={{ padding: "16px 24px", fontSize: 14, fontWeight: 600 }}>{o.partyName || o.customer?.name || "Unknown"}</td>
+                            <td style={{ padding: "16px 24px", fontSize: 13, textAlign: "center" }}>{o.items?.length || 0} Pcs</td>
+                            <td style={{ padding: "16px 24px", fontSize: 14, fontWeight: 700, textAlign: "center" }}>{o.bails || 0} BOX</td>
+                            <td style={{ padding: "16px 24px", textAlign: "center" }}><span style={{ padding: "5px 12px", borderRadius: 20, background: `${sColor}15`, color: sColor, fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{o.status}</span></td>
+                            <td style={{ padding: "16px 24px", fontSize: 13 }}>{o.courierPartner || o.transporterName || "Pending Assign"}</td>
+                            <td style={{ padding: "16px 24px", fontSize: 13, textAlign: "right", fontWeight: 800, fontFamily: "monospace" }}>{o.lrNo || "—"}</td>
+                          </tr>
+                        );
+                      })})()}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
             </div>
           </div>
         )}
 
-        {activeView === "order-list" && (
-          <div className="animate-in fade-in duration-300">
-            <OrderList
-              orders={orders}
-              onSelectOrder={setSelectedOrder}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              filterStatus={filterStatus}
-              setFilterStatus={setFilterStatus}
-              onRefresh={loadOrders}
-              loading={fetching}
-              onDeleteOrder={canDelete ? handleDeleteOrder : undefined}
-              canDelete={canDelete}
+        {activeView === "order-list" && <OrderList orders={orders} onSelectOrder={setSelectedOrder} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterStatus={filterStatus} setFilterStatus={setFilterStatus} onRefresh={loadOrders} loading={fetching} onDeleteOrder={canDelete ? handleDeleteOrder : undefined} canDelete={canDelete} />}
+        {activeView === "scanner" && <div className="animate-in fade-in duration-300"><PageHeader title="Scanner" sub="Scan barcodes..." /><Card style={{ padding: 24 }}><Scanner onScan={handleScan} /></Card></div>}
+        {activeView === "create-dispatch" && <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300"><CreateDispatchModal dispatchType="retail" onClose={() => setActiveView("overview")} onDispatched={() => { loadOrders(); setActiveView("overview"); }} /></div>}
+        {activeView === "add-order" && <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300"><AddOrderModal initialOrderId={scannedUnknownId} onClose={() => setActiveView("overview")} onOrderAdded={handleOrderAdded} /></div>}
+        {activeView === "create-packing-list" && <div className="max-w-6xl mx-auto pt-4 animate-in fade-in duration-300"><CreatePackingList editingList={editingPackingList} onClose={() => { setActiveView("overview"); setEditingPackingList(null); }} onCreated={() => { setActiveView("all-packing-lists"); setEditingPackingList(null); loadOrders(); }} /></div>}
+        {activeView === "create-dispatch-list" && <div className="max-w-6xl mx-auto pt-4 animate-in fade-in duration-300"><CreateDispatchList onClose={() => setActiveView("overview")} onCreated={() => { setActiveView("overview"); loadOrders(); }} /></div>}
+        {activeView === "all-packing-lists" && (
+          <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
+            <AllPackingLists 
+              onEdit={(list) => { setEditingPackingList(list); setActiveView("create-packing-list"); }} 
+              onView={(list) => setViewingPackingList(list)}
             />
           </div>
         )}
-
-        {activeView === "scanner" && (
-          <div className="animate-in fade-in duration-300">
-             <PageHeader title="Scanner" sub="Scan barcodes to quickly find and process orders." />
-             <Card style={{ padding: 24 }}>
-               <Scanner onScan={handleScan} />
-             </Card>
-          </div>
-        )}
-
-        {activeView === "create-dispatch" && (
-          <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300">
-            <CreateDispatchModal
-              dispatchType="retail"
-              onClose={() => setActiveView("overview")}
-              onDispatched={(data) => {
-                loadOrders();
-                setActiveView("overview");
-              }}
+        {activeView === "all-dispatch-lists" && (
+          <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
+            <AllDispatchLists 
+              onView={(list) => setViewingPackingList(list)}
+              onEdit={(list) => { setEditingPackingList(list); setActiveView("create-packing-list"); }}
             />
           </div>
         )}
-
-        {activeView === "add-order" && (
-          <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300">
-            <AddOrderModal
-              initialOrderId={scannedUnknownId}
-              onClose={() => setActiveView("overview")}
-              onOrderAdded={handleOrderAdded}
-            />
+        {activeView === "messages" && (
+          <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
+             <MessagingTab users={users} isMobile={isMobile} />
           </div>
         )}
-
       </main>
 
-      {/* Overlay Modals */}
-      {selectedOrder && user && (
-        <OrderDetailsModal
-          order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-          onOrderUpdated={handleOrderUpdated}
-          onDeleteOrder={canDelete ? handleDeleteOrder : undefined}
-          user={{ uid: user.uid, name: currentName, role: currentRole }}
-          canEdit={canEdit}
-          canDelete={canDelete}
+      {selectedOrder && user && <OrderDetailsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onOrderUpdated={handleOrderUpdated} onDeleteOrder={canDelete ? handleDeleteOrder : undefined} user={{ uid: user.uid, name: currentName, role: currentRole }} canEdit={canEdit} canDelete={canDelete} />}
+      
+      {viewingPackingList && (
+        <PackingListDetailsModal 
+          list={viewingPackingList} 
+          onClose={() => setViewingPackingList(null)} 
         />
       )}
     </div>

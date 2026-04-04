@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FONT, ActiveView } from "./types";
+import { ref, onValue } from "firebase/database";
+import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 
 interface NavItem { id: ActiveView; label: string }
 interface NavGroup { key: string; label: string; icon: React.ReactNode; items: NavItem[] }
@@ -19,7 +22,20 @@ const NAV_GROUPS: NavGroup[] = [
         items: [{ id: "overview", label: "Dashboard" }],
     },
     {
-        key: "dispatch", label: "Dispatches",
+        key: "packing", label: "Packing",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+        ),
+        items: [
+            { id: "create-packing-list", label: "Create Packing" },
+            { id: "all-packing-lists", label: "All Packing Lists" },
+        ],
+    },
+    {
+        key: "dispatch_retail", label: "Dispatch",
         icon: (
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                 <path d="M1 4.5h6v7H1v-7zM7 6.5h4l2.5 2v3H7v-5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
@@ -28,8 +44,8 @@ const NAV_GROUPS: NavGroup[] = [
             </svg>
         ),
         items: [
-            { id: "create-dispatch", label: "Create Dispatch" },
-            { id: "order-list", label: "All Dispatches" },
+            { id: "create-dispatch-list", label: "Create Dispatch List" },
+            { id: "all-dispatch-lists", label: "All Dispatch List" },
         ],
     },
     {
@@ -42,9 +58,20 @@ const NAV_GROUPS: NavGroup[] = [
         items: [
             { id: "add-order", label: "Add Unknown Order" },
             { id: "scanner", label: "Scan Barcode" },
+            { id: "order-list", label: "Legacy Dispatches" },
         ],
     },
+    {
+        key: "communication", label: "Communication",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+        ),
+        items: [{ id: "messages", label: "Messages" }],
+    },
 ];
+
 
 interface Props {
     activeView: ActiveView;
@@ -60,7 +87,26 @@ export default function DispatchSidebar({
     activeView, onNavigate, currentName, currentRole,
     onLogout, userRoleColor, onDashboardBack,
 }: Props) {
-    const activeGroup = NAV_GROUPS.find(g => g.items.some(i => i.id === activeView))?.key || "dispatch";
+    const { user } = useAuth();
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Listen for total unread messages
+    useEffect(() => {
+        if (!user) return;
+        const chatsRef = ref(db, `user_chats/${user.uid}`);
+        const unsubscribe = onValue(chatsRef, (snapshot) => {
+            let total = 0;
+            if (snapshot.exists()) {
+                snapshot.forEach((child) => {
+                    total += (child.val().unreadCount || 0);
+                });
+            }
+            setUnreadCount(total);
+        });
+        return () => unsubscribe();
+    }, [user]);
+
+    const activeGroup = NAV_GROUPS.find(g => g.items.some(i => i.id === activeView))?.key || "overview";
     const [expandedGroup, setExpandedGroup] = useState<string>(activeGroup);
 
     const toggleGroup = (key: string) => setExpandedGroup(prev => prev === key ? "" : key);
@@ -119,8 +165,13 @@ export default function DispatchSidebar({
                                 <span style={{ color: hasActive ? "#818cf8" : "#475569", flexShrink: 0, display: "flex", alignItems: "center", marginRight: 9 }}>
                                     {group.icon}
                                 </span>
-                                <span style={{ flex: 1, fontSize: 13, fontWeight: hasActive ? 600 : 500, letterSpacing: "-0.01em" }}>
+                                <span style={{ flex: 1, fontSize: 13, fontWeight: hasActive ? 600 : 500, letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                     {group.label}
+                                    {group.key === "communication" && unreadCount > 0 && (
+                                        <span style={{ background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #0f172a", marginLeft: 8 }}>
+                                            {unreadCount}
+                                        </span>
+                                    )}
                                 </span>
                                 {hasActive && (!isOpen || isSingle) && (
                                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#818cf8", marginRight: 6, flexShrink: 0 }} />

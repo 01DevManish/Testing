@@ -9,6 +9,9 @@ import PartyRateTab from "../admin/PartyRateTab";
 import { PartyRate } from "../admin/types";
 import { Product } from "../inventory/types";
 import { getStyles } from "../admin/styles";
+import { useData } from "../../context/DataContext";
+import MessagingTab from "../../components/MessagingTab";
+import NotificationBell from "../../components/NotificationBell";
 
 interface Task {
   id: string; title: string; description: string;
@@ -41,6 +44,7 @@ function useWindowSize() {
 
 export default function EmployeePage() {
   const { user, userData, logout, loading } = useAuth();
+  const { users } = useData();
   const router = useRouter();
   const { width } = useWindowSize();
   const isMobile = width < 640;
@@ -51,10 +55,11 @@ export default function EmployeePage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [fetchingTasks, setFetchingTasks] = useState(true);
   const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "in-progress" | "completed">("all");
-  const [view, setView] = useState<"tasks" | "party-rates">("tasks");
+  const [view, setView] = useState<"tasks" | "party-rates" | "messages">("tasks");
   const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/");
@@ -112,8 +117,22 @@ export default function EmployeePage() {
       setFetchingTasks(false);
     });
 
+    const chatsRef = ref(db, `user_chats/${user.uid}`);
+    const unsubscribeChats = onValue(chatsRef, (snapshot) => {
+      let total = 0;
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          total += (child.val().unreadCount || 0);
+        });
+      }
+      setUnreadCount(total);
+    });
+
     loadPartyRates();
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubscribeChats();
+    };
   }, [user, loadPartyRates]);
 
   if (loading || !user || !userData) return null;
@@ -216,15 +235,33 @@ export default function EmployeePage() {
             </button>
           )}
 
-          <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-            Retail Dispatch
+          <button onClick={() => setView("messages")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "messages" ? "rgba(16,185,129,0.15)" : "transparent", color: view === "messages" ? "#6ee7b7" : "#94a3b8", fontSize: 14, fontWeight: view === "messages" ? 600 : 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "messages" ? "3px solid #34d399" : "none", paddingLeft: view === "messages" ? 11 : 14 }}>
+            Messages
+            {unreadCount > 0 && (
+              <span style={{ 
+                marginLeft: "auto", background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 700, 
+                padding: "2px 6px", borderRadius: 10, minWidth: 18, textAlign: "center", border: "1px solid #0f172a" 
+              }}>{unreadCount}</span>
+            )}
           </button>
-          <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-            Ecommerce Dispatch
-          </button>
-          <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-            Inventory
-          </button>
+
+          {userData?.permissions?.includes("retail_view") && (
+            <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+              Retail Dispatch
+            </button>
+          )}
+
+          {userData?.permissions?.includes("ecom_view") && (
+            <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+              Ecommerce Dispatch
+            </button>
+          )}
+
+          {userData?.permissions?.includes("inventory_view") && (
+            <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+              Inventory
+            </button>
+          )}
         </nav>
 
         <div style={{ flex: 1 }} />
@@ -252,7 +289,8 @@ export default function EmployeePage() {
             <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
             <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <NotificationBell />
             {!isDesktop && <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>}
           </div>
         </div>
@@ -382,7 +420,7 @@ export default function EmployeePage() {
               )}
             </div>
           </>
-        ) : (
+        ) : view === "party-rates" ? (
           <PartyRateTab 
             S={adminStyles}
             isMobile={isMobile}
@@ -393,6 +431,10 @@ export default function EmployeePage() {
             isAdmin={false}
             loadData={loadPartyRates}
           />
+        ) : (
+          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", padding: "2px" }}>
+            <MessagingTab users={users} isMobile={isMobile} />
+          </div>
         )}
 
       </main>

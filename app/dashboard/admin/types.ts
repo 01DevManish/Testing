@@ -95,6 +95,7 @@ export interface PartyRate {
   sameAsBillTo?: boolean;
   rates: { 
     productName: string; 
+    sku?: string;
     rate: number;
     packagingType?: string;
     packagingCost?: number;
@@ -102,6 +103,7 @@ export interface PartyRate {
     discountType?: "amount" | "percentage";
     gstRate?: number;
   }[];
+  transporter?: string;
   updatedAt: number;
 }
 

@@ -219,10 +219,7 @@ export default function AdvancedDispatchDashboard() {
 
         {activeView === "overview" && (
           <div className="animate-in fade-in duration-300">
-            <PageHeader title="Ecommerce Dispatch" sub="Manage and track your Ecommerce fulfillment pipeline.">
-                {canCreate && <BtnPrimary onClick={() => setActiveView("rapid-dispatch")}>Create Dispatch</BtnPrimary>}
-                <BtnGhost onClick={loadOrders} style={{ fontSize: 13 }}>Refresh</BtnGhost>
-            </PageHeader>
+            <PageHeader title="Ecommerce Dispatch" sub="Manage and track your Ecommerce fulfillment pipeline." />
 
             {/* NEW: Global Search on Overview */}
             <Card style={{ padding: "18px 20px", marginBottom: 24, background: "linear-gradient(to bottom right, #fff, #f8fafc)" }}>
@@ -327,12 +324,6 @@ export default function AdvancedDispatchDashboard() {
                     Quick Actions
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {canCreate && (
-                      <button onClick={() => setActiveView("rapid-dispatch")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
-                        <span style={{ background: "rgba(99,102,241,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>+</span>
-                        Create Dispatch
-                      </button>
-                    )}
                     <button onClick={() => setActiveView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
                       <span style={{ background: "rgba(139,92,246,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</span>
                       Manage All Orders

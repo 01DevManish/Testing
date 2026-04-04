@@ -13,6 +13,7 @@ import { UserRecord, Task, UserRole } from "./types";
 import { useWindowSize } from "./hooks";
 import { getStyles } from "./styles";
 import { logActivity } from "../../lib/activityLogger";
+import { sendNotification } from "../../lib/notificationHelper";
 
 import AdminSidebar from "./AdminSidebar";
 import AdminTopBar from "./AdminTopBar";
@@ -22,6 +23,7 @@ import EditRoleModal from "./EditRoleModal";
 import DashboardTab from "./DashboardTab";
 import LogsTab from "./LogsTab";
 import CatalogTab from "../inventory/CatalogTab";
+import MessagingTab from "../../components/MessagingTab";
 import { Product, Category, Collection } from "../inventory/types";
 import PartyRateTab from "./PartyRateTab";
 import { PartyRate, Brand } from "./types";
@@ -45,7 +47,7 @@ export default function AdminPage() {
   } = useData();
 
   // ── UI State ──────────────────────────────────────────────
-  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "brands" | "catalog" | "party-rates" | "profile">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "brands" | "catalog" | "party-rates" | "profile" | "messages">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<"all" | UserRole>("all");
@@ -308,6 +310,20 @@ export default function AdminPage() {
       });
 
       const newTasks = await Promise.all(creationPromises);
+      
+      // Push in-app notifications
+      const allAssignedUids = taskForm.assignedTo;
+      const notificationUids = [user?.uid, ...allAssignedUids].filter((v, i, a) => v && a.indexOf(v) === i) as string[];
+      
+      sendNotification(notificationUids, {
+        title: "New Administrative Task",
+        message: `Task "${taskForm.title}" has been assigned to ${allAssignedUids.length} users by ${createdByName}.`,
+        type: "task",
+        actorId: user?.uid,
+        actorName: createdByName,
+        link: "/dashboard/admin"
+      });
+
       setTasks([...newTasks, ...tasks]); 
       setTaskForm({ title: "", description: "", assignedTo: [], priority: "medium" }); 
       setShowTaskForm(false); 
@@ -418,6 +434,8 @@ export default function AdminPage() {
               users={users} 
               tasks={tasks} 
             />
+          ) : tab === "messages" ? (
+            <MessagingTab users={users} isMobile={isMobile} />
           ) : tab === "users" ? (
             <UsersTab 
               S={S} 

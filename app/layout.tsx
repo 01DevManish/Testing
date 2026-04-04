@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
+import FirebaseMessagingHandler from "./components/FirebaseMessagingHandler";
+import NotificationToastContainer from "./components/NotificationToastContainer";
 
 // These are now handled via system fonts in globals.css to fix build errors
 const geistSans = { variable: "--font-geist-sans" };
@@ -32,6 +34,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <DataProvider>
+            <FirebaseMessagingHandler />
+            <NotificationToastContainer />
             {children}
           </DataProvider>
         </AuthProvider>

@@ -41,10 +41,13 @@ export interface Order {
   packagingType?: string;
   bails?: number;
   transporter?: string;
+  lrNo?: string;
+  invoiceNo?: string;
   remarks?: string;
   confirmedByPin?: boolean;
   dispatchType?: "retail" | "ecom";
   dispatchRef?: string;
+  items?: any[];
   createdAt?: number;
   updatedAt?: number;
 }
@@ -63,7 +66,7 @@ export interface Party {
 export interface Transporter {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
   vehicleType?: string;
   createdAt?: string;
 }
@@ -89,7 +92,38 @@ export interface DispatchFormData {
   pin: string;
 }
 
+export interface PackingList {
+  id: string;
+  partyId: string;
+  partyName: string;
+  items: {
+    productId: string;
+    productName: string;
+    sku: string;
+    quantity: number;
+    rate: number;
+  }[];
+  transporter: string;
+  assignedTo: string; // User ID
+  assignedToName: string;
+  status: "Pending" | "In Progress" | "Completed" | "Cancelled";
+  invoiceNo?: string;
+  lrNo?: string;
+  createdAt: number;
+  createdBy: string;
+}
+
 export const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
 
-export type ActiveView = "overview" | "create-dispatch" | "order-list" | "add-order" | "scanner";
+export type ActiveView = 
+  | "overview" 
+  | "create-dispatch" 
+  | "order-list" 
+  | "add-order" 
+  | "scanner"
+  | "create-packing-list"
+  | "all-packing-lists"
+  | "create-dispatch-list"
+  | "all-dispatch-lists"
+  | "messages";
 

@@ -6,7 +6,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
         <input {...props} style={{
             width: "100%", padding: "10px 13px",
             background: "#f8fafc", border: "1.5px solid #e2e8f0",
-            borderRadius: 9, color: "#1e293b", fontSize: 13,
+            borderRadius: 0, color: "#1e293b", fontSize: 13,
             fontFamily: FONT, outline: "none", boxSizing: "border-box",
             ...props.style,
         }} />
@@ -18,7 +18,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement> & { 
         <select {...props} style={{
             width: "100%", padding: "10px 13px",
             background: "#f8fafc", border: "1.5px solid #e2e8f0",
-            borderRadius: 9, color: "#1e293b", fontSize: 13,
+            borderRadius: 0, color: "#1e293b", fontSize: 13,
             fontFamily: FONT, outline: "none", boxSizing: "border-box",
             cursor: "pointer",
             ...props.style,

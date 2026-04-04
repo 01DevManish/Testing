@@ -83,7 +83,6 @@ export default function UsersTab({
               <span style={{ fontSize: 15 }}>{showAddForm ? "✕" : "+"}</span>
               {!isMobile && (showAddForm ? " Cancel" : " Add User")}
             </button>
-            <button onClick={loadUsers} style={S.btnSecondary}>↻{!isMobile && " Refresh"}</button>
           </div>
         </div>
 

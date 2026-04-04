@@ -14,10 +14,19 @@ export const firebaseConfig = {
 };
 
 import { getStorage } from "firebase/storage";
+import { getMessaging, isSupported } from "firebase/messaging";
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getDatabase(app);
 export const storage = getStorage(app);
+
+// Messaging is only supported in certain environments (browsers)
+export const messaging = async () => {
+  const supported = await isSupported();
+  return supported ? getMessaging(app) : null;
+};
+
 export default app;
 

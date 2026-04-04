@@ -24,7 +24,8 @@ interface DispatchForm {
     remarks: string;
     quantity: number;
     transporter: string;
-    bails: number;
+    invoiceNo: string;
+    lrNo: string;
 }
 
 const PACKAGING_OPTIONS = ["Carton Box", "Gunny Bag", "Poly Bag", "Wooden Crate", "Stretch Wrap", "Bubble Wrap"];
@@ -37,7 +38,7 @@ const STEPS = [
     { no: 4, label: "Remarks", icon: "📝" },
     { no: 5, label: "Quantity", icon: "🔢" },
     { no: 6, label: "Transporter", icon: "🚛" },
-    { no: 7, label: "Bails", icon: "📐" },
+    { no: 7, label: "Shipping", icon: "📄" },
     { no: 8, label: "Confirm", icon: "✅" },
 ];
 
@@ -58,7 +59,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
     const [form, setForm] = useState<DispatchForm>({
         party: null, newParty: { name: "", city: "", gst: "" }, isNewParty: false,
         product: null, newProduct: { name: "", sku: "", unit: "PCS" }, isNewProduct: false,
-        packagingType: "", remarks: "", quantity: 1, transporter: "", bails: 1,
+        packagingType: "", remarks: "", quantity: 1, transporter: "", invoiceNo: "", lrNo: "",
     });
 
     const [dbParties, setDbParties] = useState<Party[]>([]);
@@ -148,7 +149,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
             return form.quantity >= 1;
         }
         if (step === 6) return form.transporter !== "";
-        if (step === 7) return form.bails >= 1;
+        if (step === 7) return form.invoiceNo.trim() !== "" && form.lrNo.trim() !== "";
         return true;
     }
 
@@ -231,7 +232,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                 partyId,
                 dispatchRef,
                 transporter: form.transporter,
-                bails: form.bails,
+                invoiceNo: form.invoiceNo,
+                lrNo: form.lrNo,
                 confirmedByPin: true,
                 dispatchType: dispatchType
             });
@@ -376,7 +378,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                             ["SKU", form.isNewProduct ? form.newProduct.sku : (form.product?.sku || "—")],
                                             ["Packaging", form.packagingType],
                                             ["Quantity", `${form.quantity} ${form.isNewProduct ? form.newProduct.unit : form.product?.unit || ""}`],
-                                            ["No. of Bails", form.bails],
+                                            ["Invoice No.", form.invoiceNo],
+                                            ["LR No.", form.lrNo],
                                             ["Transporter", form.transporter],
                                             ["Remarks", form.remarks || "—"],
                                         ].map(([k, v]) => (
@@ -417,8 +420,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: 13 }}>
                                         <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Party:</span> <b>{partyName}</b></div>
                                         <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Product:</span> <b>{productName}</b></div>
-                                        <div className={!form.isNewProduct && form.product ? "text-red-600" : ""}><span style={{ color: "#94a3b8", fontWeight: 400 }}>Qty deducting:</span> <b>{form.quantity}</b></div>
-                                        <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Bails:</span> <b>{form.bails}</b></div>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Qty deducting:</span> <b>{form.quantity}</b></div>
+                                        <div><span style={{ color: "#94a3b8", fontWeight: 400 }}>Inv No:</span> <b>{form.invoiceNo}</b></div>
                                     </div>
                                 </div>
                             )}
@@ -428,7 +431,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     <input
                                         key={i} ref={pinRefs[i]} type="password" inputMode="numeric" maxLength={1} value={d}
                                         onChange={e => handlePinInput(i, e.target.value)} onKeyDown={e => handlePinKeyDown(i, e)}
-                                        style={{ width: 52, height: 60, borderRadius: 12, border: pinError ? "2px solid #ef4444" : "2px solid #e2e8f0", fontSize: 28, fontWeight: 400, textAlign: "center", outline: "none", background: "#fff", color: "#0f172a" }}
+                                        style={{ width: 52, height: 60, borderRadius: 0, border: pinError ? "2px solid #ef4444" : "2px solid #e2e8f0", fontSize: 28, fontWeight: 400, textAlign: "center", outline: "none", background: "#fff", color: "#0f172a" }}
                                         autoFocus={i === 0} disabled={isSaving}
                                     />
                                 ))}
@@ -464,7 +467,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     </div>
                                     {!form.isNewParty ? (
                                         <>
-                                            <input value={partySearch} onChange={e => setPartySearch(e.target.value)} style={inputStyle} />
+                                            <input value={partySearch} placeholder="Search Party" onChange={e => setPartySearch(e.target.value)} style={inputStyle} />
                                             <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredParties.map(p => (
                                                     <div key={p.id} 
@@ -521,9 +524,9 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                                         color: isVerifyingGst ? "#94a3b8" : "#fff",
                                                         fontSize: 12
                                                     }}
-                                                >
-                                                    {isVerifyingGst ? "..." : "Verify GST"}
-                                                </button>
+                                                    >
+                                                        {isVerifyingGst ? "Verifying" : "Verify GST"}
+                                                    </button>
                                             </div>
                                             <input placeholder="Party Name" value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} />
                                             <input placeholder="City" value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} />
@@ -541,7 +544,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     </div>
                                     {!form.isNewProduct ? (
                                         <>
-                                            <input value={productSearch} onChange={e => setProductSearch(e.target.value)} style={inputStyle} />
+                                            <input value={productSearch} placeholder="Search Product" onChange={e => setProductSearch(e.target.value)} style={inputStyle} />
                                             <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredProducts.map(p => (
                                                     <div key={p.id} onClick={() => setForm(f => ({ ...f, product: p }))}
@@ -599,7 +602,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, margin: "32px 0" }}>
                                         <button onClick={() => setForm(f => ({ ...f, quantity: Math.max(1, f.quantity - 1) }))} style={counterBtn}>−</button>
                                         <div style={{ textAlign: "center" }}>
-                                            <input type="number" min={1} value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 400, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
+                                            <input type="number" min={1} value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 400, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 0, padding: "8px 0", outline: "none", color: "#0f172a" }} />
                                             <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 400 }}>{form.isNewProduct ? form.newProduct.unit : form.product?.unit || "UNITS"}</div>
                                         </div>
                                         <button onClick={() => setForm(f => ({ ...f, quantity: f.quantity + 1 }))} style={counterBtn}>+</button>
@@ -631,15 +634,28 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
 
                             {step === 7 && (
                                 <div>
-                                    <StepTitle icon="📐" title="Number of Bails" sub="How many bails / bundles make up this dispatch?" />
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, margin: "32px 0" }}>
-                                        <button onClick={() => setForm(f => ({ ...f, bails: Math.max(1, f.bails - 1) }))} style={counterBtn}>−</button>
-                                        <div style={{ textAlign: "center" }}>
-                                            <input type="number" min={1} value={form.bails} onChange={e => setForm(f => ({ ...f, bails: Math.max(1, parseInt(e.target.value) || 1) }))} style={{ fontSize: 40, fontWeight: 400, width: 120, textAlign: "center", border: "2px solid #e2e8f0", borderRadius: 12, padding: "8px 0", outline: "none", color: "#0f172a" }} />
-                                            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6, fontWeight: 400 }}>BAILS</div>
+                                    <StepTitle icon="📄" title="Shipping Details" sub="Enter mandatory invoice and LR numbers for tracking." />
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                        <div>
+                                            <label style={{ fontSize: 12, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block" }}>Invoice Number</label>
+                                            <input 
+                                                placeholder="Enter Invoice No" 
+                                                value={form.invoiceNo} 
+                                                onChange={e => setForm(f => ({ ...f, invoiceNo: e.target.value }))} 
+                                                style={inputStyle} 
+                                            />
                                         </div>
-                                        <button onClick={() => setForm(f => ({ ...f, bails: f.bails + 1 }))} style={counterBtn}>+</button>
+                                        <div>
+                                            <label style={{ fontSize: 12, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block" }}>LR Number</label>
+                                            <input 
+                                                placeholder="Enter LR No" 
+                                                value={form.lrNo} 
+                                                onChange={e => setForm(f => ({ ...f, lrNo: e.target.value }))} 
+                                                style={inputStyle} 
+                                            />
+                                        </div>
                                     </div>
+                                    <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 12, fontStyle: "italic" }}>Both fields are required to proceed.</p>
                                 </div>
                             )}
 
@@ -653,7 +669,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                             ["🗃️ Packaging", form.packagingType, ""],
                                             ["🔢 Quantity", `${form.quantity} ${form.isNewProduct ? form.newProduct.unit : form.product?.unit || ""}`, ""],
                                             ["🚛 Transporter", form.transporter, ""],
-                                            ["📐 No. of Bails", form.bails.toString(), ""],
+                                            ["📄 Invoice No.", form.invoiceNo, ""],
+                                            ["📄 LR No.", form.lrNo, ""],
                                             ["📝 Remarks", form.remarks || "—", ""],
                                         ].map(([k, v, badge], i) => (
                                             <div key={k as string} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: i < 6 ? "1px solid #e2e8f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
@@ -712,7 +729,7 @@ const modalHeader: React.CSSProperties = {
     padding: "22px 28px 16px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc"
 };
 const modalBody: React.CSSProperties = { padding: "24px 28px 28px", overflowY: "visible", flex: 1 };
-const inputStyle: React.CSSProperties = { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: 10, fontSize: 14, outline: "none", fontFamily: "inherit", color: "#0f172a", background: "#fff", boxSizing: "border-box" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: 0, fontSize: 14, outline: "none", fontFamily: "inherit", color: "#0f172a", background: "#fff", boxSizing: "border-box" };
 const listBox: React.CSSProperties = { border: "1.5px solid #e2e8f0", borderRadius: 12, overflow: "hidden", maxHeight: 240, overflowY: "auto" };
 const listItem: React.CSSProperties = { padding: "13px 16px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", transition: "background 0.15s", border: "none" };
 const cardOption: React.CSSProperties = { padding: "14px 16px", borderRadius: 12, border: "2px solid #e2e8f0", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.15s" };

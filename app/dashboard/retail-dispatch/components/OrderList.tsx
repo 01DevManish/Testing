@@ -52,14 +52,12 @@ export default function OrderList({
 
   return (
     <div>
-      <PageHeader title="All Dispatches" sub={`${filtered.length} dispatches found`}>
-        <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>↻ Refresh</BtnGhost>
-      </PageHeader>
+      <PageHeader title="All Dispatches" sub={`${filtered.length} dispatches found`} />
 
       <Card>
         {/* Filters bar exactly like Inventory */}
         <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid #e2e8f0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 9, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 0, marginBottom: 10 }}>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ color: "#94a3b8", flexShrink: 0 }}>
               <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4" />
               <path d="M9 9L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -76,7 +74,7 @@ export default function OrderList({
              <select 
                 value={filterStatus} 
                 onChange={e => setFilterStatus(e.target.value as any)}
-                style={{ padding: "6px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none" }}
+                style={{ padding: "6px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 0, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none" }}
              >
                 <option value="All">All Statuses</option>
                 <option value="Pending">Pending</option>

@@ -289,7 +289,6 @@ export default function ProductList({
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
                     {canCreate && <BtnPrimary onClick={onCreateNew} style={isMobile ? { flex: 1, minWidth: 120 } : {}}>+ Add Product</BtnPrimary>}
                     <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: 13, flex: isMobile ? 1 : "initial" }}>Export for Bulk Edit</BtnGhost>
-                    <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>↻</BtnGhost>
                 </div>
             </PageHeader>
 

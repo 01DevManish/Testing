@@ -1,9 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { roleBg } from "./types";
 import type { AdminStyles } from "./styles";
+import { ref, onValue } from "firebase/database";
+import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 
 interface AdminSidebarProps {
   S: AdminStyles;
@@ -24,6 +27,24 @@ export default function AdminSidebar({
   S, tab, setTab, sidebarOpen, setSidebarOpen, isDesktop, currentName, userData, handleLogout, navItems, settingsItems
 }: AdminSidebarProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Listen for total unread messages
+  useEffect(() => {
+    if (!user) return;
+    const chatsRef = ref(db, `user_chats/${user.uid}`);
+    const unsubscribe = onValue(chatsRef, (snapshot) => {
+      let total = 0;
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          total += (child.val().unreadCount || 0);
+        });
+      }
+      setUnreadCount(total);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   return (
     <>
@@ -45,6 +66,7 @@ export default function AdminSidebar({
         <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           {[
             { label: "Dashboard", key: "dashboard", isTab: true },
+            { label: "Messages", key: "messages", isTab: true },
             { label: "Inventory", path: "/dashboard/inventory" },
             { label: "Retail Dispatch", path: "/dashboard/retail-dispatch" },
             { label: "Ecommerce Dispatch", path: "/dashboard/ecom-dispatch" },
@@ -63,6 +85,19 @@ export default function AdminSidebar({
                 ...((item.isTab && tab === item.key) ? { borderLeft: "3px solid #818cf8", paddingLeft: 9 } : {}),
               }}>
               {item.label}
+              {item.key === "messages" && unreadCount > 0 && (
+                <span style={{ 
+                  marginLeft: "auto", 
+                  background: "#22c55e", 
+                  color: "#fff", 
+                  fontSize: 10, 
+                  fontWeight: 600, 
+                  padding: "2px 6px", 
+                  borderRadius: 10, 
+                  minWidth: 18, 
+                  textAlign: "center" 
+                }}>{unreadCount}</span>
+              )}
             </button>
           ))}
           {navItems.filter(i => i.key !== "dashboard").map(item => (

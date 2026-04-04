@@ -66,7 +66,7 @@ export interface Party {
 export interface Transporter {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
   vehicleType?: string;
   createdAt?: string;
 }

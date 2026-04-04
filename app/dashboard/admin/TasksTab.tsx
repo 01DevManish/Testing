@@ -122,7 +122,6 @@ export default function TasksTab({
               <span style={{ fontSize: 15 }}>{showTaskForm ? "✕" : "+"}</span>
               {!isMobile && (showTaskForm ? " Cancel" : " New Task")}
             </button>
-            <button onClick={loadTasks} style={S.btnSecondary}>↻{!isMobile && " Refresh"}</button>
             {tasks.some(t => t.status === "completed") && (
               <button 
                 onClick={async () => {

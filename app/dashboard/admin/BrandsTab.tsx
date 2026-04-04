@@ -130,7 +130,6 @@ export default function BrandsTab({
           <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: "", logoUrl: "" }); setLogoPreview(""); }} style={S.btnPrimary}>
             + Create Brand
           </button>
-          <button onClick={loadData} style={S.btnSecondary}>↻ Refresh</button>
         </div>
       </div>
 

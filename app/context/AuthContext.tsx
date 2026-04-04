@@ -9,6 +9,9 @@ import {
 } from "firebase/auth";
 import { ref, set, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { logActivity } from "../lib/activityLogger";
+import { requestNotificationPermission, onForegroundMessage } from "../lib/fcmHelper";
+import { ToastItem } from "../components/NotificationToast";
+import { onChildAdded, off } from "firebase/database";
 
 export type UserRole = "admin" | "manager" | "employee" | "user";
 
@@ -38,6 +41,8 @@ interface AuthContextType {
   updateUserRole: (uid: string, newRole: UserRole) => Promise<void>;
   updateUserData: (uid: string, data: Partial<UserData>) => Promise<void>;
   forceChangePassword: (newPassword: string) => Promise<void>;
+  toasts: ToastItem[];
+  removeToast: (id: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -47,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
     // Restore session from localStorage instantly
@@ -124,6 +130,90 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
     };
   }, []);
+
+  // Web Push Notifications Registration
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const registerFCM = async () => {
+      try {
+        const token = await requestNotificationPermission();
+        if (token) {
+          // Store token in a nested path to support multiple devices/browsers
+          const tokenRef = ref(db, `users/${user.uid}/fcmTokens/${token.replace(/\./g, '_')}`);
+          await set(tokenRef, {
+            token,
+            lastSeen: Date.now(),
+            platform: "web"
+          });
+          console.log("FCM Token registered successfully.");
+        }
+      } catch (err) {
+        console.error("FCM Registration failed:", err);
+      }
+    };
+
+    registerFCM();
+
+    // Listen for foreground messages
+    onForegroundMessage((payload) => {
+      // You could show a toast or custom UI here if needed
+      console.log("Notification in foreground:", payload);
+      const newToast: ToastItem = {
+        id: `fcm_${Date.now()}`,
+        title: payload.notification?.title || "New Message",
+        message: payload.notification?.body || "",
+        type: (payload.data?.type as any) || "message",
+        link: payload.data?.link,
+        onClose: removeToast
+      };
+      setToasts(prev => [...prev, newToast]);
+    });
+  }, [user?.uid]);
+
+  // Real-time Database Notification Listener
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const notifRef = ref(db, `notifications/${user.uid}`);
+    let isFirstLoad = true;
+
+    // We use onChildAdded to catch new notifications in real-time
+    const unsubscribe = onChildAdded(notifRef, (snapshot) => {
+      if (isFirstLoad) return; // Skip historical notifications on first load
+
+      const data = snapshot.val();
+      const newToast: ToastItem = {
+        id: snapshot.key || Date.now().toString(),
+        title: data.title || "Notification",
+        message: data.message || "",
+        type: data.type || "system",
+        link: data.link,
+        onClose: removeToast
+      };
+
+      setToasts(prev => [...prev, newToast]);
+
+      // Play a subtle notification sound
+      try {
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3");
+        audio.volume = 0.4;
+        audio.play().catch(() => {}); // Browser might block auto-play
+      } catch (err) { /* ignore */ }
+    });
+
+    // After a short delay, stop skipping historical records
+    const timer = setTimeout(() => { isFirstLoad = false; }, 2000);
+
+    return () => {
+      off(notifRef);
+      clearTimeout(timer);
+    };
+  }, [user?.uid]);
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const loginWithZoho = () => {
     const clientId = process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID;
@@ -392,6 +482,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateUserRole,
       updateUserData,
       forceChangePassword,
+      toasts,
+      removeToast,
     }}>
       {children}
     </AuthContext.Provider>

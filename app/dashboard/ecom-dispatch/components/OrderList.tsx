@@ -52,9 +52,7 @@ export default function OrderList({
 
   return (
     <div>
-      <PageHeader title="All Dispatches" sub={`${filtered.length} dispatches found`}>
-        <BtnGhost onClick={onRefresh} style={{ fontSize: 13 }}>↻ Refresh</BtnGhost>
-      </PageHeader>
+      <PageHeader title="All Dispatches" sub={`${filtered.length} dispatches found`} />
 
       <Card>
         {/* Filters bar exactly like Inventory */}

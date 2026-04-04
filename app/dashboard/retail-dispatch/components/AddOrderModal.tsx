@@ -85,11 +85,11 @@ export default function AddOrderModal({ initialOrderId, onClose, onOrderAdded }:
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Order ID *</label>
-                  <input type="text" required value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input type="text" required value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-none text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Payment Status</label>
-                  <select value={formData.paymentStatus} onChange={e => setFormData({...formData, paymentStatus: e.target.value as any})} className="w-full p-2.5 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                  <select value={formData.paymentStatus} onChange={e => setFormData({...formData, paymentStatus: e.target.value as any})} className="w-full p-2.5 border border-gray-300 rounded-none text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="Paid">Paid</option>
                     <option value="COD">Cash on Delivery (COD)</option>
                   </select>
@@ -102,15 +102,15 @@ export default function AddOrderModal({ initialOrderId, onClose, onOrderAdded }:
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Full Name *</label>
-                  <input type="text" required value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input type="text" required value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-none text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Phone Number</label>
-                  <input type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-none text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-gray-700 mb-1">Delivery Address</label>
-                  <textarea value={formData.customerAddress} onChange={e => setFormData({...formData, customerAddress: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" rows={2}></textarea>
+                  <textarea value={formData.customerAddress} onChange={e => setFormData({...formData, customerAddress: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-none text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" rows={2}></textarea>
                 </div>
               </div>
             </div>
@@ -126,15 +126,15 @@ export default function AddOrderModal({ initialOrderId, onClose, onOrderAdded }:
                   <div key={index} className="flex gap-2 items-center">
                     <input type="text" value={p.name} onChange={e => {
                       const newP = [...products]; newP[index].name = e.target.value; setProducts(newP);
-                    }} className="flex-1 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-blue-500" />
+                    }} className="flex-1 p-2 border border-gray-300 rounded-none text-sm outline-none focus:border-blue-500" />
                     
                     <input type="number" min="1" value={p.quantity} onChange={e => {
                       const newP = [...products]; newP[index].quantity = Number(e.target.value); setProducts(newP);
-                    }} className="w-20 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-blue-500" />
+                    }} className="w-20 p-2 border border-gray-300 rounded-none text-sm outline-none focus:border-blue-500" />
                     
                     <input type="number" min="0" step="0.01" value={p.price} onChange={e => {
                       const newP = [...products]; newP[index].price = Number(e.target.value); setProducts(newP);
-                    }} className="w-24 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-blue-500" />
+                    }} className="w-24 p-2 border border-gray-300 rounded-none text-sm outline-none focus:border-blue-500" />
                     
                     <button type="button" onClick={() => setProducts(products.filter((_, i) => i !== index))} className="p-2 text-gray-400 hover:text-red-500">✕</button>
                   </div>

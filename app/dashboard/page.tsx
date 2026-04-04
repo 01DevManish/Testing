@@ -2,12 +2,19 @@
 
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { ref, get, update, remove, query, orderByChild, equalTo, onValue } from "firebase/database";
 import { db } from "../lib/firebase";
 import type { UserRole } from "../context/AuthContext";
 import { getStyles } from "./admin/styles";
 import ProfileTab from "./admin/ProfileTab";
+import PartyRateTab from "./admin/PartyRateTab";
+import MessagingTab from "../components/MessagingTab";
+import NotificationBell from "../components/NotificationBell";
+import { useData } from "../context/DataContext";
+import { hasPermission } from "../lib/permissions";
+import { PartyRate } from "./admin/types";
+import { Product } from "./inventory/types";
 
 interface UserRecord { uid: string; email: string; name: string; role: UserRole; }
 
@@ -55,7 +62,13 @@ export default function DashboardPage() {
   const [employees, setEmployees] = useState<UserRecord[]>([]);
   const [fetchingEmployees, setFetchingEmployees] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [view, setView] = useState<"dashboard" | "profile">("dashboard");
+  const [view, setView] = useState<"dashboard" | "profile" | "party-rates" | "messages">("dashboard");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const { users } = useData();
+  
+  const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
 
   // Auth guard + admin redirect
   useEffect(() => {
@@ -96,6 +109,43 @@ export default function DashboardPage() {
     });
     return () => unsubscribe();
   }, [currentUid]);
+
+  useEffect(() => {
+    if (!currentUid) return;
+    const chatsRef = ref(db, `user_chats/${currentUid}`);
+    const unsubscribe = onValue(chatsRef, (snapshot) => {
+      let total = 0;
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          total += (child.val().unreadCount || 0);
+        });
+      }
+      setUnreadCount(total);
+    });
+    return () => unsubscribe();
+  }, [currentUid]);
+
+  const loadPartyRates = useCallback(async () => {
+    if (!userData?.permissions?.includes("party-rates")) return;
+    setFetchingPartyRates(true);
+    try {
+      const [rateSnap, prodSnap] = await Promise.all([
+        get(ref(db, "partyRates")),
+        get(ref(db, "inventory"))
+      ]);
+      const rates: PartyRate[] = [];
+      if (rateSnap.exists()) rateSnap.forEach(d => { rates.push({ id: d.key!, ...d.val() } as PartyRate); });
+      setPartyRates(rates);
+
+      const prods: Product[] = [];
+      if (prodSnap.exists()) prodSnap.forEach(d => { prods.push({ id: d.key!, ...d.val() } as Product); });
+      setProducts(prods);
+    } catch (e) { console.error(e); } finally { setFetchingPartyRates(false); }
+  }, [userData]);
+
+  useEffect(() => {
+    if (view === "party-rates") loadPartyRates();
+  }, [view, loadPartyRates]);
 
   // Manager: load employees
   const loadEmployees = useCallback(async () => {
@@ -233,21 +283,51 @@ export default function DashboardPage() {
 
 
           
-          {((userData?.role as string) === "admin" || userData?.permissions?.includes("dispatch")) && (
-            <>
-              <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-                Retail Dispatch
-              </button>
-              <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-                Ecommerce Dispatch
-              </button>
-            </>
+          {userData?.permissions?.includes("retail_view") && (
+            <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+              Retail Dispatch
+            </button>
           )}
-          {((userData?.role as string) === "admin" || userData?.permissions?.includes("inventory")) && (
+          
+          {userData?.permissions?.includes("ecom_view") && (
+            <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+              Ecommerce Dispatch
+            </button>
+          )}
+
+          {userData?.permissions?.includes("inventory_view") && (
             <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
               Inventory
             </button>
           )}
+
+          {userData?.permissions?.includes("party-rates") && (
+            <button onClick={() => setView("party-rates")} style={{ 
+              display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", 
+              background: view === "party-rates" ? "rgba(99,102,241,0.15)" : "transparent", 
+              color: view === "party-rates" ? "#a5b4fc" : "#94a3b8", 
+              fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", 
+              borderLeft: view === "party-rates" ? "3px solid #818cf8" : "none", paddingLeft: view === "party-rates" ? 11 : 14 
+            }}>
+              Party Rates
+            </button>
+          )}
+
+          <button onClick={() => setView("messages")} style={{ 
+            display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", 
+            background: view === "messages" ? "rgba(99,102,241,0.15)" : "transparent", 
+            color: view === "messages" ? "#a5b4fc" : "#94a3b8", 
+            fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", 
+            borderLeft: view === "messages" ? "3px solid #818cf8" : "none", paddingLeft: view === "messages" ? 11 : 14 
+          }}>
+            Messages
+            {unreadCount > 0 && (
+              <span style={{ 
+                marginLeft: "auto", background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 600, 
+                padding: "2px 6px", borderRadius: 10, minWidth: 18, textAlign: "center", border: "1px solid #0f172a" 
+              }}>{unreadCount}</span>
+            )}
+          </button>
           
           <button onClick={() => setView("profile")} style={{ 
             display: "flex", 
@@ -299,7 +379,8 @@ export default function DashboardPage() {
             <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
             <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <NotificationBell />
             {!isDesktop && (
               <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>
             )}
@@ -416,12 +497,25 @@ export default function DashboardPage() {
               </div>
             </div>
           </>
-        ) : (
+        ) : view === "profile" ? (
           <ProfileTab 
             S={adminStyles}
             isMobile={isMobile}
             isTablet={isTablet}
           />
+        ) : view === "party-rates" ? (
+          <PartyRateTab 
+            S={adminStyles}
+            isMobile={isMobile}
+            isTablet={isTablet}
+            partyRates={partyRates}
+            products={products}
+            fetching={fetchingPartyRates}
+            isAdmin={false}
+            loadData={loadPartyRates}
+          />
+        ) : (
+          <MessagingTab users={users} isMobile={isMobile} />
         )}
 
       </main>
