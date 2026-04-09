@@ -264,7 +264,7 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     let rawImageUrl = row["Thumbnail URL"]?.toString().trim() || "";
                     if (rawImageUrl) {
                         try {
-                            const cloudName = "dd4hmahlm"; // Our Cloudinary cloud name
+                            const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "dd4hmahlm"; // Our Cloudinary cloud name
                             if (rawImageUrl.includes(`res.cloudinary.com/${cloudName}`)) {
                                 // Already uploaded to our account, skip and use existing URL
                                 finalImageUrl = rawImageUrl;

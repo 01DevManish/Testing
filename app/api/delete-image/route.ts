@@ -9,9 +9,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "No public_id provided" }, { status: 400 });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "dd4hmahlm";
-    const apiKey = process.env.CLOUDINARY_API_KEY || "253667214247696";
-    const apiSecret = process.env.CLOUDINARY_API_SECRET || "nlLGSypdD6J5dXjUZ0RRItDtf5Y";
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY || process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET || process.env.NEXT_PUBLIC_CLOUDINARY_API_SECRET;
+    
+    if (!cloudName || !apiKey || !apiSecret) {
+        throw new Error("Cloudinary configuration missing in server environment.");
+    }
 
     const timestamp = Math.round(new Date().getTime() / 1000);
     
