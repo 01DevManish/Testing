@@ -232,13 +232,14 @@ export default function ProductList({
                 });
             });
 
-            // Lock specific columns: SKU(2), Category(3), Collection(4), Brand(5), GST(11), HSN(12), Size(16), Thumbnail(17)
-            const lockedCols = [2, 3, 4, 5, 11, 12, 16, 17];
+            // Lock specific columns: SKU(2), Category(3), Collection(4), Brand(5), GST(11), HSN(12)
+            // WE UNLOCKED: Size(16) and Thumbnail(17) per user request to allow bulk editing of these fields.
+            const lockedCols = [2, 3, 4, 5, 11, 12];
 
 
             lockedCols.forEach(colIndex => {
                 const col = worksheet.getColumn(colIndex);
-                col.eachCell((cell) => {
+                col.eachCell({ includeEmpty: true }, (cell) => {
                     cell.protection = { locked: true };
                 });
             });

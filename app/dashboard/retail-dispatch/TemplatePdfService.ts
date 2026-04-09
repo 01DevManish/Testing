@@ -52,28 +52,29 @@ const resolveItemFields = async (items: any[]): Promise<any[]> => {
 
 export const generateTemplateDispatchPdf = async (list: any) => {
     try {
-        // 1. Load template
+        // 1. Load template (Strictly A4: 595.28 x 841.89 pt)
         const response = await fetch("/templates/dispatch_list_template.pdf");
-        if (!response.ok) throw new Error("Failed to load PDF template");
+        if (!response.ok) throw new Error("Failed to load PDF template. Please ensure /public/templates/dispatch_list_template.pdf exists.");
         const templateBytes = await response.arrayBuffer();
 
         const pdfDoc = await PDFDocument.load(templateBytes);
         const page = pdfDoc.getPages()[0];
         const { width, height } = page.getSize();
 
-        // 2. Resolve category/collection for all items
+        // 2. Resolve category/collection for all items (Just-in-time)
         const resolvedItems = await resolveItemFields(list.items || []);
 
         // 3. Embed Fonts
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-        // Helper: draw text using "from-top" Y coordinate
+        // Helper: draw text using precise "from-top" Y coordinate
+        // We use pure black rgb(0,0,0) for laser sharp printing
         const draw = (
             text: string,
             x: number,
             fromTop: number,
-            size = 9,
+            size = 9.5,
             useBold = false
         ) => {
             if (!text && text !== "0") return;
@@ -82,56 +83,56 @@ export const generateTemplateDispatchPdf = async (list: any) => {
                 y: height - fromTop,
                 size,
                 font: useBold ? fontBold : font,
-                color: rgb(0.05, 0.05, 0.05),
+                color: rgb(0, 0, 0), // Pure Black for best print results
             });
         };
 
         // ═══════════════════════════════════════════════════════
-        // LEFT BOX — Bill To / Ship To (Enhanced with all Party Details)
+        // LEFT BOX — Bill To / Ship To
         // ═══════════════════════════════════════════════════════
-        const bX = 20;
-        let bY = 160;
+        const bX = 35; // Calibrated for left margin
+        let bY = 168; 
         draw("Bill To:", bX, bY, 9, true);
 
-        bY += 12;
+        bY += 15;
         draw(list.partyName || "Unknown Party", bX, bY, 11, true);
 
         if (list.traderName) {
-            bY += 11;
-            draw(`Trader: ${list.traderName}`, bX, bY, 9);
+            bY += 12;
+            draw(`Trader: ${list.traderName}`, bX, bY, 9.5);
         }
 
-        bY += 11;
-        draw(truncate(list.partyAddress || "", 55), bX + 2, bY, 9);
+        bY += 12;
+        draw(truncate(list.partyAddress || "", 55), bX, bY, 9.5);
 
-        bY += 11;
+        bY += 12;
         const region = [
             list.district || list.partyCity,
             list.state,
             list.pincode ? `- ${list.pincode}` : ""
         ].filter(Boolean).join(", ");
-        draw(truncate(region, 55), bX + 2, bY, 9);
+        draw(truncate(region, 55), bX, bY, 9.5);
 
         if (list.contactNo || list.partyPhone) {
-            bY += 11;
-            draw(`Contact: ${list.contactNo || list.partyPhone}`, bX + 2, bY, 9);
+            bY += 12;
+            draw(`Contact: ${list.contactNo || list.partyPhone}`, bX, bY, 9.5);
         }
 
         if (list.gstNo || list.panNo) {
-            bY += 11;
+            bY += 12;
             const ids = [
                 list.gstNo ? `GST: ${list.gstNo}` : "",
                 list.panNo ? `PAN: ${list.panNo}` : ""
             ].filter(Boolean).join(" | ");
-            draw(ids, bX + 2, bY, 9, true);
+            draw(ids, bX, bY, 9.5, true);
         }
 
         // ═══════════════════════════════════════════════════════
-        // RIGHT BOX — Dispatch Details Values
+        // RIGHT BOX — Dispatch Details
         // ═══════════════════════════════════════════════════════
         const valX = 430;
-        const rY = 176;  // Aligned with "Dispatch No:" label in template
-        const rG = 11;   // Row gap between labels
+        const rY = 175;  // Aligned with labels of the template
+        const rG = 11.2; // Row gap calibrated for template lines
 
         // 1. Dispatch No
         draw(list.dispatchNo || list.dispatchId || "-", valX, rY, 10, true);
@@ -158,28 +159,22 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         // ═══════════════════════════════════════════════════════
         // TABLE Section
         // ═══════════════════════════════════════════════════════
-        const tStartY = 300;
-        const tRowH = 20;
-        const maxRows = 18;
+        const tStartY = 305;
+        const tRowH = 20.3; // Height adjustment for grid lines
+        const maxRows = 17;
 
         resolvedItems.forEach((item: any, idx: number) => {
             if (idx >= maxRows) return;
             const rowY = tStartY + (idx * tRowH);
 
-            // Sr. No. (shifted 10pt further right)
-            draw(`${idx + 1}.`, 33, rowY, 10.5);
-            // Product Category 
-            draw(truncate(item.category || "", 18), 68, rowY, 10);
-            // Collection Name 
+            // Shifted and aligned for template columns
+            draw(`${idx + 1}.`, 35, rowY, 10);
+            draw(truncate(item.category || "", 18), 70, rowY, 10);
             draw(truncate(item.collectionName || "", 16), 166, rowY, 10);
-            // SKU ID
-            draw(truncate(item.sku || "N/A", 10), 258, rowY, 10);
-            // Packing Type (NOW DYNAMIC from item data)
-            draw(truncate(item.packagingType || list.packingType || "Box", 12), 308, rowY, 10);
-            // Quantity (in 381-437pt)
-            draw(String(item.quantity || 1), 395, rowY, 10.5);
-            // Box / Bail ID (in 437-533pt)
-            draw(truncate(item.boxName || "-", 12), 442, rowY, 10);
+            draw(truncate(item.sku || "N/A", 12), 258, rowY, 10);
+            draw(truncate(item.packagingType || list.packingType || "Box", 12), 310, rowY, 10);
+            draw(String(item.quantity || 1), 395, rowY, 10.5, true);
+            draw(truncate(item.boxName || "-", 15), 445, rowY, 10);
         });
 
         // ═══════════════════════════════════════════════════════
@@ -188,14 +183,14 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         const totalQty = resolvedItems.reduce(
             (acc: number, item: any) => acc + (item.quantity || 1), 0
         );
-        draw(String(totalQty), 395, 660, 10, true);
+        draw(String(totalQty), 395, 665, 11, true);
 
         // ═══════════════════════════════════════════════════════
         // FOOTER Section (Prepared By)
         // ═══════════════════════════════════════════════════════
-        const fY = 705;
+        const fY = 712;
         if (list.assignedToName) {
-            draw(list.assignedToName, 110, fY, 13, true);
+            draw(list.assignedToName, 115, fY, 13, true);
         }
 
         // ═══════════════════════════════════════════════════════
@@ -207,7 +202,8 @@ export const generateTemplateDispatchPdf = async (list: any) => {
 
         const link = document.createElement("a");
         link.href = url;
-        link.download = `Dispatch_List_${(list.partyName || "Record").replace(/\s+/g, "_")}.pdf`;
+        const pName = (list.partyName || "Record").replace(/\s+/g, "_");
+        link.download = `Dispatch_List_${pName}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -215,6 +211,5 @@ export const generateTemplateDispatchPdf = async (list: any) => {
 
     } catch (error) {
         console.error("Template PDF Generation Error:", error);
-        alert("Failed to generate PDF from template. Check console.");
     }
 };
