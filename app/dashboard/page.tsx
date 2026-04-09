@@ -65,13 +65,8 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState<"dashboard" | "profile" | "party-rates" | "messages" | "catalog">("dashboard");
   const [unreadCount, setUnreadCount] = useState(0);
-  const { users } = useData();
-  
+  const { products, categories, collections, brands, loading: fetchingGlobal, users } = useData();
   const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [brands, setBrands] = useState<any[]>([]);
   const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
 
   // Auth guard + admin redirect
@@ -130,35 +125,12 @@ export default function DashboardPage() {
   }, [currentUid]);
 
   const loadPartyRates = useCallback(async () => {
-    if (!userData?.permissions?.includes("party-rates")) return;
     setFetchingPartyRates(true);
     try {
-      const [rateSnap, prodSnap, catSnap, colSnap, brandSnap] = await Promise.all([
-        get(ref(db, "partyRates")),
-        get(ref(db, "inventory")),
-        get(ref(db, "categories")),
-        get(ref(db, "collections")),
-        get(ref(db, "brands"))
-      ]);
+      const rateSnap = await get(ref(db, "partyRates"));
       const rates: PartyRate[] = [];
       if (rateSnap.exists()) rateSnap.forEach(d => { rates.push({ id: d.key!, ...d.val() } as PartyRate); });
       setPartyRates(rates);
-
-      const prods: Product[] = [];
-      if (prodSnap.exists()) prodSnap.forEach(d => { prods.push({ id: d.key!, ...d.val() } as Product); });
-      setProducts(prods);
-
-      const cats: any[] = [];
-      if (catSnap.exists()) catSnap.forEach(d => { cats.push({ id: d.key!, ...d.val() } as any); });
-      setCategories(cats);
-
-      const cols: any[] = [];
-      if (colSnap.exists()) colSnap.forEach(d => { cols.push({ id: d.key!, ...d.val() } as any); });
-      setCollections(cols);
-
-      const brs: any[] = [];
-      if (brandSnap.exists()) brandSnap.forEach(d => { brs.push({ id: d.key!, ...d.val() } as any); });
-      setBrands(brs);
     } catch (e) { console.error(e); } finally { setFetchingPartyRates(false); }
   }, [userData]);
 
@@ -355,6 +327,9 @@ export default function DashboardPage() {
             fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", 
             borderLeft: view === "catalog" ? "3px solid #818cf8" : "none", paddingLeft: view === "catalog" ? 11 : 14 
           }}>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             Catalog Sharing
           </button>
           
@@ -559,7 +534,7 @@ export default function DashboardPage() {
               categories={categories}
               collections={collections}
               brands={brands}
-              loading={fetchingPartyRates}
+              loading={fetchingGlobal}
               isMobile={isMobile}
               isDesktop={isDesktop}
             />
