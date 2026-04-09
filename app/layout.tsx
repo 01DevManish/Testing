@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
 import FirebaseMessagingHandler from "./components/FirebaseMessagingHandler";
 import NotificationToastContainer from "./components/NotificationToastContainer";
+import PresenceHandler from "./components/PresenceHandler";
 
 // These are now handled via system fonts in globals.css to fix build errors
 const geistSans = { variable: "--font-geist-sans" };
@@ -36,6 +37,7 @@ export default function RootLayout({
           <DataProvider>
             <FirebaseMessagingHandler />
             <NotificationToastContainer />
+            <PresenceHandler />
             {children}
           </DataProvider>
         </AuthProvider>
@@ -43,3 +45,4 @@ export default function RootLayout({
     </html>
   );
 }
+

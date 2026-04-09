@@ -53,8 +53,8 @@ export default function AdminSidebar({
 
       <aside style={S.sidebar}>
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 6px", marginBottom: 28 }}>
-          <img src="/logo.png" alt="Logo" style={{ width: 34, height: 34, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2, flexShrink: 0 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", marginBottom: 24 }}>
+          <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2, flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
             <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "capitalize", letterSpacing: "0.15em" }}>Admin Console</div>
@@ -66,7 +66,6 @@ export default function AdminSidebar({
         <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           {[
             { label: "Dashboard", key: "dashboard", isTab: true },
-            { label: "Messages", key: "messages", isTab: true },
             { label: "Inventory", path: "/dashboard/inventory" },
             { label: "Retail Dispatch", path: "/dashboard/retail-dispatch" },
             { label: "Ecommerce Dispatch", path: "/dashboard/ecom-dispatch" },
@@ -115,6 +114,25 @@ export default function AdminSidebar({
               )}
             </button>
           ))}
+
+          {/* Messages moved to bottom of Navigation */}
+          <button key="messages" 
+            onClick={() => { setTab("messages"); if (!isDesktop) setSidebarOpen(false); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none",
+              background: tab === "messages" ? "rgba(99,102,241,0.15)" : "transparent",
+              color: tab === "messages" ? "#a5b4fc" : "#94a3b8",
+              fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const,
+              ...(tab === "messages" ? { borderLeft: "3px solid #818cf8", paddingLeft: 9 } : {}),
+            }}>
+            Messages
+            {unreadCount > 0 && (
+              <span style={{ 
+                marginLeft: "auto", background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 600, 
+                padding: "2px 6px", borderRadius: 10, minWidth: 18, textAlign: "center" 
+              }}>{unreadCount}</span>
+            )}
+          </button>
         </nav>
 
         {settingsItems && settingsItems.length > 0 && (

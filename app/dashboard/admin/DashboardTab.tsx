@@ -34,6 +34,17 @@ interface Product {
   updatedByName?: string;
 }
 
+interface PackingList {
+  id: string;
+  partyName: string;
+  dispatchId?: string;
+  status: string;
+  dispatchedAt?: number;
+  createdAt: number;
+  dispatchedBy?: string;
+  bails?: number;
+}
+
 interface DashboardTabProps {
   S: AdminStyles;
   isMobile: boolean;
@@ -45,6 +56,7 @@ interface DashboardTabProps {
 export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: DashboardTabProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [packingLists, setPackingLists] = useState<PackingList[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, userData } = useAuth();
 
@@ -97,9 +109,25 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
       }
     });
 
+    // 3. Fetch Packing Lists (Retail Dispatches)
+    const listsRef = ref(db, "packingLists");
+    const unsubLists = onValue(listsRef, (snap) => {
+      if (snap.exists()) {
+        const data: PackingList[] = [];
+        snap.forEach((child) => {
+          const val = child.val();
+          if (val.status === "Completed" || val.status === "Packed") {
+            data.push({ id: child.key!, ...val });
+          }
+        });
+        setPackingLists(data);
+      }
+    });
+
     return () => {
       off(actRef, "value", unsubActivities);
       off(invRef, "value", unsubInv);
+      off(listsRef, "value", unsubLists);
     };
   }, []);
 
@@ -159,40 +187,58 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
     }
   };
 
-  const groupByType = (type: Activity["type"] | "other", search: string = "", filter: string = "all") => {
+  // NEW: Combined dispatch list helper
+  const getCombinedDispatches = (search: string, filter: string) => {
     const today = new Date().setHours(0, 0, 0, 0);
     const yesterday = new Date(today).setDate(new Date(today).getDate() - 1);
-    
-    // Filter by type, search, and specific action filter
-    const typeActivities = activities
-      .filter(a => type === "other" ? (a.type !== "dispatch" && a.type !== "inventory") : a.type === type)
-      .filter(a => {
-        const queryMatches = a.title.toLowerCase().includes(search.toLowerCase()) || 
-                             a.description.toLowerCase().includes(search.toLowerCase()) || 
-                             a.user.toLowerCase().includes(search.toLowerCase());
-        
-        if (!queryMatches) return false;
 
-        if (filter === "all") return true;
-        
-        if (type === "dispatch") {
-            if (filter === "Retail" && !a.title.includes("Retail")) return false;
-            if (filter === "Ecommerce" && !a.title.includes("Ecommerce")) return false;
-        }
+    // 1. Convert Retail Packing Lists to Activity Format
+    const retailItems: Activity[] = packingLists.map(l => ({
+      id: l.id,
+      type: "dispatch",
+      title: "Retail Dispatch Finalized",
+      description: `Retail Dispatch ${l.dispatchId || l.id.slice(-6).toUpperCase()} for ${l.partyName} (Status: ${l.status})`,
+      timestamp: l.dispatchedAt || l.createdAt,
+      user: l.dispatchedBy || "Eurus Staff",
+      icon: "🚛",
+      color: "linear-gradient(135deg,#3b82f6,#2dd4bf)",
+      metadata: { packingListId: l.id, dispatchId: l.dispatchId }
+    }));
 
-        
-        
-        return true;
-      })
-      .slice(0, 15); 
+    // 2. Filter Existing Activities (Ecommerce)
+    const ecommerceItems = activities.filter(a => a.type === "dispatch" && a.title.includes("Ecommerce"));
 
+    // 3. Combine and Filter
+    let merged = [...retailItems, ...ecommerceItems];
+
+    if (filter === "Retail") {
+      merged = retailItems;
+    } else if (filter === "Ecommerce") {
+      merged = ecommerceItems;
+    }
+
+    // Apply Search
+    if (search) {
+      const s = search.toLowerCase();
+      merged = merged.filter(m => 
+        m.title.toLowerCase().includes(s) || 
+        m.description.toLowerCase().includes(s) || 
+        m.user.toLowerCase().includes(s)
+      );
+    }
+
+    // Sort by timestamp desc
+    merged.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Grouping
     const groups: { [key: string]: Activity[] } = { Today: [], Yesterday: [], Earlier: [] };
-    typeActivities.forEach(a => {
+    merged.slice(0, 25).forEach(a => {
       const d = new Date(a.timestamp).setHours(0, 0, 0, 0);
       if (d === today) groups.Today.push(a);
       else if (d === yesterday) groups.Yesterday.push(a);
       else groups.Earlier.push(a);
     });
+
     return groups;
   };
 
@@ -274,13 +320,10 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                 <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "capitalize", marginBottom: 4 }}>Today's Dispatches</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ fontSize: 12, fontWeight: 400, color: "#10b981", background: "#d1fae5", padding: "2px 8px", borderRadius: 12 }}>
-                    {activities.filter(a => {
-                      const isToday = new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0);
-                      const isDispatch = a.type === "dispatch";
-                      const matchesFilter = todayDispatchFilter === "all" || a.title.includes(todayDispatchFilter);
-                      const matchesSearch = !todayDispatchSearch || a.title.toLowerCase().includes(todayDispatchSearch.toLowerCase()) || a.user.toLowerCase().includes(todayDispatchSearch.toLowerCase());
-                      return isToday && isDispatch && matchesFilter && matchesSearch;
-                    }).length}
+                    {(() => {
+                        const groups = getCombinedDispatches(todayDispatchSearch, todayDispatchFilter);
+                        return groups.Today.length;
+                    })()}
                   </div>
                   <span style={{ fontSize: 10, color: "#94a3b8" }}>{todayDispatchFilter === "all" ? "Total" : todayDispatchFilter}</span>
                 </div>
@@ -296,37 +339,17 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
               </select>
             </div>
 
-            {/* Added search input */}
-            <div style={{ marginBottom: 10 }}>
-              <input 
-                type="text"
-                value={todayDispatchSearch}
-                onChange={(e) => setTodayDispatchSearch(e.target.value)}
-                style={{ width: "100%", padding: "6px 10px", fontSize: 11, borderRadius: 6, border: "1.5px solid #f1f5f9", outline: "none", background: "#fafbfc" }}
-              />
-            </div>
+            {/* Search input removed */}
 
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
-              {activities.filter(a => {
-                const isToday = new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0);
-                const isDispatch = a.type === "dispatch";
-                const matchesFilter = todayDispatchFilter === "all" || a.title.includes(todayDispatchFilter);
-                const matchesSearch = !todayDispatchSearch || a.title.toLowerCase().includes(todayDispatchSearch.toLowerCase()) || a.user.toLowerCase().includes(todayDispatchSearch.toLowerCase());
-                return isToday && isDispatch && matchesFilter && matchesSearch;
-              }).map(a => (
+              {getCombinedDispatches(todayDispatchSearch, todayDispatchFilter).Today.map(a => (
                 <div key={a.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", flexDirection: "column" }}>
                   <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>By: <span style={{ fontWeight: 400, color: "#475569" }}>{a.user}</span> • {new Date(a.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
                 </div>
               ))}
-              {activities.filter(a => {
-                const isToday = new Date(a.timestamp).setHours(0,0,0,0) === new Date().setHours(0,0,0,0);
-                const isDispatch = a.type === "dispatch";
-                const matchesFilter = todayDispatchFilter === "all" || a.title.includes(todayDispatchFilter);
-                const matchesSearch = !todayDispatchSearch || a.title.toLowerCase().includes(todayDispatchSearch.toLowerCase()) || a.user.toLowerCase().includes(todayDispatchSearch.toLowerCase());
-                return isToday && isDispatch && matchesFilter && matchesSearch;
-              }).length === 0 && (
-                <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>No {todayDispatchFilter === "all" ? "" : todayDispatchFilter.toLowerCase() + " "}dispatches found.</div>
+              {getCombinedDispatches(todayDispatchSearch, todayDispatchFilter).Today.length === 0 && (
+                <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>No {todayDispatchFilter === "all" ? "" : todayDispatchFilter.toLowerCase() + " "}dispatches found today.</div>
               )}
             </div>
          </div>
@@ -395,6 +418,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                 value={dispatchSearch} 
                 onChange={(e) => setDispatchSearch(e.target.value)}
                 style={{ width: "100%", maxWidth: 160, padding: "6px 10px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, outline: "none", background: "#f8fafc" }}
+                placeholder="Search Dispatch ID"
               />
               <select 
                 value={dispatchFilter} onChange={e => setDispatchFilter(e.target.value)}
@@ -408,14 +432,17 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
           </div>
           <div style={{ maxHeight: 400, overflowY: "auto", paddingRight: 4 }}>
             {["Today", "Yesterday", "Earlier"].map(g => {
-              const gActs = groupByType("dispatch", dispatchSearch, dispatchFilter)[g];
+              const groups = getCombinedDispatches(dispatchSearch, dispatchFilter);
+              const gActs = groups[g];
               return gActs.length > 0 && <ActivityGroup key={g} group={g} activities={gActs} />;
             })}
-            {groupByType("dispatch", dispatchSearch, dispatchFilter).Today.length === 0 && 
-             groupByType("dispatch", dispatchSearch, dispatchFilter).Yesterday.length === 0 && 
-             groupByType("dispatch", dispatchSearch, dispatchFilter).Earlier.length === 0 && (
-               <div style={{ textAlign: "center", padding: "20px 0", color: "#94a3b8", fontSize: 13 }}>No recent dispatches found.</div>
-            )}
+            {(() => {
+                 const groups = getCombinedDispatches(dispatchSearch, dispatchFilter);
+                 if (groups.Today.length === 0 && groups.Yesterday.length === 0 && groups.Earlier.length === 0) {
+                     return <div style={{ textAlign: "center", padding: "20px 0", color: "#94a3b8", fontSize: 13 }}>No recent dispatches found.</div>;
+                 }
+                 return null;
+            })()}
           </div>
         </div>
 

@@ -1,0 +1,63 @@
+{
+  "activities": {
+    "-OoygiLxEGjH5Efieqjn": {
+      "action": "update",
+      "description": "Collection \"Elastic Sofa Cover\" was updated by Jineel Shah.",
+      "id": "-OoygiLxEGjH5Efieqjn",
+      "metadata": {
+        "collectionId": "-Ooe8n6gR4opBVpGG3cQ"
+      },
+      "timestamp": 1774873404013,
+      "title": "Collection Updated",
+      "type": "inventory",
+      "userId": "6AX9DxSU2ISGAdMRf0cf88OF22R2",
+      "userName": "Jineel Shah",
+      "userRole": "admin"
+    }
+  },
+  "brands": {
+    "-Ooi6v-Sy1G3FZfXF-Ip": {
+      "createdAt": 1774595323777,
+      "logoUrl": "https://res.cloudinary.com/dd4hmahlm/image/upload/v1774697497/m6maaxzhmhrqhlzylmkg.png",
+      "name": "HOMCOT",
+      "updatedAt": 1774697498968
+    }
+  },
+  "categories": {
+    "-Ooy7Lnj3Jl9wX0SkyOc": {
+      "createdAt": 1774863867865,
+      "description": "",
+      "name": "COMFORTER"
+    }
+  },
+  "inventory": {
+    "-Op7VlR8XRJC5MDvtqt_": {
+      "barcode": "7615383483054",
+      "brand": "myBEDZY",
+      "brandId": "-Ooi6zraDGf3buE2gPIb",
+      "category": "BEDSHEET",
+      "collection": "FANTASY",
+      "costPrice": 307,
+      "createdAt": 1775038039610,
+      "createdBy": "eXgG8SrZiqMgOCY6atlfeNJPJFd2",
+      "createdByName": "Shirin Shah",
+      "description": "KING BEDSHEET : 108X108 INCHES\r\n2 PILLOW COVER : 20X30 INCHES\r\nGSM : 125",
+      "gstRate": 5,
+      "hsnCode": "63041930",
+      "imageUrl": "https://res.cloudinary.com/dd4hmahlm/image/upload/v1775208019/p8jm72jn6zhl8wqr4s5k.jpg",
+      "minStock": 10,
+      "mrp": 1499,
+      "price": 350,
+      "productName": "Graceful Large Floral King Bedsheet with 2 Pillow Covers",
+      "size": "King",
+      "sku": "FK-538",
+      "status": "active",
+      "stock": 6,
+      "unit": "PCS",
+      "updatedAt": 1775210741509,
+      "updatedBy": "6ANin5xXkadq2LBcI5Svym1CBiN2",
+      "updatedByName": "Manish",
+      "wholesalePrice": 350
+    }
+  }
+}

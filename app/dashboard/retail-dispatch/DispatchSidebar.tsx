@@ -58,17 +58,9 @@ const NAV_GROUPS: NavGroup[] = [
         items: [
             { id: "add-order", label: "Add Unknown Order" },
             { id: "scanner", label: "Scan Barcode" },
+            { id: "catalog", label: "Catalog Sharing" },
             { id: "order-list", label: "Legacy Dispatches" },
         ],
-    },
-    {
-        key: "communication", label: "Communication",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-        ),
-        items: [{ id: "messages", label: "Messages" }],
     },
 ];
 
@@ -119,8 +111,8 @@ export default function DispatchSidebar({
         }}>
             {/* Brand */}
             <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                    <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+                    <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
                         <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Retail Dispatch Hub</div>

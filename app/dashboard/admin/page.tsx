@@ -416,122 +416,138 @@ export default function AdminPage() {
           ]}
         />
 
-        <main style={S.main}>
-          <AdminTopBar 
-            S={S} 
-            isMobile={isMobile} 
-            isTablet={isTablet} 
-            isDesktop={isDesktop} 
-            currentName={currentName} 
-            setSidebarOpen={setSidebarOpen} 
-          />
-
-          {tab === "dashboard" ? (
-            <DashboardTab 
+        <main style={{ 
+          ...S.main, 
+          padding: tab === "messages" ? 0 : S.main.padding,
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          overflow: "hidden"
+        }}>
+          {tab !== "messages" && (
+            <AdminTopBar 
               S={S} 
               isMobile={isMobile} 
               isTablet={isTablet} 
-              users={users} 
-              tasks={tasks} 
+              isDesktop={isDesktop} 
+              currentName={currentName} 
+              setSidebarOpen={setSidebarOpen} 
             />
-          ) : tab === "messages" ? (
-            <MessagingTab users={users} isMobile={isMobile} />
-          ) : tab === "users" ? (
-            <UsersTab 
-              S={S} 
-              isMobile={isMobile} 
-              isTablet={isTablet} 
-              users={users} 
-              filteredUsers={filteredUsers} 
-              fetchingUsers={fetchingUsers}
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              filterRole={filterRole} 
-              setFilterRole={setFilterRole}
-              showAddForm={showAddForm} 
-              setShowAddForm={setShowAddForm} 
-              newEmployee={newEmployee} 
-              setNewEmployee={setNewEmployee}
-              addingEmployee={addingEmployee} 
-              addError={addError} 
-              setAddError={setAddError} 
-              handleAddEmployee={handleAddEmployee}
-              handleDeleteUser={handleDeleteUser} 
-              onEditUser={(u) => { 
-                setEditingUser(u); 
-                setEditRole(u.role); 
-                setEditPermissions(u.permissions || []); 
-                setEditPin(u.dispatchPin || "");
-              }} 
-              loadUsers={refreshData} 
-            />
-          ) : tab === "tasks" ? (
-            <TasksTab 
-              S={S} 
-              isMobile={isMobile} 
-              isTablet={isTablet} 
-              tasks={tasks} 
-              filteredTasks={filteredTasks} 
-              fetchingTasks={fetchingTasks}
-              taskFilter={taskFilter} 
-              setTaskFilter={setTaskFilter} 
-              showTaskForm={showTaskForm} 
-              setShowTaskForm={setShowTaskForm}
-              taskForm={taskForm} 
-              setTaskForm={setTaskForm} 
-              savingTask={savingTask} 
-              handleCreateTask={handleCreateTask} 
-              handleDeleteTask={handleDeleteTask}
-              handleTaskStatus={handleTaskStatus} 
-              assignableUsers={users.filter(u => u.role === "admin" || u.role === "manager" || u.role === "employee")} 
-              loadTasks={loadTasks} 
-            />
-          ) : tab === "logs" ? (
-            <LogsTab 
-              S={S} 
-              isMobile={isMobile} 
-              isTablet={isTablet} 
-            />
-          ) : tab === "party-rates" ? (
-            <PartyRateTab 
-              S={S}
-              isMobile={isMobile}
-              isTablet={isTablet}
-              partyRates={partyRates}
-              products={products}
-              fetching={fetchingPartyRates}
-              isAdmin={true}
-              loadData={refreshData}
-            />
-          ) : tab === "brands" ? (
-            <BrandsTab 
-              S={S}
-              isMobile={isMobile}
-              isTablet={isTablet}
-              brands={brands}
-              fetching={fetchingBrands}
-              loadData={refreshData}
-            />
-          ) : tab === "catalog" ? (
-            <CatalogTab 
-              products={products}
-              categories={categories}
-              collections={collections}
-              brands={brands}
-              loading={fetchingCatalog}
-              isMobile={isMobile}
-              isDesktop={!isMobile}
-            />
-          ) : tab === "profile" ? (
-            <ProfileTab 
-              S={S}
-              isMobile={isMobile}
-              isTablet={isTablet}
-            />
-          ) : (
-            <div style={{ padding: 20, color: "#94a3b8" }}>Select a tab</div>
           )}
+
+          <div style={{ flex: 1, overflowY: "auto", display: tab === "messages" ? "flex" : "block", flexDirection: "column" }}>
+            {tab === "dashboard" ? (
+              <DashboardTab 
+                S={S} 
+                isMobile={isMobile} 
+                isTablet={isTablet} 
+                users={users} 
+                tasks={tasks} 
+              />
+            ) : tab === "messages" ? (
+              <MessagingTab users={users} isMobile={isMobile} />
+            ) : tab === "users" ? (
+              <UsersTab 
+                S={S} 
+                isMobile={isMobile} 
+                isTablet={isTablet} 
+                users={users} 
+                filteredUsers={filteredUsers} 
+                fetchingUsers={fetchingUsers}
+                searchTerm={searchTerm} 
+                setSearchTerm={setSearchTerm} 
+                filterRole={filterRole} 
+                setFilterRole={setFilterRole}
+                showAddForm={showAddForm} 
+                setShowAddForm={setShowAddForm} 
+                newEmployee={newEmployee} 
+                setNewEmployee={setNewEmployee}
+                addingEmployee={addingEmployee} 
+                addError={addError} 
+                setAddError={setAddError} 
+                handleAddEmployee={handleAddEmployee}
+                handleDeleteUser={handleDeleteUser} 
+                onEditUser={(u) => { 
+                  setEditingUser(u); 
+                  setEditRole(u.role); 
+                  setEditPermissions(u.permissions || []); 
+                  setEditPin(u.dispatchPin || "");
+                }} 
+                loadUsers={refreshData} 
+              />
+            ) : tab === "tasks" ? (
+              <TasksTab 
+                S={S} 
+                isMobile={isMobile} 
+                isTablet={isTablet} 
+                tasks={tasks} 
+                filteredTasks={filteredTasks} 
+                fetchingTasks={fetchingTasks}
+                taskFilter={taskFilter} 
+                setTaskFilter={setTaskFilter} 
+                showTaskForm={showTaskForm} 
+                setShowTaskForm={setShowTaskForm}
+                taskForm={taskForm} 
+                setTaskForm={setTaskForm} 
+                savingTask={savingTask} 
+                handleCreateTask={handleCreateTask} 
+                handleDeleteTask={handleDeleteTask}
+                handleTaskStatus={handleTaskStatus} 
+                assignableUsers={users.filter(u => u.role === "admin" || u.role === "manager" || u.role === "employee")} 
+                loadTasks={loadTasks} 
+              />
+            ) : tab === "logs" ? (
+              <LogsTab 
+                S={S} 
+                isMobile={isMobile} 
+                isTablet={isTablet} 
+              />
+            ) : tab === "party-rates" ? (
+              <PartyRateTab 
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                partyRates={partyRates}
+                products={products}
+                fetching={fetchingPartyRates}
+                isAdmin={true}
+                loadData={refreshData}
+              />
+            ) : tab === "brands" ? (
+              <BrandsTab 
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                brands={brands}
+                fetching={fetchingBrands}
+                loadData={refreshData}
+              />
+            ) : tab === "catalog" ? (
+              <CatalogTab 
+                products={products}
+                categories={categories}
+                collections={collections}
+                brands={brands}
+                loading={fetchingCatalog}
+                isMobile={isMobile}
+                isDesktop={!isMobile}
+              />
+            ) : tab === "profile" ? (
+              <ProfileTab 
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+              />
+            ) : (
+              <div style={{ padding: 20, color: "#94a3b8" }}>Select a tab</div>
+            )}
+          </div>
         </main>
+
+
+
+
+
 
         {editingUser && (
           <EditRoleModal 

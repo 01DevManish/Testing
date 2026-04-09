@@ -13,6 +13,8 @@ import AddOrderModal from "./components/AddOrderModal";
 import CreateDispatchModal from "./components/Createdispatchmodal";
 import RapidEcomDispatch from "./components/RapidEcomDispatch";
 import DispatchSidebar from "./DispatchSidebar";
+import CatalogTab from "../inventory/CatalogTab";
+import MessagingTab from "../../components/MessagingTab";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "./components/ui";
 import { hasPermission } from "../../lib/permissions";
 
@@ -37,7 +39,9 @@ export default function AdvancedDispatchDashboard() {
 
   const { 
     orders: allOrders, setOrders, 
-    loading: fetchingGlobal, refreshData: loadOrders 
+    products,
+    loading: fetchingGlobal, refreshData: loadOrders,
+    categories, collections, brands, users
   } = useData();
 
   // Filter for ecom dispatches
@@ -397,6 +401,24 @@ export default function AdvancedDispatchDashboard() {
               onOrderAdded={handleOrderAdded}
             />
           </div>
+        )}
+
+        {activeView === "catalog" && (
+          <div className="animate-in fade-in duration-300">
+            <CatalogTab 
+              products={products} 
+              categories={categories}
+              collections={collections}
+              brands={brands}
+              loading={fetching}
+              isMobile={isMobile}
+              isDesktop={isDesktop}
+            />
+          </div>
+        )}
+
+        {activeView === "messages" && (
+          <MessagingTab users={users} isMobile={isMobile} />
         )}
 
       </main>

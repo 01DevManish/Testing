@@ -12,6 +12,7 @@ import PartyRateTab from "./admin/PartyRateTab";
 import MessagingTab from "../components/MessagingTab";
 import NotificationBell from "../components/NotificationBell";
 import { useData } from "../context/DataContext";
+import CatalogTab from "./inventory/CatalogTab";
 import { hasPermission } from "../lib/permissions";
 import { PartyRate } from "./admin/types";
 import { Product } from "./inventory/types";
@@ -62,12 +63,15 @@ export default function DashboardPage() {
   const [employees, setEmployees] = useState<UserRecord[]>([]);
   const [fetchingEmployees, setFetchingEmployees] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [view, setView] = useState<"dashboard" | "profile" | "party-rates" | "messages">("dashboard");
+  const [view, setView] = useState<"dashboard" | "profile" | "party-rates" | "messages" | "catalog">("dashboard");
   const [unreadCount, setUnreadCount] = useState(0);
   const { users } = useData();
   
   const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
 
   // Auth guard + admin redirect
@@ -129,9 +133,12 @@ export default function DashboardPage() {
     if (!userData?.permissions?.includes("party-rates")) return;
     setFetchingPartyRates(true);
     try {
-      const [rateSnap, prodSnap] = await Promise.all([
+      const [rateSnap, prodSnap, catSnap, colSnap, brandSnap] = await Promise.all([
         get(ref(db, "partyRates")),
-        get(ref(db, "inventory"))
+        get(ref(db, "inventory")),
+        get(ref(db, "categories")),
+        get(ref(db, "collections")),
+        get(ref(db, "brands"))
       ]);
       const rates: PartyRate[] = [];
       if (rateSnap.exists()) rateSnap.forEach(d => { rates.push({ id: d.key!, ...d.val() } as PartyRate); });
@@ -140,11 +147,23 @@ export default function DashboardPage() {
       const prods: Product[] = [];
       if (prodSnap.exists()) prodSnap.forEach(d => { prods.push({ id: d.key!, ...d.val() } as Product); });
       setProducts(prods);
+
+      const cats: any[] = [];
+      if (catSnap.exists()) catSnap.forEach(d => { cats.push({ id: d.key!, ...d.val() } as any); });
+      setCategories(cats);
+
+      const cols: any[] = [];
+      if (colSnap.exists()) colSnap.forEach(d => { cols.push({ id: d.key!, ...d.val() } as any); });
+      setCollections(cols);
+
+      const brs: any[] = [];
+      if (brandSnap.exists()) brandSnap.forEach(d => { brs.push({ id: d.key!, ...d.val() } as any); });
+      setBrands(brs);
     } catch (e) { console.error(e); } finally { setFetchingPartyRates(false); }
   }, [userData]);
 
   useEffect(() => {
-    if (view === "party-rates") loadPartyRates();
+    if (view === "party-rates" || view === "catalog") loadPartyRates();
   }, [view, loadPartyRates]);
 
   // Manager: load employees
@@ -328,6 +347,16 @@ export default function DashboardPage() {
               }}>{unreadCount}</span>
             )}
           </button>
+
+          <button onClick={() => setView("catalog")} style={{ 
+            display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", 
+            background: view === "catalog" ? "rgba(99,102,241,0.15)" : "transparent", 
+            color: view === "catalog" ? "#a5b4fc" : "#94a3b8", 
+            fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", 
+            borderLeft: view === "catalog" ? "3px solid #818cf8" : "none", paddingLeft: view === "catalog" ? 11 : 14 
+          }}>
+            Catalog Sharing
+          </button>
           
           <button onClick={() => setView("profile")} style={{ 
             display: "flex", 
@@ -373,152 +402,173 @@ export default function DashboardPage() {
       </aside>
 
       {/* Main */}
-      <main className="animate-fade-in-up" style={S.main}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, flexWrap: "wrap", gap: 16 }}>
-          <div>
-            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
-            <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
-          </div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <NotificationBell />
-            {!isDesktop && (
-              <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>
-            )}
-          </div>
-        </div>
-
-        {view === "dashboard" ? (
-          <>
-            {/* Stats Grid */}
-            <div className="dash-stats-grid" style={{ 
-              display: "grid", 
-              gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", 
-              gap: 16, 
-              marginBottom: 24 
-            }}>
-              <div className="dash-stat-card" style={{ background: "#fff", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                <div className="dash-stat-icon" style={{ background: `${roleColors[currentRole]}12`, color: roleColors[currentRole], width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>{currentRole[0].toUpperCase()}</div>
-                <div className="dash-stat-value" style={{ fontSize: 16, fontWeight: 400, color: "#0f172a" }}>{currentName}</div>
-                <div className="dash-stat-label" style={{ fontSize: 12, color: "#94a3b8" }}>{currentEmail}</div>
-              </div>
-              {[
-                { label: "Pending", value: pendingTasks.length, color: "#f59e0b" },
-                { label: "In Progress", value: inProgressTasks.length, color: "#6366f1" },
-                { label: "Completed", value: completedTasks.length, color: "#22c55e" },
-              ].map((s) => (
-                <div key={s.label} className="dash-stat-card" style={{ background: "#fff", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                  <div className="dash-stat-icon" style={{ background: `${s.color}12`, color: s.color, width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>{s.label[0]}</div>
-                  <div className="dash-stat-value" style={{ fontSize: 24, fontWeight: 400, color: "#0f172a" }}>{s.value}</div>
-                  <div className="dash-stat-label" style={{ fontSize: 12, color: "#94a3b8" }}>{s.label} Tasks</div>
-                </div>
-              ))}
+      <main className="animate-fade-in-up" style={{ 
+        ...S.main, 
+        padding: view === "messages" ? 0 : S.main.padding,
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden"
+      }}>
+        {view !== "messages" && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, flexWrap: "wrap", gap: 16 }}>
+            <div>
+              <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
+              <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
             </div>
-
-            {/* My Tasks */}
-            <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}>
-              <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h2 style={{ fontSize: 18, fontWeight: 400, margin: 0, color: "#0f172a" }}>My Assigned Tasks</h2>
-                <span style={{ fontSize: 12, fontWeight: 400, padding: "4px 10px", background: "#f1f5f9", color: "#64748b", borderRadius: 20 }}>{tasks.length} Total</span>
-              </div>
-
-              <div style={{ padding: isMobile ? "12px" : "24px" }}>
-                {fetchingTasks ? (
-                  <div style={{ textAlign: "center", padding: "48px 0" }}>
-                    <div style={{ width: 28, height: 28, margin: "0 auto 12px", border: "3px solid #f3f4f6", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-                    <p style={{ color: "#94a3b8", fontSize: 14 }}>Loading your tasks...</p>
-                  </div>
-                ) : tasks.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
-                    <p style={{ fontSize: 40, marginBottom: 8 }}>✅</p>
-                    <p style={{ fontSize: 15, fontWeight: 400 }}>All caught up! No tasks assigned.</p>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {tasks.map((t, i) => (
-                      <div key={t.id} style={{
-                        padding: isMobile ? "16px" : "18px 24px",
-                        borderRadius: 12,
-                        background: t.status === "completed" ? "#f8fafc" : "#fff",
-                        border: "1px solid #f1f5f9",
-                        display: "flex", 
-                        flexDirection: isMobile ? "column" : "row",
-                        alignItems: isMobile ? "flex-start" : "center", 
-                        gap: 16,
-                        transition: "all 0.2s",
-                        opacity: t.status === "completed" ? 0.7 : 1
-                      }}>
-                        <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                            <span style={{ 
-                              padding: "3px 8px", 
-                              borderRadius: 6, 
-                              fontSize: 10, 
-                              fontWeight: 400, 
-                              textTransform: "uppercase",
-                              background: `${priorityColors[t.priority]}15`, 
-                              color: priorityColors[t.priority] 
-                            }}>{t.priority}</span>
-                            <h3 style={{ 
-                              fontSize: 15, 
-                              fontWeight: 400, 
-                              color: t.status === "completed" ? "#94a3b8" : "#1e293b",
-                              textDecoration: t.status === "completed" ? "line-through" : "none",
-                              margin: 0
-                            }}>{t.title}</h3>
-                          </div>
-                          {t.description && <p style={{ fontSize: 13, color: "#64748b", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", marginBottom: 6 }}>{t.description}</p>}
-                          {t.attachments && t.attachments.length > 0 && (
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                              {t.attachments.map((at, idx) => (
-                                <a key={idx} href={at.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 8px", background: "#f1f5f9", borderRadius: 6, fontSize: 11, color: "#6366f1", textDecoration: "none", border: "1px solid #e2e8f0" }}>
-                                  📎 {at.name.length > 15 ? at.name.slice(0, 12) + "..." : at.name}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                          {t.createdByName && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>Assigned by: <span style={{ fontWeight: 400, color: "#64748b" }}>{t.createdByName}</span></div>}
-                        </div>
-
-                        <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "flex-end" : "center" }}>
-                          {t.status === "pending" && (
-                            <button onClick={() => markInProgress(t.id)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontSize: 13, fontWeight: 400, cursor: "pointer", flex: isMobile ? 1 : "none" }}>Start Task</button>
-                          )}
-                          {t.status === "in-progress" && (
-                            <button onClick={() => markDone(t.id)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#22c55e", color: "#fff", fontSize: 13, fontWeight: 400, cursor: "pointer", flex: isMobile ? 1 : "none" }}>Complete</button>
-                          )}
-                          {t.status === "completed" && (
-                            <div style={{ padding: "8px 16px", borderRadius: 10, background: "#f1f5f9", color: "#22c55e", fontSize: 13, fontWeight: 400 }}>✓ Done</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+              <NotificationBell />
+              {!isDesktop && (
+                <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>
+              )}
             </div>
-          </>
-        ) : view === "profile" ? (
-          <ProfileTab 
-            S={adminStyles}
-            isMobile={isMobile}
-            isTablet={isTablet}
-          />
-        ) : view === "party-rates" ? (
-          <PartyRateTab 
-            S={adminStyles}
-            isMobile={isMobile}
-            isTablet={isTablet}
-            partyRates={partyRates}
-            products={products}
-            fetching={fetchingPartyRates}
-            isAdmin={false}
-            loadData={loadPartyRates}
-          />
-        ) : (
-          <MessagingTab users={users} isMobile={isMobile} />
+          </div>
         )}
 
+        <div style={{ flex: 1, overflowY: "auto", display: view === "messages" ? "flex" : "block", flexDirection: "column" }}>
+          {view === "dashboard" ? (
+            <>
+              {/* Stats Grid */}
+              <div className="dash-stats-grid" style={{ 
+                display: "grid", 
+                gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", 
+                gap: 16, 
+                marginBottom: 24 
+              }}>
+                <div className="dash-stat-card" style={{ background: "#fff", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                  <div className="dash-stat-icon" style={{ background: `${roleColors[currentRole]}12`, color: roleColors[currentRole], width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>{currentRole[0].toUpperCase()}</div>
+                  <div className="dash-stat-value" style={{ fontSize: 16, fontWeight: 400, color: "#0f172a" }}>{currentName}</div>
+                  <div className="dash-stat-label" style={{ fontSize: 12, color: "#94a3b8" }}>{currentEmail}</div>
+                </div>
+                {[
+                  { label: "Pending", value: pendingTasks.length, color: "#f59e0b" },
+                  { label: "In Progress", value: inProgressTasks.length, color: "#6366f1" },
+                  { label: "Completed", value: completedTasks.length, color: "#22c55e" },
+                ].map((s) => (
+                  <div key={s.label} className="dash-stat-card" style={{ background: "#fff", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                    <div className="dash-stat-icon" style={{ background: `${s.color}12`, color: s.color, width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>{s.label[0]}</div>
+                    <div className="dash-stat-value" style={{ fontSize: 24, fontWeight: 400, color: "#0f172a" }}>{s.value}</div>
+                    <div className="dash-stat-label" style={{ fontSize: 12, color: "#94a3b8" }}>{s.label} Tasks</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* My Tasks */}
+              <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h2 style={{ fontSize: 18, fontWeight: 400, margin: 0, color: "#0f172a" }}>My Assigned Tasks</h2>
+                  <span style={{ fontSize: 12, fontWeight: 400, padding: "4px 10px", background: "#f1f5f9", color: "#64748b", borderRadius: 20 }}>{tasks.length} Total</span>
+                </div>
+
+                <div style={{ padding: isMobile ? "12px" : "24px" }}>
+                  {fetchingTasks ? (
+                    <div style={{ textAlign: "center", padding: "48px 0" }}>
+                      <div style={{ width: 28, height: 28, margin: "0 auto 12px", border: "3px solid #f3f4f6", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                      <p style={{ color: "#94a3b8", fontSize: 14 }}>Loading your tasks...</p>
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+                      <p style={{ fontSize: 40, marginBottom: 8 }}>✅</p>
+                      <p style={{ fontSize: 15, fontWeight: 400 }}>All caught up! No tasks assigned.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {tasks.map((t, i) => (
+                        <div key={t.id} style={{
+                          padding: isMobile ? "16px" : "18px 24px",
+                          borderRadius: 12,
+                          background: t.status === "completed" ? "#f8fafc" : "#fff",
+                          border: "1px solid #f1f5f9",
+                          display: "flex", 
+                          flexDirection: isMobile ? "column" : "row",
+                          alignItems: isMobile ? "flex-start" : "center", 
+                          gap: 16,
+                          transition: "all 0.2s",
+                          opacity: t.status === "completed" ? 0.7 : 1
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                              <span style={{ 
+                                padding: "3px 8px", 
+                                borderRadius: 6, 
+                                fontSize: 10, 
+                                fontWeight: 400, 
+                                textTransform: "uppercase",
+                                background: `${priorityColors[t.priority]}15`, 
+                                color: priorityColors[t.priority] 
+                              }}>{t.priority}</span>
+                              <h3 style={{ 
+                                fontSize: 15, 
+                                fontWeight: 400, 
+                                color: t.status === "completed" ? "#94a3b8" : "#1e293b",
+                                textDecoration: t.status === "completed" ? "line-through" : "none",
+                                margin: 0
+                              }}>{t.title}</h3>
+                            </div>
+                            {t.description && <p style={{ fontSize: 13, color: "#64748b", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", marginBottom: 6 }}>{t.description}</p>}
+                            {t.attachments && t.attachments.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                                {t.attachments.map((at, idx) => (
+                                  <a key={idx} href={at.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 8px", background: "#f1f5f9", borderRadius: 6, fontSize: 11, color: "#6366f1", textDecoration: "none", border: "1px solid #e2e8f0" }}>
+                                    📎 {at.name.length > 15 ? at.name.slice(0, 12) + "..." : at.name}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                            {t.createdByName && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>Assigned by: <span style={{ fontWeight: 400, color: "#64748b" }}>{t.createdByName}</span></div>}
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "flex-end" : "center" }}>
+                            {t.status === "pending" && (
+                              <button onClick={() => markInProgress(t.id)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontSize: 13, fontWeight: 400, cursor: "pointer", flex: isMobile ? 1 : "none" }}>Start Task</button>
+                            )}
+                            {t.status === "in-progress" && (
+                              <button onClick={() => markDone(t.id)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#22c55e", color: "#fff", fontSize: 13, fontWeight: 400, cursor: "pointer", flex: isMobile ? 1 : "none" }}>Complete</button>
+                            )}
+                            {t.status === "completed" && (
+                              <div style={{ padding: "8px 16px", borderRadius: 10, background: "#f1f5f9", color: "#22c55e", fontSize: 13, fontWeight: 400 }}>✓ Done</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : view === "profile" ? (
+            <ProfileTab 
+              S={adminStyles}
+              isMobile={isMobile}
+              isTablet={isTablet}
+            />
+          ) : view === "party-rates" ? (
+            <PartyRateTab 
+              S={adminStyles}
+              isMobile={isMobile}
+              isTablet={isTablet}
+              partyRates={partyRates}
+              products={products}
+              fetching={fetchingPartyRates}
+              isAdmin={false}
+              loadData={loadPartyRates}
+            />
+          ) : view === "catalog" ? (
+            <CatalogTab 
+              products={products}
+              categories={categories}
+              collections={collections}
+              brands={brands}
+              loading={fetchingPartyRates}
+              isMobile={isMobile}
+              isDesktop={isDesktop}
+            />
+          ) : (
+            <MessagingTab users={users} isMobile={isMobile} />
+          )}
+        </div>
       </main>
+
       <style jsx global>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .animate-fade-in-up { animation: fadeInUp 0.5s ease-out; }

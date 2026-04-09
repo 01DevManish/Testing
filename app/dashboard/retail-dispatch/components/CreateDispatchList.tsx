@@ -33,6 +33,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const [currentBoxIndex, setCurrentBoxIndex] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastScanned, setLastScanned] = useState<{ value: string; match: boolean; expected: string } | null>(null);
+  const [packageType, setPackageType] = useState<"Box" | "Bale">("Box");
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -48,7 +49,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           const data: any[] = [];
           snap.forEach((child) => {
             const val = child.val();
-            if (val.status !== "Completed") {
+            if (val.status !== "Completed" && val.status !== "Packed") {
               data.push({ id: child.key, ...val });
             }
           });
@@ -89,7 +90,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     setSelectedIds(new Set());
   };
 
-  const currentBoxName = `B${currentBoxIndex}`;
+  const currentBoxName = `${packageType === "Box" ? "B" : "BL"}${currentBoxIndex}`;
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -232,26 +233,29 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     setSaving(true);
     try {
       const listRef = ref(db, `packingLists/${selectedList.id}`);
+      const dispId = `DISP-${Math.floor(1000 + Math.random() * 9000)}`;
       await update(listRef, {
-        status: "Completed",
+        status: "Packed",
         invoiceNo,
-        lrNo,
+        dispatchId: dispId,
+        lrNo: "",
         dispatchedAt: Date.now(),
         dispatchedBy: userData?.name || user?.name || "System"
       });
 
       await logActivity({
-        type: "system",
+        type: "dispatch",
         action: "update",
-        title: "Dispatch Finalized (Scan Verified)",
-        description: `Packing list #${selectedList.id} for ${selectedList.partyName} verified with scan and finalized.`,
+        title: "Retail Dispatch Finalized",
+        description: `Retail Dispatch ${dispId} for ${selectedList.partyName} verified with scan and finalized.`,
         userId: user?.uid || "",
         userName: userData?.name || "Admin",
         userRole: userData?.role || "admin",
         metadata: { 
           packingListId: selectedList.id, 
+          dispatchId: dispId,
           invoiceNo,
-          lrNo, 
+          lrNo: "", 
           unitsScanned: scannableItems.length,
           totalBoxes: currentBoxIndex,
           boxMapping: scannableItems.map(i => ({ p: i.productName, b: i.boxName }))
@@ -275,7 +279,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       <PageHeader title="Finalize Dispatch List" sub="Convert a completed packing list into a final dispatch.">
         <BtnGhost onClick={onClose}>Cancel</BtnGhost>
         <BtnPrimary onClick={handleDispatch} disabled={!selectedList || saving}>
-          {saving ? "Finalizing..." : "🚀 Finalize Dispatch"}
+          {saving ? "Finalizing..." : "Finalize Dispatch"}
         </BtnPrimary>
       </PageHeader>
 
@@ -330,7 +334,17 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                   <div className="p-4 border-b border-slate-100 bg-white flex justify-between items-center">
                      <div>
                         <h4 className="text-sm font-bold text-slate-800">Dispatch Scanning</h4>
-                        <p className="text-[11px] text-slate-500">Pick items and assign them to boxes.</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[11px] text-slate-500">Assign to:</p>
+                          <select 
+                            value={packageType} 
+                            onChange={(e) => setPackageType(e.target.value as "Box" | "Bale")}
+                            className="text-[11px] bg-slate-100 border-none rounded px-2 py-0.5 font-bold text-indigo-600 outline-none cursor-pointer"
+                          >
+                            <option value="Box">Box</option>
+                            <option value="Bale">Bale</option>
+                          </select>
+                        </div>
                      </div>
                      <div className="flex items-center gap-4">
                         {selectedIds.size > 0 && (
@@ -338,11 +352,11 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                              onClick={handleCreateBox}
                              className="bg-indigo-600 text-white text-[10px] font-bold px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 animate-in zoom-in duration-200"
                            >
-                             📦 Create Box {currentBoxName} ({selectedIds.size} selected)
+                              Create {packageType} {currentBoxName} ({selectedIds.size} selected)
                            </button>
                         )}
                         <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
-                           <span className="text-[10px] font-bold text-slate-400 uppercase mr-3">Next box</span>
+                           <span className="text-[10px] font-bold text-slate-400 uppercase mr-3">Next {packageType}</span>
                            <span className="text-sm font-black text-slate-600">{currentBoxName}</span>
                         </div>
                      </div>
@@ -368,7 +382,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                            {scannableItems.map((item, idx) => (
-                             <tr key={idx} className={`group hover:bg-white transition-colors ${item.isPacked ? 'bg-emerald-50/10' : selectedIds.has(item.id) ? 'bg-indigo-50/30' : ''}`}>
+                             <tr key={item.id} className={`group hover:bg-white transition-colors ${item.isPacked ? 'bg-emerald-50/10' : selectedIds.has(item.id) ? 'bg-indigo-50/30' : ''}`}>
                                 <td className="px-4 py-3 text-center">
                                    <input 
                                       type="checkbox"
@@ -422,7 +436,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                                 <td className="px-6 py-4 text-center">
                                    {item.boxName ? (
                                       <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold text-[11px] px-2.5 py-1 rounded-md border border-amber-100">
-                                         📦 {item.boxName}
+                                         {item.boxName}
                                       </span>
                                    ) : (
                                       <span className="text-[10px] text-slate-300 font-medium italic">Pending</span>
@@ -461,29 +475,15 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
 
                   <div className="space-y-6">
                      <div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Invoice Number</label>
-                           <input 
-                              type="text"
-                              placeholder="INV-"
-                              value={invoiceNo}
-                              onChange={(e) => setInvoiceNo(e.target.value)}
-                              className="w-full p-2.5 rounded-none border border-slate-200 bg-white text-sm font-semibold outline-none focus:border-indigo-500 transition-all shadow-sm"
-                           />
-                        </div>
-                        <div>
-                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">LR Number</label>
-                           <input 
-                              type="text"
-                              placeholder="LR-"
-                              value={lrNo}
-                              onChange={(e) => setLrNo(e.target.value)}
-                              className="w-full p-2.5 rounded-none border border-slate-200 bg-white text-sm font-semibold outline-none focus:border-indigo-500 transition-all shadow-sm"
-                           />
-                        </div>
-                     </div>
-                     <p className="text-[10px] text-slate-400 mt-2 italic px-1">These fields are mandatory for tracking.</p>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Invoice Number</label>
+                        <input 
+                           type="text"
+                           placeholder="INV-"
+                           value={invoiceNo}
+                           onChange={(e) => setInvoiceNo(e.target.value)}
+                           className="w-full p-2.5 rounded-none border border-slate-200 bg-white text-sm font-semibold outline-none focus:border-indigo-500 transition-all shadow-sm"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-2 italic px-1">This field is mandatory for tracking.</p>
                      </div>
 
                      {/* Verification Section */}
@@ -495,14 +495,14 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                            maxLength={6}
                            value={pin}
                            onChange={(e) => setPin(e.target.value)}
-                           className="w-full p-3 rounded-none border border-slate-200 bg-slate-50 text-center text-lg font-bold tracking-[1em] outline-none focus:border-indigo-500 transition-all mb-4"
+                           className="w-full p-3 rounded-none border border-slate-200 bg-slate-50 text-center text-lg font-bold outline-none focus:border-indigo-500 transition-all mb-4"
                         />
                         <BtnPrimary 
                            onClick={handleDispatch} 
-                           disabled={saving || !scannableItems.every(i => i.isPacked) || pin.length < 4 || !invoiceNo.trim() || !lrNo.trim()}
+                           disabled={saving || !scannableItems.every(i => i.isPacked) || pin.length < 4 || !invoiceNo.trim()}
                            style={{ padding: "14px", fontSize: 14, width: "100%", justifyContent: "center" }}
                         >
-                           {saving ? "Processing..." : "🚀 Complete Dispatch"}
+                           {saving ? "Processing..." : "Complete Verification"}
                         </BtnPrimary>
                         <p className="text-[10px] text-center text-slate-400 mt-3 px-4">Ensure all {scannableItems.length} items are scanned and your MPIN is correct to finalize.</p>
                      </div>

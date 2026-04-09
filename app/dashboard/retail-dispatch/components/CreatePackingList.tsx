@@ -1,20 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ref, get, push, set, serverTimestamp } from "firebase/database";
+import { update, ref, get, push, set, serverTimestamp } from "firebase/database";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity } from "../../../lib/activityLogger";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "./ui";
 import { firestoreApi } from "../data";
 import { sendNotification } from "../../../lib/notificationHelper";
+import { generatePackingListPdf } from "../PackingListPdf";
 
 interface PackingItem {
   productId: string;
   productName: string;
   sku: string;
+  barcode?: string;
   quantity: number;
   rate: number;
+  collectionName?: string;
+  brandName?: string;
 }
 
 interface CreatePackingListProps {
@@ -116,14 +120,20 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       return;
     }
 
-    const items: PackingItem[] = (selectedParty.rates || [])
+    const items = (selectedParty.rates || [])
       .filter((r: any) => selectedItems[r.productName] > 0)
       .map((r: any) => {
-        const invMatch = inventory.find(p => p.productName === r.productName);
+        const targetName = r.productName?.trim().toLowerCase();
+        const invMatch = inventory.find(p => p.productName?.trim().toLowerCase() === targetName);
         return {
           productId: r.productName,
           productName: r.productName,
           sku: r.sku || invMatch?.sku || "N/A",
+          barcode: invMatch?.barcode || "",
+          category: invMatch?.category || "",
+          collectionName: invMatch?.collection || "",
+          brandName: invMatch?.brand || "Eurus",
+          packagingType: r.packagingType || "Box",
           quantity: selectedItems[r.productName],
           rate: r.rate
         };
@@ -138,11 +148,33 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     try {
       const assignedUser = allUsers.find(e => e.uid === assignedUserId);
       const isEdit = !!editingList;
+
+      // Fetch the full party details from 'parties' node for original address
+      let fullPartyAddress = selectedParty.billTo?.address || "";
+      let fullPartyCity = selectedParty.billTo?.city || "";
+      
+      try {
+        const partiesSnap = await get(ref(db, "parties"));
+        if (partiesSnap.exists()) {
+          const targetPartyName = selectedParty.partyName?.trim().toLowerCase();
+          partiesSnap.forEach(d => {
+            const pData = d.val();
+            if (pData.partyName?.trim().toLowerCase() === targetPartyName) {
+              if (pData.address) fullPartyAddress = pData.address;
+              if (pData.city) fullPartyCity = pData.city;
+            }
+          });
+        }
+      } catch (e) {
+         console.warn("Could not fetch full party address");
+      }
       
       const packingListData = {
         id: isEdit ? editingList.id : "", // Will be set below
         partyId: selectedParty.id,
         partyName: selectedParty.partyName,
+        partyAddress: fullPartyAddress,
+        partyCity: fullPartyCity,
         items,
         transporter,
         assignedTo: assignedUserId,
@@ -155,14 +187,38 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         updatedBy: userData?.name || user?.name || "System"
       };
 
+      let finalId = isEdit ? editingList.id : "";
       if (isEdit) {
         const listRef = ref(db, `packingLists/${editingList.id}`);
         await set(listRef, packingListData);
       } else {
         const packingListRef = ref(db, "packingLists");
         const newListRef = push(packingListRef);
-        packingListData.id = newListRef.key!;
+        finalId = newListRef.key!;
+        packingListData.id = finalId;
         await set(newListRef, packingListData);
+      }
+
+      // ── Cloudinary PDF Upload ──
+      try {
+        const pdfBlob = await generatePackingListPdf(packingListData, false);
+        if (pdfBlob) {
+            const formData = new FormData();
+            formData.append("file", new File([pdfBlob], `PL_${finalId}.pdf`, { type: "application/pdf" }));
+            
+            const uploadRes = await fetch("/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            
+            if (uploadRes.ok) {
+                const { secure_url } = await uploadRes.json();
+                await update(ref(db, `packingLists/${finalId}`), { pdfUrl: secure_url });
+                console.log("PDF uploaded to Cloudinary:", secure_url);
+            }
+        }
+      } catch (pdfErr) {
+        console.error("Failed to upload PDF to Cloudinary:", pdfErr);
       }
 
       await logActivity({

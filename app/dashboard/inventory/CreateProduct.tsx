@@ -556,7 +556,7 @@ export default function CreateProduct({
                                 )}
                             </div>
 
-                            <input ref={fileRef} type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={handleFileChange} style={{ display: "none" }} />
+                            <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
                             
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Image Gallery</div>
                             <ImageGallery 

@@ -1,4 +1,4 @@
-import { ref, push, set, update } from "firebase/database";
+import { ref, push, set, update, serverTimestamp } from "firebase/database";
 import { db } from "./firebase";
 import { sendNotification } from "./notificationHelper";
 
@@ -16,6 +16,7 @@ export interface ChatPreview {
   timestamp: number;
   unreadCount?: number;
   otherUserId: string;
+  lastReadAt?: number;
 }
 
 /**
@@ -23,6 +24,14 @@ export interface ChatPreview {
  */
 export const getChatId = (uid1: string, uid2: string) => {
   return [uid1, uid2].sort().join("_");
+};
+
+/**
+ * Updates the typing status of a user in a specific chat.
+ */
+export const setTypingStatus = async (chatId: string, uid: string, isTyping: boolean) => {
+  const typingRef = ref(db, `chats/${chatId}/typing/${uid}`);
+  await set(typingRef, isTyping ? true : null);
 };
 
 /**
@@ -62,24 +71,20 @@ export const sendMessage = async (
   const updates: Record<string, any> = {};
 
   // Sender: always 0 unread (they just sent it)
-  updates[`user_chats/${senderId}/${receiverId}`] = {
-    lastMessage: text,
-    timestamp,
-    chatId,
-    otherUserId: receiverId,
-    otherUserName: receiverName,
-    unreadCount: 0,
-  };
+  updates[`user_chats/${senderId}/${receiverId}/lastMessage`] = text;
+  updates[`user_chats/${senderId}/${receiverId}/timestamp`] = timestamp;
+  updates[`user_chats/${senderId}/${receiverId}/chatId`] = chatId;
+  updates[`user_chats/${senderId}/${receiverId}/otherUserId`] = receiverId;
+  updates[`user_chats/${senderId}/${receiverId}/otherUserName`] = receiverName;
+  updates[`user_chats/${senderId}/${receiverId}/unreadCount`] = 0;
 
   // Receiver: increment unread by 1
-  updates[`user_chats/${receiverId}/${senderId}`] = {
-    lastMessage: text,
-    timestamp,
-    chatId,
-    otherUserId: senderId,
-    otherUserName: senderName,
-    unreadCount: currentUnread + 1,
-  };
+  updates[`user_chats/${receiverId}/${senderId}/lastMessage`] = text;
+  updates[`user_chats/${receiverId}/${senderId}/timestamp`] = timestamp;
+  updates[`user_chats/${receiverId}/${senderId}/chatId`] = chatId;
+  updates[`user_chats/${receiverId}/${senderId}/otherUserId`] = senderId;
+  updates[`user_chats/${receiverId}/${senderId}/otherUserName`] = senderName;
+  updates[`user_chats/${receiverId}/${senderId}/unreadCount`] = currentUnread + 1;
 
   await update(ref(db), updates);
 
@@ -94,8 +99,14 @@ export const sendMessage = async (
 
 /**
  * Resets the unread count for a specific chat to 0.
+ * Also updates the lastReadAt timestamp for seen status.
  * Called when a user opens a conversation.
  */
 export const markAsRead = async (uid: string, otherId: string) => {
-  await update(ref(db, `user_chats/${uid}/${otherId}`), { unreadCount: 0 });
+  const timestamp = Date.now();
+  await update(ref(db, `user_chats/${uid}/${otherId}`), { 
+    unreadCount: 0,
+    lastReadAt: timestamp
+  });
 };
+

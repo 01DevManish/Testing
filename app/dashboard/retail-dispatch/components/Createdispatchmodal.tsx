@@ -13,7 +13,16 @@ interface Product { id: string; name: string; sku: string; stock: number; unit: 
 
 interface DispatchForm {
     party: Party | null;
-    newParty: { name: string; city: string; gst: string };
+    newParty: { 
+        name: string; 
+        phone: string; 
+        email: string; 
+        address: string; 
+        city: string; 
+        state: string; 
+        pincode: string; 
+        gst: string;
+    };
     isNewParty: boolean;
 
     product: Product | null;
@@ -57,7 +66,18 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
     const { user, userData } = useAuth();
     const [step, setStep] = useState(1);
     const [form, setForm] = useState<DispatchForm>({
-        party: null, newParty: { name: "", city: "", gst: "" }, isNewParty: false,
+        party: null, 
+        newParty: { 
+            name: "", 
+            phone: "", 
+            email: "", 
+            address: "", 
+            city: "", 
+            state: "", 
+            pincode: "", 
+            gst: "" 
+        }, 
+        isNewParty: false,
         product: null, newProduct: { name: "", sku: "", unit: "PCS" }, isNewProduct: false,
         packagingType: "", remarks: "", quantity: 1, transporter: "", invoiceNo: "", lrNo: "",
     });
@@ -81,8 +101,11 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                     ...f,
                     newParty: {
                         ...f.newParty,
-                        name: result.data.legalName,
-                        city: result.data.city,
+                        name: result.data.companyName || result.data.legalName,
+                        address: result.data.address || "",
+                        city: result.data.city || "",
+                        state: result.data.state || "",
+                        pincode: result.data.pincode || "",
                         gst: gstin
                     }
                 }));
@@ -208,7 +231,14 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
             if (form.isNewParty) {
                const p = await firestoreApi.createParty({
                    name: form.newParty.name,
-                   phone: "", address: form.newParty.city, gstin: form.newParty.gst
+                   phone: form.newParty.phone,
+                   email: form.newParty.email,
+                   address: form.newParty.address,
+                   city: form.newParty.city,
+                   state: form.newParty.state,
+                   pincode: form.newParty.pincode,
+                   gstin: form.newParty.gst,
+                   createdAt: new Date().toISOString()
                });
                partyId = p.id;
             }
@@ -509,7 +539,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                                             <div style={{ display: "flex", gap: 8 }}>
                                                 <input 
-                                                    placeholder="GST Number" 
+                                                    placeholder="GST Number (Optional)" 
                                                     value={form.newParty.gst} 
                                                     onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, gst: e.target.value.toUpperCase() } }))} 
                                                     style={{ ...inputStyle, flex: 1 }} 
@@ -528,8 +558,20 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                                         {isVerifyingGst ? "Verifying" : "Verify GST"}
                                                     </button>
                                             </div>
-                                            <input placeholder="Party Name" value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} />
-                                            <input placeholder="City" value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={inputStyle} />
+                                            <input placeholder="Party / Company Name" value={form.newParty.name} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, name: e.target.value } }))} style={inputStyle} />
+                                            
+                                            <div style={{ display: "flex", gap: 12 }}>
+                                                <input placeholder="Phone Number" value={form.newParty.phone} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, phone: e.target.value } }))} style={{ ...inputStyle, flex: 1 }} />
+                                                <input placeholder="Email Address" value={form.newParty.email} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, email: e.target.value } }))} style={{ ...inputStyle, flex: 1 }} />
+                                            </div>
+
+                                            <input placeholder="Full Address" value={form.newParty.address} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, address: e.target.value } }))} style={inputStyle} />
+                                            
+                                            <div style={{ display: "flex", gap: 12 }}>
+                                                <input placeholder="City" value={form.newParty.city} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, city: e.target.value } }))} style={{ ...inputStyle, flex: 1 }} />
+                                                <input placeholder="State" value={form.newParty.state} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, state: e.target.value } }))} style={{ ...inputStyle, flex: 1 }} />
+                                                <input placeholder="Pincode" value={form.newParty.pincode} onChange={e => setForm(f => ({ ...f, newParty: { ...f.newParty, pincode: e.target.value } }))} style={{ ...inputStyle, flex: 1 }} />
+                                            </div>
                                         </div>
                                     )}
                                 </div>

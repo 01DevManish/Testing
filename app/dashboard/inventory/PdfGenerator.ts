@@ -83,15 +83,11 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
         }
         
         d.setFont("helvetica", "bold");
-        d.setFontSize(20);
+        d.setFontSize(9.5);
         d.setTextColor(0, 0, 0);
-        d.text("EURUS LIFESTYLE", pageWidth / 2, 18, { align: "center" });
-
-        d.setFont("helvetica", "normal");
-        d.setFontSize(9);
-        d.setTextColor(60, 60, 60);
-        d.text("Plot No. 263, Sector 25 Part 2, HUDA Industrial Area, Panipat, Haryana - 132103", pageWidth / 2, 24, { align: "center" });
-        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, 29, { align: "center" });
+        d.text("Plot No. 263, Sector 25 Part 2, HUDA Industrial Area, Panipat, Haryana - 132103", pageWidth / 2, 28, { align: "center" });
+        d.setFontSize(8.5);
+        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, 34, { align: "center" });
 
         d.setFont("helvetica", "bold");
         d.setFontSize(16);
@@ -233,15 +229,11 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
         }
         
         d.setFont("helvetica", "bold");
-        d.setFontSize(20);
+        d.setFontSize(9.5);
         d.setTextColor(0, 0, 0);
-        d.text("EURUS LIFESTYLE", pageWidth / 2, 18, { align: "center" });
-
-        d.setFont("helvetica", "normal");
-        d.setFontSize(9);
-        d.setTextColor(60, 60, 60);
-        d.text("Plot No. 263, Sector 25 Part 2, HUDA Industrial Area, Panipat, Haryana - 132103", pageWidth / 2, 24, { align: "center" });
-        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, 29, { align: "center" });
+        d.text("Plot No. 263, Sector 25 Part 2, HUDA Industrial Area, Panipat, Haryana - 132103", pageWidth / 2, 28, { align: "center" });
+        d.setFontSize(8.5);
+        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, 34, { align: "center" });
 
         const dateStr = new Date().toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' });
         d.setFont("helvetica", "normal");

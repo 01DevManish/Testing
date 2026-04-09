@@ -59,6 +59,10 @@ export interface Party {
   name: string;
   phone: string;
   address: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  email?: string;
   gstin?: string;
   createdAt?: string;
 }
@@ -96,19 +100,30 @@ export interface PackingList {
   id: string;
   partyId: string;
   partyName: string;
+  partyAddress?: string;
+  partyCity?: string;
   items: {
     productId: string;
     productName: string;
     sku: string;
+    collectionName?: string;
+    brandName?: string;
     quantity: number;
     rate: number;
+    packagingType?: string;
   }[];
   transporter: string;
   assignedTo: string; // User ID
   assignedToName: string;
-  status: "Pending" | "In Progress" | "Completed" | "Cancelled";
+  status: "Pending" | "In Progress" | "Packed" | "Completed" | "Cancelled";
   invoiceNo?: string;
   lrNo?: string;
+  dispatchId?: string;
+  dispatchedAt?: number;
+  dispatchedBy?: string;
+  bails?: number;
+  partyPhone?: string;
+  pdfUrl?: string; // Cloudinary stored PDF
   createdAt: number;
   createdBy: string;
 }
@@ -125,5 +140,6 @@ export type ActiveView =
   | "all-packing-lists"
   | "create-dispatch-list"
   | "all-dispatch-lists"
+  | "catalog"
   | "messages";
 

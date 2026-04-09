@@ -92,7 +92,7 @@ export default function ImageGallery({ images, onImagesChange, maxImages = 10 }:
                             ref={fileRef} 
                             type="file" 
                             multiple 
-                            accept=".jpg,.jpeg,.png,image/jpeg,image/png" 
+                            accept="image/*" 
                             onChange={handleFileChange} 
                             style={{ display: "none" }} 
                         />

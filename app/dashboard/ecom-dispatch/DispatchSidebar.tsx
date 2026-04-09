@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FONT, ActiveView } from "./types";
+import { ref, onValue } from "firebase/database";
+import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 
 interface NavItem { id: ActiveView; label: string }
 interface NavGroup { key: string; label: string; icon: React.ReactNode; items: NavItem[] }
@@ -43,7 +46,18 @@ const NAV_GROUPS: NavGroup[] = [
         items: [
             { id: "add-order", label: "Add Unknown Order" },
             { id: "scanner", label: "Scan Barcode" },
+            { id: "catalog", label: "Catalog Sharing" },
         ],
+    },
+    {
+        key: "communication", label: "Messages",
+        icon: (
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M1.5 3.5h12v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 1.5 10.5v-7z" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M1.5 4.5l6 4 6-4" stroke="currentColor" strokeWidth="1.4" />
+            </svg>
+        ),
+        items: [{ id: "messages", label: "Direct Messages" }],
     },
 ];
 
@@ -61,6 +75,24 @@ export default function DispatchSidebar({
     activeView, onNavigate, currentName, currentRole,
     onLogout, userRoleColor, onDashboardBack,
 }: Props) {
+    const { user } = useAuth();
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        if (!user) return;
+        const chatsRef = ref(db, `user_chats/${user.uid}`);
+        const unsubscribe = onValue(chatsRef, (snapshot) => {
+            let total = 0;
+            if (snapshot.exists()) {
+                snapshot.forEach((child) => {
+                    total += (child.val().unreadCount || 0);
+                });
+            }
+            setUnreadCount(total);
+        });
+        return () => unsubscribe();
+    }, [user]);
+
     const activeGroup = NAV_GROUPS.find(g => g.items.some(i => i.id === activeView))?.key || "dispatch";
     const [expandedGroup, setExpandedGroup] = useState<string>(activeGroup);
 
@@ -74,8 +106,8 @@ export default function DispatchSidebar({
         }}>
             {/* Brand */}
             <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                    <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+                    <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
                         <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Ecommerce Dispatch Hub</div>
@@ -120,8 +152,18 @@ export default function DispatchSidebar({
                                 <span style={{ color: hasActive ? "#818cf8" : "#475569", flexShrink: 0, display: "flex", alignItems: "center", marginRight: 9 }}>
                                     {group.icon}
                                 </span>
-                                <span style={{ flex: 1, fontSize: 13, fontWeight: 400, letterSpacing: "-0.01em" }}>
+                                <span style={{ flex: 1, fontSize: 13, fontWeight: 400, letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                     {group.label}
+                                    {group.key === "communication" && unreadCount > 0 && (
+                                        <span style={{ 
+                                            background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 700, 
+                                            minWidth: 18, height: 18, borderRadius: 9, display: "flex", 
+                                            alignItems: "center", justifyContent: "center", border: "1px solid #0f172a", 
+                                            marginLeft: 8 
+                                        }}>
+                                            {unreadCount}
+                                        </span>
+                                    )}
                                 </span>
                                 {hasActive && (!isOpen || isSingle) && (
                                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#818cf8", marginRight: 6, flexShrink: 0 }} />

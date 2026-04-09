@@ -177,16 +177,24 @@ export default function InventoryPage() {
     let finalImageUrl = editForm.imageUrl;
     let finalImageUrls = editGallery;
 
-    // Check if any gallery images are new (base64)
-    const hasNewImages = editGallery.some(img => img.startsWith("data:"));
-    if (hasNewImages) {
-        const uploadPromises = editGallery.map(img => uploadToCloudinary(img));
+    // Check if any gallery images or main thumbnail are new (base64)
+    const galleryHasNew = editGallery.some(img => img.startsWith("data:"));
+    const thumbnailIsNew = editForm.imageUrl.startsWith("data:");
+    
+    if (galleryHasNew || thumbnailIsNew) {
+        // Upload all base64 images in gallery
+        const uploadPromises = editGallery.map(img => 
+            img.startsWith("data:") ? uploadToCloudinary(img) : Promise.resolve(img)
+        );
         finalImageUrls = await Promise.all(uploadPromises);
         
-        // Update main thumbnail if it was a base64 from gallery
-        if (editForm.imageUrl.startsWith("data:")) {
+        // Update main thumbnail if it was a base64
+        if (thumbnailIsNew) {
+            finalImageUrl = await uploadToCloudinary(editForm.imageUrl);
+        } else if (galleryHasNew) {
+            // If gallery changed, sync thumbnail if it points to an old base64 version of a gallery image
             const idx = editGallery.indexOf(editForm.imageUrl);
-            finalImageUrl = idx !== -1 ? finalImageUrls[idx] : finalImageUrls[0];
+            if (idx !== -1) finalImageUrl = finalImageUrls[idx];
         }
     }
     
@@ -543,7 +551,7 @@ export default function InventoryPage() {
                   <input 
                     ref={editFileRef} 
                     type="file" 
-                    accept=".jpg,.jpeg,.png,image/jpeg,image/png" 
+                    accept="image/*" 
                     style={{ display: "none" }} 
                     onChange={(e) => {
                       const file = e.target.files?.[0];

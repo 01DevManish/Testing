@@ -1,134 +1,207 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, update, get } from "firebase/database";
 import { db } from "../../../lib/firebase";
-import { PageHeader, Card } from "./ui";
+import { Card } from "./ui";
+import { PackingList } from "../types";
+import { generateDispatchListPdf } from "../DispatchListPdf";
+import { generatePackingListPdf } from "../PackingListPdf";
 
-export default function AllDispatchLists({ onView, onEdit }: { onView?: (list: any) => void; onEdit?: (list: any) => void }) {
-  const [lists, setLists] = useState<any[]>([]);
+interface AllDispatchListsProps {
+  onView: (list: PackingList) => void;
+  onEdit: (list: PackingList) => void;
+}
+
+export default function AllDispatchLists({ onView }: AllDispatchListsProps) {
+  const [lists, setLists] = useState<PackingList[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [tempLr, setTempLr] = useState<{ [key: string]: string }>({});
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     const listsRef = ref(db, "packingLists");
     const unsubscribe = onValue(listsRef, (snapshot) => {
-      const data: any[] = [];
+      const data: PackingList[] = [];
       snapshot.forEach((child) => {
         const val = child.val();
-        if (val.status === "Completed") {
+        if (val.status === "Completed" || val.status === "Packed") {
           data.push({ id: child.key, ...val });
         }
       });
-      // Sort by newest first
-      setLists(data.sort((a, b) => (b.dispatchedAt || 0) - (a.dispatchedAt || 0)));
+      // Sort by dispatchedAt desc
+      data.sort((a, b) => (Number(b.dispatchedAt) || 0) - (Number(a.dispatchedAt) || 0));
+      setLists(data);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const filteredLists = lists.filter(l => 
-    (l.partyName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (l.dispatchedBy || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (l.id || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleFinalize = async (id: string) => {
+    const lrVal = tempLr[id];
+    if (!lrVal || !lrVal.trim()) return alert("Please enter LR Number");
 
-  if (loading) return (
-    <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>
-      <div style={{ width: 24, height: 24, margin: "0 auto 12px", border: "2px solid #e2e8f0", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-      Loading dispatch history...
-    </div>
-  );
+    setUpdating(id);
+    try {
+      const listRef = ref(db, `packingLists/${id}`);
+      await update(listRef, {
+        lrNo: lrVal.trim(),
+        status: "Completed"
+      });
+      setTempLr(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update LR Number");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleDownload = async (l: PackingList, type: "dispatch" | "packing") => {
+    try {
+      // Resolve full party data from partyRates node (which contains the structured billTo object)
+      let fullPartyData: any = {};
+      if (l.partyId) {
+        const rateSnap = await get(ref(db, `partyRates/${l.partyId}`));
+        if (rateSnap.exists()) {
+          const p = rateSnap.val();
+          fullPartyData = {
+            ...p.billTo, // Spread structured billTo fields (companyName, traderName, gstNo, panNo, address, state, district, pincode, contactNo)
+            partyName: p.billTo?.companyName || p.partyName || l.partyName,
+            partyAddress: p.billTo?.address || l.partyAddress,
+            partyCity: p.billTo?.district || l.partyCity,
+            partyPhone: p.billTo?.contactNo || l.partyPhone
+          };
+        }
+      }
+
+      if (type === "dispatch") {
+        await generateDispatchListPdf({ ...l, ...fullPartyData });
+      } else {
+        await generatePackingListPdf({ ...l, ...fullPartyData });
+      }
+    } catch (err) {
+      console.error("PDF Error:", err);
+      alert("Failed to generate PDF");
+    }
+  };
+
+  if (loading) return <div className="p-8 text-center text-slate-500">Loading history...</div>;
+
+  const filteredLists = lists;
 
   return (
-    <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-      <PageHeader title="All Dispatch Lists" sub="History of all finalized and shipped retail dispatches." />
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ padding: "18px 24px", borderBottom: "1px solid #f1f5f9", background: "#fff" }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "#1e293b", margin: 0 }}>Dispatch History</h3>
+        <p style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>View all verified and shipped retail dispatches.</p>
+      </div>
 
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: 20, borderBottom: "1px solid #f1f5f9", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-          <div style={{ position: "relative", width: 300 }}>
-            <input 
-              type="text" 
-              placeholder="Search Party / Employee" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: "100%", padding: "10px 16px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none" }}
-            />
-          </div>
-          <div style={{ fontSize: 12, color: "#94a3b8" }}>Showing {filteredLists.length} dispatches</div>
-        </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead style={{ background: "#f8fafc" }}>
+            <tr>
+              <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Dispatch ID / Date</th>
+              <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Party Name</th>
+              <th style={{ padding: "12px 24px", textAlign: "center", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Packages</th>
+              <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Status</th>
+              <th style={{ padding: "12px 24px", textAlign: "right", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Dispatched By</th>
+              <th style={{ padding: "12px 24px", textAlign: "right", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredLists.map((l) => (
+              <tr key={l.id} style={{ borderBottom: "1px solid #f8fafc" }}>
+                <td style={{ padding: "14px 24px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>#{l.dispatchId || l.id?.slice(-6).toUpperCase()}</div>
+                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+                    {l.dispatchedAt ? new Date(l.dispatchedAt).toLocaleDateString() : "N/A"}{" "}
+                    {l.dispatchedAt ? new Date(l.dispatchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                  </div>
+                </td>
+                <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{l.partyName}</td>
+                <td style={{ padding: "14px 24px", textAlign: "center" }}>
+                   <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, background: "#f1f5f9", fontSize: 13, color: "#475569", fontWeight: 600 }}>
+                     {l.bails || 0} Items
+                   </div>
+                </td>
+                <td style={{ padding: "14px 24px" }}>
+                   <span style={{ 
+                      padding: "4px 8px", borderRadius: 20, fontSize: 10, fontWeight: 600,
+                      background: l.status === "Completed" ? "#dcfce7" : "#fef3c7",
+                      color: l.status === "Completed" ? "#166534" : "#92400e"
+                   }}>
+                      {l.status === "Completed" ? "Shipped" : "Ready / Pending LR"}
+                   </span>
+                   {l.lrNo && <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>LR: {l.lrNo}</div>}
+                </td>
+                <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                   <div style={{ fontSize: 13, fontWeight: 500, color: "#475569" }}>{l.dispatchedBy}</div>
+                </td>
+                <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      {l.status === "Packed" && (
+                         <div style={{ display: "flex", gap: 6 }}>
+                            <input 
+                               placeholder="Enter LR No."
+                               value={tempLr[l.id || ""] || ""}
+                               onChange={(e) => setTempLr(p => ({ ...p, [l.id || ""]: e.target.value }))}
+                               style={{ width: 120, padding: "6px 10px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12, outline: "none" }}
+                            />
+                            <button 
+                               onClick={() => l.id && handleFinalize(l.id)}
+                               disabled={updating === l.id}
+                               style={{ background: "#6366f1", color: "#fff", border: "none", padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                            >
+                               {updating === l.id ? "..." : "Set LR"}
+                            </button>
+                         </div>
+                      )}
+                      
+                      {l.status === "Completed" && (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button 
+                            onClick={() => handleDownload(l, "dispatch")}
+                            title="Dispatch List"
+                            style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "6px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, color: "#1e293b", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                          >
+                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                             Disp
+                          </button>
+                          <button 
+                            onClick={() => handleDownload(l, "packing")}
+                            title="Packing List"
+                            style={{ background: "#6366f1", border: "none", padding: "6px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                          >
+                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                             Pack
+                          </button>
+                        </div>
+                      )}
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead style={{ background: "#f8fafc" }}>
-              <tr>
-                <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Dispatch ID / Date</th>
-                <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Party Name</th>
-                <th style={{ padding: "12px 24px", textAlign: "center", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Bails/Boxes</th>
-                <th style={{ padding: "12px 24px", textAlign: "center", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Items</th>
-                <th style={{ padding: "12px 24px", textAlign: "right", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Dispatched By</th>
-                <th style={{ padding: "12px 24px", textAlign: "right", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Actions</th>
+                      <button 
+                         onClick={() => onView(l)}
+                         style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, color: "#475569", cursor: "pointer" }}
+                      >
+                         Details
+                      </button>
+                   </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredLists.map((l) => (
-                <tr key={l.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                  <td style={{ padding: "14px 24px" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>#{l.id?.slice(-6).toUpperCase()}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{new Date(l.dispatchedAt).toLocaleDateString()} {new Date(l.dispatchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                  </td>
-                  <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{l.partyName}</td>
-                  <td style={{ padding: "14px 24px", textAlign: "center" }}>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, background: "#f1f5f9", fontSize: 13, color: "#475569", fontWeight: 600 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
-                        <path d="m3.3 7 8.7 5 8.7-5"></path>
-                        <path d="M12 22V12"></path>
-                      </svg>
-                      {l.bails || 0}
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 24px", textAlign: "center", fontSize: 13, color: "#475569" }}>
-                    {l.items?.length || 0} Products
-                  </td>
-                  <td style={{ padding: "14px 24px", textAlign: "right" }}>
-                    <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{l.dispatchedBy}</div>
-                    <div style={{ fontSize: 11, color: "#64748b" }}>{l.transporter}</div>
-                  </td>
-                  <td style={{ padding: "14px 24px", textAlign: "right" }}>
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                       <button 
-                         onClick={() => onView?.(l)}
-                         style={{ fontSize: 11, fontWeight: 600, color: "#475569", background: "#f1f5f9", padding: "6px 12px", borderRadius: 8, transition: "all 0.2s" }}
-                         onMouseEnter={e => e.currentTarget.style.background = "#e2e8f0"}
-                         onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}
-                       >
-                         View
-                       </button>
-                       <button 
-                         onClick={() => onEdit?.(l)}
-                         style={{ fontSize: 11, fontWeight: 600, color: "#6366f1", background: "#f5f3ff", padding: "6px 12px", borderRadius: 8, transition: "all 0.2s" }}
-                         onMouseEnter={e => e.currentTarget.style.background = "#eee"}
-                         onMouseLeave={e => e.currentTarget.style.background = "#f5f3ff"}
-                       >
-                         Edit
-                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredLists.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic" }}>
-                    No dispatched records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
+            ))}
+          </tbody>
+        </table>
+        {lists.length === 0 && (
+          <div style={{ padding: "48px 24px", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+            No dispatch records found.
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }

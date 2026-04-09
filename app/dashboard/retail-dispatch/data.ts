@@ -52,10 +52,10 @@ export const firestoreApi = {
   },
 
   // Inventory - Fetch real items from inventory node
-  getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number; sku?: string; unit?: string }[]> => {
+  getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number; sku?: string; barcode?: string; unit?: string; collection?: string; brand?: string; brandId?: string; category?: string }[]> => {
     try {
       const snap = await get(ref(db, "inventory"));
-      const list: { id: string; productName: string; price: number; stock: number; sku?: string; unit?: string }[] = [];
+      const list: { id: string; productName: string; price: number; stock: number; sku?: string; barcode?: string; unit?: string; collection?: string; brand?: string; brandId?: string; category?: string }[] = [];
       if (snap.exists()) {
         snap.forEach(d => {
           const data = d.val();
@@ -65,7 +65,12 @@ export const firestoreApi = {
             price: data.price || 0, 
             stock: data.stock || 0,
             sku: data.sku || "N/A",
-            unit: data.unit || "PCS"
+            barcode: data.barcode || "",
+            unit: data.unit || "PCS",
+            collection: data.collection || "",
+            brand: data.brand || "",
+            brandId: data.brandId || "",
+            category: data.category || ""
           });
         });
       }

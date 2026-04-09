@@ -94,5 +94,5 @@ export interface DispatchFormData {
 
 export const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
 
-export type ActiveView = "overview" | "create-dispatch" | "rapid-dispatch" | "order-list" | "add-order" | "scanner";
+export type ActiveView = "overview" | "create-dispatch" | "rapid-dispatch" | "order-list" | "add-order" | "scanner" | "catalog" | "messages";
 
