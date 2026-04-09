@@ -13,6 +13,7 @@ import {
 import ImageGallery from "./ImageGallery";
 import { uploadToCloudinary } from "./cloudinary";
 import { logActivity } from "../../lib/activityLogger";
+import { transformImageUrl } from "../../lib/urlUtils";
 
 const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
     productName: "", sku: "", styleId: "", category: "", collection: "", brand: "", brandId: "",
@@ -91,8 +92,9 @@ export default function CreateProduct({
     };
 
     const handleImageUrl = (url: string) => {
-        set("imageUrl", url);
-        setImagePreview(url);
+        const transformedUrl = transformImageUrl(url);
+        set("imageUrl", transformedUrl);
+        setImagePreview(transformedUrl);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

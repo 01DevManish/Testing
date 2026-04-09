@@ -44,7 +44,7 @@ export default function ProductList({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkAction, setBulkAction] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 4;
+    const ITEMS_PER_PAGE = 10;
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -463,9 +463,28 @@ export default function ProductList({
                                             <td style={td}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                                     <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg,#e2e8f0,#cbd5e1)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
-                                                        {p.imageUrl
-                                                            ? <img src={p.imageUrl} alt={p.productName} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                                            : <span style={{ fontSize: 9, fontWeight: 400, color: "#94a3b8", fontFamily: FONT }}>IMG</span>}
+                                                        {p.imageUrl ? (
+                                                            <img 
+                                                                src={p.imageUrl} 
+                                                                alt={p.productName} 
+                                                                style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                                                onError={e => { 
+                                                                    const target = e.target as HTMLImageElement;
+                                                                    target.style.display = "none";
+                                                                    const parent = target.parentElement;
+                                                                    if (parent) {
+                                                                        const placeholder = document.createElement("span");
+                                                                        placeholder.innerText = "N/A";
+                                                                        placeholder.style.fontSize = "9px";
+                                                                        placeholder.style.color = "#94a3b8";
+                                                                        placeholder.style.fontFamily = "inherit";
+                                                                        parent.appendChild(placeholder);
+                                                                    }
+                                                                }} 
+                                                            />
+                                                        ) : (
+                                                            <span style={{ fontSize: 9, fontWeight: 400, color: "#94a3b8", fontFamily: FONT }}>IMG</span>
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 13, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{p.productName}</div>

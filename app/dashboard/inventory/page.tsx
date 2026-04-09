@@ -23,6 +23,7 @@ import ShareModal from "./ShareModal";
 import CatalogTab from "./CatalogTab";
 import ImageGallery from "./ImageGallery";
 import { uploadToCloudinary } from "./cloudinary";
+import { transformImageUrl } from "../../lib/urlUtils";
 
 // ── Types ─────────────────────────────────────────────────────
 import { ActiveView, Product, Category, Collection, ItemGroup } from "./types";
@@ -590,7 +591,10 @@ export default function InventoryPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
               <FormField label="HSN Code"><Input value={editForm.hsnCode} onChange={e => setEditForm({ ...editForm, hsnCode: e.target.value })} /></FormField>
-              <FormField label="Main Image URL (Manual)"><Input type="url" value={editForm.imageUrl.startsWith("data:") ? "" : editForm.imageUrl} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} /></FormField>
+              <FormField label="Main Image URL (Manual)"><Input type="url" value={editForm.imageUrl.startsWith("data:") ? "" : editForm.imageUrl} onChange={e => {
+                const transformedUrl = transformImageUrl(e.target.value);
+                setEditForm({ ...editForm, imageUrl: transformedUrl });
+              }} /></FormField>
               <FormField label="Status">
                 <Select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value as Product["status"] })}>
                   <option value="active">Active</option>

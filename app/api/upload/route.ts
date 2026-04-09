@@ -12,12 +12,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY || process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET || process.env.NEXT_PUBLIC_CLOUDINARY_API_SECRET;
     
     if (!cloudName || !apiKey || !apiSecret) {
-        throw new Error("Cloudinary configuration missing in server environment.");
+        const missing = [];
+        if (!cloudName) missing.push("CLOUDINARY_CLOUD_NAME");
+        if (!apiKey) missing.push("CLOUDINARY_API_KEY");
+        if (!apiSecret) missing.push("CLOUDINARY_API_SECRET");
+        
+        console.error("Missing Cloudinary Config:", missing.join(", "));
+        throw new Error(`Cloudinary configuration missing: ${missing.join(", ")}. Please ensure these are set in your environment variables.`);
     }
 
     const timestamp = Math.round(new Date().getTime() / 1000).toString();

@@ -10,6 +10,7 @@ import { FONT, Product, Category, Collection, UNITS, GST_RATES } from "./types";
 import { SuccessBanner, BtnPrimary, BtnGhost, Card, PageHeader } from "./ui";
 import { logActivity } from "../../lib/activityLogger";
 import { uploadToCloudinary } from "./cloudinary";
+import { transformImageUrl } from "../../lib/urlUtils";
 
 interface BulkUploadProps {
     categories: Category[];
@@ -268,11 +269,9 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                                 // Already uploaded to our account, skip and use existing URL
                                 finalImageUrl = rawImageUrl;
                             } else {
-                                // Dropbox Fix: dl=0 points to a webpage, dl=1 points to the file itself
-                                if (rawImageUrl.includes("dropbox.com")) {
-                                    rawImageUrl = rawImageUrl.replace("dl=0", "dl=1").replace("raw=0", "raw=1");
-                                }
-                                finalImageUrl = await uploadToCloudinary(rawImageUrl);
+                                // Transform Dropbox and other external URLs to direct links
+                                const transformedUrl = transformImageUrl(rawImageUrl);
+                                finalImageUrl = await uploadToCloudinary(transformedUrl);
                             }
                         } catch (imgErr: any) {
                             console.warn(`Row ${rowNum}: Image processing failed, continuing without image.`, imgErr);
