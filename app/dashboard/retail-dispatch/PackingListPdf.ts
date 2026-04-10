@@ -68,9 +68,10 @@ export const generatePackingListPdf = async (list: any, save = true): Promise<Bl
     // --- Logo (Centered Hero) ---
     const logo = await getBase64Image("/logo.png", 600);
     if (logo) {
-        const logoH = 45; // Increased slightly for prominence
+        const logoH = 80; // Significantly increased for better prominence
         const logoW = (logo.width / logo.height) * logoH;
-        doc.addImage(logo.data, "JPEG", (pageWidth - logoW) / 2, 20, logoW, logoH);
+        doc.addImage(logo.data, "JPEG", (pageWidth - logoW) / 2, 10, logoW, logoH);
+
     }
 
     // --- SR No. (Top Right) ---
@@ -88,19 +89,20 @@ export const generatePackingListPdf = async (list: any, save = true): Promise<Bl
     doc.setFontSize(10);
     doc.text(`SR No. ${srNo || "Pending"}`, pageWidth - 40, 35, { align: "right" });
 
-    // --- Header Contact Info ---
+    // --- Header Contact Info --- (Shifted down for larger logo)
     doc.setFontSize(12);
-    doc.text("Plot No 263, Sector 25 Part 2, HUDA Industrial Area, Panipat – 132103", pageWidth / 2, 85, { align: "center" });
+    doc.text("Plot No 263, Sector 25 Part 2, HUDA Industrial Area, Panipat – 132103", pageWidth / 2, 110, { align: "center" });
     doc.setFontSize(11);
-    doc.text(`Email ID: sales@euruslifestyle.in | GST NO: 06AAKFE6046J1Z9`, pageWidth / 2, 100, { align: "center" });
+    doc.text(`Email ID: sales@euruslifestyle.in | GST NO: 06AAKFE6046J1Z9`, pageWidth / 2, 125, { align: "center" });
 
     // --- Main Title ---
     doc.setFontSize(18);
-    doc.text("PACKAGING LIST", pageWidth / 2, 125, { align: "center" });
+    doc.text("PACKAGING LIST", pageWidth / 2, 150, { align: "center" });
+
 
     // --- Information Section ---
     doc.setFontSize(10);
-    const infoY = 150;
+    const infoY = 175; // Shifted down
     const infoLineH = 20;
     const col2X = 380;
 
@@ -132,6 +134,7 @@ export const generatePackingListPdf = async (list: any, save = true): Promise<Bl
         head: [["Sr.No", "Category", "Product Name", "SKU ID", "Qty", "Packaging", "Additional", "Remarks"]],
         body: tableData,
         startY: infoY + infoLineH * 3 + 25,
+
         theme: "grid",
         headStyles: { 
             fillColor: [143, 206, 209] as any, 
@@ -175,10 +178,24 @@ export const generatePackingListPdf = async (list: any, save = true): Promise<Bl
     doc.text("Checked By: _________________________", 40, footerY + 25);
     doc.text("Authorized Sign: ____________________", col2X, footerY + 25);
 
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+
     if (save) {
-        const pName = list.partyName || "Unknown_Party";
-        doc.save(`Packaging_List_${pName.replace(/\s+/g, '_')}.pdf`);
+        // Open PDF in a new window for printing instead of downloading
+        const newWindow = window.open(url, '_blank');
+        if (newWindow) {
+            newWindow.focus();
+        } else {
+            // Fallback for popup blockers
+            const pName = list.partyName || "Unknown_Party";
+            doc.save(`Packaging_List_${pName.replace(/\s+/g, '_')}.pdf`);
+        }
+        
+        // Cleanup after a short delay to allow the new tab to load the blob
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
         return null;
     }
-    return doc.output("blob");
+    return blob;
+
 };

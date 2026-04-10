@@ -33,8 +33,62 @@ export const resolveS3Url = (url: string): string => {
 };
 
 /**
+ * Client-side image compression and conversion to modern formats (AVIF/WebP).
+ * This reduces upload time, S3 storage costs, and improves dashboard performance.
+ */
+const compressImage = async (base64: string, maxWidth = 1400, quality = 0.8): Promise<string> => {
+    // Only process images, skip others (PDFs, etc.)
+    if (!base64.startsWith("data:image/")) return base64;
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+
+            // Maintain aspect ratio while respecting maxWidth
+            if (width > maxWidth) {
+                height = (maxWidth / width) * height;
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return resolve(base64);
+
+            // Use white background for transparent images to avoid black artifacts in modern formats if needed
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Step 1: Try AVIF (Best compression)
+            let result = canvas.toDataURL("image/avif", quality);
+            
+            // Step 2: Fallback to WebP if AVIF is not supported (returns image/png or similar)
+            if (!result.startsWith("data:image/avif")) {
+                result = canvas.toDataURL("image/webp", quality);
+            }
+
+            // Step 3: Second fallback to JPEG if WebP is also not supported
+            if (!result.startsWith("data:image/webp") && !result.startsWith("data:image/avif")) {
+                result = canvas.toDataURL("image/jpeg", quality);
+            }
+
+            console.log(`[Image-Optimization] Resized to ${width}x${height}, format: ${result.substring(0, 20)}...`);
+            resolve(result);
+        };
+        img.onerror = () => resolve(base64);
+        img.src = base64;
+    });
+};
+
+/**
  * Uploads an image or PDF to the S3 bucket through the local API.
  * Supports both base64 strings and standard URLs.
+ * Automatically compresses and converts images to modern formats (AVIF/WebP).
  */
 export const uploadImage = async (base64OrUrl: string): Promise<string> => {
     if (!base64OrUrl || (!base64OrUrl.startsWith("data:") && !base64OrUrl.startsWith("http"))) {
@@ -42,8 +96,15 @@ export const uploadImage = async (base64OrUrl: string): Promise<string> => {
     }
 
     try {
+        // Automatically optimize images before uploading
+        let processableData = base64OrUrl;
+        if (base64OrUrl.startsWith("data:image/")) {
+            processableData = await compressImage(base64OrUrl);
+        }
+
         const formData = new FormData();
-        formData.append("file", base64OrUrl);
+        formData.append("file", processableData);
+
 
         const res = await fetch("/api/upload", {
             method: "POST",

@@ -38,7 +38,8 @@ export default function ProductList({
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
     const [filterCol, setFilterCol] = useState("all");
-    const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "out-of-stock" | "low-stock">("all");
+    const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "out-of-stock" | "low-stock" | "in-stock">("in-stock");
+
     const [sortKey, setSortKey] = useState<SortKey>("createdAt");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -70,9 +71,12 @@ export default function ProductList({
                 list = list.filter(p => (p.status as string) === "out-of-stock" || (p.stock || 0) <= 0);
             } else if (filterStatus === "low-stock") {
                 list = list.filter(p => (p.status as string) === "low-stock" || ((p.stock || 0) > 0 && (p.stock || 0) <= (p.minStock || 5)));
+            } else if (filterStatus === "in-stock") {
+                list = list.filter(p => (p.stock || 0) > (p.minStock || 5));
             } else {
                 list = list.filter(p => (p.status as string) === filterStatus);
             }
+
         }
         list.sort((a, b) => {
             let va: any = a[sortKey]; let vb: any = b[sortKey];
@@ -361,13 +365,15 @@ export default function ProductList({
                             {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                         <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2, flex: isMobile ? "0 0 100%" : "initial" }}>
-                            {(["all", "active", "inactive", "out-of-stock"] as const).map(f => (
+                            {/* Adjusted filter order: In Stock default, then Low Stock, Out of Stock, then others */}
+                            {(["in-stock", "low-stock", "out-of-stock", "all", "active", "inactive"] as const).map(f => (
                                 <button key={f} onClick={() => setFilterStatus(f)}
                                     style={{ padding: "5px 10px", borderRadius: 20, fontSize: 10, fontWeight: 400, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
                                     {f === "all" ? "All" : STATUS_CONFIG[f]?.label}
                                 </button>
                             ))}
                         </div>
+
                     </div>
                 </div>
 

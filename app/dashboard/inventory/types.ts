@@ -87,4 +87,5 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: s
     inactive: { label: "Inactive", color: "#94a3b8", bg: "rgba(148,163,184,0.1)" },
     "low-stock": { label: "Low Stock", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
     "out-of-stock": { label: "Out of Stock", color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
-};
+    "in-stock": { label: "In Stock", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
+};

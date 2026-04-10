@@ -172,7 +172,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
             draw(truncate(item.category || "", 18), 70, rowY, 10);
             draw(truncate(item.collectionName || "", 16), 166, rowY, 10);
             draw(truncate(item.sku || "N/A", 12), 258, rowY, 10);
-            draw(truncate(item.packagingType || list.packingType || "Box", 12), 310, rowY, 10);
+            draw(truncate(item.packagingType || list.packingType || "Box", 12), 305, rowY, 10);
             draw(String(item.quantity || 1), 395, rowY, 10.5, true);
             draw(truncate(item.boxName || "-", 15), 445, rowY, 10);
         });
@@ -186,28 +186,39 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         draw(String(totalQty), 395, 665, 11, true);
 
         // ═══════════════════════════════════════════════════════
-        // FOOTER Section (Prepared By)
+        // FOOTER Section (Prepared By & System URL)
         // ═══════════════════════════════════════════════════════
-        const fY = 715;
+        const fY = 708;
         if (list.assignedToName) {
             draw(list.assignedToName, 115, fY, 13, true);
         }
 
+        // Add System URL to bottom left for record reference
+        const systemUrl = typeof window !== 'undefined' ? window.location.origin + "/dashboard/retail-dispatch" : "https://euruslifestyle.in/dashboard/retail-dispatch";
+        draw(`Generated from: ${systemUrl}`, 35, 815, 7.5);
+
         // ═══════════════════════════════════════════════════════
-        // SAVE & DOWNLOAD
+        // SAVE & OUTPUT
         // ═══════════════════════════════════════════════════════
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
+        
+        // Open PDF in a new window for printing instead of downloading
+        const newWindow = window.open(url, '_blank');
+        if (newWindow) {
+            newWindow.focus();
+        } else {
+            // Fallback for popup blockers
+            const link = document.createElement("a");
+            link.href = url;
+            const pName = (list.partyName || "Record").replace(/\s+/g, "_");
+            link.download = `Dispatch_List_${pName}.pdf`;
+            link.click();
+        }
 
-        const link = document.createElement("a");
-        link.href = url;
-        const pName = (list.partyName || "Record").replace(/\s+/g, "_");
-        link.download = `Dispatch_List_${pName}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        // Cleanup after a short delay to allow the new tab to load the blob
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
 
     } catch (error) {
         console.error("Template PDF Generation Error:", error);
