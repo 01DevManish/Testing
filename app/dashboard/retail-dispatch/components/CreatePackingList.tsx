@@ -123,8 +123,8 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     const items = (selectedParty.rates || [])
       .filter((r: any) => selectedItems[r.productName] > 0)
       .map((r: any) => {
-        const targetName = r.productName?.trim().toLowerCase();
-        const invMatch = inventory.find(p => p.productName?.trim().toLowerCase() === targetName);
+        const targetName = r.productName?.trim()?.toLowerCase();
+        const invMatch = inventory.find(p => p.productName?.trim()?.toLowerCase() === targetName);
         return {
           productId: r.productName,
           productName: r.productName,
@@ -156,10 +156,10 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       try {
         const partiesSnap = await get(ref(db, "parties"));
         if (partiesSnap.exists()) {
-          const targetPartyName = selectedParty.partyName?.trim().toLowerCase();
+          const targetPartyName = selectedParty.partyName?.trim()?.toLowerCase();
           partiesSnap.forEach(d => {
             const pData = d.val();
-            if (pData.partyName?.trim().toLowerCase() === targetPartyName) {
+            if (pData.partyName?.trim()?.toLowerCase() === targetPartyName) {
               if (pData.address) fullPartyAddress = pData.address;
               if (pData.city) fullPartyCity = pData.city;
             }

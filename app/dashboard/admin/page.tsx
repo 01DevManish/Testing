@@ -370,7 +370,7 @@ export default function AdminPage() {
     // Permanent hidden filter
     if (u.email === "01devmanish@gmail.com") return false;
     
-    const ms = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const ms = u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const mr = filterRole === "all" || u.role === filterRole;
     return ms && mr;
   });

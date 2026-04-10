@@ -155,12 +155,12 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
     const [productSearch, setProductSearch] = useState("");
 
     const filteredParties = dbParties.filter(p =>
-        p.name.toLowerCase().includes(partySearch.toLowerCase()) ||
+        p.name?.toLowerCase().includes(partySearch.toLowerCase()) ||
         (p.city && p.city.toLowerCase().includes(partySearch.toLowerCase()))
     );
     const filteredProducts = dbProducts.filter(p =>
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        p.sku.toLowerCase().includes(productSearch.toLowerCase())
+        p.name?.toLowerCase().includes(productSearch.toLowerCase()) ||
+        p.sku?.toLowerCase().includes(productSearch.toLowerCase())
     );
 
     function canProceed() {

@@ -85,7 +85,7 @@ export function CategoryList({ categories, user, loading, canCreate, canDelete, 
     const filtered = useMemo(() => {
         const q = search.toLowerCase().trim();
         if (!q) return categories;
-        return categories.filter(c => c.name.toLowerCase().includes(q));
+        return categories.filter(c => c.name?.toLowerCase().includes(q));
     }, [search, categories]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -352,7 +352,7 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
                             {products.length === 0 ? (
                                 <div style={{ padding: "20px 0", textAlign: "center", color: "#94a3b8", fontSize: 13, fontFamily: FONT }}>No products available</div>
                             ) : products
-                                .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
+                                .filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
                                 .slice((itemPage - 1) * 5, itemPage * 5)
                                 .map(p => (
                                     <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", transition: "0.2s" }}>
@@ -367,7 +367,7 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
                                         </div>
                                     </label>
                                 ))}
-                            {products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length === 0 && products.length > 0 && (
+                            {products.filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length === 0 && products.length > 0 && (
                                 <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No items found</div>
                             )}
                         </div>
@@ -382,7 +382,7 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
                             </button>
                             <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
                             <button
-                                disabled={itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
+                                disabled={itemPage * 5 >= products.filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
                                 onClick={() => setItemPage(p => p + 1)}
                                 style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
                             >
@@ -410,7 +410,7 @@ export function CollectionList({ collections, user, loading, canCreate, canDelet
     const filtered = useMemo(() => {
         const q = search.toLowerCase().trim();
         if (!q) return collections;
-        return collections.filter(c => c.name.toLowerCase().includes(q));
+        return collections.filter(c => c.name?.toLowerCase().includes(q));
     }, [search, collections]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -457,7 +457,7 @@ export function CollectionList({ collections, user, loading, canCreate, canDelet
                                         )}
                                     </div>
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>
-                                        {products?.filter(p => p.collection?.trim().toLowerCase() === c.name.trim().toLowerCase()).length ?? 0} products
+                                        {products?.filter(p => p.collection?.trim().toLowerCase() === c.name?.trim().toLowerCase()).length ?? 0} products
                                     </div>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -594,7 +594,7 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
                             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Product / SKU" />
                             <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
                                 {allProducts
-                                    .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
+                                    .filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
                                     .slice((itemPage - 1) * 5, itemPage * 5)
                                     .map(p => (
                                         <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
@@ -621,7 +621,7 @@ function EditCollectionModal({ collection, user, allProducts, onClose, isMobile,
                                 </button>
                                 <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
                                 <button
-                                    disabled={itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
+                                    disabled={itemPage * 5 >= allProducts.filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
                                     onClick={() => setItemPage(p => p + 1)}
                                     style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
                                 >
@@ -722,7 +722,7 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
                         />
                         <div style={{ maxHeight: 380, overflowY: "auto", border: "1px solid #f1f5f9", borderRadius: 8 }}>
                             {products
-                                .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()))
+                                .filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase()))
                                 .slice((itemPage - 1) * 5, itemPage * 5)
                                 .map(p => (
                                     <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", transition: "0.2s" }}>
@@ -737,7 +737,7 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
                                         </div>
                                     </label>
                                 ))}
-                            {products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length === 0 && (
+                            {products.filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase())).length === 0 && (
                                 <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No items found</div>
                             )}
                         </div>
@@ -752,7 +752,7 @@ export function CreateItemGroup({ products, user, onCreated, isMobile, isDesktop
                             </button>
                             <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
                             <button
-                                disabled={itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length}
+                                disabled={itemPage * 5 >= products.filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase())).length}
                                 onClick={() => setItemPage(p => p + 1)}
                                 style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= products.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
                             >
@@ -896,7 +896,7 @@ function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDes
                             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Product / SKU" />
                             <div style={{ maxHeight: 320, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
                                 {allProducts
-                                    .filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
+                                    .filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase()))
                                     .slice((itemPage - 1) * 5, itemPage * 5)
                                     .map(p => (
                                         <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
@@ -923,7 +923,7 @@ function EditItemGroupModal({ group, user, allProducts, onClose, isMobile, isDes
                                 </button>
                                 <span style={{ fontSize: 11, color: "#94a3b8" }}>Page {itemPage}</span>
                                 <button
-                                    disabled={itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
+                                    disabled={itemPage * 5 >= allProducts.filter(p => p.productName?.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length}
                                     onClick={() => setItemPage(p => p + 1)}
                                     style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#f8fafc" : "#fff", color: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "#cbd5e1" : "#475569", cursor: (itemPage * 5 >= allProducts.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || (p as any).sku?.toLowerCase().includes(search.toLowerCase())).length) ? "not-allowed" : "pointer", fontSize: 11 }}
                                 >

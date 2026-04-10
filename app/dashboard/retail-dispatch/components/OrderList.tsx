@@ -33,8 +33,8 @@ export default function OrderList({
 }: OrderListProps) {
   
   const filtered = orders.filter(o => {
-    const matchSearch = o.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        o.customer.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = o.id?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        o.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = filterStatus === "All" || o.status === filterStatus;
     return matchSearch && matchStatus;
   });

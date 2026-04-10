@@ -42,8 +42,8 @@ export default function CatalogTab({ products, categories, collections, brands, 
 
     const filtered = useMemo(() => {
         return products.filter(p => {
-            const matchesSearch = p.productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                 p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = p.productName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                 p.sku?.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesCat = selectedCategory === "all" || p.category === selectedCategory;
             const matchesColl = selectedCollection === "all" || p.collection === selectedCollection;
             const matchesSize = selectedSize === "all" || p.size === selectedSize;
