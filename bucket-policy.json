@@ -5,7 +5,7 @@
       "Sid": "AllowManishFullAccess",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::273517699422:user/Manish"
+        "AWS": "arn:aws:iam::273517699422:user/S3"
       },
       "Action": "s3:*",
       "Resource": [

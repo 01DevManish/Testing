@@ -40,5 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 service-account.json
+serviceAccountKey.json
+# firebase sync scripts
+firebase-sync/
 # docker data
+
 mongo_data/

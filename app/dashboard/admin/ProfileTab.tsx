@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { uploadToCloudinary } from "../inventory/cloudinary";
+import { uploadImage } from "../inventory/imageService";
 import type { AdminStyles } from "./styles";
 
 interface ProfileTabProps {
@@ -27,7 +27,7 @@ export default function ProfileTab({ S, isMobile, isTablet }: ProfileTabProps) {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result as string;
-        const imageUrl = await uploadToCloudinary(base64);
+        const imageUrl = await uploadImage(base64);
         await updateUserData(userData.uid, { profilePic: imageUrl });
         setUploading(false);
       };

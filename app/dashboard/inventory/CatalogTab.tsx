@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Product, Category, Collection, FONT } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
 import ShareModal from "./ShareModal";
+import { resolveS3Url } from "./imageService";
 
 interface CatalogTabProps {
     products: Product[];
@@ -186,7 +187,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                             >
                                 <div style={imageContainer}>
                                     <img 
-                                        src={p.imageUrl || "/placeholder-prod.png"} 
+                                        src={resolveS3Url(p.imageUrl || "/placeholder-prod.png")} 
                                         alt={p.productName} 
                                         style={imageStyle} 
                                     />

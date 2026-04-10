@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Product, FONT } from "./types";
 import { BtnPrimary, BtnGhost } from "./ui";
 import { generateCatalogPdf } from "./PdfGenerator";
+import { resolveS3Url } from "./imageService";
 
 interface ShareModalProps {
     selectedProducts: Product[];
@@ -170,9 +171,13 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
                 const logoUrl = brand?.logoUrl;
                 const prodCollection = product?.collection || collectionName || "";
 
+                let resolvedUrl = "";
                 try {
-                    const response = await fetch(img.url);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    resolvedUrl = resolveS3Url(img.url);
+                    const response = await fetch(resolvedUrl, { mode: 'cors' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status} for ${resolvedUrl}`);
+
+
                     const originalBlob = await response.blob();
                     const processedBlob = await processProductImage(originalBlob, logoUrl, prodCollection, img.sku, allImages.length);
                     
@@ -195,8 +200,10 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
             const fileObjects = files.map(f => new File([f.blob], f.fileName, { type: "image/jpeg" }));
             setProcessedFiles(fileObjects);
         } catch (err: any) {
-            alert(`Failed: ${err.message}`);
+            console.error("Critical Sharing Error:", err);
+            alert(`Sharing Failed: ${err.message || "Unknown error"}\n\nCheck if the S3 bucket is public and CORS is configured.`);
         } finally {
+
             setSharingImages(false);
         }
     };

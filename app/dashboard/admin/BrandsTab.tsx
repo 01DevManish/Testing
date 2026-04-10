@@ -7,7 +7,7 @@ import { ref, set, push, remove, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
-import { uploadToCloudinary } from "../inventory/cloudinary";
+import { uploadImage } from "../inventory/imageService";
 
 interface BrandsTabProps {
   S: AdminStyles;
@@ -83,7 +83,7 @@ export default function BrandsTab({
 
       // If logoPreview is a data URL, upload to Cloudinary
       if (logoPreview.startsWith("data:")) {
-        finalLogoUrl = await uploadToCloudinary(logoPreview);
+        finalLogoUrl = await uploadImage(logoPreview);
       }
 
       const data = {

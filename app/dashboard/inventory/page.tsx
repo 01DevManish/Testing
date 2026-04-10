@@ -22,7 +22,7 @@ import BulkUpload from "./BulkUpload";
 import ShareModal from "./ShareModal";
 import CatalogTab from "./CatalogTab";
 import ImageGallery from "./ImageGallery";
-import { uploadToCloudinary } from "./cloudinary";
+import { uploadImage } from "./imageService";
 import { transformImageUrl } from "../../lib/urlUtils";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -185,13 +185,13 @@ export default function InventoryPage() {
     if (galleryHasNew || thumbnailIsNew) {
         // Upload all base64 images in gallery
         const uploadPromises = editGallery.map(img => 
-            img.startsWith("data:") ? uploadToCloudinary(img) : Promise.resolve(img)
+            img.startsWith("data:") ? uploadImage(img) : Promise.resolve(img)
         );
         finalImageUrls = await Promise.all(uploadPromises);
         
         // Update main thumbnail if it was a base64
         if (thumbnailIsNew) {
-            finalImageUrl = await uploadToCloudinary(editForm.imageUrl);
+            finalImageUrl = await uploadImage(editForm.imageUrl);
         } else if (galleryHasNew) {
             // If gallery changed, sync thumbnail if it points to an old base64 version of a gallery image
             const idx = editGallery.indexOf(editForm.imageUrl);

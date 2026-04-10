@@ -1,12 +1,17 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Product } from "./types";
+import { resolveS3Url } from "./imageService";
 
 const getBase64Image = async (url: string, maxWidth = 600): Promise<{ data: string, width: number, height: number } | null> => {
     try {
-        const response = await fetch(url);
-        if (!response.ok) return null;
+        const response = await fetch(url, { mode: 'cors' });
+        if (!response.ok) {
+            console.error(`[S3-Fetch-Fail] HTTP ${response.status} for ${url}`);
+            return null;
+        }
         const blob = await response.blob();
+
         
         return new Promise((resolve) => {
             const img = new Image();
@@ -60,9 +65,10 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
         const p = products[i];
         const imgUrl = p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls[0] : null);
         if (imgUrl) {
-            const result = await getBase64Image(imgUrl);
+            const result = await getBase64Image(resolveS3Url(imgUrl));
             if (result) images[i] = result.data;
         }
+
 
         tableData.push([
             i + 1,
@@ -74,13 +80,27 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
 
     // 2. Header
     const drawHeader = async (d: jsPDF) => {
-        // Logo on left side
-        const logo = await getBase64Image("/logo.png", 200);
+        // Logo on left side - Premium Layout with Specific S3 Logo
+        const S3_LOGO_URL = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
+        const logo = await getBase64Image(S3_LOGO_URL, 200);
+
         if (logo) {
-            const logoH = 22; // Restored to larger size as requested
+            const logoH = 22;
             const logoW = (logo.width / logo.height) * logoH;
-            d.addImage(logo.data, "PNG", 14, 10, logoW, logoH);
+            
+            // Premium White Box for Logo
+            d.setFillColor(255, 255, 255);
+            d.setDrawColor(241, 245, 249); // Slate 100
+            d.setLineWidth(0.1);
+            // Draw a generous white card for the logo
+            const boxW = logoW + 8;
+            const boxH = logoH + 8;
+            d.roundedRect(14, 8, boxW, boxH, 2, 2, 'FD');
+            
+            // Center logo in the box
+            d.addImage(logo.data, "PNG", 14 + 4, 8 + 4, logoW, logoH);
         }
+
         
         d.setFont("helvetica", "bold");
         d.setFontSize(9.5);
@@ -203,9 +223,10 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
 
         const imgUrl = product?.imageUrl || (product?.imageUrls && product?.imageUrls.length > 0 ? product.imageUrls[0] : null);
         if (imgUrl) {
-            const result = await getBase64Image(imgUrl);
+            const result = await getBase64Image(resolveS3Url(imgUrl));
             if (result) images[i] = result.data;
         }
+
 
         tableData.push([
             i + 1,
@@ -221,12 +242,27 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
     }
 
     const drawHeader = async (d: jsPDF) => {
-        const logo = await getBase64Image("/logo.png", 200);
+        // Logo on left side - Premium Layout with Specific S3 Logo
+        const S3_LOGO_URL = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
+        const logo = await getBase64Image(S3_LOGO_URL, 200);
+
         if (logo) {
             const logoH = 22;
             const logoW = (logo.width / logo.height) * logoH;
-            d.addImage(logo.data, "PNG", 14, 10, logoW, logoH);
+            
+            // Premium White Box for Logo
+            d.setFillColor(255, 255, 255);
+            d.setDrawColor(241, 245, 249); // Slate 100
+            d.setLineWidth(0.1);
+            // Draw a generous white card for the logo
+            const boxW = logoW + 8;
+            const boxH = logoH + 8;
+            d.roundedRect(14, 8, boxW, boxH, 2, 2, 'FD');
+            
+            // Center logo in the box
+            d.addImage(logo.data, "PNG", 14 + 4, 8 + 4, logoW, logoH);
         }
+
         
         d.setFont("helvetica", "bold");
         d.setFontSize(9.5);

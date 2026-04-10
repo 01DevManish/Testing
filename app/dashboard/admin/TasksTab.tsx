@@ -265,7 +265,7 @@ export default function TasksTab({
                 if (selectedFiles.length > 0) setUploading(true);
                 const attachments: { name: string; url: string }[] = [];
                 try {
-                  const { uploadToCloudinary } = await import("../inventory/cloudinary");
+                  const { uploadImage } = await import("../inventory/imageService");
                   
                   for (const file of selectedFiles) {
                     const reader = new FileReader();
@@ -274,9 +274,10 @@ export default function TasksTab({
                       reader.readAsDataURL(file);
                     });
                     const base64 = await base64Promise;
-                    const url = await uploadToCloudinary(base64);
+                    const url = await uploadImage(base64);
                     attachments.push({ name: file.name, url });
                   }
+
                   handleCreateTask(attachments);
                   setSelectedFiles([]);
                 } catch (e: any) {

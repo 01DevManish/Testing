@@ -1,47 +1,25 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
+import { deleteFile } from '../../lib/s3';
 
 export async function POST(req: Request) {
   try {
-    const { public_id } = await req.json();
+    const { key, public_id } = await req.json();
     
-    if (!public_id) {
-        return NextResponse.json({ error: "No public_id provided" }, { status: 400 });
+    // Support both 'key' and 'public_id' for easier migration
+    const s3Key = key || public_id;
+
+    if (!s3Key) {
+        return NextResponse.json({ error: "No image key or public_id provided" }, { status: 400 });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "dd4hmahlm";
-    const apiKey = process.env.CLOUDINARY_API_KEY || process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "253667214247696";
-    const apiSecret = process.env.CLOUDINARY_API_SECRET || process.env.NEXT_PUBLIC_CLOUDINARY_API_SECRET || "nlLGSypdD6J5dXjUZ0RRItDtf5Y";
-    
-    if (!cloudName || !apiKey || !apiSecret) {
-        throw new Error("Cloudinary configuration missing in server environment.");
-    }
+    console.log("Attempting S3 deletion:", s3Key);
 
-    const timestamp = Math.round(new Date().getTime() / 1000);
-    
-    // Create signature: public_id=${public_id}&timestamp=${timestamp}${apiSecret}
-    const stringToSign = `public_id=${public_id}&timestamp=${timestamp}${apiSecret}`;
-    const signature = crypto.createHash('sha1').update(stringToSign).digest('hex');
+    await deleteFile(s3Key);
 
-    const formData = new FormData();
-    formData.set('public_id', public_id);
-    formData.set('api_key', apiKey);
-    formData.set('timestamp', timestamp.toString());
-    formData.set('signature', signature);
-
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.error?.message || "Failed to delete from Cloudinary");
-    }
-
-    return NextResponse.json({ result: data.result });
+    return NextResponse.json({ result: "ok" });
   } catch (error: any) {
-    console.error("Cloudinary delete error:", error);
+    console.error("S3 delete error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

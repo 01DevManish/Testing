@@ -91,7 +91,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         // LEFT BOX — Bill To / Ship To
         // ═══════════════════════════════════════════════════════
         const bX = 35; // Calibrated for left margin
-        let bY = 168; 
+        let bY = 168;
         draw("Bill To:", bX, bY, 9, true);
 
         bY += 15;
@@ -188,7 +188,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         // ═══════════════════════════════════════════════════════
         // FOOTER Section (Prepared By)
         // ═══════════════════════════════════════════════════════
-        const fY = 712;
+        const fY = 715;
         if (list.assignedToName) {
             draw(list.assignedToName, 115, fY, 13, true);
         }

@@ -7,7 +7,7 @@ import { ref, push, set, update, remove, get } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { FONT, Category, Collection, ItemGroup, Product } from "./types";
 import { logActivity } from "../../lib/activityLogger";
-import { deleteFromCloudinary } from "./cloudinary";
+import { deleteImage } from "./imageService";
 import { Input, Textarea, FormField, BtnPrimary, BtnSecondary, BtnGhost, SuccessBanner, Card, PageHeader, EmptyState } from "./ui";
 
 // ══════════════════════════════════════════════════════════════
@@ -2417,9 +2417,9 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                         await remove(ref(db, `inventory/${productToDelete.id}`));
 
                                         // Delete images from Cloudinary
-                                        if (productToDelete.imageUrl) await deleteFromCloudinary(productToDelete.imageUrl);
+                                        if (productToDelete.imageUrl) await deleteImage(productToDelete.imageUrl);
                                         if (productToDelete.imageUrls && productToDelete.imageUrls.length > 0) {
-                                            await Promise.all(productToDelete.imageUrls.map(url => deleteFromCloudinary(url)));
+                                            await Promise.all(productToDelete.imageUrls.map(url => deleteImage(url)));
                                         }
 
                                         setProductToDelete(null);

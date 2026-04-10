@@ -6,7 +6,7 @@ import { db } from "../../lib/firebase";
 import { FONT, Product, Category, Collection, STATUS_CONFIG } from "./types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "./ui";
 import { logActivity } from "../../lib/activityLogger";
-import { deleteFromCloudinary } from "./cloudinary";
+import { deleteImage } from "./imageService";
 import ExcelJS from "exceljs";
 
 
@@ -110,9 +110,9 @@ export default function ProductList({
             await remove(ref(db, `inventory/${id}`));
             
             // Delete images from Cloudinary
-            if (p.imageUrl) await deleteFromCloudinary(p.imageUrl);
+            if (p.imageUrl) await deleteImage(p.imageUrl);
             if (p.imageUrls && p.imageUrls.length > 0) {
-                await Promise.all(p.imageUrls.map(url => deleteFromCloudinary(url)));
+                await Promise.all(p.imageUrls.map(url => deleteImage(url)));
             }
             
             // Log activity
@@ -141,9 +141,9 @@ export default function ProductList({
             // Delete from Firebase and Cloudinary
             await Promise.all(selectedProducts.map(async (p) => {
                 await remove(ref(db, `inventory/${p.id}`));
-                if (p.imageUrl) await deleteFromCloudinary(p.imageUrl);
+                if (p.imageUrl) await deleteImage(p.imageUrl);
                 if (p.imageUrls && p.imageUrls.length > 0) {
-                    await Promise.all(p.imageUrls.map(url => deleteFromCloudinary(url)));
+                    await Promise.all(p.imageUrls.map(url => deleteImage(url)));
                 }
             }));
             

@@ -1,7 +1,5 @@
-import { NextResponse, NextRequest } from 'next/server';
-import crypto from 'crypto';
-
-
+import { NextResponse } from 'next/server';
+import { uploadFile } from '../../lib/s3';
 
 export async function POST(req: Request) {
   try {
@@ -9,55 +7,50 @@ export async function POST(req: Request) {
     const file = formData.get('file');
     
     if (!file) {
+
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "dd4hmahlm";
-    const apiKey = process.env.CLOUDINARY_API_KEY || process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "253667214247696";
-    const apiSecret = process.env.CLOUDINARY_API_SECRET || process.env.NEXT_PUBLIC_CLOUDINARY_API_SECRET || "nlLGSypdD6J5dXjUZ0RRItDtf5Y";
-    
-    if (!cloudName || !apiKey || !apiSecret) {
-        const missing = [];
-        if (!cloudName) missing.push("CLOUDINARY_CLOUD_NAME");
-        if (!apiKey) missing.push("CLOUDINARY_API_KEY");
-        if (!apiSecret) missing.push("CLOUDINARY_API_SECRET");
+    let buffer: Buffer;
+    let fileType: string;
+    let originalName: string;
+
+    if (typeof file === "string") {
+        // Handle base64 string
+        const base64Data = file.split(',')[1] || file;
+        buffer = Buffer.from(base64Data, 'base64');
         
-        console.error("Missing Cloudinary Config:", missing.join(", "));
-        throw new Error(`Cloudinary configuration missing: ${missing.join(", ")}. Please ensure these are set in your environment variables.`);
+        // Try to detect content type from base64 if present
+        const match = file.match(/^data:(.*);base64,/);
+        fileType = match ? match[1] : 'image/jpeg';
+        originalName = "upload.jpg";
+    } else {
+        // Handle File object
+        const bytes = await file.arrayBuffer();
+        buffer = Buffer.from(bytes);
+        fileType = file.type;
+        originalName = file.name;
     }
 
-    const timestamp = Math.round(new Date().getTime() / 1000).toString();
+    // Determine the subfolder based on file type (images/ or pdf/)
+    const subFolder = fileType.includes('pdf') ? 'pdf/' : 'images/';
     
-    // Cloudinary signature: all parameter strings (except file, api_key, and signature)
-    // sorted alphabetically, then joined with '&', then append api_secret (without '&')
-    // Since we only sign 'timestamp', the logic is simple:
-    const stringToSign = `timestamp=${timestamp}${apiSecret}`;
-    const signature = crypto.createHash('sha1').update(stringToSign).digest('hex');
+    // Create a unique filename with timestamp and correct folder hierarchy
+    const prefix = process.env.AWS_S3_PATH_PREFIX || "";
+    const fileName = `${prefix}${subFolder}${Date.now()}-${originalName.replace(/\s+/g, '_')}`;
+
+    
+    console.log("Attempting S3 upload:", fileName);
 
 
-    const cloudinaryFormData = new FormData();
-    cloudinaryFormData.append('file', file as any);
-    cloudinaryFormData.append('api_key', apiKey);
-    cloudinaryFormData.append('timestamp', timestamp.toString());
-    cloudinaryFormData.append('signature', signature);
+    const publicUrl = await uploadFile(buffer, fileName, fileType);
 
-    console.log("Attempting Cloudinary upload for cloud:", cloudName);
 
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-      method: 'POST',
-      body: cloudinaryFormData,
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-        console.error("Cloudinary API Error Details:", data);
-        throw new Error(data.error?.message || "Cloudinary upload rejected. Please check your credentials or image size.");
-    }
-
-    return NextResponse.json({ secure_url: data.secure_url });
+    return NextResponse.json({ secure_url: publicUrl });
   } catch (error: any) {
     console.error("Server-side upload error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error during upload" }, { status: 500 });
   }
 }
+
 

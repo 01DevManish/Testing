@@ -11,7 +11,7 @@ import {
     BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader,
 } from "./ui";
 import ImageGallery from "./ImageGallery";
-import { uploadToCloudinary } from "./cloudinary";
+import { uploadImage } from "./imageService";
 import { logActivity } from "../../lib/activityLogger";
 import { transformImageUrl } from "../../lib/urlUtils";
 
@@ -148,7 +148,7 @@ export default function CreateProduct({
             
             // Upload all gallery images to Cloudinary
             if (galleryImages.length > 0) {
-                const uploadPromises = galleryImages.map(img => uploadToCloudinary(img));
+                const uploadPromises = galleryImages.map(img => uploadImage(img));
                 finalImageUrls = await Promise.all(uploadPromises);
                 
                 // Set first image as main thumbnail if main image was one of the uploaded ones

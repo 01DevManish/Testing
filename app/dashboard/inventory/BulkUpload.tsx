@@ -9,7 +9,7 @@ import { db } from "../../lib/firebase";
 import { FONT, Product, Category, Collection, UNITS, GST_RATES } from "./types";
 import { SuccessBanner, BtnPrimary, BtnGhost, Card, PageHeader } from "./ui";
 import { logActivity } from "../../lib/activityLogger";
-import { uploadToCloudinary } from "./cloudinary";
+import { uploadImage } from "./imageService";
 import { transformImageUrl } from "../../lib/urlUtils";
 
 interface BulkUploadProps {
@@ -271,7 +271,7 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                             } else {
                                 // Transform Dropbox and other external URLs to direct links
                                 const transformedUrl = transformImageUrl(rawImageUrl);
-                                finalImageUrl = await uploadToCloudinary(transformedUrl);
+                                finalImageUrl = await uploadImage(transformedUrl);
                             }
                         } catch (imgErr: any) {
                             console.warn(`Row ${rowNum}: Image processing failed, continuing without image.`, imgErr);
