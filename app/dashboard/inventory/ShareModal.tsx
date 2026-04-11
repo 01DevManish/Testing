@@ -165,35 +165,35 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
 
         setSharingImages(true);
         try {
-            const fetchPromises = allImages.map(async (img, idx) => {
-                const product = selectedProducts.find(p => p.sku === img.sku);
-                const brand = brands?.find(b => b.id === product?.brandId || b.name === product?.brand);
-                const logoUrl = brand?.logoUrl;
-                const prodCollection = product?.collection || collectionName || "";
+            const files: { blob: Blob, fileName: string }[] = [];
+            const CHUNK_SIZE = 6; // Process in small batches for stability
+            
+            for (let i = 0; i < allImages.length; i += CHUNK_SIZE) {
+                const chunk = allImages.slice(i, i + CHUNK_SIZE);
+                const batchResults = await Promise.allSettled(chunk.map(async (img, chunkIdx) => {
+                    const idx = i + chunkIdx;
+                    const product = selectedProducts.find(p => p.sku === img.sku);
+                    const brand = brands?.find(b => b.id === product?.brandId || b.name === product?.brand);
+                    const logoUrl = brand?.logoUrl;
+                    const prodCollection = product?.collection || collectionName || "";
 
-                let resolvedUrl = "";
-                try {
-                    resolvedUrl = resolveS3Url(img.url);
+                    const resolvedUrl = resolveS3Url(img.url);
                     const response = await fetch(resolvedUrl, { mode: 'cors' });
                     if (!response.ok) throw new Error(`HTTP ${response.status} for ${resolvedUrl}`);
-
 
                     const originalBlob = await response.blob();
                     const processedBlob = await processProductImage(originalBlob, logoUrl, prodCollection, img.sku, allImages.length);
                     
                     const fileName = `${img.productName.replace(/[^a-z0-9]/gi, '_')}_${img.sku}_${idx}.jpg`;
                     return { blob: processedBlob, fileName };
-                } catch (err) {
-                    console.error("Image share item failed", img.url, err);
-                    return null;
-                }
-            });
+                }));
 
-            const settled = await Promise.allSettled(fetchPromises);
-            const files = settled
-                .filter((r): r is PromiseFulfilledResult<{ blob: Blob; fileName: string } | null> => r.status === "fulfilled")
-                .map(r => r.value)
-                .filter((f): f is { blob: Blob; fileName: string } => f !== null);
+                batchResults.forEach(r => {
+                    if (r.status === "fulfilled" && r.value) {
+                        files.push(r.value);
+                    }
+                });
+            }
 
             if (files.length === 0) throw new Error("No images could be processed.");
 
@@ -203,7 +203,6 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
             console.error("Critical Sharing Error:", err);
             alert(`Sharing Failed: ${err.message || "Unknown error"}\n\nCheck if the S3 bucket is public and CORS is configured.`);
         } finally {
-
             setSharingImages(false);
         }
     };
@@ -268,10 +267,12 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
                 </button>
 
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <svg width="24" height="24" viewBox="0 0 15 15" fill="none">
-                            <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                    <div style={{ width: 64, height: 64, borderRadius: 12, background: "#fff", border: "1px solid #f1f5f9", padding: 8, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <img 
+                            src={resolveS3Url("logo.png")} 
+                            alt="Logo" 
+                            style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} 
+                        />
                     </div>
                     <h3 style={{ fontSize: 18, fontWeight: 400, color: "#0f172a", margin: "0 0 6px", fontFamily: FONT }}>Share Catalog</h3>
                     <p style={{ fontSize: 13, color: "#64748b", margin: 0, fontFamily: FONT }}>

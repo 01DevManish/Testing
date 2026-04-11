@@ -1,6 +1,6 @@
-const REGION = "ap-south-1";
-const BUCKET = "epanelimages";
-const ARCHIVE_PREFIX = "Cloudinary_Archive_2026-04-10_10_27_479_Originals/";
+const REGION = process.env.NEXT_PUBLIC_AWS_S3_REGION || "ap-south-1";
+const BUCKET = process.env.NEXT_PUBLIC_AWS_S3_BUCKET || "epanelimages";
+const ARCHIVE_PREFIX = process.env.NEXT_PUBLIC_S3_ARCHIVE_PREFIX || "Cloudinary_Archive_2026-04-10_10_27_479_Originals/";
 
 /**
  * Resolves any image URL to its S3 counterpart.

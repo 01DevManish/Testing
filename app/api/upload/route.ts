@@ -5,6 +5,12 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file');
+
+    // Verify S3 credentials
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      console.error("S3 Error: AWS credentials are not configured in environment variables.");
+      return NextResponse.json({ error: "Storage configuration error: Missing AWS credentials." }, { status: 500 });
+    }
     
     if (!file) {
 

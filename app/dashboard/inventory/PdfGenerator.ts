@@ -61,28 +61,33 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
         else finalCollectionName = "Product Catalog";
     }
 
-    for (let i = 0; i < products.length; i++) {
-        const p = products[i];
-        const imgUrl = p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls[0] : null);
-        if (imgUrl) {
-            const result = await getBase64Image(resolveS3Url(imgUrl));
-            if (result) images[i] = result.data;
-        }
+    // 1. Prepare Data & Images - Parallel chunks for speed
+    const CHUNK_SIZE = 8;
+    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+        const chunk = products.slice(i, i + CHUNK_SIZE);
+        await Promise.all(chunk.map(async (p, chunkIdx) => {
+            const globalIdx = i + chunkIdx;
+            const imgUrl = p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls[0] : null);
+            if (imgUrl) {
+                const result = await getBase64Image(resolveS3Url(imgUrl));
+                if (result) images[globalIdx] = result.data;
+            }
+        }));
+    }
 
-
+    products.forEach((p, i) => {
         tableData.push([
             i + 1,
             "", // Placeholder for image
             `${p.productName}\nSKU: ${p.sku}${p.collection ? `\nCollection: ${p.collection}` : ""}${p.size ? `\nSize: ${p.size}` : ""}${p.description ? `\n\n${p.description}` : ""}`,
             `Rs. ${Number(p.price || 0).toLocaleString("en-IN")}`
         ]);
-    }
+    });
 
     // 2. Header
     const drawHeader = async (d: jsPDF) => {
-        // Logo on left side - Premium Layout with Specific S3 Logo
-        const S3_LOGO_URL = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
-        const logo = await getBase64Image(S3_LOGO_URL, 200);
+        const COMPANY_LOGO = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
+        const logo = await getBase64Image(COMPANY_LOGO, 200);
 
         if (logo) {
             const logoH = 22;
@@ -209,8 +214,22 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
     const tableData: any[][] = [];
     const images: Record<number, string> = {};
 
-    for (let i = 0; i < ratesToShare.length; i++) {
-        const r = ratesToShare[i];
+    // Process images in parallel chunks
+    const CHUNK_SIZE = 8;
+    for (let i = 0; i < ratesToShare.length; i += CHUNK_SIZE) {
+        const chunk = ratesToShare.slice(i, i + CHUNK_SIZE);
+        await Promise.all(chunk.map(async (r, chunkIdx) => {
+            const globalIdx = i + chunkIdx;
+            const product = products.find(p => p.productName === r.productName);
+            const imgUrl = product?.imageUrl || (product?.imageUrls && product?.imageUrls.length > 0 ? product.imageUrls[0] : null);
+            if (imgUrl) {
+                const result = await getBase64Image(resolveS3Url(imgUrl));
+                if (result) images[globalIdx] = result.data;
+            }
+        }));
+    }
+
+    ratesToShare.forEach((r, i) => {
         const product = products.find(p => p.productName === r.productName);
         const sku = product?.sku || "N/A";
         const pkgCost = r.packagingCost || 0;
@@ -220,13 +239,6 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
         const subtotal = Math.max(0, base - disc);
         const gstAmt = (subtotal * (r.gstRate || 0)) / 100;
         const total = subtotal + gstAmt;
-
-        const imgUrl = product?.imageUrl || (product?.imageUrls && product?.imageUrls.length > 0 ? product.imageUrls[0] : null);
-        if (imgUrl) {
-            const result = await getBase64Image(resolveS3Url(imgUrl));
-            if (result) images[i] = result.data;
-        }
-
 
         tableData.push([
             i + 1,
@@ -239,12 +251,11 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
             `${r.gstRate || 0}%`,
             `Rs. ${total.toFixed(2)}`
         ]);
-    }
+    });
 
     const drawHeader = async (d: jsPDF) => {
-        // Logo on left side - Premium Layout with Specific S3 Logo
-        const S3_LOGO_URL = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
-        const logo = await getBase64Image(S3_LOGO_URL, 200);
+        const COMPANY_LOGO = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
+        const logo = await getBase64Image(COMPANY_LOGO, 200);
 
         if (logo) {
             const logoH = 22;
