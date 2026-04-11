@@ -12,15 +12,8 @@ const geistSans = { variable: "--font-geist-sans" };
 const geistMono = { variable: "--font-geist-mono" };
 
 
-export const metadata: Metadata = {
-  title: "Eurus Lifestyle ERP",
-  description: "Eurus Lifestyle — Login to your account",
-  icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
-  },
-};
+import { LightboxProvider } from "./context/LightboxContext";
+import ImageLightbox from "./components/ImageLightbox";
 
 export default function RootLayout({
   children,
@@ -35,10 +28,13 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <DataProvider>
-            <FirebaseMessagingHandler />
-            <NotificationToastContainer />
-            <PresenceHandler />
-            {children}
+            <LightboxProvider>
+              <FirebaseMessagingHandler />
+              <NotificationToastContainer />
+              <PresenceHandler />
+              {children}
+              <ImageLightbox />
+            </LightboxProvider>
           </DataProvider>
         </AuthProvider>
       </body>

@@ -595,14 +595,15 @@ export default function PartyRateTab({
                       onChange={e => setEditingRateProduct({ ...editingRateProduct, packagingType: e.target.value })}
                     >
                       <option value="">No Packaging</option>
-                      <option value="PVC Packing">PVC Packing</option>
-                      <option value="Zip Packing">Zip Packing</option>
-                      <option value="Bookfold Packing">Bookfold Packing</option>
+                      <option value="PVC">PVC</option>
+                      <option value="PVC Zip">PVC Zip</option>
+                      <option value="Bookfold">Bookfold</option>
                       <option value="Envolope Fold">Envolope Fold</option>
                       <option value="HOMCOT Bag">HOMCOT Bag</option>
-                      <option value="myBEDZY Comfoter Bag">myBEDZY Comfoter Bag</option>
-                      <option value="myBEDZY Comfoter Set Bag">myBEDZY Comfoter Set Bag</option>
-                      <option value="Embroize Bag">Embroize Bag</option>
+                      <option value="Comfy Bag">Comfy Bag</option>
+                      <option value="Comfy set Bag">Comfy set Bag</option>
+                      <option value="Embeoize Bag">Embeoize Bag</option>
+                      <option value="UC Comfy Bag">UC Comfy Bag</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
@@ -804,14 +805,15 @@ export default function PartyRateTab({
               <label style={S.label}>Packaging Type</label>
               <select id="new-pkg-type" style={S.input}>
                 <option value="">No Packaging</option>
-                <option value="PVC Packing">PVC Packing</option>
-                <option value="Zip Packing">Zip Packing</option>
-                <option value="Bookfold Packing">Bookfold Packing</option>
+                <option value="PVC">PVC</option>
+                <option value="PVC Zip">PVC Zip</option>
+                <option value="Bookfold">Bookfold</option>
                 <option value="Envolope Fold">Envolope Fold</option>
                 <option value="HOMCOT Bag">HOMCOT Bag</option>
-                <option value="myBEDZY Comfoter Bag">myBEDZY Comfoter Bag</option>
-                <option value="myBEDZY Comfoter Set Bag">myBEDZY Comfoter Set Bag</option>
-                <option value="Embroize Bag">Embroize Bag</option>
+                <option value="Comfy Bag">Comfy Bag</option>
+                <option value="Comfy set Bag">Comfy set Bag</option>
+                <option value="Embeoize Bag">Embeoize Bag</option>
+                <option value="UC Comfy Bag">UC Comfy Bag</option>
                 <option value="Other">Other</option>
               </select>
             </div>
@@ -876,6 +878,71 @@ export default function PartyRateTab({
                 style={{ ...S.btnPrimary, height: 44, opacity: (!selectedProduct) ? 0.6 : 1, cursor: (!selectedProduct) ? "not-allowed" : "pointer", padding: "0 24px" }}
               >
                 Assign Rate
+              </button>
+
+              <button 
+                onClick={() => {
+                  const pPrefix = productSearch.trim().toLowerCase();
+                  const pVal = document.getElementById("new-rate-val") as HTMLInputElement;
+                  const pType = document.getElementById("new-pkg-type") as HTMLInputElement;
+                  const pCost = document.getElementById("new-pkg-cost") as HTMLInputElement;
+                  
+                  if (!pPrefix || !pVal?.value) {
+                    alert("Please enter an SKU prefix and a rate.");
+                    return;
+                  }
+
+                  // Find all products where the ALPHA part of SKU matches prefix EXACTLY
+                  // e.g. "RK" matches "RK101", "RK 105", but NOT "RKFT101"
+                  const matchedProducts = products.filter(p => {
+                    const sku = (p.sku || "").trim();
+                    const alphaPart = sku.match(/^[A-Za-z]+/)?.[0]?.toLowerCase();
+                    return alphaPart === pPrefix;
+                  });
+
+                  if (matchedProducts.length === 0) {
+                    alert(`No products found with SKU alphabetical prefix "${pPrefix}"`);
+                    return;
+                  }
+
+                  if (!confirm(`Assign rate to ${matchedProducts.length} products with SKU prefix "${pPrefix.toUpperCase()}"?`)) {
+                    return;
+                  }
+
+                  const pDisc = document.getElementById("new-discount-val") as HTMLInputElement;
+                  const pDiscType = document.getElementById("new-discount-type") as HTMLSelectElement;
+                  const pGst = document.getElementById("new-gst-rate") as HTMLSelectElement;
+
+                  const existing = viewingParty?.rates || [];
+                  let updated = [...existing];
+
+                  matchedProducts.forEach(prod => {
+                    const pName = prod.productName || prod.name || "";
+                    // Remove existing entry if any
+                    updated = updated.filter(r => r.productName !== pName);
+                    // Add new entry
+                    updated.push({
+                      productName: pName,
+                      sku: prod.sku || "",
+                      rate: parseFloat(pVal.value),
+                      packagingType: pType?.value || "",
+                      packagingCost: parseFloat(pCost?.value || "0"),
+                      discount: parseFloat(pDisc?.value || "0"),
+                      discountType: (pDiscType?.value || "amount") as "amount" | "percentage",
+                      gstRate: parseInt(pGst?.value || "0")
+                    });
+                  });
+
+                  handleUpdateProductRates(updated);
+                  setProductSearch("");
+                  if (pVal) pVal.value = "";
+                  if (pType) pType.value = "";
+                  if (pCost) pCost.value = "";
+                  if (pDisc) pDisc.value = "";
+                }}
+                style={{ ...S.btnSecondary, height: 44, marginLeft: 8, boxShadow: "0 4px 6px -1px rgba(99, 102, 241, 0.1)", background: "#f5f3ff", color: "#6d28d9", borderColor: "#ddd6fe" }}
+              >
+                Bulk Rate Assign
               </button>
             </div>
           </div>

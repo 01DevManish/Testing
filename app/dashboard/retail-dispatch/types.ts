@@ -140,6 +140,7 @@ export type ActiveView =
   | "all-packing-lists"
   | "create-dispatch-list"
   | "all-dispatch-lists"
+  | "box-management"
   | "catalog"
   | "messages";
 

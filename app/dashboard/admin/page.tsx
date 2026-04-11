@@ -402,18 +402,8 @@ export default function AdminPage() {
           currentName={currentName} 
           userData={userData}
           handleLogout={handleLogout}
-          navItems={[
-            { key: "dashboard", label: "Dashboard" },
-            { key: "party-rates", label: "Party Wise Rate" },
-            { key: "brands", label: "Brand Manager" },
-            { key: "catalog", label: "Catalog Sharing" },
-          ]}
-          settingsItems={[
-            { key: "profile", label: "Profile" },
-            { key: "users", label: "Users", count: users.length },
-            { key: "tasks", label: "Tasks", count: taskPendingCount > 0 ? taskPendingCount : undefined },
-            { key: "logs", label: "Logs" },
-          ]}
+          usersCount={users.length}
+          tasksCount={taskPendingCount > 0 ? taskPendingCount : undefined}
         />
 
         <main style={{ 

@@ -9,6 +9,7 @@ import { FONT, Category, Collection, ItemGroup, Product } from "./types";
 import { logActivity } from "../../lib/activityLogger";
 import { deleteImage } from "./imageService";
 import { Input, Textarea, FormField, BtnPrimary, BtnSecondary, BtnGhost, SuccessBanner, Card, PageHeader, EmptyState } from "./ui";
+import SmartImage from "../../components/SmartImage";
 
 // ══════════════════════════════════════════════════════════════
 // CREATE CATEGORY
@@ -359,7 +360,7 @@ export function CreateCollection({ products, user, onCreated, isMobile, isDeskto
                                         <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
                                             style={{ width: 15, height: 15, accentColor: "#6366f1", cursor: "pointer" }} />
                                         <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                            {(p as any).imageUrl ? <img src={(p as any).imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10 }}>📦</span>}
+                                            {(p as any).imageUrl ? <SmartImage src={(p as any).imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10 }}>📦</span>}
                                         </div>
                                         <div style={{ display: "flex", flexDirection: "column" }}>
                                             <span style={{ fontSize: 12, fontWeight: 500, color: "#1e293b", fontFamily: FONT, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.productName}</span>
@@ -2162,7 +2163,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                                     <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
                                         <div style={{ width: 44, height: 44, borderRadius: 8, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                             {p.imageUrl ? (
-                                                <img src={p.imageUrl} alt={p.productName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                <SmartImage src={p.imageUrl} alt={p.productName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                             ) : (
                                                 <span style={{ fontSize: 16, color: "#cbd5e1" }}>📦</span>
                                             )}
@@ -2403,7 +2404,7 @@ export function Overview({ products, categories, collections, loading, onNavigat
                         </p>
                         <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16, marginBottom: 30, display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
                             <div style={{ width: 44, height: 44, borderRadius: 8, background: "#fff", border: "1.5px solid #e2e8f0", overflow: "hidden" }}>
-                                {productToDelete.imageUrl && <img src={productToDelete.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                                {productToDelete.imageUrl && <SmartImage src={productToDelete.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                             </div>
                             <div>
                                 <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, textTransform: "uppercase" }}>SKU</div>

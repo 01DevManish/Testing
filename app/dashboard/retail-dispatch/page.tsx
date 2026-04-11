@@ -17,6 +17,7 @@ import CreatePackingList from "./components/CreatePackingList";
 import AllPackingLists from "./components/AllPackingLists";
 import CreateDispatchList from "./components/CreateDispatchList";
 import AllDispatchLists from "./components/AllDispatchLists";
+import BoxManagementTab from "./components/BoxManagementTab";
 import PackingListDetailsModal from "./components/PackingListDetailsModal";
 import NotificationBell from "../../components/NotificationBell";
 import DispatchSidebar from "./DispatchSidebar";
@@ -381,6 +382,11 @@ export default function AdvancedDispatchDashboard() {
                 onView={(list) => setViewingPackingList(list)}
                 onEdit={(list) => { setEditingPackingList(list); setActiveView("create-packing-list"); }}
               />
+            </div>
+          )}
+          {activeView === "box-management" && (
+            <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
+              <BoxManagementTab packingLists={packingLists} />
             </div>
           )}
           {activeView === "catalog" && (

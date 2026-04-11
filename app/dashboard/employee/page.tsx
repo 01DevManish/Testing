@@ -266,20 +266,45 @@ export default function EmployeePage() {
         </nav>
 
         <div style={{ flex: 1 }} />
-
-        {/* User */}
-        <div style={{ padding: "16px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: roleBg[userData.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 15, color: "#fff", textTransform: "uppercase" }}>{currentName[0] || "U"}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 400, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
-              <div style={{ fontSize: 11, color: "#34d399", fontWeight: 400, textTransform: "capitalize" }}>{userData.role}</div>
+ 
+        {/* User footer - Condensed Row */}
+        <div style={{ 
+          padding: "16px 4px", 
+          borderTop: "1px solid rgba(255,255,255,0.06)", 
+          flexShrink: 0
+        }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 12
+          }}>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: roleBg[userData.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0 }}>
+              {currentName[0]?.toUpperCase() || "U"}
             </div>
+            
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
+              <div style={{ fontSize: 9, color: "#34d399", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>{userData.role}</div>
+            </div>
+
+            <button onClick={handleLogout} title="Sign Out" style={{ 
+              width: 34, 
+              height: 34, 
+              borderRadius: 9, 
+              border: "none",
+              background: "rgba(239,68,68,0.1)", 
+              color: "#f87171", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              cursor: "pointer", 
+              transition: "all 0.2s",
+              flexShrink: 0
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
           </div>
         </div>
-        <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
-          Sign Out
-        </button>
       </aside>
 
       {/* =================== MAIN =================== */}

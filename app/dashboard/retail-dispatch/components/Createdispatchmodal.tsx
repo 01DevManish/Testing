@@ -37,7 +37,7 @@ interface DispatchForm {
     lrNo: string;
 }
 
-const PACKAGING_OPTIONS = ["Carton Box", "Gunny Bag", "Poly Bag", "Wooden Crate", "Stretch Wrap", "Bubble Wrap"];
+const PACKAGING_OPTIONS = ["PVC", "PVC Zip", "Bookfold", "Envolope Fold", "HOMCOT Bag", "Comfy Bag", "Comfy set Bag", "Embeoize Bag", "UC Comfy Bag", "Other"];
 const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", "Own Vehicle", "Other"];
 
 const STEPS = [

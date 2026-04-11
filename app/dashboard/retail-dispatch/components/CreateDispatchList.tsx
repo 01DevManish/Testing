@@ -5,6 +5,7 @@ import { ref, get, update } from "firebase/database";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity } from "../../../lib/activityLogger";
+import { generateBoxBarcode, generateDispatchBarcode } from "../../../lib/barcodeUtils";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "./ui";
 import { firestoreApi } from "../data";
 
@@ -14,6 +15,7 @@ interface ScannableItem {
   productName: string;
   sku: string;
   barcode?: string;
+  packagingType?: string;
   scannedValue: string;
   isPacked: boolean;
   boxName?: string;
@@ -27,7 +29,9 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const [selectedList, setSelectedList] = useState<any>(null);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [lrNo, setLrNo] = useState("");
+  const [dispatchId, setDispatchId] = useState("");
   const [scannableItems, setScannableItems] = useState<ScannableItem[]>([]);
+  const [boxBarcodes, setBoxBarcodes] = useState<Record<string, string>>({});
   const [pin, setPin] = useState("");
   const [inventory, setInventory] = useState<any[]>([]);
   const [currentBoxIndex, setCurrentBoxIndex] = useState(1);
@@ -64,14 +68,41 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     loadInitialData();
   }, []);
 
-  const handleSelectList = (list: any) => {
+  const handleSelectList = async (list: any) => {
     setSelectedList(list);
+    
+    // Resolve Party Rates for this party to get packaging types
+    let partyRateMap: Record<string, string> = {};
+    try {
+      const partyRatesRef = ref(db, "partyRates");
+      const snap = await get(partyRatesRef);
+      if (snap.exists()) {
+        const targetParty = (list.partyName || "").trim().toLowerCase();
+        snap.forEach(child => {
+          const val = child.val();
+          if ((val.partyName || "").trim().toLowerCase() === targetParty) {
+            (val.rates || []).forEach((r: any) => {
+              if (r.productName) {
+                partyRateMap[r.productName.trim().toLowerCase()] = r.packagingType || "";
+              }
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to resolve party rates for packaging:", e);
+    }
+
     // Expand items by quantity
     const expanded: ScannableItem[] = [];
     list.items.forEach((item: any, idx: number) => {
       // Find real barcode from inventory state
       const invProd = inventory.find(p => p.id === item.productId || p.sku === item.sku);
       const barcode = invProd?.barcode || "";
+      
+      // Resolve packaging type from party rate map (case-insensitive)
+      const prodKey = (item.productName || "").trim().toLowerCase();
+      const packagingType = partyRateMap[prodKey] || item.packagingType || item.packingType || list.packagingType || list.packingType || "Box";
 
       for (let i = 0; i < item.quantity; i++) {
         expanded.push({
@@ -80,12 +111,19 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           productName: item.productName,
           sku: item.sku || "N/A",
           barcode: barcode,
+          packagingType: packagingType,
           scannedValue: "",
           isPacked: false
         });
       }
     });
     setScannableItems(expanded);
+    
+    // Generate Dispatch ID upfront for barcode consistency
+    const newDispId = `DISP-${Math.floor(1000 + Math.random() * 8999)}`;
+    setDispatchId(newDispId);
+    
+    setBoxBarcodes({});
     setCurrentBoxIndex(1); // Reset box count
     setSelectedIds(new Set());
   };
@@ -111,7 +149,25 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
 
   const handleCreateBox = () => {
     if (selectedIds.size === 0) return;
+
+    // 1. Identify items for this box
+    const itemsInBox = scannableItems.filter(i => selectedIds.has(i.id));
     
+    // 2. Resolve Collection IDs and unique SKUs for these items
+    const collectionCodes = itemsInBox
+      .map(item => inventory.find(p => p.id === item.productId)?.collectionCode || "000")
+      .filter((v, i, a) => a.indexOf(v) === i); // Unique
+
+    const uniqueSkuCount = new Set(itemsInBox.map(i => i.sku)).size;
+
+    // 3. Generate 15-digit Barcode
+    const barcode = generateBoxBarcode(
+      currentBoxName,
+      collectionCodes,
+      uniqueSkuCount,
+      itemsInBox.length
+    );
+
     const newItems = scannableItems.map(item => {
       if (selectedIds.has(item.id)) {
         return { ...item, boxName: currentBoxName };
@@ -119,6 +175,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       return item;
     });
     
+    setBoxBarcodes(prev => ({ ...prev, [currentBoxName]: barcode }));
     setScannableItems(newItems);
     setSelectedIds(new Set());
     setCurrentBoxIndex(prev => prev + 1);
@@ -233,12 +290,40 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     setSaving(true);
     try {
       const listRef = ref(db, `packingLists/${selectedList.id}`);
-      const dispId = `DISP-${Math.floor(1000 + Math.random() * 9000)}`;
+      const dispId = dispatchId || `DISP-${Math.floor(1000 + Math.random() * 8999)}`;
+      
+      const totalBoxes = currentBoxIndex - 1;
+      const totalItems = scannableItems.length;
+
+      // New 15-digit Dispatch Barcode
+      const finalDispatchBarcode = generateDispatchBarcode(dispId, totalBoxes, totalItems);
+
+      // Prepare updated items list for the record (carrying over packagingType)
+      const updatedRecordItems = scannableItems.reduce((acc: any[], item) => {
+        const existing = acc.find(x => x.productName === item.productName && x.boxName === item.boxName);
+        if (existing) {
+          existing.quantity = (existing.quantity || 0) + 1;
+        } else {
+          acc.push({
+            productName: item.productName,
+            sku: item.sku,
+            quantity: 1,
+            boxName: item.boxName,
+            packagingType: item.packagingType || "Box"
+          });
+        }
+        return acc;
+      }, []);
+
       await update(listRef, {
         status: "Packed",
         invoiceNo,
         dispatchId: dispId,
-        lrNo: "",
+        dispatchBarcode: finalDispatchBarcode, // Save the new 15-digit barcode
+        boxBarcodes,
+        lrNo,
+        bails: totalBoxes, // Save the total box/bail count
+        items: updatedRecordItems, 
         dispatchedAt: Date.now(),
         dispatchedBy: userData?.name || user?.name || "System"
       });
@@ -255,9 +340,15 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           packingListId: selectedList.id, 
           dispatchId: dispId,
           invoiceNo,
-          lrNo: "", 
+          lrNo, 
           unitsScanned: scannableItems.length,
           totalBoxes: currentBoxIndex,
+          items: scannableItems.map(i => ({ 
+            productName: i.productName, 
+            sku: i.sku, 
+            boxName: i.boxName, 
+            packagingType: i.packagingType 
+          })),
           boxMapping: scannableItems.map(i => ({ p: i.productName, b: i.boxName }))
         }
       });
@@ -433,15 +524,22 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                                       )}
                                    </div>
                                 </td>
-                                <td className="px-6 py-4 text-center">
-                                   {item.boxName ? (
-                                      <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold text-[11px] px-2.5 py-1 rounded-md border border-amber-100">
-                                         {item.boxName}
-                                      </span>
-                                   ) : (
-                                      <span className="text-[10px] text-slate-300 font-medium italic">Pending</span>
-                                   )}
-                                </td>
+                                 <td className="px-6 py-4 text-center">
+                                    {item.boxName ? (
+                                       <div className="flex flex-col items-center gap-1">
+                                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold text-[11px] px-2.5 py-1 rounded-md border border-amber-100">
+                                             {item.boxName}
+                                          </span>
+                                          {boxBarcodes[item.boxName] && (
+                                            <span className="text-[9px] font-mono text-slate-400">
+                                              {boxBarcodes[item.boxName]}
+                                            </span>
+                                          )}
+                                       </div>
+                                    ) : (
+                                       <span className="text-[10px] text-slate-300 font-medium italic">Pending</span>
+                                    )}
+                                 </td>
                                 <td className="px-6 py-4 text-center">
                                    <div className={`w-8 h-8 mx-auto rounded-lg flex items-center justify-center transition-all ${
                                       item.isPacked 

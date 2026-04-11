@@ -13,23 +13,12 @@ interface NavGroup { key: string; label: string; icon: React.ReactNode; items: N
 const NAV_GROUPS: NavGroup[] = [
     {
         key: "overview", label: "Dashboard",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <rect x="1.5" y="1.5" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M4.5 10V8M7.5 10V6M10.5 10V4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-        ),
+        icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
         items: [{ id: "overview", label: "Dashboard" }],
     },
     {
         key: "dispatch", label: "Dispatches",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M1 4.5h6v7H1v-7zM7 6.5h4l2.5 2v3H7v-5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-                <circle cx="3.5" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.4" />
-                <circle cx="10.5" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.4" />
-            </svg>
-        ),
+        icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"></rect><path d="M16 8h4l3 3v5h-7V8z"></path><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>,
         items: [
             { id: "rapid-dispatch", label: "Create Dispatch" },
             { id: "create-dispatch", label: "Step-by-Step Dispatch" },
@@ -38,11 +27,7 @@ const NAV_GROUPS: NavGroup[] = [
     },
     {
         key: "tools", label: "Tools",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M2.5 7.5h10M2.5 4.5h10M2.5 10.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-        ),
+        icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a2 2 0 0 1-2.83-2.83l-3.94 3.94Z"></path><path d="m21 21-2.9-2.9"></path><path d="M18 14l-2.07-2.07a2 2 0 0 0-2.83 0l-3.17 3.17a2 2 0 0 0 0 2.83L12 20"></path><path d="m16 2-2 2"></path><path d="M2 21a2 2 0 0 1 0-2.83l10-10"></path></svg>,
         items: [
             { id: "add-order", label: "Add Unknown Order" },
             { id: "scanner", label: "Scan Barcode" },
@@ -51,12 +36,7 @@ const NAV_GROUPS: NavGroup[] = [
     },
     {
         key: "communication", label: "Messages",
-        icon: (
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M1.5 3.5h12v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 1.5 10.5v-7z" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M1.5 4.5l6 4 6-4" stroke="currentColor" strokeWidth="1.4" />
-            </svg>
-        ),
+        icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>,
         items: [{ id: "messages", label: "Direct Messages" }],
     },
 ];
@@ -221,23 +201,43 @@ export default function DispatchSidebar({
             {/* Divider */}
             <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 14px", flexShrink: 0 }} />
 
-            {/* User footer */}
-            <div style={{ padding: "14px 12px", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: userRoleColor, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 13, color: "#fff", flexShrink: 0, fontFamily: FONT }}>
+            {/* User footer - Condensed Row */}
+            <div style={{ 
+                padding: "16px 20px", 
+                borderTop: "1px solid rgba(255,255,255,0.06)", 
+                flexShrink: 0
+            }}>
+                <div style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 12
+                }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, background: userRoleColor, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0, fontFamily: FONT }}>
                         {currentName[0]?.toUpperCase() || "U"}
                     </div>
+                    
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 400, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{currentName}</div>
-                        <div style={{ fontSize: 10, color: "#818cf8", fontWeight: 400, textTransform: "capitalize", fontFamily: FONT }}>{currentRole}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{currentName}</div>
+                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", fontFamily: FONT }}>{currentRole}</div>
                     </div>
+
+                    <button onClick={onLogout} title="Sign Out" style={{ 
+                        width: 34, 
+                        height: 34, 
+                        borderRadius: 9, 
+                        border: "none",
+                        background: "rgba(239,68,68,0.1)", 
+                        color: "#f87171", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center", 
+                        cursor: "pointer", 
+                        transition: "all 0.2s",
+                        flexShrink: 0
+                    }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    </button>
                 </div>
-                <button onClick={onLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "9px", borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.07)", color: "#f87171", fontSize: 12, fontWeight: 400, fontFamily: FONT, cursor: "pointer" }}>
-                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                        <path d="M5 2H3a1 1 0 00-1 1v7a1 1 0 001 1h2M9 9.5L12 6.5M12 6.5L9 3.5M12 6.5H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Sign Out
-                </button>
             </div>
         </aside>
     );

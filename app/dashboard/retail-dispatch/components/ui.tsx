@@ -73,15 +73,20 @@ export function PageHeader({ title, sub, children }: { title: string; sub?: stri
     );
 }
 
-export function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+export function Card({ children, style, onClick, className }: { children: React.ReactNode; style?: React.CSSProperties; onClick?: () => void; className?: string }) {
     return (
-        <div style={{
-            background: "#fff", borderRadius: 12,
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-            overflow: "hidden",
-            ...style,
-        }}>
+        <div 
+            onClick={onClick}
+            className={className}
+            style={{
+                background: "#fff", borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                overflow: "hidden",
+                cursor: onClick ? "pointer" : "default",
+                ...style,
+            }}
+        >
             {children}
         </div>
     );

@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { ref, get } from "firebase/database";
 import { db } from "../../lib/firebase";
+import { renderBarcodeToBase64, generateDispatchBarcode } from "../../lib/barcodeUtils";
 
 /**
  * Generate a Dispatch List PDF by filling data into the user's custom template.
@@ -61,6 +62,17 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         const page = pdfDoc.getPages()[0];
         const { width, height } = page.getSize();
 
+        // 3. Generate Dispatch Barcode Image
+        const totalBoxes = list.bails || (list.items || []).reduce((acc: Set<string>, i: any) => { if(i.boxName) acc.add(i.boxName); return acc; }, new Set()).size;
+        const totalItems = (list.items || []).reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
+        const dispCode = list.dispatchBarcode || generateDispatchBarcode(list.dispatchNo || list.dispatchId || "0000", totalBoxes, totalItems);
+        const dispBarcodeDataUrl = renderBarcodeToBase64(dispCode);
+        let dispBarcodeImg = null;
+        if (dispBarcodeDataUrl) {
+            const dispBarcodeBytes = await fetch(dispBarcodeDataUrl).then(res => res.arrayBuffer());
+            dispBarcodeImg = await pdfDoc.embedPng(dispBarcodeBytes);
+        }
+
         // 2. Resolve category/collection for all items (Just-in-time)
         const resolvedItems = await resolveItemFields(list.items || []);
 
@@ -96,6 +108,18 @@ export const generateTemplateDispatchPdf = async (list: any) => {
 
         bY += 15;
         draw(list.partyName || "Unknown Party", bX, bY, 11, true);
+
+        // Draw Dispatch Barcode Image (Restored alignment)
+        if (dispBarcodeImg) {
+            page.drawImage(dispBarcodeImg, {
+                x: 185,
+                y: height - (bY - 5),
+                width: 100,
+                height: 25,
+            });
+            // Draw sharp vector text close to bottom edge of barcode (Centering adjustment)
+            draw(dispCode, 198, bY + 1, 9, true);
+        }
 
         if (list.traderName) {
             bY += 12;
@@ -172,7 +196,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
             draw(truncate(item.category || "", 18), 70, rowY, 10);
             draw(truncate(item.collectionName || "", 16), 166, rowY, 10);
             draw(truncate(item.sku || "N/A", 12), 258, rowY, 10);
-            draw(truncate(item.packagingType || list.packingType || "Box", 12), 305, rowY, 10);
+            draw(truncate(item.packagingType || item.packingType || list.packagingType || list.packingType || "Box", 12), 305, rowY, 10);
             draw(String(item.quantity || 1), 395, rowY, 10.5, true);
             draw(truncate(item.boxName || "-", 15), 445, rowY, 10);
         });
@@ -203,7 +227,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
-        
+
         // Open PDF in a new window for printing instead of downloading
         const newWindow = window.open(url, '_blank');
         if (newWindow) {

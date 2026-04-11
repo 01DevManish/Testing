@@ -8,23 +8,36 @@ import { ref, onValue } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 
+interface SidebarItem {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  path?: string; // If provided, navigates to external path. Otherwise switches internal tab.
+  count?: number;
+}
+
+interface SidebarGroup {
+  label: string;
+  items: SidebarItem[];
+}
+
 interface AdminSidebarProps {
   S: AdminStyles;
   tab: string;
   setTab: (tab: any) => void;
-  // ... rest of props but I'll replace the full interface for clarity
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   isDesktop: boolean;
   currentName: string;
   userData?: { profilePic?: string } | null;
   handleLogout: () => void;
-  navItems: { key: string; label: string; count?: number }[];
-  settingsItems?: { key: string; label: string; count?: number }[];
+  // Dynamic counts from DB
+  usersCount?: number;
+  tasksCount?: number;
 }
 
 export default function AdminSidebar({
-  S, tab, setTab, sidebarOpen, setSidebarOpen, isDesktop, currentName, userData, handleLogout, navItems, settingsItems
+  S, tab, setTab, sidebarOpen, setSidebarOpen, isDesktop, currentName, userData, handleLogout, usersCount, tasksCount
 }: AdminSidebarProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -37,146 +50,226 @@ export default function AdminSidebar({
     const unsubscribe = onValue(chatsRef, (snapshot) => {
       let total = 0;
       if (snapshot.exists()) {
-        snapshot.forEach((child) => {
-          total += (child.val().unreadCount || 0);
-        });
+        snapshot.forEach((child) => { total += (child.val().unreadCount || 0); });
       }
       setUnreadCount(total);
     });
     return () => unsubscribe();
   }, [user]);
 
+  const ICONS = {
+    dashboard: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+    party: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+    inventory: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>,
+    retail: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 17h4V5H2v12h3"></path><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"></path><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>,
+    ecom: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"></path><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"></path><path d="M2 7h20"></path><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7"></path></svg>,
+    catalog: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>,
+    brands: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>,
+    messages: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>,
+    users: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+    tasks: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>,
+    logs: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+    profile: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  };
+
+  const navGroups: SidebarGroup[] = [
+    {
+      label: "Analytics",
+      items: [
+        { key: "dashboard", label: "Dashboard", icon: ICONS.dashboard },
+      ]
+    },
+    {
+      label: "Operations",
+      items: [
+        { key: "inventory", label: "Inventory Management", icon: ICONS.inventory, path: "/dashboard/inventory" },
+        { key: "retail", label: "Retail Dispatch", icon: ICONS.retail, path: "/dashboard/retail-dispatch" },
+        { key: "ecom", label: "Ecommerce Dispatch", icon: ICONS.ecom, path: "/dashboard/ecom-dispatch" },
+      ]
+    },
+    {
+      label: "Business",
+      items: [
+        { key: "party-rates", label: "Party Wise Rate", icon: ICONS.party },
+        { key: "brands", label: "Brand Manager", icon: ICONS.brands },
+        { key: "catalog", label: "Catalog Sharing", icon: ICONS.catalog },
+      ]
+    },
+    {
+      label: "Management",
+      items: [
+        { key: "users", label: "User Access Control", icon: ICONS.users, count: usersCount },
+        { key: "tasks", label: "Administrative Tasks", icon: ICONS.tasks, count: tasksCount },
+        { key: "logs", label: "Activity Logs", icon: ICONS.logs },
+        { key: "messages", label: "Team Messaging", icon: ICONS.messages, count: unreadCount },
+      ]
+    },
+    {
+      label: "Account",
+      items: [
+        { key: "profile", label: "My Profile", icon: ICONS.profile },
+      ]
+    }
+  ];
+
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay for mobile */}
       <div style={S.overlay} onClick={() => setSidebarOpen(false)} />
 
-      <aside style={S.sidebar}>
-        {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", marginBottom: 24 }}>
-          <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2, flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
-            <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "capitalize", letterSpacing: "0.15em" }}>Admin Console</div>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <div style={{ fontSize: 9, fontWeight: 400, color: "#475569", textTransform: "capitalize", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Navigation</div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {[
-            { label: "Dashboard", key: "dashboard", isTab: true },
-            { label: "Inventory", path: "/dashboard/inventory" },
-            { label: "Retail Dispatch", path: "/dashboard/retail-dispatch" },
-            { label: "Ecommerce Dispatch", path: "/dashboard/ecom-dispatch" },
-          ].map(item => (
-            <button key={item.key || item.path} 
-              onClick={() => { 
-                if (item.isTab) setTab(item.key); 
-                else router.push(item.path!); 
-                if (!isDesktop) setSidebarOpen(false); 
-              }}
-              style={{
-                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none",
-                background: (item.isTab && tab === item.key) ? "rgba(99,102,241,0.15)" : "transparent",
-                color: (item.isTab && tab === item.key) ? "#a5b4fc" : "#94a3b8",
-                fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const,
-                ...((item.isTab && tab === item.key) ? { borderLeft: "3px solid #818cf8", paddingLeft: 9 } : {}),
-              }}>
-              {item.label}
-              {item.key === "messages" && unreadCount > 0 && (
-                <span style={{ 
-                  marginLeft: "auto", 
-                  background: "#22c55e", 
-                  color: "#fff", 
-                  fontSize: 10, 
-                  fontWeight: 600, 
-                  padding: "2px 6px", 
-                  borderRadius: 10, 
-                  minWidth: 18, 
-                  textAlign: "center" 
-                }}>{unreadCount}</span>
-              )}
-            </button>
-          ))}
-          {navItems.filter(i => i.key !== "dashboard").map(item => (
-            <button key={item.key} onClick={() => { setTab(item.key); if (!isDesktop) setSidebarOpen(false); }}
-              style={{
-                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none",
-                background: tab === item.key ? "rgba(99,102,241,0.15)" : "transparent",
-                color: tab === item.key ? "#a5b4fc" : "#94a3b8",
-                fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const,
-                ...(tab === item.key ? { borderLeft: "3px solid #818cf8", paddingLeft: 9 } : {}),
-              }}>
-              {item.label}
-              {item.count !== undefined && (
-                <span style={{ marginLeft: "auto", background: tab === item.key ? "rgba(129,140,248,0.2)" : "rgba(148,163,184,0.15)", color: tab === item.key ? "#c7d2fe" : "#94a3b8", fontSize: 11, fontWeight: 400, padding: "2px 8px", borderRadius: 12, minWidth: 24, textAlign: "center" as const }}>{item.count}</span>
-              )}
-            </button>
-          ))}
-
-          {/* Messages moved to bottom of Navigation */}
-          <button key="messages" 
-            onClick={() => { setTab("messages"); if (!isDesktop) setSidebarOpen(false); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none",
-              background: tab === "messages" ? "rgba(99,102,241,0.15)" : "transparent",
-              color: tab === "messages" ? "#a5b4fc" : "#94a3b8",
-              fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const,
-              ...(tab === "messages" ? { borderLeft: "3px solid #818cf8", paddingLeft: 9 } : {}),
-            }}>
-            Messages
-            {unreadCount > 0 && (
-              <span style={{ 
-                marginLeft: "auto", background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 600, 
-                padding: "2px 6px", borderRadius: 10, minWidth: 18, textAlign: "center" 
-              }}>{unreadCount}</span>
-            )}
-          </button>
-        </nav>
-
-        {settingsItems && settingsItems.length > 0 && (
-          <div style={{ marginTop: 20 }}>
-            <div style={{ fontSize: 9, fontWeight: 400, color: "#475569", textTransform: "capitalize", letterSpacing: "0.12em", padding: "0 10px", marginBottom: 6 }}>Settings</div>
-            <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {settingsItems.map(item => (
-                <button key={item.key} onClick={() => { setTab(item.key); if (!isDesktop) setSidebarOpen(false); }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none",
-                    background: tab === item.key ? "rgba(99,102,241,0.15)" : "transparent",
-                    color: tab === item.key ? "#a5b4fc" : "#94a3b8",
-                    fontSize: 14, fontWeight: tab === item.key ? 500 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" as const,
-                    ...(tab === item.key ? { borderLeft: "3px solid #818cf8", paddingLeft: 9 } : {}),
-                  }}>
-                  {item.label}
-                  {item.count !== undefined && (
-                    <span style={{ marginLeft: "auto", background: tab === item.key ? "rgba(129,140,248,0.2)" : "rgba(148,163,184,0.15)", color: tab === item.key ? "#c7d2fe" : "#94a3b8", fontSize: 11, fontWeight: 400, padding: "2px 8px", borderRadius: 12, minWidth: 24, textAlign: "center" as const }}>{item.count}</span>
-                  )}
-                </button>
-              ))}
-            </nav>
-          </div>
-        )}
-
-        <div style={{ flex: 1 }} />
-
-        {/* User */}
-        <div style={{ padding: "14px 10px", background: "rgba(255,255,255,0.04)", borderRadius: 11, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {userData?.profilePic ? (
-              <img src={userData.profilePic} alt="DP" style={{ width: 34, height: 34, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
-            ) : (
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: roleBg.admin, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 14, color: "#fff", flexShrink: 0 }}>{currentName[0]?.toUpperCase() || "A"}</div>
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 400, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}!</div>
-              <div style={{ fontSize: 10, color: "#818cf8", fontWeight: 400 }}>Administrator</div>
+      <aside style={{
+        ...S.sidebar,
+        display: "flex", 
+        flexDirection: "column",
+        overflow: "hidden", // We use internal scroll for nav
+      }}>
+        {/* Brand Header */}
+        <div style={{ padding: "20px 18px 24px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <img src="/logo.png" alt="Logo" style={{ width: 44, height: 44, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 3, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
+              <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Console</div>
             </div>
           </div>
         </div>
-        <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", borderRadius: 9, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
-          ⎋ Sign Out
-        </button>
+
+        {/* Unified Navigation */}
+        <div style={{ 
+          flex: 1, 
+          overflowY: "auto", 
+          padding: "0 10px 20px",
+          scrollbarWidth: "none",
+        }}>
+          {navGroups.map((group) => (
+            <div key={group.label} style={{ marginBottom: 20 }}>
+              <div style={{ 
+                fontSize: 9, 
+                fontWeight: 600, 
+                color: "#475569", 
+                textTransform: "uppercase", 
+                letterSpacing: "0.12em", 
+                padding: "0 12px", 
+                marginBottom: 8 
+              }}>{group.label}</div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {group.items.map((item) => {
+                  const isActive = tab === item.key;
+                  return (
+                    <button 
+                      key={item.key} 
+                      onClick={() => { 
+                        if (item.path) {
+                          router.push(item.path);
+                        } else {
+                          setTab(item.key); 
+                        }
+                        if (!isDesktop) setSidebarOpen(false); 
+                      }}
+                      style={{
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: 12, 
+                        width: "100%",
+                        padding: "10px 12px", 
+                        borderRadius: 10, 
+                        border: "none",
+                        background: isActive ? "rgba(99,102,241,0.12)" : "transparent",
+                        color: isActive ? "#a5b4fc" : "#94a3b8",
+                        fontSize: 13, 
+                        fontWeight: isActive ? 600 : 500, 
+                        fontFamily: "inherit", 
+                        cursor: "pointer", 
+                        transition: "all 0.15s", 
+                        textAlign: "left",
+                        position: "relative",
+                        overflow: "hidden"
+                      }}>
+                      {/* Active indicator bar */}
+                      {isActive && (
+                        <div style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 3, background: "#818cf8", borderRadius: "0 4px 4px 0" }} />
+                      )}
+                      
+                      <span style={{ 
+                        color: isActive ? "#818cf8" : "#475569", 
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center"
+                      }}>
+                        {item.icon}
+                      </span>
+                      
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      
+                      {item.count !== undefined && item.count > 0 && (
+                        <span style={{ 
+                          background: isActive ? "#818cf8" : "#334155", 
+                          color: "#fff", 
+                          fontSize: 10, 
+                          fontWeight: 700, 
+                          minWidth: 18, 
+                          height: 18, 
+                          borderRadius: 9, 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center" 
+                        }}>{item.count}</span>
+                      )}
+
+                      {item.path && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}>
+                          <path d="M5 12h14M12 5l7 7-7 7"></path>
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer User Info - No Background Rectangles */}
+        <div style={{ 
+          padding: "16px 20px", 
+          borderTop: "1px solid rgba(255,255,255,0.06)", 
+          flexShrink: 0
+        }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 12
+          }}>
+            {userData?.profilePic ? (
+              <img src={userData.profilePic} alt="DP" style={{ width: 34, height: 34, borderRadius: 9, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.1)" }} />
+            ) : (
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: roleBg.admin, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0 }}>{currentName[0]?.toUpperCase() || "A"}</div>
+            )}
+            
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
+              <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>Admin</div>
+            </div>
+
+            <button onClick={handleLogout} title="Sign Out" style={{ 
+              width: 34, 
+              height: 34, 
+              borderRadius: 9, 
+              border: "none",
+              background: "rgba(239,68,68,0.1)", 
+              color: "#f87171", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              cursor: "pointer", 
+              transition: "all 0.2s",
+              flexShrink: 0
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+          </div>
+        </div>
       </aside>
     </>
   );
