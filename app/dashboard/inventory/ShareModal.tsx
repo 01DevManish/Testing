@@ -178,8 +178,9 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
                     const prodCollection = product?.collection || collectionName || "";
 
                     const resolvedUrl = resolveS3Url(img.url);
-                    const response = await fetch(resolvedUrl, { mode: 'cors' });
-                    if (!response.ok) throw new Error(`HTTP ${response.status} for ${resolvedUrl}`);
+                    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(resolvedUrl)}`;
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status} for ${resolvedUrl} via proxy`);
 
                     const originalBlob = await response.blob();
                     const processedBlob = await processProductImage(originalBlob, logoUrl, prodCollection, img.sku, allImages.length);

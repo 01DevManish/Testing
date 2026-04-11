@@ -5,9 +5,10 @@ import { resolveS3Url } from "./imageService";
 
 const getBase64Image = async (url: string, maxWidth = 600): Promise<{ data: string, width: number, height: number } | null> => {
     try {
-        const response = await fetch(url, { mode: 'cors' });
+        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
         if (!response.ok) {
-            console.error(`[S3-Fetch-Fail] HTTP ${response.status} for ${url}`);
+            console.error(`[S3-Fetch-Fail] HTTP ${response.status} for ${url} via proxy`);
             return null;
         }
         const blob = await response.blob();
