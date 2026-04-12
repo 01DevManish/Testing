@@ -1,0 +1,324 @@
+"use client";
+
+import React, { useState, useCallback } from "react";
+import { PartyRate } from "./types";
+import { Product } from "../inventory/types";
+import { ref, set, push, remove, update } from "firebase/database";
+import { db } from "../../lib/firebase";
+import { logActivity } from "../../lib/activityLogger";
+import { useAuth } from "../../context/AuthContext";
+import { hasPermission } from "../../lib/permissions";
+import { generatePartyRatePdf } from "../inventory/components/Catalog/PdfGenerator";
+
+// Sub-components
+import PartyList from "./components/Management/PartyList";
+import PartyProfileModal from "./components/Management/PartyProfileModal";
+import RateCatalogView from "./components/Rates/RateCatalogView";
+import ShareCatalogModal from "./components/Sharing/ShareCatalogModal";
+
+interface PartyRateModuleProps {
+    partyRates: PartyRate[];
+    products: Product[];
+    fetching: boolean;
+    isAdmin: boolean;
+    loadData: () => void;
+    isMobile: boolean;
+    isTablet: boolean;
+}
+
+export default function PartyRateModule({
+    partyRates, products, fetching, isAdmin, loadData, isMobile, isTablet
+}: PartyRateModuleProps) {
+    const { user, userData } = useAuth();
+
+    // ── Granular Party Rate Permissions ─────────────────────────
+    const canView = isAdmin || hasPermission(userData, "party_rate_view");
+    const canCreate = isAdmin || hasPermission(userData, "party_rate_create");
+    const canEdit = isAdmin || hasPermission(userData, "party_rate_edit");
+    const canDeleteParty = userData?.role === "admin"; // Delete is admin-only
+    
+    // View State
+    const [viewingCatalog, setViewingCatalog] = useState<PartyRate | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    
+    // Form State
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [form, setForm] = useState<any>({
+        partyName: "",
+        billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
+        sameAsBillTo: true,
+        shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
+        transporter: "",
+        rates: []
+    });
+
+    // Action States
+    const [saving, setSaving] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [gstVerified, setGstVerified] = useState(false);
+    
+    // Share State
+    const [sharing, setSharing] = useState(false);
+    const [shareData, setShareData] = useState<{ blob: Blob, filename: string, party: PartyRate } | null>(null);
+
+    // ── Profile Handlers ───────────────────────────────────────────
+    
+    const openCreateModal = () => {
+        setEditingId(null);
+        setForm({
+            partyName: "",
+            billTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" },
+            sameAsBillTo: true,
+            shipTo: { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", adharNo: "", email: "" },
+            transporter: "",
+            rates: []
+        });
+        setGstVerified(false);
+        setShowProfileModal(true);
+    };
+
+    const openEditModal = (pr: PartyRate) => {
+        setEditingId(pr.id);
+        const defaultSection = { companyName: "", traderName: "", address: "", state: "", district: "", pincode: "", contactNo: "", gstNo: "", panNo: "", adharNo: "", email: "" };
+        setForm({
+            partyName: pr.partyName || "",
+            billTo: { ...defaultSection, ...(pr.billTo || {}) },
+            sameAsBillTo: pr.sameAsBillTo !== undefined ? pr.sameAsBillTo : true,
+            shipTo: { ...defaultSection, ...(pr.shipTo || {}) },
+            transporter: pr.transporter || "",
+            rates: pr.rates || []
+        });
+        setGstVerified(!!pr.billTo?.gstNo);
+        setShowProfileModal(true);
+    };
+
+    const handleVerifyGst = async (gstin: string) => {
+        if (!gstin || gstin.length !== 15) {
+            alert("Please enter a valid 15-digit GST number.");
+            return;
+        }
+        setIsVerifying(true);
+        try {
+            const res = await fetch(`/api/gst?gstin=${gstin}`);
+            const result = await res.json();
+            if (result.success && result.data) {
+                setGstVerified(true);
+                setForm((prev: any) => ({
+                    ...prev,
+                    billTo: {
+                        ...prev.billTo,
+                        companyName: result.data.companyName,
+                        traderName: result.data.traderName || result.data.ownerName || "",
+                        address: result.data.address,
+                        state: result.data.state,
+                        district: result.data.district,
+                        pincode: result.data.pincode,
+                        gstNo: gstin,
+                        panNo: gstin.substring(2, 12)
+                    }
+                }));
+            } else {
+                alert(result.error || "GSTIN validation failed.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to verify GST.");
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        const b = form.billTo;
+        if (!b.companyName?.trim() || !b.address?.trim() || !b.contactNo?.trim() || !b.panNo?.trim()) {
+            alert("Company Name, Address, Contact No, and PAN No are mandatory.");
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const data = {
+                partyName: b.companyName.trim(),
+                billTo: b,
+                sameAsBillTo: form.sameAsBillTo,
+                shipTo: form.sameAsBillTo ? {
+                    companyName: b.companyName,
+                    traderName: b.traderName || "",
+                    address: b.address,
+                    state: b.state,
+                    district: b.district,
+                    pincode: b.pincode,
+                    contactNo: b.contactNo,
+                    adharNo: b.adharNo || "",
+                    email: b.email || "",
+                } : form.shipTo,
+                rates: form.rates.filter((r: any) => r.productName && r.rate > 0),
+                transporter: form.transporter || "",
+                updatedAt: Date.now()
+            };
+
+            if (editingId) {
+                await update(ref(db, `partyRates/${editingId}`), data);
+            } else {
+                await push(ref(db, "partyRates"), data);
+            }
+
+            await logActivity({
+                type: "system",
+                action: editingId ? "update" : "create",
+                title: editingId ? "Party Rate Updated" : "Party Rate Created",
+                description: `Rate list for "${data.partyName}" was ${editingId ? "updated" : "created"}.`,
+                userId: user?.uid || "",
+                userName: userData?.name || "Admin",
+                userRole: "admin"
+            });
+
+            setShowProfileModal(false);
+            loadData();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to save profile.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteProfile = async (id: string, name: string) => {
+        if (!canDeleteParty || !confirm(`Permanently delete all rate data for "${name}"?`)) return;
+        try {
+            await remove(ref(db, `partyRates/${id}`));
+            await logActivity({
+                type: "system",
+                action: "delete",
+                title: "Party Removed",
+                description: `Party "${name}" was removed by ${userData?.name || "Admin"}.`,
+                userId: user?.uid || "",
+                userName: userData?.name || "Admin",
+                userRole: "admin"
+            });
+            loadData();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to delete record.");
+        }
+    };
+
+    // ── Rate Handlers ──────────────────────────────────────────────
+
+    const handleUpdateRates = async (updatedRates: any[]) => {
+        if (!viewingCatalog) return;
+        try {
+            const partyRef = ref(db, `partyRates/${viewingCatalog.id}`);
+            await update(partyRef, {
+                rates: updatedRates,
+                updatedAt: Date.now()
+            });
+            loadData();
+            setViewingCatalog({ ...viewingCatalog, rates: updatedRates });
+        } catch (e) {
+            console.error("Rate Update Error:", e);
+            alert("Failed to update pricing.");
+        }
+    };
+
+    const handleShare = async (party: PartyRate, ratesToShare: any[]) => {
+        try {
+            setSharing(true);
+            const blob = await generatePartyRatePdf(party, ratesToShare, products, false);
+            if (!blob) return;
+
+            const filename = `Rates_${party.partyName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+
+            if (navigator.share) {
+                const file = new File([blob], filename, { type: "application/pdf" });
+                try {
+                    await navigator.share({
+                        title: `Rate List: ${party.partyName}`,
+                        files: [file]
+                    });
+                    setSharing(false);
+                    return;
+                } catch (e: any) {
+                    if (e.name === 'AbortError') { setSharing(false); return; }
+                }
+            }
+
+            setShareData({ blob, filename, party });
+        } catch (err) {
+            console.error("PDF Error:", err);
+            alert("Failed to generate PDF.");
+        } finally {
+            setSharing(false);
+        }
+    };
+
+    // ── Rendering ──────────────────────────────────────────────────
+
+    if (viewingCatalog) {
+        return (
+            <RateCatalogView 
+                party={viewingCatalog}
+                products={products}
+                onBack={() => setViewingCatalog(null)}
+                onUpdateRates={handleUpdateRates}
+                onShare={handleShare}
+                isAdmin={canEdit}
+                isMobile={isMobile}
+            />
+        );
+    }
+
+    return (
+        <>
+            <PartyList 
+                partyRates={partyRates}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                fetching={fetching}
+                isAdmin={canEdit}
+                onViewProfile={openEditModal}
+                onViewRates={setViewingCatalog}
+                onEditProfile={canEdit ? openEditModal : undefined}
+                onDelete={canDeleteParty ? handleDeleteProfile : undefined}
+                onCreate={canCreate ? openCreateModal : undefined}
+            />
+
+            <PartyProfileModal 
+                show={showProfileModal}
+                onClose={() => setShowProfileModal(false)}
+                editingId={editingId}
+                form={form}
+                setForm={setForm}
+                onSave={handleSaveProfile}
+                saving={saving}
+                isMobile={isMobile}
+                gstVerified={gstVerified}
+                setGstVerified={setGstVerified}
+                isVerifying={isVerifying}
+                onVerifyGst={handleVerifyGst}
+            />
+
+            <ShareCatalogModal 
+                show={!!shareData}
+                onClose={() => setShareData(null)}
+                partyName={shareData?.party.partyName || ""}
+                sharing={sharing}
+                onWhatsApp={() => {
+                    const text = encodeURIComponent(`Eurus Lifestyle - Rate List for ${shareData?.party.partyName}`);
+                    window.open(`https://wa.me/?text=${text}`, '_blank');
+                }}
+                onDownload={() => {
+                    if (!shareData) return;
+                    const url = URL.createObjectURL(shareData.blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = shareData.filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    setShareData(null);
+                }}
+            />
+        </>
+    );
+}

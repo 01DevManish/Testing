@@ -9,20 +9,23 @@ import { useData } from "../../context/DataContext";
 import { logActivity } from "../../lib/activityLogger";
 import { hasPermission } from "../../lib/permissions";
 
-import InventorySidebar from "./InventorySidebar";
-import CreateProduct from "./CreateProduct";
-import ProductList from "./ProductList";
-import {
-  CreateCategory, CategoryList,
-  CreateCollection, CollectionList,
-  CreateItemGroup, ItemGroupList,
-  InventoryAdjustment, BarcodeView, Overview,
-} from "./subviews";
-import BulkUpload from "./BulkUpload";
-import ShareModal from "./ShareModal";
-import CatalogTab from "./CatalogTab";
-import ImageGallery from "./ImageGallery";
-import { uploadImage } from "./imageService";
+import InventorySidebar from "./components/Layout/InventorySidebar";
+import CreateProduct from "./components/Products/CreateProduct";
+import ProductList from "./components/Products/ProductList";
+import CreateCategory from "./components/Categories/CreateCategory";
+import CategoryList from "./components/Categories/CategoryList";
+import CreateCollection from "./components/Collections/CreateCollection";
+import CollectionList from "./components/Collections/CollectionList";
+import CreateItemGroup from "./components/Grouping/CreateItemGroup";
+import ItemGroupList from "./components/Grouping/ItemGroupList";
+import InventoryAdjustment from "./components/Adjustment/InventoryAdjustment";
+import BarcodeView from "./components/Barcode/BarcodeView";
+import Overview from "./components/Overview/Overview";
+import BulkUpload from "./components/Products/BulkUpload";
+import ShareModal from "./components/Catalog/ShareModal";
+import CatalogTab from "./components/Catalog/CatalogTab";
+import ImageGallery from "./components/Layout/ImageGallery";
+import { uploadImage } from "./components/Products/imageService";
 import { transformImageUrl } from "../../lib/urlUtils";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -108,8 +111,12 @@ export default function InventoryPage() {
   useEffect(() => { if (!loading && !user) router.replace("/"); }, [loading, user, router]);
   useEffect(() => { if (isDesktop) setSidebarOpen(false); }, [isDesktop]);
 
-  // Permission check: only admin or users with "inventory_view" permission can access
-  const hasAccess = hasPermission(userData, "inventory_view");
+  // Permission check: user needs at least one inventory sub-module permission
+  const hasAccess = hasPermission(userData, "inventory_view") || 
+    hasPermission(userData, "inv_items_view") || 
+    hasPermission(userData, "inv_collections_view") || 
+    hasPermission(userData, "inv_grouping_view") ||
+    hasPermission(userData, "inv_barcode_view");
   useEffect(() => {
     if (!loading && user && !hasAccess) {
       const timer = setTimeout(() => router.replace("/dashboard"), 2000);
@@ -117,11 +124,31 @@ export default function InventoryPage() {
     }
   }, [loading, user, hasAccess, router]);
 
-  const canCreate = hasPermission(userData, "inventory_create");
-  const canEdit = hasPermission(userData, "inventory_edit");
-  const canDelete = hasPermission(userData, "inventory_delete");
+  // ── Granular Sub-Module Permissions ──────────────────────────
+  const canViewItems = hasPermission(userData, "inv_items_view");
+  const canCreateItems = hasPermission(userData, "inv_items_create");
+  const canEditItems = hasPermission(userData, "inv_items_edit");
+  const canBulkUpload = hasPermission(userData, "inv_bulk_create");
+  
+  const canViewCollections = hasPermission(userData, "inv_collections_view");
+  const canCreateCollections = hasPermission(userData, "inv_collections_create");
+  const canEditCollections = hasPermission(userData, "inv_collections_edit");
 
-  const isAdminOrManager = userData?.role === "admin" || userData?.role === "manager";
+  const canViewGrouping = hasPermission(userData, "inv_grouping_view");
+  const canCreateGrouping = hasPermission(userData, "inv_grouping_create");
+  const canEditGrouping = hasPermission(userData, "inv_grouping_edit");
+
+  const canViewBarcode = hasPermission(userData, "inv_barcode_view");
+  const canCreateBarcode = hasPermission(userData, "inv_barcode_create");
+  const canEditBarcode = hasPermission(userData, "inv_barcode_edit");
+
+  // Legacy aliases for compatibility with existing component props
+  const canCreate = canCreateItems;
+  const canEdit = canEditItems;
+  const canDelete = userData?.role === "admin"; // Delete is admin-only
+  
+  // Use granular capabilities instead of raw role checks to display bulk/advanced actions
+  const isAdminOrManager = userData?.role === "admin" || canEditItems || canCreateItems;
   const currentName = userData?.name || user?.name || "User";
   const currentRole = userData?.role || "employee";
   const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
@@ -319,12 +346,12 @@ export default function InventoryPage() {
       case "category-create":
         return <CreateCategory user={{ uid: user.uid, name: currentName }} onCreated={c => { setCategories(prev => [c, ...prev]); navigate("category-list"); }} {...commonProps} />;
       case "category-list":
-        return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} loading={fetching} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("category-create")} {...commonProps} />;
+        return <CategoryList categories={categories} user={{ uid: user.uid, name: currentName }} canDelete={canDelete} />;
       // ── Collections ───────────────────────────────────────
       case "collections-create":
-        return <CreateCollection products={products} user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} {...commonProps} />;
+        return <CreateCollection user={{ uid: user.uid, name: currentName }} onCreated={c => { setCollections(prev => [c, ...prev]); navigate("collections-list"); }} />;
       case "collections-list":
-        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} loading={fetching} products={products} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("collections-create")} {...commonProps} />;
+        return <CollectionList collections={collections} user={{ uid: user.uid, name: currentName }} canDelete={canDelete} />;
       // ── Inventory actions ─────────────────────────────────
       case "inventory-adjustment":
         return <InventoryAdjustment products={products} collections={collections} user={{ uid: user.uid, name: currentName }} onDone={loadAll} {...commonProps} />;
@@ -339,9 +366,9 @@ export default function InventoryPage() {
       case "grouping-create":
         return <CreateItemGroup products={products} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} {...commonProps} />;
       case "grouping-list":
-        return <ItemGroupList groups={groups} user={{ uid: user.uid, name: currentName }} loading={fetching} products={products} canCreate={canCreate} canDelete={canDelete} onCreateNew={() => navigate("grouping-create")} {...commonProps} />;
+        return <ItemGroupList groups={groups} products={products} user={{ uid: user.uid, name: currentName }} canDelete={canDelete} isMobile={isMobile} />;
       case "catalog":
-        return <CatalogTab products={products} categories={categories} collections={collections} brands={brands} loading={fetching} {...commonProps} />;
+        return <CatalogTab products={products} categories={categories} collections={collections} brands={brands} loading={fetching} isAdmin={userData?.role === "admin"} {...commonProps} />;
       case "inventory-bulk":
         return <BulkUpload categories={categories} collections={collections} brands={brands} user={{ uid: user.uid, name: currentName, role: currentRole }} onDone={() => { loadAll(); navigate("product-list"); }} {...commonProps} />;
       default:

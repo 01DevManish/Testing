@@ -7,7 +7,7 @@ import { ref, set, push, remove, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
-import { uploadImage } from "../inventory/imageService";
+import { uploadImage } from "../inventory/components/Products/imageService";
 
 interface BrandsTabProps {
   S: AdminStyles;
@@ -33,7 +33,7 @@ export default function BrandsTab({
   const [logoPreview, setLogoPreview] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const filteredBrands = brands.filter(b => 
+  const filteredBrands = brands.filter(b =>
     b.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -136,10 +136,10 @@ export default function BrandsTab({
       <div style={{ marginBottom: 20, display: "flex", gap: 10 }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
           <span style={{ color: "#94a3b8" }}>🔍</span>
-          <input 
-            type="text" 
-            value={searchTerm} 
-            onChange={e => setSearchTerm(e.target.value)} 
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
             style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14, fontWeight: 400 }}
           />
         </div>
@@ -149,22 +149,22 @@ export default function BrandsTab({
         <div style={{ ...S.modalOverlay, zIndex: 1000 }} onClick={() => setShowForm(false)}>
           <div style={{ ...S.modalCard, maxWidth: 450 }} onClick={e => e.stopPropagation()}>
             <h3 style={{ fontSize: 18, fontWeight: 400, marginBottom: 20 }}>{editingId ? "Edit Brand" : "Create New Brand"}</h3>
-            
+
             <div style={{ marginBottom: 20 }}>
               <label style={S.label}>Brand Name</label>
-              <input 
-                style={{ ...S.input, fontWeight: 400 }} 
-                value={form.name} 
+              <input
+                style={{ ...S.input, fontWeight: 400 }}
+                value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
               />
             </div>
 
             <div style={{ marginBottom: 24 }}>
               <label style={S.label}>Brand Logo</label>
-              <div 
+              <div
                 onClick={() => fileRef.current?.click()}
-                style={{ 
-                  width: "100%", height: 100, borderRadius: 12, border: "2px dashed #e2e8f0", 
+                style={{
+                  width: "100%", height: 100, borderRadius: 12, border: "2px dashed #e2e8f0",
                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                   overflow: "hidden", background: "#f8fafc", position: "relative"
                 }}
@@ -204,7 +204,7 @@ export default function BrandsTab({
                 <button onClick={() => handleEdit(b)} style={{ border: "none", background: "#f8fafc", color: "#6366f1", width: 26, height: 26, borderRadius: 6, cursor: "pointer", fontSize: 12 }}>✎</button>
                 <button onClick={() => handleDelete(b.id, b.name)} style={{ border: "none", background: "#fff1f2", color: "#ef4444", width: 26, height: 26, borderRadius: 6, cursor: "pointer", fontSize: 12 }}>🗑</button>
               </div>
-              
+
               <div style={{ width: 100, height: 60, borderRadius: 12, background: "#f8fafc", padding: 6, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img src={b.logoUrl} alt={b.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
               </div>

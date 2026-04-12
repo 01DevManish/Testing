@@ -8,14 +8,15 @@ import { db } from "../lib/firebase";
 import type { UserRole } from "../context/AuthContext";
 import { getStyles } from "./admin/styles";
 import ProfileTab from "./admin/ProfileTab";
-import PartyRateTab from "./admin/PartyRateTab";
+import PartyRateModule from "./party-rate";
 import MessagingTab from "../components/MessagingTab";
 import NotificationBell from "../components/NotificationBell";
 import { useData } from "../context/DataContext";
-import CatalogTab from "./inventory/CatalogTab";
+import CatalogTab from "./inventory/components/Catalog/CatalogTab";
 import { hasPermission } from "../lib/permissions";
 import { PartyRate } from "./admin/types";
 import { Product } from "./inventory/types";
+import EmployeeSidebar from "./employee/EmployeeSidebar";
 
 interface UserRecord { uid: string; email: string; name: string; role: UserRole; }
 
@@ -80,10 +81,17 @@ export default function DashboardPage() {
     localStorage.setItem("dashboardSidebarCollapsed", isCollapsed.toString());
   }, [isCollapsed]);
 
-  // Auth guard + admin redirect
+  // Auth guard + Role-based redirection
   useEffect(() => {
-    if (!loading && !user) router.replace("/");
-    if (!loading && userData?.role === "admin") router.replace("/dashboard/admin");
+    if (!loading && !user) {
+      router.replace("/");
+      return;
+    }
+    if (!loading && userData) {
+      if (userData.role === "admin") router.replace("/dashboard/admin");
+      else if (userData.role === "manager") router.replace("/dashboard/manager");
+      else if (userData.role === "employee") router.replace("/dashboard/employee");
+    }
   }, [loading, user, userData, router]);
 
   // Close sidebar on desktop
@@ -103,10 +111,10 @@ export default function DashboardPage() {
     const unsubscribe = onValue(ref(db, "tasks"), (snapshot) => {
       const list: Task[] = [];
       if (snapshot.exists()) {
-        snapshot.forEach((d) => { 
+        snapshot.forEach((d) => {
           const val = d.val();
           if (val && val.assignedTo === currentUid) {
-            list.push({ id: d.key as string, ...val } as Task); 
+            list.push({ id: d.key as string, ...val } as Task);
           }
         });
       }
@@ -167,8 +175,8 @@ export default function DashboardPage() {
 
 
 
-  useEffect(() => { 
-    loadEmployees(); 
+  useEffect(() => {
+    loadEmployees();
   }, [loadEmployees]);
 
   // Mark task as done
@@ -209,37 +217,37 @@ export default function DashboardPage() {
 
   const S = {
     page: { display: "flex", minHeight: "100vh", fontFamily: "inherit", background: "#f8fafc" } as React.CSSProperties,
-    sidebar: { 
-      width: isCollapsed ? 78 : SIDEBAR_WIDTH, 
-      background: "#0f172a", 
-      display: "flex", 
-      flexDirection: "column" as const, 
-      padding: isCollapsed ? "24px 0" : "24px 16px", 
-      position: "fixed" as const, 
-      top: 0, 
-      left: 0, 
-      bottom: 0, 
-      zIndex: 100, 
+    sidebar: {
+      width: isCollapsed ? 78 : SIDEBAR_WIDTH,
+      background: "#0f172a",
+      display: "flex",
+      flexDirection: "column" as const,
+      padding: isCollapsed ? "24px 0" : "24px 16px",
+      position: "fixed" as const,
+      top: 0,
+      left: 0,
+      bottom: 0,
+      zIndex: 100,
       transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
       willChange: "width, transform",
       overflow: "visible"
     } as React.CSSProperties,
-    sidebarMobileOverlay: { 
-      position: "fixed" as const, 
-      inset: 0, 
-      background: "rgba(0,0,0,0.5)", 
-      zIndex: 99, 
+    sidebarMobileOverlay: {
+      position: "fixed" as const,
+      inset: 0,
+      background: "rgba(0,0,0,0.5)",
+      zIndex: 99,
       backdropFilter: "blur(4px)",
       display: (!isDesktop && sidebarOpen) ? "block" : "none",
     } as React.CSSProperties,
-    main: { 
-      flex: 1, 
-      marginLeft: isDesktop ? (isCollapsed ? 78 : SIDEBAR_WIDTH) : 0, 
-      padding: isMobile ? "80px 16px 32px" : "28px 40px 32px", 
-      minHeight: "100vh", 
+    main: {
+      flex: 1,
+      marginLeft: isDesktop ? (isCollapsed ? 78 : SIDEBAR_WIDTH) : 0,
+      padding: isMobile ? "80px 16px 32px" : "28px 40px 32px",
+      minHeight: "100vh",
       transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      willChange: "margin-left" 
+      willChange: "margin-left"
     } as React.CSSProperties,
     btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
   };
@@ -249,204 +257,23 @@ export default function DashboardPage() {
 
   return (
     <div style={S.page}>
-      {/* Sidebar Overlay */}
-      <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />
-
-      <aside style={S.sidebar}>
-        {/* Brand */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: isCollapsed ? "center" : "flex-start", padding: isCollapsed ? "0" : "4px 8px", marginBottom: isCollapsed ? 24 : 32, transition: "all 0.3s" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: isCollapsed ? "center" : "flex-start", width: "100%" }}>
-            <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: "#fff", padding: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />
-            {!isCollapsed && (
-              <div style={{ animation: "fadeInUp 0.3s ease-out" }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>EURUS LIFESTYLE</div>
-                <div style={{ fontSize: 10, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>{currentRole === "manager" ? "Manager Panel" : "Employee Portal"}</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Floating Toggle Button */}
-        {isDesktop && (
-          <button 
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            style={{
-              position: "absolute",
-              right: -12,
-              top: 32,
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              background: "#1e293b",
-              border: "1px solid #334155",
-              color: "#818cf8",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-              zIndex: 300,
-              transition: "all 0.2s"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(1.1)";
-              e.currentTarget.style.background = "#334155";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.background = "#1e293b";
-            }}
-          >
-            {isCollapsed ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            )}
-          </button>
-        )}
-
-        {/* Nav */}
-        {!isCollapsed && <div style={{ fontSize: 10, fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8, animation: "fadeInUp 0.3s ease-out" }}>Navigation</div>}
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4, padding: isCollapsed ? "0 8px" : "0" }}>
-          <button onClick={() => setView("dashboard")} style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: 10, 
-            padding: "11px 14px", 
-            borderRadius: 10, 
-            border: "none", 
-            background: view === "dashboard" ? "rgba(99,102,241,0.15)" : "transparent", 
-            color: view === "dashboard" ? "#a5b4fc" : "#94a3b8", 
-            fontSize: 14, 
-            fontWeight: 400, 
-            fontFamily: "inherit", 
-            cursor: "pointer", 
-            transition: "all 0.2s", 
-            textAlign: "left", 
-            borderLeft: view === "dashboard" ? "3px solid #818cf8" : "none", 
-            paddingLeft: view === "dashboard" ? 11 : 14 
-          }}>
-            Dashboard
-          </button>
-
-
-          
-          {userData?.permissions?.includes("retail_view") && (
-            <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Retail Dispatch
-            </button>
-          )}
-          
-          {userData?.permissions?.includes("ecom_view") && (
-            <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Ecommerce Dispatch
-            </button>
-          )}
-
-          {userData?.permissions?.includes("inventory_view") && (
-            <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Inventory
-            </button>
-          )}
-
-          {userData?.permissions?.includes("party-rates") && (
-            <button onClick={() => setView("party-rates")} style={{ 
-              display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", 
-              background: view === "party-rates" ? "rgba(99,102,241,0.15)" : "transparent", 
-              color: view === "party-rates" ? "#a5b4fc" : "#94a3b8", 
-              fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", 
-              borderLeft: view === "party-rates" ? "3px solid #818cf8" : "none", paddingLeft: view === "party-rates" ? 11 : 14 
-            }}>
-              Party Rates
-            </button>
-          )}
-
-          <button onClick={() => setView("messages")} style={{ 
-            display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", 
-            background: view === "messages" ? "rgba(99,102,241,0.15)" : "transparent", 
-            color: view === "messages" ? "#a5b4fc" : "#94a3b8", 
-            fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", 
-            borderLeft: view === "messages" ? "3px solid #818cf8" : "none", paddingLeft: view === "messages" ? 11 : 14 
-          }}>
-            Messages
-            {unreadCount > 0 && (
-              <span style={{ 
-                marginLeft: "auto", background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 600, 
-                padding: "2px 6px", borderRadius: 10, minWidth: 18, textAlign: "center", border: "1px solid #0f172a" 
-              }}>{unreadCount}</span>
-            )}
-          </button>
-
-          <button onClick={() => setView("catalog")} style={{ 
-            display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", 
-            background: view === "catalog" ? "rgba(99,102,241,0.15)" : "transparent", 
-            color: view === "catalog" ? "#a5b4fc" : "#94a3b8", 
-            fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", 
-            borderLeft: view === "catalog" ? "3px solid #818cf8" : "none", paddingLeft: view === "catalog" ? 11 : 14 
-          }}>
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
-              <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Catalog Sharing
-          </button>
-          
-          <button onClick={() => setView("profile")} style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: 10, 
-            padding: "11px 14px", 
-            borderRadius: 10, 
-            border: "none", 
-            background: view === "profile" ? "rgba(99,102,241,0.15)" : "transparent", 
-            color: view === "profile" ? "#a5b4fc" : "#94a3b8", 
-            fontSize: 14, 
-            fontWeight: 400, 
-            fontFamily: "inherit", 
-            cursor: "pointer", 
-            transition: "all 0.2s", 
-            textAlign: "left", 
-            borderLeft: view === "profile" ? "3px solid #818cf8" : "none", 
-            paddingLeft: view === "profile" ? 11 : 14 
-          }}>
-            My Profile
-          </button>
-        </nav>
-
-        <div style={{ flex: 1 }} />
-
-        {/* User */}
-        <div style={{ 
-          padding: isCollapsed ? "16px 0" : "16px 12px", 
-          background: "rgba(255,255,255,0.04)", 
-          borderRadius: 12, 
-          border: "1px solid rgba(255,255,255,0.06)", 
-          marginBottom: 12,
-          display: "flex",
-          justifyContent: isCollapsed ? "center" : "flex-start",
-          transition: "all 0.3s"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {userData?.profilePic ? (
-              <img src={userData.profilePic} alt="DP" style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-            ) : (
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: roleColors[currentRole] || "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 15, color: "#fff", flexShrink: 0 }}>{currentName[0]?.toUpperCase() || "U"}</div>
-            )}
-            {!isCollapsed && (
-              <div style={{ flex: 1, minWidth: 0, animation: "fadeInUp 0.3s ease-out" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
-                <div style={{ fontSize: 11, color: "#818cf8", fontWeight: 600, textTransform: "capitalize" }}>{currentRole}</div>
-              </div>
-            )}
-          </div>
-        </div>
-        <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: isCollapsed ? "11px 0" : "11px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
-          {isCollapsed ? "🔓" : "Sign Out"}
-        </button>
-      </aside>
+      {/* =================== SIDEBAR =================== */}
+      <EmployeeSidebar
+        currentView={view}
+        setView={setView}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        isDesktop={isDesktop}
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        userData={userData}
+        handleLogout={handleLogout}
+        taskStats={{ pending: pendingTasks.length }}
+      />
 
       {/* Main */}
-      <main className="animate-fade-in-up" style={{ 
-        ...S.main, 
+      <main className="animate-fade-in-up" style={{
+        ...S.main,
         padding: view === "messages" ? 0 : S.main.padding,
         display: "flex",
         flexDirection: "column",
@@ -472,11 +299,11 @@ export default function DashboardPage() {
           {view === "dashboard" ? (
             <>
               {/* Stats Grid */}
-              <div className="dash-stats-grid" style={{ 
-                display: "grid", 
-                gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", 
-                gap: 16, 
-                marginBottom: 24 
+              <div className="dash-stats-grid" style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+                gap: 16,
+                marginBottom: 24
               }}>
                 <div className="dash-stat-card" style={{ background: "#fff", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                   <div className="dash-stat-icon" style={{ background: `${roleColors[currentRole]}12`, color: roleColors[currentRole], width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>{currentRole[0].toUpperCase()}</div>
@@ -522,27 +349,27 @@ export default function DashboardPage() {
                           borderRadius: 12,
                           background: t.status === "completed" ? "#f8fafc" : "#fff",
                           border: "1px solid #f1f5f9",
-                          display: "flex", 
+                          display: "flex",
                           flexDirection: isMobile ? "column" : "row",
-                          alignItems: isMobile ? "flex-start" : "center", 
+                          alignItems: isMobile ? "flex-start" : "center",
                           gap: 16,
                           transition: "all 0.2s",
                           opacity: t.status === "completed" ? 0.7 : 1
                         }}>
                           <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                              <span style={{ 
-                                padding: "3px 8px", 
-                                borderRadius: 6, 
-                                fontSize: 10, 
-                                fontWeight: 400, 
+                              <span style={{
+                                padding: "3px 8px",
+                                borderRadius: 6,
+                                fontSize: 10,
+                                fontWeight: 400,
                                 textTransform: "uppercase",
-                                background: `${priorityColors[t.priority]}15`, 
-                                color: priorityColors[t.priority] 
+                                background: `${priorityColors[t.priority]}15`,
+                                color: priorityColors[t.priority]
                               }}>{t.priority}</span>
-                              <h3 style={{ 
-                                fontSize: 15, 
-                                fontWeight: 400, 
+                              <h3 style={{
+                                fontSize: 15,
+                                fontWeight: 400,
                                 color: t.status === "completed" ? "#94a3b8" : "#1e293b",
                                 textDecoration: t.status === "completed" ? "line-through" : "none",
                                 margin: 0
@@ -580,14 +407,13 @@ export default function DashboardPage() {
               </div>
             </>
           ) : view === "profile" ? (
-            <ProfileTab 
+            <ProfileTab
               S={adminStyles}
               isMobile={isMobile}
               isTablet={isTablet}
             />
           ) : view === "party-rates" ? (
-            <PartyRateTab 
-              S={adminStyles}
+            <PartyRateModule
               isMobile={isMobile}
               isTablet={isTablet}
               partyRates={partyRates}
@@ -597,7 +423,7 @@ export default function DashboardPage() {
               loadData={loadPartyRates}
             />
           ) : view === "catalog" ? (
-            <CatalogTab 
+            <CatalogTab
               products={products}
               categories={categories}
               collections={collections}

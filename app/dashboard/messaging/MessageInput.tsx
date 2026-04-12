@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { FONT } from "./types";
-import { uploadImage } from "../inventory/imageService"; // Reusing the S3 upload logic
+import { uploadImage } from "../inventory/components/Products/imageService"; // Reusing the S3 upload logic
 
 interface InputProps {
   onSend: (text: string, attachment?: { url: string; type: string; name: string; size: number }) => void;

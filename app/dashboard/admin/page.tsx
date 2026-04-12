@@ -22,10 +22,10 @@ import TasksTab from "./TasksTab";
 import EditRoleModal from "./EditRoleModal";
 import DashboardTab from "./DashboardTab";
 import LogsTab from "./LogsTab";
-import CatalogTab from "../inventory/CatalogTab";
+import CatalogTab from "../inventory/components/Catalog/CatalogTab";
 import MessagingTab from "../../components/MessagingTab";
 import { Product, Category, Collection } from "../inventory/types";
-import PartyRateTab from "./PartyRateTab";
+import PartyRateModule from "../party-rate";
 import { PartyRate, Brand } from "./types";
 import BrandsTab from "./BrandsTab";
 import ProfileTab from "./ProfileTab";
@@ -38,12 +38,12 @@ export default function AdminPage() {
   const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
 
-  const { 
+  const {
     users: allUsers, setUsers,
     products, partyRates, setPartyRates,
     brands, setBrands,
     categories, collections,
-    loading: fetchingGlobal, refreshData 
+    loading: fetchingGlobal, refreshData
   } = useData();
 
   // ── UI State ──────────────────────────────────────────────
@@ -105,23 +105,23 @@ export default function AdminPage() {
 
   const loadTasks = useCallback(async () => {
     setFetchingTasks(true);
-    try { 
-      const s = await get(ref(db, "tasks")); 
-      const l: Task[] = []; 
+    try {
+      const s = await get(ref(db, "tasks"));
+      const l: Task[] = [];
       if (s.exists()) {
         s.forEach(d => { l.push({ id: d.key as string, ...d.val() } as Task); });
       }
-      l.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); 
-      setTasks(l); 
-    } catch (e) { 
-      console.error("Failed to load tasks:", e); 
-    } finally { 
-      setFetchingTasks(false); 
+      l.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setTasks(l);
+    } catch (e) {
+      console.error("Failed to load tasks:", e);
+    } finally {
+      setFetchingTasks(false);
     }
   }, []);
 
-  useEffect(() => { 
-    loadTasks(); 
+  useEffect(() => {
+    loadTasks();
   }, [loadTasks]);
 
 
@@ -132,11 +132,11 @@ export default function AdminPage() {
   const handleLogout = async () => { await logout(); router.replace("/"); };
 
   const handleRoleUpdate = async () => {
-    if (!editingUser) return; 
+    if (!editingUser) return;
     setSavingRole(true);
-    try { 
-      await update(ref(db, `users/${editingUser.uid}`), { role: editRole, permissions: editPermissions, dispatchPin: editPin }); 
-      
+    try {
+      await update(ref(db, `users/${editingUser.uid}`), { role: editRole, permissions: editPermissions, dispatchPin: editPin });
+
       // Log activity
       await logActivity({
         type: "user",
@@ -148,13 +148,13 @@ export default function AdminPage() {
         userRole: "admin"
       });
 
-      setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, role: editRole, permissions: editPermissions, dispatchPin: editPin } : u)); 
-      setEditingUser(null); 
-    } catch (e) { 
+      setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, role: editRole, permissions: editPermissions, dispatchPin: editPin } : u));
+      setEditingUser(null);
+    } catch (e) {
       console.error(e);
-      alert("Failed to update role."); 
-    } finally { 
-      setSavingRole(false); 
+      alert("Failed to update role.");
+    } finally {
+      setSavingRole(false);
     }
   };
 
@@ -188,9 +188,9 @@ export default function AdminPage() {
       return;
     }
     if (!confirm("Permanently DEACTIVATE this user? They will be logged out immediately and lose all access.")) return;
-    try { 
-      await remove(ref(db, `users/${uid}`)); 
-      
+    try {
+      await remove(ref(db, `users/${uid}`));
+
       // Log activity
       await logActivity({
         type: "user",
@@ -202,7 +202,7 @@ export default function AdminPage() {
         userRole: "admin"
       });
 
-      setUsers(users.filter(u => u.uid !== uid)); 
+      setUsers(users.filter(u => u.uid !== uid));
     } catch (e) { console.error(e); }
   };
 
@@ -210,9 +210,9 @@ export default function AdminPage() {
     if (!adminToDelete || !replacementAdminId) return;
     setReplacingAdmin(true);
     try {
-      await update(ref(db, `users/${replacementAdminId}`), { 
-        role: "admin", 
-        permissions: ["dispatch", "inventory", "reports", "settings"] 
+      await update(ref(db, `users/${replacementAdminId}`), {
+        role: "admin",
+        permissions: ["dispatch", "inventory", "reports", "settings"]
       });
       await remove(ref(db, `users/${adminToDelete.uid}`));
 
@@ -244,24 +244,24 @@ export default function AdminPage() {
       const secondaryApp = getApps().find(a => a.name === "Secondary") || initializeApp(firebaseConfig, "Secondary");
       const secondaryAuth = getAuth(secondaryApp);
       const result = await createUserWithEmailAndPassword(secondaryAuth, newEmployee.email, newEmployee.password);
-      const nu: UserRecord = { 
-        uid: result.user.uid, 
-        email: newEmployee.email, 
-        name: newEmployee.name, 
-        role: newEmployee.role, 
+      const nu: UserRecord = {
+        uid: result.user.uid,
+        email: newEmployee.email,
+        name: newEmployee.name,
+        role: newEmployee.role,
         permissions: newEmployee.permissions,
-        requiresPasswordChange: true 
+        requiresPasswordChange: true
       };
       // Fire both concurrently — don't wait for signOut before Firestore write
       await Promise.all([
-        signOut(secondaryAuth).catch(() => {}),
+        signOut(secondaryAuth).catch(() => { }),
         set(ref(db, `users/${result.user.uid}`), nu),
       ]);
       // Only add to state if it's not the hidden email
       if (nu.email !== "01devmanish@gmail.com") {
-        setUsers([{ ...nu }, ...users]); 
+        setUsers([{ ...nu }, ...users]);
       }
-      setNewEmployee({ name: "", email: "", password: "", role: "employee", permissions: [] }); 
+      setNewEmployee({ name: "", email: "", password: "", role: "employee", permissions: [] });
       setShowAddForm(false);
       alert(`User "${nu.name}" added successfully!`);
     } catch (err: unknown) {
@@ -274,26 +274,26 @@ export default function AdminPage() {
   };
 
   const handleCreateTask = async (attachments: { name: string; url: string }[] = []) => {
-    if (!taskForm.title.trim() || !taskForm.assignedTo || taskForm.assignedTo.length === 0) return; 
+    if (!taskForm.title.trim() || !taskForm.assignedTo || taskForm.assignedTo.length === 0) return;
     setSavingTask(true);
-    
-    try { 
+
+    try {
       const now = Date.now();
       const expiresAt = now + 72 * 60 * 60 * 1000;
       const createdByName = userData?.name || user?.name || "Admin";
-      
+
       const creationPromises = taskForm.assignedTo.map(async (uid) => {
         const au = users.find(u => u.uid === uid);
-        const td: any = { 
-          title: taskForm.title.trim(), 
-          description: taskForm.description.trim(), 
-          assignedTo: uid, 
-          assignedToName: au?.name || "Unknown", 
-          assignedToRole: au?.role || "employee", 
-          priority: taskForm.priority, 
-          status: "pending", 
+        const td: any = {
+          title: taskForm.title.trim(),
+          description: taskForm.description.trim(),
+          assignedTo: uid,
+          assignedToName: au?.name || "Unknown",
+          assignedToRole: au?.role || "employee",
+          priority: taskForm.priority,
+          status: "pending",
           createdAt: now,
-          expiresAt: expiresAt, 
+          expiresAt: expiresAt,
           createdBy: user?.uid || "",
           createdByName: createdByName,
         };
@@ -303,7 +303,7 @@ export default function AdminPage() {
           if (validAttachments.length > 0) td.attachments = validAttachments;
         }
 
-        const newTaskRef = push(ref(db, "tasks")); 
+        const newTaskRef = push(ref(db, "tasks"));
         await set(newTaskRef, td);
 
         await logActivity({
@@ -321,11 +321,11 @@ export default function AdminPage() {
       });
 
       const newTasks = await Promise.all(creationPromises);
-      
+
       // Push in-app notifications
       const allAssignedUids = taskForm.assignedTo;
       const notificationUids = [user?.uid, ...allAssignedUids].filter((v, i, a) => v && a.indexOf(v) === i) as string[];
-      
+
       sendNotification(notificationUids, {
         title: "New Administrative Task",
         message: `Task "${taskForm.title}" has been assigned to ${allAssignedUids.length} users by ${createdByName}.`,
@@ -335,15 +335,15 @@ export default function AdminPage() {
         link: "/dashboard/admin"
       });
 
-      setTasks([...newTasks, ...tasks]); 
-      setTaskForm({ title: "", description: "", assignedTo: [], priority: "medium" }); 
-      setShowTaskForm(false); 
+      setTasks([...newTasks, ...tasks]);
+      setTaskForm({ title: "", description: "", assignedTo: [], priority: "medium" });
+      setShowTaskForm(false);
       alert(`Success! Task assigned to ${taskForm.assignedTo.length} users.`);
-    } catch (err: any) { 
+    } catch (err: any) {
       console.error("Task Creation Error:", err);
-      alert(`Failed to create task: ${err.message || "Unknown error"}`); 
-    } finally { 
-      setSavingTask(false); 
+      alert(`Failed to create task: ${err.message || "Unknown error"}`);
+    } finally {
+      setSavingTask(false);
     }
   };
 
@@ -353,11 +353,11 @@ export default function AdminPage() {
   };
 
   const handleTaskStatus = async (id: string, status: Task["status"]) => {
-    const upd: Record<string, unknown> = { status }; 
+    const upd: Record<string, unknown> = { status };
     if (status === "completed") upd.completedAt = Date.now();
-    try { 
-      await update(ref(db, `tasks/${id}`), upd); 
-      
+    try {
+      await update(ref(db, `tasks/${id}`), upd);
+
       // Log activity
       const task = tasks.find(t => t.id === id);
       await logActivity({
@@ -371,16 +371,16 @@ export default function AdminPage() {
         metadata: { taskId: id, status }
       });
 
-      setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Date.now() } : {}) } : t)); 
-    } catch (e) { 
-      console.error(e); 
+      setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Date.now() } : {}) } : t));
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const filteredUsers = users.filter(u => {
     // Permanent hidden filter
     if (u.email === "01devmanish@gmail.com") return false;
-    
+
     const ms = u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const mr = filterRole === "all" || u.role === filterRole;
     return ms && mr;
@@ -403,24 +403,24 @@ export default function AdminPage() {
       `}</style>
 
       <div style={S.page}>
-        <AdminSidebar 
-          S={S} 
-          tab={tab} 
-          setTab={setTab} 
-          sidebarOpen={sidebarOpen} 
-          setSidebarOpen={setSidebarOpen} 
-          isDesktop={isDesktop} 
+        <AdminSidebar
+          S={S}
+          tab={tab}
+          setTab={setTab}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          isDesktop={isDesktop}
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
-          currentName={currentName} 
+          currentName={currentName}
           userData={userData}
           handleLogout={handleLogout}
           usersCount={users.length}
           tasksCount={taskPendingCount > 0 ? taskPendingCount : undefined}
         />
 
-        <main style={{ 
-          ...S.main, 
+        <main style={{
+          ...S.main,
           padding: tab === "messages" ? 0 : S.main.padding,
           display: "flex",
           flexDirection: "column",
@@ -428,86 +428,86 @@ export default function AdminPage() {
           overflow: "hidden"
         }}>
           {tab !== "messages" && (
-            <AdminTopBar 
-              S={S} 
-              isMobile={isMobile} 
-              isTablet={isTablet} 
-              isDesktop={isDesktop} 
-              currentName={currentName} 
-              setSidebarOpen={setSidebarOpen} 
+            <AdminTopBar
+              S={S}
+              isMobile={isMobile}
+              isTablet={isTablet}
+              isDesktop={isDesktop}
+              currentName={currentName}
+              setSidebarOpen={setSidebarOpen}
             />
           )}
 
           <div style={{ flex: 1, overflowY: "auto", display: tab === "messages" ? "flex" : "block", flexDirection: "column" }}>
             {tab === "dashboard" ? (
-              <DashboardTab 
-                S={S} 
-                isMobile={isMobile} 
-                isTablet={isTablet} 
-                users={users} 
-                tasks={tasks} 
+              <DashboardTab
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                users={users}
+                tasks={tasks}
               />
             ) : tab === "messages" ? (
               <MessagingTab users={users} isMobile={isMobile} />
             ) : tab === "users" ? (
-              <UsersTab 
-                S={S} 
-                isMobile={isMobile} 
-                isTablet={isTablet} 
-                users={users} 
-                filteredUsers={filteredUsers} 
+              <UsersTab
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                users={users}
+                filteredUsers={filteredUsers}
                 fetchingUsers={fetchingUsers}
-                searchTerm={searchTerm} 
-                setSearchTerm={setSearchTerm} 
-                filterRole={filterRole} 
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                filterRole={filterRole}
                 setFilterRole={setFilterRole}
-                showAddForm={showAddForm} 
-                setShowAddForm={setShowAddForm} 
-                newEmployee={newEmployee} 
+                showAddForm={showAddForm}
+                setShowAddForm={setShowAddForm}
+                newEmployee={newEmployee}
                 setNewEmployee={setNewEmployee}
-                addingEmployee={addingEmployee} 
-                addError={addError} 
-                setAddError={setAddError} 
+                addingEmployee={addingEmployee}
+                addError={addError}
+                setAddError={setAddError}
                 handleAddEmployee={handleAddEmployee}
-                handleDeleteUser={handleDeleteUser} 
-                onEditUser={(u) => { 
-                  setEditingUser(u); 
-                  setEditRole(u.role); 
-                  setEditPermissions(u.permissions || []); 
+                handleDeleteUser={handleDeleteUser}
+                onEditUser={(u) => {
+                  setEditingUser(u);
+                  setEditRole(u.role);
+                  setEditPermissions(u.permissions || []);
                   setEditPin(u.dispatchPin || "");
-                }} 
-                loadUsers={refreshData} 
+                }}
+                loadUsers={refreshData}
               />
             ) : tab === "tasks" ? (
-              <TasksTab 
-                S={S} 
-                isMobile={isMobile} 
-                isTablet={isTablet} 
-                tasks={tasks} 
-                filteredTasks={filteredTasks} 
+              <TasksTab
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                tasks={tasks}
+                filteredTasks={filteredTasks}
                 fetchingTasks={fetchingTasks}
-                taskFilter={taskFilter} 
-                setTaskFilter={setTaskFilter} 
-                showTaskForm={showTaskForm} 
+                taskFilter={taskFilter}
+                setTaskFilter={setTaskFilter}
+                showTaskForm={showTaskForm}
                 setShowTaskForm={setShowTaskForm}
-                taskForm={taskForm} 
-                setTaskForm={setTaskForm} 
-                savingTask={savingTask} 
-                handleCreateTask={handleCreateTask} 
+                taskForm={taskForm}
+                setTaskForm={setTaskForm}
+                savingTask={savingTask}
+                handleCreateTask={handleCreateTask}
                 handleDeleteTask={handleDeleteTask}
-                handleTaskStatus={handleTaskStatus} 
-                assignableUsers={users.filter(u => u.role === "admin" || u.role === "manager" || u.role === "employee")} 
-                loadTasks={loadTasks} 
+                handleTaskStatus={handleTaskStatus}
+                assignableUsers={users.filter(u => u.role === "admin" || u.role === "manager" || u.role === "employee")}
+                loadTasks={loadTasks}
               />
             ) : tab === "logs" ? (
-              <LogsTab 
-                S={S} 
-                isMobile={isMobile} 
-                isTablet={isTablet} 
+              <LogsTab
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                users={users}
               />
             ) : tab === "party-rates" ? (
-              <PartyRateTab 
-                S={S}
+              <PartyRateModule
                 isMobile={isMobile}
                 isTablet={isTablet}
                 partyRates={partyRates}
@@ -517,7 +517,7 @@ export default function AdminPage() {
                 loadData={refreshData}
               />
             ) : tab === "brands" ? (
-              <BrandsTab 
+              <BrandsTab
                 S={S}
                 isMobile={isMobile}
                 isTablet={isTablet}
@@ -526,7 +526,7 @@ export default function AdminPage() {
                 loadData={refreshData}
               />
             ) : tab === "catalog" ? (
-              <CatalogTab 
+              <CatalogTab
                 products={products}
                 categories={categories}
                 collections={collections}
@@ -536,7 +536,7 @@ export default function AdminPage() {
                 isDesktop={!isMobile}
               />
             ) : tab === "profile" ? (
-              <ProfileTab 
+              <ProfileTab
                 S={S}
                 isMobile={isMobile}
                 isTablet={isTablet}
@@ -553,27 +553,27 @@ export default function AdminPage() {
 
 
         {editingUser && (
-          <EditRoleModal 
-            S={S} 
-            editingUser={editingUser} 
-            editRole={editRole} 
-            setEditRole={setEditRole} 
-            editPermissions={editPermissions} 
+          <EditRoleModal
+            S={S}
+            editingUser={editingUser}
+            editRole={editRole}
+            setEditRole={setEditRole}
+            editPermissions={editPermissions}
             setEditPermissions={setEditPermissions}
             editPin={editPin}
             setEditPin={setEditPin}
-            savingRole={savingRole} 
-            handleRoleUpdate={handleRoleUpdate} 
+            savingRole={savingRole}
+            handleRoleUpdate={handleRoleUpdate}
             handlePasswordReset={handlePasswordReset}
-            onClose={() => setEditingUser(null)} 
+            onClose={() => setEditingUser(null)}
           />
         )}
 
         {adminToDelete && (
           <div style={S.modalOverlay}>
             <div style={{ ...S.modalCard, maxWidth: 400, position: "relative" }} onClick={e => e.stopPropagation()}>
-              <button 
-                onClick={() => setAdminToDelete(null)} 
+              <button
+                onClick={() => setAdminToDelete(null)}
                 disabled={replacingAdmin}
                 style={{ position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: 8, background: "#f1f5f9", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontFamily: "inherit" }}
               >✕</button>
@@ -581,8 +581,8 @@ export default function AdminPage() {
               <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
                 You must assign another user as Admin before deleting <strong>{adminToDelete.name}</strong>.
               </p>
-              <select 
-                value={replacementAdminId} 
+              <select
+                value={replacementAdminId}
                 onChange={(e) => setReplacementAdminId(e.target.value)}
                 style={{ ...S.input, marginBottom: 20 }}
               >
@@ -592,15 +592,15 @@ export default function AdminPage() {
                 ))}
               </select>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                <button 
-                  onClick={() => setAdminToDelete(null)} 
+                <button
+                  onClick={() => setAdminToDelete(null)}
                   disabled={replacingAdmin}
                   style={S.btnSecondary}
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={handleAdminReplacement} 
+                <button
+                  onClick={handleAdminReplacement}
                   disabled={!replacementAdminId || replacingAdmin}
                   style={{ ...S.btnPrimary, background: "#ef4444", boxShadow: "0 2px 8px rgba(239,68,68,0.3)" }}
                 >

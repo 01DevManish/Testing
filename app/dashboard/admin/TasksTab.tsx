@@ -265,7 +265,7 @@ export default function TasksTab({
                 if (selectedFiles.length > 0) setUploading(true);
                 const attachments: { name: string; url: string }[] = [];
                 try {
-                  const { uploadImage } = await import("../inventory/imageService");
+                  const { uploadImage } = await import("../inventory/components/Products/imageService");
                   
                   for (const file of selectedFiles) {
                     const reader = new FileReader();

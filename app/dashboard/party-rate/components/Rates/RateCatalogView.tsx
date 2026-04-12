@@ -1,0 +1,320 @@
+import React, { useState } from "react";
+import { PartyRate } from "../../types";
+import { Product, GST_RATES } from "../../../inventory/types";
+import { 
+    Input, Select, FormField, BtnPrimary, BtnSecondary, BtnGhost, 
+    Card, Badge, PageHeader, Spinner 
+} from "../../ui";
+
+interface RateCatalogViewProps {
+    party: PartyRate;
+    products: Product[];
+    onBack: () => void;
+    onUpdateRates: (updated: any[]) => void;
+    onShare: (party: PartyRate, selections: any[]) => void;
+    isAdmin: boolean;
+    isMobile: boolean;
+}
+
+export default function RateCatalogView({
+    party, products, onBack, onUpdateRates, onShare, isAdmin, isMobile
+}: RateCatalogViewProps) {
+    const [searchTerm, setSearchTerm] = useState("");
+    const [productSearch, setProductSearch] = useState("");
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
+
+    // Filter Logic
+    const rates = party.rates || [];
+    const filteredRates = rates.map((r, i) => ({ ...r, originalIdx: i })).filter(r => 
+        r.productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (r.sku || "").toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleAddRate = () => {
+        const rateVal = (document.getElementById("new-rate-val") as HTMLInputElement)?.value;
+        const pkgType = (document.getElementById("new-pkg-type") as HTMLSelectElement)?.value;
+        const pkgCost = (document.getElementById("new-pkg-cost") as HTMLInputElement)?.value;
+        const discVal = (document.getElementById("new-disc-val") as HTMLInputElement)?.value;
+        const discType = (document.getElementById("new-disc-type") as HTMLSelectElement)?.value as "amount" | "percentage";
+        const gstRate = (document.getElementById("new-gst-rate") as HTMLSelectElement)?.value;
+
+        if (!selectedProduct || !rateVal) {
+            alert("Please select a product and enter a rate.");
+            return;
+        }
+
+        const pName = selectedProduct.productName || "";
+        const updated = [...rates.filter(r => r.productName !== pName), {
+            productName: pName,
+            sku: selectedProduct.sku || "",
+            rate: parseFloat(rateVal),
+            packagingType: pkgType || "",
+            packagingCost: parseFloat(pkgCost || "0"),
+            discount: parseFloat(discVal || "0"),
+            discountType: discType || "amount",
+            gstRate: parseInt(gstRate || "0")
+        }];
+
+        onUpdateRates(updated);
+        setSelectedProduct(null);
+        setProductSearch("");
+    };
+
+    const handleBulkAssign = () => {
+        const pPrefix = productSearch.trim().toLowerCase();
+        if (!pPrefix) return;
+
+        const rateVal = (document.getElementById("new-rate-val") as HTMLInputElement)?.value;
+        if (!rateVal) {
+            alert("Please enter a rate for bulk assignment.");
+            return;
+        }
+
+        const matched = products.filter(p => {
+            const sku = (p.sku || "").toLowerCase();
+            return sku.startsWith(pPrefix);
+        });
+
+        if (matched.length === 0) {
+            alert(`No products found with SKU prefix "${pPrefix.toUpperCase()}"`);
+            return;
+        }
+
+        if (!confirm(`Assign rate to ${matched.length} products with SKU prefix "${pPrefix.toUpperCase()}"?`)) return;
+
+        const pkgType = (document.getElementById("new-pkg-type") as HTMLSelectElement)?.value;
+        const pkgCost = (document.getElementById("new-pkg-cost") as HTMLInputElement)?.value;
+        const discVal = (document.getElementById("new-disc-val") as HTMLInputElement)?.value;
+        const discType = (document.getElementById("new-disc-type") as HTMLSelectElement)?.value as "amount" | "percentage";
+        const gstRate = (document.getElementById("new-gst-rate") as HTMLSelectElement)?.value;
+
+        let updated = [...rates];
+        matched.forEach(prod => {
+            const pName = prod.productName || "";
+            updated = updated.filter(r => r.productName !== pName);
+            updated.push({
+                productName: pName,
+                sku: prod.sku || "",
+                rate: parseFloat(rateVal),
+                packagingType: pkgType || "",
+                packagingCost: parseFloat(pkgCost || "0"),
+                discount: parseFloat(discVal || "0"),
+                discountType: discType,
+                gstRate: parseInt(gstRate || "0")
+            });
+        });
+
+        onUpdateRates(updated);
+        setProductSearch("");
+    };
+
+    const toggleSelect = (idx: number) => {
+        setSelectedIndices(prev => 
+            prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+        );
+    };
+
+    return (
+        <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+            <PageHeader 
+                title={`${party.partyName} Catalog`} 
+                sub="Manage specific product pricing and share customized catalogs"
+            >
+                <BtnGhost onClick={onBack}>← Back to List</BtnGhost>
+                {isAdmin && (
+                    <BtnPrimary 
+                        onClick={() => onShare(party, selectedIndices.length > 0 ? rates.filter((_, i) => selectedIndices.includes(i)) : rates)}
+                        style={{ background: "#10b981" }}
+                        disabled={rates.length === 0}
+                    >
+                        Share PDF {selectedIndices.length > 0 ? `(${selectedIndices.length})` : ""}
+                    </BtnPrimary>
+                )}
+            </PageHeader>
+
+            {/* Assignment Form */}
+            {isAdmin && (
+                <Card style={{ padding: 24, marginBottom: 24, background: "#f8fafc", borderStyle: "dashed", borderColor: "#cbd5e1" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                        <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#1e293b", display: "flex", alignItems: "center", gap: 8 }}>
+                            Register Product Rate
+                            <Badge color="#6366f1" bg="#e0e7ff">Custom Pricing</Badge>
+                        </h4>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, alignItems: "flex-end" }}>
+                        <div style={{ gridColumn: isMobile ? "span 1" : "span 1", position: "relative" }}>
+                            <FormField label="Product / SKU Search">
+                                <div style={{ position: "relative" }}>
+                                    <Input 
+                                        value={selectedProduct ? (selectedProduct.productName || "") : productSearch}
+                                        onChange={e => { setProductSearch(e.target.value); if (selectedProduct) setSelectedProduct(null); }}
+                                        placeholder="Search or SKU Prefix..."
+                                        style={{ paddingRight: selectedProduct ? 30 : 12 }}
+                                    />
+                                    {selectedProduct && <button onClick={() => setSelectedProduct(null)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "#f1f5f9", borderRadius: "50%", width: 22, height: 22, fontSize: 10, cursor: "pointer" }}>✕</button>}
+                                </div>
+                                {productSearch && !selectedProduct && (
+                                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 100, maxHeight: 180, overflowY: "auto" }}>
+                                        {products.filter(p => {
+                                            const s = productSearch.toLowerCase();
+                                            return (p.productName || "").toLowerCase().includes(s) || (p.sku || "").toLowerCase().includes(s);
+                                        }).slice(0, 10).map(p => (
+                                            <div key={p.id} onClick={() => {
+                                                setSelectedProduct(p);
+                                                (document.getElementById("new-rate-val") as HTMLInputElement).value = (p.wholesalePrice || p.price || 0).toString();
+                                                (document.getElementById("new-gst-rate") as HTMLSelectElement).value = (p.gstRate || 18).toString();
+                                            }} style={{ padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                                                <div style={{ fontSize: 13, fontWeight: 500 }}>{p.productName}</div>
+                                                <div style={{ fontSize: 11, color: "#94a3b8" }}>SKU: {p.sku} | Price: ₹{p.wholesalePrice || p.price || 0}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </FormField>
+                        </div>
+
+                        <FormField label="Assign Rate (₹)">
+                            <Input id="new-rate-val" type="number" placeholder="0.00" />
+                        </FormField>
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <BtnPrimary onClick={handleAddRate} style={{ flex: 1, justifyContent: "center", height: 41 }}>
+                                Assign Rate
+                            </BtnPrimary>
+                            <button 
+                                onClick={handleBulkAssign}
+                                title="Apply to all products matching SKU prefix"
+                                style={{ 
+                                    flex: 1,
+                                    padding: "0 14px", height: 41, background: "#f5f3ff", color: "#6d28d9", 
+                                    border: "1px solid #ddd6fe", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 500,
+                                    display: "flex", justifyContent: "center", alignItems: "center"
+                                }}
+                            >
+                                Bulk Rate Assign
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 16, marginTop: 16 }}>
+                        <FormField label="Pkg Type">
+                            <Select id="new-pkg-type">
+                                <option value="">No Packaging</option>
+                                <option value="PVC">PVC</option>
+                                <option value="PVC Zip">PVC Zip</option>
+                                <option value="Bookfold">Bookfold</option>
+                                <option value="Envolope Fold">Envolope Fold</option>
+                                <option value="HOMCOT Bag">HOMCOT Bag</option>
+                                <option value="Comfy Bag">Comfy Bag</option>
+                                <option value="Comfy set Bag">Comfy set Bag</option>
+                            </Select>
+                        </FormField>
+                        <FormField label="Pkg Cost (₹)">
+                            <Input id="new-pkg-cost" type="number" defaultValue="0" />
+                        </FormField>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <FormField label="Disc">
+                                <Input id="new-discount-val" type="number" defaultValue="0" />
+                            </FormField>
+                            <FormField label="Unit">
+                                <Select id="new-discount-type">
+                                    <option value="amount">₹</option>
+                                    <option value="percentage">%</option>
+                                </Select>
+                            </FormField>
+                        </div>
+                        <FormField label="GST (%)">
+                            <Select id="new-gst-rate">
+                                {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
+                            </Select>
+                        </FormField>
+                    </div>
+                </Card>
+            )}
+
+            {/* List Table */}
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+                <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#475569" }}>Assigned Rates ({rates.length})</h4>
+                    <div style={{ width: 240, position: "relative" }}>
+                        <input 
+                            type="text" 
+                            placeholder="Search within catalog..." 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            style={{ 
+                                width: "100%", padding: "6px 10px 6px 30px", fontSize: 12, 
+                                border: "1px solid #e2e8f0", borderRadius: 8, outline: "none" 
+                            }}
+                        />
+                        <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12 }}>🔍</span>
+                    </div>
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                            <tr style={{ background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
+                                <th style={{ padding: "12px 20px", textAlign: "left", width: 40 }}>
+                                    <input type="checkbox" onChange={e => setSelectedIndices(e.target.checked ? rates.map((_, i) => i) : [])} checked={selectedIndices.length === rates.length && rates.length > 0} />
+                                </th>
+                                <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Product Name</th>
+                                <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#64748b" }}>SKU</th>
+                                <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Packaging</th>
+                                {isAdmin && <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Rate (₹)</th>}
+                                {isAdmin && <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Discount</th>}
+                                {isAdmin && <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Final Total</th>}
+                                {isAdmin && <th style={{ padding: "12px 20px", textAlign: "center", width: 60 }}></th>}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredRates.map((r) => {
+                                const base = Number(r.rate || 0) + Number(r.packagingCost || 0);
+                                const disc = (r.discountType || "amount") === "percentage" ? (base * (r.discount || 0) / 100) : Number(r.discount || 0);
+                                const subtotal = Math.max(0, base - disc);
+                                const total = subtotal + (subtotal * (r.gstRate || 0) / 100);
+
+                                return (
+                                    <tr key={r.originalIdx} style={{ borderBottom: "1px solid #f8fafc" }}>
+                                        <td style={{ padding: "12px 20px" }}>
+                                            <input type="checkbox" checked={selectedIndices.includes(r.originalIdx)} onChange={() => toggleSelect(r.originalIdx)} />
+                                        </td>
+                                        <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{r.productName}</td>
+                                        <td style={{ padding: "12px 20px", fontSize: 12, color: "#94a3b8" }}>{r.sku || "—"}</td>
+                                        <td style={{ padding: "12px 20px", fontSize: 12, color: "#64748b" }}>
+                                            {r.packagingType ? <Badge color="#0ea5e9" bg="#f0f9ff">{r.packagingType}</Badge> : "None"}
+                                        </td>
+                                        {isAdmin && <td style={{ padding: "12px 20px", textAlign: "right", fontSize: 13, fontWeight: 600 }}>₹{r.rate}</td>}
+                                        {isAdmin && <td style={{ padding: "12px 20px", textAlign: "right", color: "#ef4444", fontSize: 12 }}>
+                                            {(r.discount || 0) > 0 ? (r.discountType === "percentage" ? `-${r.discount}%` : `-₹${r.discount}`) : "—"}
+                                        </td>}
+                                        {isAdmin && <td style={{ padding: "12px 20px", textAlign: "right", fontSize: 13, fontWeight: 600, color: "#0f172a" }}>₹{total.toFixed(2)}</td>}
+                                        {isAdmin && (
+                                            <td style={{ padding: "12px 20px", textAlign: "center" }}>
+                                                <button 
+                                                    onClick={() => onUpdateRates(rates.filter((_, i) => i !== r.originalIdx))}
+                                                    style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 16 }}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                            {filteredRates.length === 0 && (
+                                <tr>
+                                    <td colSpan={isAdmin ? 8 : 4} style={{ padding: 48, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic" }}>
+                                        No products found in the assigned rate list.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+        </div>
+    );
+}

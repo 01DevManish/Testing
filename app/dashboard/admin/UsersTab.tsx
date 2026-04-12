@@ -5,6 +5,8 @@ import type { UserRole } from "../../context/AuthContext";
 import { UserRecord, roleColors, roleBg } from "./types";
 import StatsGrid from "./StatsGrid";
 import type { AdminStyles } from "./styles";
+import { PermissionSelector } from "./EditRoleModal";
+import { getAllGranularPermissions } from "../../lib/permissions";
 
 interface UsersTabProps {
   S: AdminStyles;
@@ -37,7 +39,6 @@ export default function UsersTab({
   addingEmployee, addError, setAddError, handleAddEmployee,
   handleDeleteUser, onEditUser, loadUsers,
 }: UsersTabProps) {
-  const [expandedMod, setExpandedMod] = React.useState<string | null>(null);
   const stats = {
     total: users.length,
     admins: users.filter(u => u.role === "admin").length,
@@ -196,101 +197,11 @@ export default function UsersTab({
           </div>
           <div style={{ marginTop: 18 }}>
             <label style={{ ...S.label, marginBottom: 12 }}>Permissions</label>
-            <div style={{ padding: "8px", background: "#f8fafc", borderRadius: 14, border: "1px solid #e2e8f0", marginBottom: 22 }}>
-              {[
-                { id: "inv", name: "Inventory", prefix: "inventory" },
-                { id: "retail", name: "Retail Dispatch", prefix: "retail" },
-                { id: "ecom", name: "Ecommerce Dispatch", prefix: "ecom" }
-              ].map(mod => {
-                const actions = ["view", "create", "edit", "delete"];
-                const modPerms = actions.map(act => `${mod.prefix}_${act}`);
-                const selectedCount = (newEmployee.permissions || []).filter(p => modPerms.includes(p)).length;
-                const isExpanded = expandedMod === mod.id;
-
-                return (
-                  <div key={mod.id} style={{ 
-                    marginBottom: 4, 
-                    borderRadius: 10, 
-                    overflow: "hidden", 
-                    background: isExpanded ? "#fff" : "transparent",
-                    borderWidth: 1,
-                    borderStyle: "solid",
-                    borderColor: isExpanded ? "#e2e8f0" : "transparent"
-                  }}>
-                    <div 
-                      onClick={() => setExpandedMod(isExpanded ? null : mod.id)}
-                      style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "0.2s" }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b" }}>{mod.name}</div>
-                          <div style={{ fontSize: 11, color: "#64748b" }}>{selectedCount} of 4 rights assigned</div>
-                        </div>
-                      </div>
-                      <div style={{ transition: "0.2s", transform: isExpanded ? "rotate(180deg)" : "none", color: "#94a3b8" }}>▼</div>
-                    </div>
-                    
-                    {isExpanded && (
-                      <div style={{ padding: "0 14px 14px", borderTop: "1px solid #f1f5f9" }}>
-                        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0" }}>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const allSelected = modPerms.every(i => (newEmployee.permissions || []).includes(i));
-                              const newPerms = allSelected 
-                                ? (newEmployee.permissions || []).filter(p => !modPerms.includes(p)) 
-                                : [...new Set([...(newEmployee.permissions || []), ...modPerms])];
-                              setNewEmployee({ ...newEmployee, permissions: newPerms });
-                            }}
-                            style={{ background: "none", border: "none", color: "#6366f1", fontSize: 11, cursor: "pointer", fontWeight: 500 }}
-                          >
-                            { modPerms.every(i => (newEmployee.permissions || []).includes(i)) ? "Clear All" : "Select All" }
-                          </button>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
-                          {actions.map(action => (
-                            <label key={`new_${mod.id}_${action}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "#f8fafc", cursor: "pointer", fontSize: 13, color: "#475569" }}>
-                              <input 
-                                type="checkbox" 
-                                checked={newEmployee.permissions?.includes(`${mod.prefix}_${action}`)} 
-                                onChange={e => {
-                                  const p = `${mod.prefix}_${action}`;
-                                  const perms = e.target.checked ? [...(newEmployee.permissions || []), p] : (newEmployee.permissions || []).filter(x => x !== p);
-                                  setNewEmployee({ ...newEmployee, permissions: perms });
-                                }} 
-                                style={{ width: 16, height: 16, accentColor: "#6366f1" }} 
-                              />
-                              <span style={{ textTransform: "capitalize" }}>{action}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Others Group */}
-              <div style={{ marginTop: 8, padding: "12px 14px", borderTop: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Specialized Access</div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {["reports", "settings", "party-rates"].map(p => (
-                    <label key={`new_${p}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 20, background: newEmployee.permissions?.includes(p) ? "rgba(99,102,241,0.06)" : "#fff", border: newEmployee.permissions?.includes(p) ? "1.5px solid #6366f1" : "1.5px solid #e2e8f0", fontSize: 12, color: newEmployee.permissions?.includes(p) ? "#6366f1" : "#64748b", cursor: "pointer" }}>
-                      <input 
-                        type="checkbox" 
-                        checked={newEmployee.permissions?.includes(p)} 
-                        onChange={e => {
-                          const perms = e.target.checked ? [...(newEmployee.permissions || []), p] : (newEmployee.permissions || []).filter(x => x !== p);
-                          setNewEmployee({ ...newEmployee, permissions: perms });
-                        }} 
-                        style={{ position: "absolute", opacity: 0 }} 
-                      />
-                      <span>{p.replace("-", " ").toUpperCase()}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PermissionSelector
+              permissions={newEmployee.permissions || []}
+              setPermissions={(perms) => setNewEmployee({ ...newEmployee, permissions: perms })}
+              isMobile={isMobile}
+            />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
             <label style={{ ...S.label, margin: 0, flexShrink: 0 }}>Role:</label>
@@ -298,14 +209,7 @@ export default function UsersTab({
               {(["employee", "manager", "admin"] as UserRole[]).map(r => (
                 <button key={r} onClick={() => {
                   let perms = newEmployee.permissions || [];
-                  if (r === "admin") {
-                    perms = [
-                      "inventory_view", "inventory_create", "inventory_edit", "inventory_delete",
-                      "retail_view", "retail_create", "retail_edit", "retail_delete",
-                      "ecom_view", "ecom_create", "ecom_edit", "ecom_delete",
-                      "reports", "settings", "party-rates"
-                    ];
-                  }
+                  if (r === "admin") perms = getAllGranularPermissions();
                   setNewEmployee({ ...newEmployee, role: r, permissions: perms });
                 }}
                   style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize", border: `1.5px solid ${newEmployee.role === r ? roleColors[r] : "#e2e8f0"}`, background: newEmployee.role === r ? `${roleColors[r]}15` : "transparent", color: newEmployee.role === r ? roleColors[r] : "#94a3b8" }}>

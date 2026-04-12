@@ -7,7 +7,7 @@ import {
   signInWithEmailAndPassword,
   onAuthStateChanged,
 } from "firebase/auth";
-import { ref, set, get, update, query, orderByChild, equalTo } from "firebase/database";
+import { ref, set, get, update, query, orderByChild, equalTo, onValue } from "firebase/database";
 import { logActivity } from "../lib/activityLogger";
 import { requestNotificationPermission, onForegroundMessage } from "../lib/fcmHelper";
 import { ToastItem } from "../components/NotificationToast";
@@ -96,8 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Listen for Firebase Auth state — sync fresh permissions from Firestore once on load
+    // Listen for Firebase Auth state — sync fresh permissions from RTDB once on load
     let hasSynced = false;
+    let permUnsubscribe: (() => void) | null = null;
     const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
       if (firebaseUser && !hasSynced) {
         hasSynced = true;
@@ -116,8 +117,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
           }
         } catch (err) {
-          console.warn("Firestore sync on auth state change failed:", err);
+          console.warn("RTDB sync on auth state change failed:", err);
         }
+
+        // ── Real-time permission listener ──────────────────────
+        // Watches for admin-initiated permission/role changes and 
+        // updates the local session INSTANTLY without page reload
+        const userRef = ref(db, `users/${firebaseUser.uid}`);
+        permUnsubscribe = onValue(userRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const liveData = snapshot.val() as UserData;
+            setUser(prev => {
+              // Only update if permissions or role actually changed
+              if (prev && (
+                prev.role !== liveData.role ||
+                JSON.stringify(prev.permissions) !== JSON.stringify(liveData.permissions)
+              )) {
+                console.log("[Eurus] Permissions updated in real-time:", liveData.permissions);
+                localStorage.setItem(SESSION_KEY, JSON.stringify(liveData));
+                return liveData;
+              }
+              return prev;
+            });
+          } else {
+            // User deleted by admin while logged in
+            console.warn("User record removed. Logging out.");
+            localStorage.removeItem(SESSION_KEY);
+            fbAuth.signOut().catch(() => {});
+            setUser(null);
+          }
+        });
       }
       setLoading(false);
     });
@@ -127,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       unsubscribe();
+      if (permUnsubscribe) permUnsubscribe();
       clearTimeout(timeout);
     };
   }, []);

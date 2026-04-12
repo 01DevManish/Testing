@@ -6,14 +6,14 @@ import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { api } from "./data";
 import { Order, OrderStatus, ActiveView } from "./types";
-import OrderList from "./components/OrderList";
-import Scanner from "./components/Scanner";
-import OrderDetailsModal from "./components/OrderDetailsModal";
-import AddOrderModal from "./components/AddOrderModal";
-import CreateDispatchModal from "./components/Createdispatchmodal";
-import RapidEcomDispatch from "./components/RapidEcomDispatch";
-import DispatchSidebar from "./DispatchSidebar";
-import CatalogTab from "../inventory/CatalogTab";
+import OrderList from "./components/Items/OrderList";
+import Scanner from "./components/Box/Scanner";
+import OrderDetailsModal from "./components/Items/OrderDetailsModal";
+import AddOrderModal from "./components/Items/AddOrderModal";
+import CreateDispatchModal from "./components/Dispatch/Createdispatchmodal";
+import RapidEcomDispatch from "./components/Dispatch/RapidEcomDispatch";
+import DispatchSidebar from "./components/Layout/DispatchSidebar";
+import CatalogTab from "../inventory/components/Catalog/CatalogTab";
 import MessagingTab from "../../components/MessagingTab";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "./components/ui";
 import { hasPermission } from "../../lib/permissions";
@@ -112,11 +112,24 @@ export default function AdvancedDispatchDashboard() {
     }
   };
 
-  // Permission flags
-  const canView = hasPermission(userData, "ecom_view");
-  const canCreate = hasPermission(userData, "ecom_create");
-  const canEdit = hasPermission(userData, "ecom_edit");
-  const canDelete = hasPermission(userData, "ecom_delete");
+  // ── Granular Sub-Module Permissions ──────────────────────────
+  const canViewPacking = hasPermission(userData, "ecom_packing_view");
+  const canCreatePacking = hasPermission(userData, "ecom_packing_create");
+  const canEditPacking = hasPermission(userData, "ecom_packing_edit");
+
+  const canViewDispatch = hasPermission(userData, "ecom_dispatch_view");
+  const canCreateDispatch = hasPermission(userData, "ecom_dispatch_create");
+  const canEditDispatch = hasPermission(userData, "ecom_dispatch_edit");
+
+  const canViewBox = hasPermission(userData, "ecom_box_view");
+  const canCreateBox = hasPermission(userData, "ecom_box_create");
+  const canEditBox = hasPermission(userData, "ecom_box_edit");
+
+  // Legacy aliases for existing components
+  const canView = canViewPacking || canViewDispatch || canViewBox || hasPermission(userData, "ecom_view");
+  const canCreate = canCreatePacking || canCreateDispatch || hasPermission(userData, "ecom_create");
+  const canEdit = canEditPacking || canEditDispatch || hasPermission(userData, "ecom_edit");
+  const canDelete = userData?.role === "admin"; // Delete is admin-only
 
   const hasAccess = canView;
 

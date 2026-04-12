@@ -73,39 +73,8 @@ export const statusConfig: Record<string, { label: string; color: string; bg: st
   completed: { label: "Completed", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
 
-export interface PartyDetails {
-  companyName: string;
-  traderName: string; // Renamed from ownerName
-  address: string;
-  state: string;
-  district: string;
-  pincode: string;
-  contactNo: string;
-  gstNo: string;
-  panNo: string;
-  adharNo: string;
-  email: string;
-}
-
-export interface PartyRate {
-  id: string;
-  partyName: string;
-  billTo?: PartyDetails;
-  shipTo?: Omit<PartyDetails, "gstNo" | "panNo">;
-  sameAsBillTo?: boolean;
-  rates: { 
-    productName: string; 
-    sku?: string;
-    rate: number;
-    packagingType?: string;
-    packagingCost?: number;
-    discount?: number;
-    discountType?: "amount" | "percentage";
-    gstRate?: number;
-  }[];
-  transporter?: string;
-  updatedAt: number;
-}
+import { PartyDetails, PartyRate } from "../party-rate/types";
+export type { PartyDetails, PartyRate };
 
 export interface Brand {
   id: string;

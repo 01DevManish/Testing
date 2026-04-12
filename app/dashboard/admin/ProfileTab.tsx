@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { uploadImage } from "../inventory/imageService";
+import { uploadImage } from "../inventory/components/Products/imageService";
 import type { AdminStyles } from "./styles";
 
 interface ProfileTabProps {
@@ -39,9 +39,9 @@ export default function ProfileTab({ S, isMobile, isTablet }: ProfileTabProps) {
     }
   };
 
-  const roleColors: Record<string, string> = { 
-    admin: "#ef4444", 
-    manager: "#f59e0b", 
+  const roleColors: Record<string, string> = {
+    admin: "#ef4444",
+    manager: "#f59e0b",
     employee: "#10b981",
     user: "#6366f1"
   };
@@ -52,10 +52,10 @@ export default function ProfileTab({ S, isMobile, isTablet }: ProfileTabProps) {
         <h2 style={{ fontSize: 20, fontWeight: 400, color: "#0f172a", margin: 0 }}>My Profile</h2>
       </div>
 
-      <div style={{ 
-        background: "#fff", 
-        borderRadius: 20, 
-        border: "1px solid #e2e8f0", 
+      <div style={{
+        background: "#fff",
+        borderRadius: 20,
+        border: "1px solid #e2e8f0",
         boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
         overflow: "hidden",
         maxWidth: 700,
@@ -63,13 +63,13 @@ export default function ProfileTab({ S, isMobile, isTablet }: ProfileTabProps) {
       }}>
         {/* Header/Cover aspect */}
         <div style={{ height: 100, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", position: "relative" }} />
-        
+
         <div style={{ padding: isMobile ? "20px" : "0 40px 40px", position: "relative", marginTop: -50 }}>
           <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "center" : "flex-end", gap: 24, marginBottom: 32 }}>
             {/* DP Section */}
             <div style={{ position: "relative" }}>
-              <div style={{ 
-                width: 120, height: 120, borderRadius: 30, border: "4px solid #fff", background: "#f8fafc", 
+              <div style={{
+                width: 120, height: 120, borderRadius: 30, border: "4px solid #fff", background: "#f8fafc",
                 overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center"
               }}>
                 {userData.profilePic ? (
@@ -83,11 +83,11 @@ export default function ProfileTab({ S, isMobile, isTablet }: ProfileTabProps) {
                   </div>
                 )}
               </div>
-              <button 
+              <button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                style={{ 
-                  position: "absolute", bottom: 0, right: 0, width: 36, height: 36, borderRadius: 12, 
+                style={{
+                  position: "absolute", bottom: 0, right: 0, width: 36, height: 36, borderRadius: 12,
                   background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 16
                 }}
@@ -100,8 +100,8 @@ export default function ProfileTab({ S, isMobile, isTablet }: ProfileTabProps) {
             <div style={{ textAlign: isMobile ? "center" : "left", flex: 1 }}>
               <h1 style={{ fontSize: 24, fontWeight: 400, color: "#0f172a", margin: "0 0 4px" }}>{userData.name}</h1>
               <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "center" : "flex-start", gap: 8 }}>
-                <span style={{ 
-                  fontSize: 12, fontWeight: 400, padding: "2px 10px", borderRadius: 20, 
+                <span style={{
+                  fontSize: 12, fontWeight: 400, padding: "2px 10px", borderRadius: 20,
                   background: `${roleColors[userData.role]}15`, color: roleColors[userData.role], textTransform: "capitalize"
                 }}>{userData.role}</span>
                 <span style={{ fontSize: 13, color: "#64748b" }}>• {userData.email}</span>
@@ -127,7 +127,7 @@ export default function ProfileTab({ S, isMobile, isTablet }: ProfileTabProps) {
               <div style={{ padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", color: "#94a3b8", fontSize: 12, fontFamily: "monospace" }}>{userData.uid}</div>
             </div>
           </div>
-          
+
           <div style={{ marginTop: 32, padding: "16px", borderRadius: 12, background: "#f0f9ff", border: "1px solid #bae6fd", display: "flex", gap: 12, alignItems: "flex-start" }}>
             <span style={{ fontSize: 20 }}>💡</span>
             <div>
