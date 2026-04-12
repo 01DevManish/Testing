@@ -55,6 +55,17 @@ export default function AdvancedDispatchDashboard() {
   // Layout State
   const [activeView, setActiveView] = useState<ActiveView>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ecomDispatchSidebarCollapsed") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("ecomDispatchSidebarCollapsed", isCollapsed.toString());
+  }, [isCollapsed]);
 
   // Scanner & Modal State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -149,24 +160,6 @@ export default function AdvancedDispatchDashboard() {
   const SIDEBAR_WIDTH = 260;
 
   const S = {
-    sidebarMobileOverlay: {
-      position: "fixed" as const,
-      inset: 0,
-      background: "rgba(0,0,0,0.5)",
-      zIndex: 199,
-      backdropFilter: "blur(3px)",
-      display: (!isDesktop && sidebarOpen) ? "block" : "none",
-    } as React.CSSProperties,
-    main: {
-      flex: 1,
-      marginLeft: isDesktop ? 260 : 0,
-      padding: isMobile ? "16px 14px 32px" : "28px 32px 32px",
-      minHeight: "100vh",
-      maxWidth: "100%",
-      overflow: "hidden",
-      background: "#f0f2f5",
-      transition: "margin-left 0.3s"
-    } as React.CSSProperties,
     btnIcon: {
       width: 36, height: 36, borderRadius: 9, border: "1px solid #e2e8f0", 
       background: "#fff", cursor: "pointer", display: "flex", 
@@ -175,23 +168,39 @@ export default function AdvancedDispatchDashboard() {
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f0f2f5" }}>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f8fafc" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         input:focus, select:focus, textarea:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
       `}</style>
 
       {/* Mobile overlay */}
-      <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />
+      {!isDesktop && (
+        <div 
+          onClick={() => setSidebarOpen(false)} 
+          style={{ 
+            position: "fixed", 
+            inset: 0, 
+            background: "rgba(0,0,0,0.6)", 
+            zIndex: 199, 
+            backdropFilter: "blur(8px)",
+            opacity: sidebarOpen ? 1 : 0,
+            visibility: sidebarOpen ? "visible" : "hidden",
+            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          }} 
+        />
+      )}
 
-      {/* SIDEBAR */}
+      {/* Sidebar wrapper */}
       <div style={{
-        position: "fixed", top: 0, left: 0, bottom: 0,
-        zIndex: 200,
-        transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
-        transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+        position: "fixed",
+        top: 0, left: 0, bottom: 0, zIndex: 200,
+        width: isDesktop ? (isCollapsed ? 78 : 260) : 280,
+        transform: isDesktop ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
+        transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow: (!isDesktop && sidebarOpen) ? "20px 0 40px rgba(0,0,0,0.3)" : "none",
       }}>
         <DispatchSidebar
           activeView={activeView}
@@ -204,20 +213,37 @@ export default function AdvancedDispatchDashboard() {
           onLogout={() => { logout(); router.replace("/"); }}
           userRoleColor={roleColors[currentRole] || "#6366f1"}
           onDashboardBack={() => router.push(userData?.role === "admin" ? "/dashboard/admin" : "/dashboard")}
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+          isDesktop={isDesktop}
         />
       </div>
 
       {/* Main Content */}
-      <main style={S.main}>
+      <main style={{ 
+        flex: 1, 
+        marginLeft: isDesktop ? (isCollapsed ? 78 : 260) : 0,
+        minHeight: "100vh", 
+        transition: "margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        willChange: "margin-left"
+      }}>
+        <div style={{ padding: isMobile ? "20px 14px" : "28px 40px", maxWidth: 1600, margin: "0 auto" }}>
         {/* Mobile top bar */}
         {!isDesktop && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-            <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M2 4h12M2 8h12M2 12h8" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
+            <button 
+                onClick={() => setSidebarOpen(true)} 
+                style={{
+                  ...S.btnIcon,
+                  background: "transparent",
+                  border: "none",
+                  boxShadow: "none",
+                  padding: 0
+                }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <span style={{ fontSize: 15, fontWeight: 400, color: "#0f172a" }}>Dispatch</span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: "#0f172a" }}>Ecom Dispatch</span>
           </div>
         )}
 
@@ -417,10 +443,10 @@ export default function AdvancedDispatchDashboard() {
           </div>
         )}
 
-        {activeView === "messages" && (
-          <MessagingTab users={users} isMobile={isMobile} />
-        )}
-
+          {activeView === "messages" && (
+            <MessagingTab users={users} isMobile={isMobile} />
+          )}
+        </div>
       </main>
 
       {/* Overlay Modals */}

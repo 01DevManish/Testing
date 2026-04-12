@@ -28,6 +28,8 @@ interface AdminSidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   isDesktop: boolean;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
   currentName: string;
   userData?: { profilePic?: string } | null;
   handleLogout: () => void;
@@ -37,7 +39,7 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({
-  S, tab, setTab, sidebarOpen, setSidebarOpen, isDesktop, currentName, userData, handleLogout, usersCount, tasksCount
+  S, tab, setTab, sidebarOpen, setSidebarOpen, isDesktop, isCollapsed, setIsCollapsed, currentName, userData, handleLogout, usersCount, tasksCount
 }: AdminSidebarProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -115,24 +117,116 @@ export default function AdminSidebar({
   return (
     <>
       {/* Overlay for mobile */}
-      <div style={S.overlay} onClick={() => setSidebarOpen(false)} />
+      {!isDesktop && (
+        <div 
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(8px)",
+            zIndex: 199,
+            opacity: sidebarOpen ? 1 : 0,
+            visibility: sidebarOpen ? "visible" : "hidden",
+            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          }} 
+          onClick={() => setSidebarOpen(false)} 
+        />
+      )}
 
       <aside style={{
         ...S.sidebar,
+        width: isDesktop ? (isCollapsed ? 78 : 260) : 280,
         display: "flex", 
         flexDirection: "column",
-        overflow: "hidden", // We use internal scroll for nav
+        overflow: "visible",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        bottom: 0,
+        zIndex: 200,
+        transform: isDesktop ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
+        transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow: (!isDesktop && sidebarOpen) ? "20px 0 40px rgba(0,0,0,0.3)" : "none",
       }}>
         {/* Brand Header */}
-        <div style={{ padding: "20px 18px 24px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/logo.png" alt="Logo" style={{ width: 44, height: 44, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 3, flexShrink: 0 }} />
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
-              <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Console</div>
-            </div>
+        <div style={{ 
+          padding: isDesktop && isCollapsed ? "20px 0" : "20px 18px 24px", 
+          flexShrink: 0, 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: isDesktop && isCollapsed ? "center" : "flex-start",
+          transition: "all 0.3s ease" 
+        }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 12, 
+            overflow: "hidden",
+            justifyContent: isDesktop && isCollapsed ? "center" : "flex-start",
+            width: "100%"
+          }}>
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              style={{ 
+                width: 42, 
+                height: 42, 
+                objectFit: "contain", 
+                borderRadius: 10, 
+                background: "#fff", 
+                padding: 4, 
+                flexShrink: 0,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                transition: "all 0.3s ease"
+              }} 
+            />
+            {(!isCollapsed || !isDesktop) && (
+              <div style={{ animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>EURUS LIFESTYLE</div>
+                <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Console</div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Floating Toggle Button */}
+        {isDesktop && (
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            style={{
+              position: "absolute",
+              right: -12,
+              top: 32,
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: "#1e293b",
+              border: "1px solid #334155",
+              color: "#818cf8",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+              zIndex: 300,
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)";
+              e.currentTarget.style.background = "#334155";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.background = "#1e293b";
+            }}
+          >
+            {isCollapsed ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            )}
+          </button>
+        )}
 
         {/* Unified Navigation */}
         <div style={{ 
@@ -143,15 +237,18 @@ export default function AdminSidebar({
         }}>
           {navGroups.map((group) => (
             <div key={group.label} style={{ marginBottom: 20 }}>
-              <div style={{ 
-                fontSize: 9, 
-                fontWeight: 600, 
-                color: "#475569", 
-                textTransform: "uppercase", 
-                letterSpacing: "0.12em", 
-                padding: "0 12px", 
-                marginBottom: 8 
-              }}>{group.label}</div>
+              {!isCollapsed && (
+                <div style={{ 
+                  fontSize: 9, 
+                  fontWeight: 600, 
+                  color: "#475569", 
+                  textTransform: "uppercase", 
+                  letterSpacing: "0.12em", 
+                  padding: "0 12px", 
+                  marginBottom: 8,
+                  animation: "fadeInUp 0.3s ease-out"
+                }}>{group.label}</div>
+              )}
               
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {group.items.map((item) => {
@@ -172,7 +269,8 @@ export default function AdminSidebar({
                         alignItems: "center", 
                         gap: 12, 
                         width: "100%",
-                        padding: "10px 12px", 
+                        padding: isCollapsed ? "10px 0" : "10px 12px", 
+                        justifyContent: isCollapsed ? "center" : "flex-start",
                         borderRadius: 10, 
                         border: "none",
                         background: isActive ? "rgba(99,102,241,0.12)" : "transparent",
@@ -182,7 +280,7 @@ export default function AdminSidebar({
                         fontFamily: "inherit", 
                         cursor: "pointer", 
                         transition: "all 0.15s", 
-                        textAlign: "left",
+                        textAlign: isCollapsed ? "center" : "left",
                         position: "relative",
                         overflow: "hidden"
                       }}>
@@ -200,9 +298,17 @@ export default function AdminSidebar({
                         {item.icon}
                       </span>
                       
-                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {!isCollapsed && (
+                        <span style={{ 
+                          flex: 1, 
+                          whiteSpace: "nowrap", 
+                          overflow: "hidden", 
+                          textOverflow: "ellipsis",
+                          animation: "fadeInUp 0.2s ease-out"
+                        }}>{item.label}</span>
+                      )}
                       
-                      {item.count !== undefined && item.count > 0 && (
+                      {item.count !== undefined && item.count > 0 && !isCollapsed && (
                         <span style={{ 
                           background: isActive ? "#818cf8" : "#334155", 
                           color: "#fff", 
@@ -213,12 +319,13 @@ export default function AdminSidebar({
                           borderRadius: 9, 
                           display: "flex", 
                           alignItems: "center", 
-                          justifyContent: "center" 
+                          justifyContent: "center",
+                          animation: "fadeInUp 0.3s ease-out"
                         }}>{item.count}</span>
                       )}
 
-                      {item.path && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}>
+                      {item.path && !isCollapsed && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5, animation: "fadeInUp 0.3s ease-out" }}>
                           <path d="M5 12h14M12 5l7 7-7 7"></path>
                         </svg>
                       )}
@@ -247,27 +354,32 @@ export default function AdminSidebar({
               <div style={{ width: 34, height: 34, borderRadius: 9, background: roleBg.admin, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0 }}>{currentName[0]?.toUpperCase() || "A"}</div>
             )}
             
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
-              <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>Admin</div>
-            </div>
+            {!isCollapsed && (
+              <div style={{ flex: 1, minWidth: 0, animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
+                <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>Admin</div>
+              </div>
+            )}
 
-            <button onClick={handleLogout} title="Sign Out" style={{ 
-              width: 34, 
-              height: 34, 
-              borderRadius: 9, 
-              border: "none",
-              background: "rgba(239,68,68,0.1)", 
-              color: "#f87171", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              cursor: "pointer", 
-              transition: "all 0.2s",
-              flexShrink: 0
-            }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            </button>
+            {!isCollapsed && (
+              <button onClick={handleLogout} title="Sign Out" style={{ 
+                width: 34, 
+                height: 34, 
+                borderRadius: 9, 
+                border: "none",
+                background: "rgba(239,68,68,0.1)", 
+                color: "#f87171", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center", 
+                cursor: "pointer", 
+                transition: "all 0.2s",
+                flexShrink: 0,
+                animation: "fadeInUp 0.3s ease-out"
+              }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              </button>
+            )}
           </div>
         </div>
       </aside>

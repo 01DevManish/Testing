@@ -26,6 +26,16 @@ export default function UserPage() {
   const isDesktop = width >= 1024;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("userSidebarCollapsed") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("userSidebarCollapsed", isCollapsed.toString());
+  }, [isCollapsed]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/");
@@ -54,18 +64,20 @@ export default function UserPage() {
   const S = {
     page: { display: "flex", minHeight: "100vh", fontFamily: "inherit", background: "#f8fafc" } as React.CSSProperties,
     sidebar: { 
-      width: SIDEBAR_WIDTH, 
-      background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)", 
+      width: isCollapsed ? 78 : SIDEBAR_WIDTH, 
+      background: "#0f172a", 
       display: "flex", 
       flexDirection: "column" as const, 
-      padding: "24px 16px", 
+      padding: isCollapsed ? "24px 0" : "24px 16px", 
       position: "fixed" as const, 
       top: 0, 
       left: 0, 
       bottom: 0, 
       zIndex: 100, 
-      transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+      transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
+      willChange: "width, transform",
+      overflow: "visible"
     } as React.CSSProperties,
     sidebarMobileOverlay: { 
       position: "fixed" as const, 
@@ -77,10 +89,11 @@ export default function UserPage() {
     } as React.CSSProperties,
     main: { 
       flex: 1, 
-      marginLeft: isDesktop ? SIDEBAR_WIDTH : 0, 
+      marginLeft: isDesktop ? (isCollapsed ? 78 : SIDEBAR_WIDTH) : 0, 
       padding: isMobile ? "70px 16px 32px" : "28px 32px 32px", 
       minHeight: "100vh", 
-      transition: "margin-left 0.3s" 
+      transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      willChange: "margin-left"
     } as React.CSSProperties,
     btnSecondary: { padding: "10px 18px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" } as React.CSSProperties,
     btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
@@ -101,17 +114,60 @@ export default function UserPage() {
       {/* =================== SIDEBAR =================== */}
       <aside style={S.sidebar}>
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 8px", marginBottom: 32 }}>
-          <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
-            <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em" }}>User Hub</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: isCollapsed ? "center" : "flex-start", padding: isCollapsed ? "0" : "4px 8px", marginBottom: isCollapsed ? 24 : 32, transition: "all 0.3s" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: isCollapsed ? "center" : "flex-start", width: "100%" }}>
+            <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: "#fff", padding: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />
+            {!isCollapsed && (
+              <div style={{ animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>EURUS LIFESTYLE</div>
+                <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>User Hub</div>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Floating Toggle Button */}
+        {isDesktop && (
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            style={{
+              position: "absolute",
+              right: -12,
+              top: 32,
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: "#1e293b",
+              border: "1px solid #334155",
+              color: "#60a5fa",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+              zIndex: 300,
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)";
+              e.currentTarget.style.background = "#334155";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.background = "#1e293b";
+            }}
+          >
+            {isCollapsed ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            )}
+          </button>
+        )}
+
         {/* Nav */}
-        <div style={{ fontSize: 10, fontWeight: 400, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {!isCollapsed && <div style={{ fontSize: 10, fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8, animation: "fadeInUp 0.3s ease-out" }}>Navigation</div>}
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4, padding: isCollapsed ? "0 8px" : "0" }}>
           <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "rgba(59,130,246,0.15)", color: "#93c5fd", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: "3px solid #60a5fa", paddingLeft: 11 }}>
             Home
           </button>
@@ -129,17 +185,28 @@ export default function UserPage() {
         <div style={{ flex: 1 }} />
 
         {/* User */}
-        <div style={{ padding: "16px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 12 }}>
+        <div style={{ 
+          padding: isCollapsed ? "16px 0" : "16px 12px", 
+          background: "rgba(255,255,255,0.04)", 
+          borderRadius: 12, 
+          border: "1px solid rgba(255,255,255,0.06)", 
+          marginBottom: 12,
+          display: "flex",
+          justifyContent: isCollapsed ? "center" : "flex-start",
+          transition: "all 0.3s"
+        }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: roleBg.user, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 15, color: "#fff", textTransform: "uppercase" }}>{currentName[0] || "U"}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 400, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
-              <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 400, textTransform: "capitalize" }}>{userData.role}</div>
-            </div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: roleBg.user, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 15, color: "#fff", textTransform: "uppercase", flexShrink: 0 }}>{currentName[0] || "U"}</div>
+            {!isCollapsed && (
+              <div style={{ flex: 1, minWidth: 0, animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
+                <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 600, textTransform: "capitalize" }}>{userData.role}</div>
+              </div>
+            )}
           </div>
         </div>
-        <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
-          Sign Out
+        <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: isCollapsed ? "11px 0" : "11px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", width: "100%" }}>
+          {isCollapsed ? "🔓" : "Sign Out"}
         </button>
       </aside>
 

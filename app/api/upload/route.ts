@@ -39,7 +39,9 @@ export async function POST(req: Request) {
     }
 
     // Determine the subfolder based on file type (images/ or pdf/)
-    const subFolder = fileType.includes('pdf') ? 'pdf/' : 'images/';
+    // Default to 'images/' or 'pdf/' but allow overriding via 'folder' param
+    const customFolder = formData.get('folder') as string;
+    const subFolder = customFolder ? `${customFolder}/` : (fileType.includes('pdf') ? 'pdf/' : 'images/');
     
     // Create a unique filename with timestamp and correct folder hierarchy
     const prefix = process.env.AWS_S3_PATH_PREFIX || "";

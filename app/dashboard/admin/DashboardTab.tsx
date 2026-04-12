@@ -291,7 +291,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
 
   return (
     <div style={S.tabContent}>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: 20, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: isMobile ? 12 : 20, marginBottom: 20 }}>
          {/* PENDING TASKS CARD */}
          <div style={{ ...S.statCard, display: "flex", flexDirection: "column", maxHeight: 250 }}>
             <div style={S.statStripe("#f59e0b")} />

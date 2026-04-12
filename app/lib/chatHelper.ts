@@ -8,6 +8,12 @@ export interface ChatMessage {
   senderName: string;
   text: string;
   timestamp: number;
+  attachment?: {
+    url: string;
+    type: string; // 'image' | 'video' | 'pdf' | 'file'
+    name: string;
+    size?: number;
+  };
 }
 
 export interface ChatPreview {
@@ -43,7 +49,8 @@ export const sendMessage = async (
   senderName: string,
   receiverId: string,
   receiverName: string,
-  text: string
+  text: string,
+  attachment?: ChatMessage["attachment"]
 ) => {
   const chatId = getChatId(senderId, receiverId);
   const timestamp = Date.now();
@@ -53,6 +60,7 @@ export const sendMessage = async (
     senderName,
     text,
     timestamp,
+    attachment
   };
 
   // 1. Add message to history
@@ -88,10 +96,14 @@ export const sendMessage = async (
 
   await update(ref(db), updates);
 
-  // 4. Send In-app notification (array expected by sendNotification)
+  const notificationBody = text 
+    ? (text.length > 50 ? text.slice(0, 47) + "..." : text)
+    : (attachment ? `Sent an attachment: ${attachment.name}` : "New message");
+
+  // 4. Send In-app notification
   await sendNotification([receiverId], {
     title: "New Message",
-    message: `${senderName}: ${text.length > 50 ? text.slice(0, 47) + "..." : text}`,
+    message: `${senderName}: ${notificationBody}`,
     type: "system",
     link: `/dashboard`,
   });

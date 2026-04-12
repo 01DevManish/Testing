@@ -44,6 +44,17 @@ export default function AdvancedDispatchDashboard() {
   const isMobile = width < 640;
   const isDesktop = width >= 1024;
 
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("retailDispatchSidebarCollapsed") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("retailDispatchSidebarCollapsed", isCollapsed.toString());
+  }, [isCollapsed]);
+
   const { 
     orders: allOrders, setOrders,
     products,
@@ -152,87 +163,76 @@ export default function AdvancedDispatchDashboard() {
   const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
   const currentName = userData?.name || user?.name || "User";
 
-  const S = {
-    sidebarMobileOverlay: {
-      position: "fixed" as const,
-      inset: 0,
-      background: "rgba(0,0,0,0.5)",
-      zIndex: 199,
-      backdropFilter: "blur(3px)",
-      display: (!isDesktop && sidebarOpen) ? "block" : "none",
-    } as React.CSSProperties,
-    main: {
-      flex: 1,
-      marginLeft: isDesktop ? 260 : 0,
-      padding: isMobile ? "16px 14px 32px" : "28px 32px 32px",
-      minHeight: "100vh",
-      maxWidth: "100%",
-      overflowX: "hidden",
-      overflowY: "auto",
-      background: "#f0f2f5",
-      transition: "margin-left 0.3s",
-      scrollbarWidth: "none",
-    } as React.CSSProperties,
-    btnIcon: {
-      width: 36, height: 36, borderRadius: 9, border: "1px solid #e2e8f0", 
-      background: "#fff", cursor: "pointer", display: "flex", 
-      alignItems: "center", justifyContent: "center", flexShrink: 0
-    } as React.CSSProperties,
-  };
-
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f0f2f5", overflow: "hidden" }}>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f8fafc" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        /* Hide scrollbars for the main layout to keep it clean */
-        ::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .no-focus-ring:focus { outline: none !important; border-color: #cbd5e1 !important; box-shadow: none !important; }
-        /* Show custom thin scrollbars only on tables if needed */
-        .scrollable-body::-webkit-scrollbar { width: 4px; height: 4px; }
-        .scrollable-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>
 
-      <div style={S.sidebarMobileOverlay} onClick={() => setSidebarOpen(false)} />
+      {/* Mobile overlay */}
+      {!isDesktop && (
+        <div 
+          onClick={() => setSidebarOpen(false)} 
+          style={{ 
+            position: "fixed", 
+            inset: 0, 
+            background: "rgba(0,0,0,0.6)", 
+            zIndex: 199, 
+            backdropFilter: "blur(8px)",
+            opacity: sidebarOpen ? 1 : 0,
+            visibility: sidebarOpen ? "visible" : "hidden",
+            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          }} 
+        />
+      )}
 
+      {/* Sidebar wrapper */}
       <div style={{
-        position: "fixed", top: 0, left: 0, bottom: 0,
-        zIndex: 200,
-        transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
-        transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+        position: "fixed",
+        top: 0, left: 0, bottom: 0, zIndex: 200,
+        width: isDesktop ? (isCollapsed ? 78 : 260) : 280,
+        transform: isDesktop ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
+        transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow: (!isDesktop && sidebarOpen) ? "20px 0 40px rgba(0,0,0,0.3)" : "none",
       }}>
         <DispatchSidebar
           activeView={activeView}
-          onNavigate={(view) => {
-            setActiveView(view);
-            if (!isDesktop) setSidebarOpen(false);
-          }}
+          onNavigate={(v) => { setActiveView(v); if (!isDesktop) setSidebarOpen(false); }}
           currentName={currentName}
           currentRole={currentRole}
-          onLogout={() => { logout(); router.replace("/"); }}
+          onLogout={logout}
           userRoleColor={roleColors[currentRole] || "#6366f1"}
           onDashboardBack={() => router.push(userData?.role === "admin" ? "/dashboard/admin" : "/dashboard")}
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+          isDesktop={isDesktop}
         />
       </div>
 
-      <main style={{ 
-        ...S.main, 
-        padding: activeView === "messages" ? 0 : S.main.padding,
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
+      {/* Main content */}
+      <main style={{
+        flex: 1,
+        marginLeft: isDesktop ? (isCollapsed ? 78 : 260) : 0,
+        padding: isMobile ? "20px 14px" : "28px 40px",
+        minHeight: "100vh",
+        transition: "margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        willChange: "margin-left"
       }}>
-        {activeView !== "messages" && !isDesktop && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-            <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M2 4h12M2 8h12M2 12h8" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-            </button>
-            <span style={{ fontSize: 15, fontWeight: 400, color: "#0f172a" }}>Dispatch</span>
-          </div>
-        )}
-
-        <div style={{ flex: 1, display: activeView === "messages" ? "flex" : "block", flexDirection: "column" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto" }}>
+          {isMobile && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                style={{ background: "none", border: "none", color: "#1e293b", cursor: "pointer", padding: 8 }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              </button>
+              <NotificationBell />
+            </div>
+          )}
           {activeView === "overview" && (
             <div className="animate-in fade-in duration-300">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>

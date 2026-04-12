@@ -54,6 +54,19 @@ export default function InventoryPage() {
   const isMobile = width < 640;
   const isDesktop = width >= 1024;
 
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("inventorySidebarCollapsed") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("inventorySidebarCollapsed", isCollapsed.toString());
+  }, [isCollapsed]);
+
+  const sidebarWidth = isMobile ? 0 : (isCollapsed ? 78 : 260);
+
   // ── Sidebar ───────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>("overview");
@@ -349,16 +362,30 @@ export default function InventoryPage() {
       <div style={{ display: "flex", minHeight: "100vh", fontFamily: FONT, background: "#f0f2f5" }}>
 
         {/* Mobile overlay */}
-        {!isDesktop && sidebarOpen && (
-          <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 199, backdropFilter: "blur(3px)" }} />
+        {!isDesktop && (
+          <div 
+            onClick={() => setSidebarOpen(false)} 
+            style={{ 
+              position: "fixed", 
+              inset: 0, 
+              background: "rgba(0,0,0,0.6)", 
+              zIndex: 199, 
+              backdropFilter: "blur(8px)",
+              opacity: sidebarOpen ? 1 : 0,
+              visibility: sidebarOpen ? "visible" : "hidden",
+              transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            }} 
+          />
         )}
 
         {/* Sidebar — fixed on desktop, sliding on mobile */}
         <div style={{
-          position: isDesktop ? "fixed" : "fixed",
+          position: "fixed",
           top: 0, left: 0, bottom: 0, zIndex: 200,
-          transform: !isDesktop && !sidebarOpen ? "translateX(-100%)" : "translateX(0)",
-          transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+          width: isDesktop ? (isCollapsed ? 78 : 260) : 280,
+          transform: isDesktop ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
+          transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          boxShadow: (!isDesktop && sidebarOpen) ? "20px 0 40px rgba(0,0,0,0.3)" : "none",
         }}>
           <InventorySidebar
             activeView={activeView}
@@ -368,15 +395,22 @@ export default function InventoryPage() {
             onLogout={handleLogout}
             userRoleColor={roleColors[currentRole] || "#6366f1"}
             onDashboardBack={() => router.push(userData?.role === "admin" ? "/dashboard/admin" : "/dashboard")}
+            isCollapsed={isCollapsed}
+            setIsCollapsed={setIsCollapsed}
+            isDesktop={isDesktop}
           />
         </div>
 
         {/* Main content */}
         <main style={{
           flex: 1,
-          marginLeft: isDesktop ? 260 : 0,
+          marginLeft: isDesktop ? (isCollapsed ? 78 : 260) : 0,
           padding: isMobile ? "16px 14px 32px" : "28px 32px 32px",
-          minHeight: "100vh", maxWidth: "100%", overflow: "hidden",
+          minHeight: "100vh", 
+          maxWidth: "100%", 
+          overflow: "hidden",
+          transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          willChange: "margin-left"
         }}>
           {/* Mobile top bar */}
           {!isDesktop && (

@@ -49,11 +49,14 @@ interface Props {
     onLogout: () => void;
     userRoleColor: string;
     onDashboardBack: () => void;
+    isCollapsed: boolean;
+    setIsCollapsed: (c: boolean) => void;
+    isDesktop: boolean;
 }
 
 export default function DispatchSidebar({
     activeView, onNavigate, currentName, currentRole,
-    onLogout, userRoleColor, onDashboardBack,
+    onLogout, userRoleColor, onDashboardBack, isCollapsed, setIsCollapsed, isDesktop
 }: Props) {
     const { user } = useAuth();
     const [unreadCount, setUnreadCount] = useState(0);
@@ -80,25 +83,41 @@ export default function DispatchSidebar({
 
     return (
         <aside style={{
-            width: 260, background: "#0f172a",
+            width: isDesktop ? (isCollapsed ? 78 : 260) : 280, 
+            background: "#0f172a",
             display: "flex", flexDirection: "column",
-            height: "100%", overflowY: "auto", overflowX: "hidden",
+            height: "100%", overflow: "visible",
+            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            willChange: "width",
+            position: "relative"
         }}>
             {/* Brand */}
-            <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
-                    <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 7, background: "#fff", padding: 2, flexShrink: 0 }} />
-                    <div>
-                        <div style={{ fontSize: 14, fontWeight: 400, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
-                        <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Ecommerce Dispatch Hub</div>
-                    </div>
+            <div style={{ 
+                padding: (isDesktop && isCollapsed) ? "20px 0 14px" : "20px 18px 14px", 
+                borderBottom: "1px solid rgba(255,255,255,0.06)", 
+                flexShrink: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: (isDesktop && isCollapsed) ? "center" : "flex-start",
+                transition: "all 0.3s ease" 
+            }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: (isDesktop && isCollapsed) ? 0 : 14, justifyContent: (isDesktop && isCollapsed) ? "center" : "flex-start", width: "100%" }}>
+                    <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: "#fff", padding: 4, flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />
+                    {(!isCollapsed || !isDesktop) && (
+                        <div style={{ animation: "fadeInUp 0.3s ease-out" }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>EURUS LIFESTYLE</div>
+                            <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Ecommerce Dispatch Hub</div>
+                        </div>
+                    )}
                 </div>
-                <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 400, cursor: "pointer" }}>
-                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                        <path d="M8 2L4 6.5L8 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Back to Dashboard
-                </button>
+                {(!isCollapsed || !isDesktop) && (
+                    <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 400, cursor: "pointer", animation: "fadeInUp 0.3s ease-out" }}>
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                            <path d="M8 2L4 6.5L8 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Back to Dashboard
+                    </button>
+                )}
             </div>
 
             {/* Section label */}

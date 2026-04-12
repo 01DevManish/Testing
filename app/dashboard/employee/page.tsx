@@ -62,6 +62,17 @@ export default function EmployeePage() {
   const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("employeeSidebarCollapsed") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("employeeSidebarCollapsed", isCollapsed.toString());
+  }, [isCollapsed]);
+
   useEffect(() => {
     if (!loading && !user) router.replace("/");
     if (!loading && userData && (userData.role !== "employee" && userData.role !== "manager")) {
@@ -150,18 +161,20 @@ export default function EmployeePage() {
   const S = {
     page: { display: "flex", minHeight: "100vh", fontFamily: "inherit", background: "#f8fafc" } as React.CSSProperties,
     sidebar: { 
-      width: SIDEBAR_WIDTH, 
-      background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)", 
+      width: isCollapsed ? 78 : SIDEBAR_WIDTH, 
+      background: "#0f172a", 
       display: "flex", 
       flexDirection: "column" as const, 
-      padding: "24px 16px", 
+      padding: isCollapsed ? "24px 0" : "24px 16px", 
       position: "fixed" as const, 
       top: 0, 
       left: 0, 
       bottom: 0, 
       zIndex: 100, 
-      transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+      transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
+      willChange: "width, transform",
+      overflow: "visible"
     } as React.CSSProperties,
     sidebarMobileOverlay: { 
       position: "fixed" as const, 
@@ -173,10 +186,11 @@ export default function EmployeePage() {
     } as React.CSSProperties,
     main: { 
       flex: 1, 
-      marginLeft: isDesktop ? SIDEBAR_WIDTH : 0, 
-      padding: isMobile ? "70px 16px 32px" : "28px 32px 32px", 
+      marginLeft: isDesktop ? (isCollapsed ? 78 : SIDEBAR_WIDTH) : 0, 
+      padding: isMobile ? "70px 16px 32px" : "28px 40px 32px", 
       minHeight: "100vh", 
-      transition: "margin-left 0.3s" 
+      transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      willChange: "margin-left"
     } as React.CSSProperties,
     btnSecondary: { padding: "10px 18px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" } as React.CSSProperties,
     btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
@@ -203,106 +217,161 @@ export default function EmployeePage() {
       {/* =================== SIDEBAR =================== */}
       <aside style={S.sidebar}>
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 8px", marginBottom: 32 }}>
-          <img src="/logo.png" alt="Logo" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, background: "#fff", padding: 2 }} />
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 400, color: "#fff", letterSpacing: "-0.01em" }}>EURUS LIFESTYLE</div>
-            <div style={{ fontSize: 10, color: "#34d399", fontWeight: 400, textTransform: "capitalize", letterSpacing: "0.15em" }}>Employee Portal</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: isCollapsed ? "center" : "flex-start", padding: isCollapsed ? "0" : "4px 8px", marginBottom: isCollapsed ? 24 : 32, transition: "all 0.3s" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: isCollapsed ? "center" : "flex-start", width: "100%" }}>
+            <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: "#fff", padding: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />
+            {!isCollapsed && (
+              <div style={{ animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>EURUS LIFESTYLE</div>
+                <div style={{ fontSize: 10, color: "#34d399", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>Employee Portal</div>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Floating Toggle Button */}
+        {isDesktop && (
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            style={{
+              position: "absolute",
+              right: -12,
+              top: 32,
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: "#1e293b",
+              border: "1px solid #334155",
+              color: "#34d399",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+              zIndex: 300,
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)";
+              e.currentTarget.style.background = "#334155";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.background = "#1e293b";
+            }}
+          >
+            {isCollapsed ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            )}
+          </button>
+        )}
+
         {/* Nav */}
-        <div style={{ fontSize: 10, fontWeight: 400, color: "#475569", textTransform: "capitalize", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8 }}>Navigation</div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <button onClick={() => router.push("/dashboard")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-            Dashboard
+        {!isCollapsed && <div style={{ fontSize: 10, fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.12em", padding: "0 12px", marginBottom: 8, animation: "fadeInUp 0.3s ease-out" }}>Navigation</div>}
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4, padding: isCollapsed ? "0 8px" : "0" }}>
+          
+          <button onClick={() => router.push("/dashboard")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+            <span style={{ fontSize: 18 }}>🏠</span>
+            {!isCollapsed && <span style={{ animation: "fadeInUp 0.2s ease-out" }}>Dashboard</span>}
           </button>
           
-          <button onClick={() => setView("tasks")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "tasks" ? "rgba(16,185,129,0.15)" : "transparent", color: view === "tasks" ? "#6ee7b7" : "#94a3b8", fontSize: 14, fontWeight: view === "tasks" ? 600 : 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "tasks" ? "3px solid #34d399" : "none", paddingLeft: view === "tasks" ? 11 : 14 }}>
-            My Tasks
-            {taskStats.pending > 0 && <span style={{ marginLeft: "auto", background: "rgba(52,211,153,0.2)", color: "#a7f3d0", fontSize: 11, fontWeight: 400, padding: "2px 8px", borderRadius: 12, minWidth: 24, textAlign: "center" }}>{taskStats.pending}</span>}
-          </button>
-
-          {userData?.permissions?.includes("party-rates") && (
-            <button onClick={() => setView("party-rates")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "party-rates" ? "rgba(16,185,129,0.15)" : "transparent", color: view === "party-rates" ? "#6ee7b7" : "#94a3b8", fontSize: 14, fontWeight: view === "party-rates" ? 600 : 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "party-rates" ? "3px solid #34d399" : "none", paddingLeft: view === "party-rates" ? 11 : 14 }}>
-              Party Rates
-            </button>
-          )}
-
-          <button onClick={() => setView("messages")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "messages" ? "rgba(16,185,129,0.15)" : "transparent", color: view === "messages" ? "#6ee7b7" : "#94a3b8", fontSize: 14, fontWeight: view === "messages" ? 600 : 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "messages" ? "3px solid #34d399" : "none", paddingLeft: view === "messages" ? 11 : 14 }}>
-            Messages
-            {unreadCount > 0 && (
-              <span style={{ 
-                marginLeft: "auto", background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 700, 
-                padding: "2px 6px", borderRadius: 10, minWidth: 18, textAlign: "center", border: "1px solid #0f172a" 
-              }}>{unreadCount}</span>
+          <button onClick={() => setView("tasks")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "tasks" ? "rgba(16,185,129,0.1)" : "transparent", color: view === "tasks" ? "#34d399" : "#64748b", fontSize: 14, fontWeight: view === "tasks" ? 600 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+            <span style={{ fontSize: 18 }}>📋</span>
+            {!isCollapsed && (
+              <span style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", animation: "fadeInUp 0.2s ease-out" }}>
+                My Tasks
+                {taskStats.pending > 0 && <span style={{ background: "rgba(52,211,153,0.2)", color: "#34d399", fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 12, minWidth: 24, textAlign: "center" }}>{taskStats.pending}</span>}
+              </span>
             )}
           </button>
 
-          <button onClick={() => setView("catalog")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "catalog" ? "rgba(16,185,129,0.15)" : "transparent", color: view === "catalog" ? "#6ee7b7" : "#94a3b8", fontSize: 14, fontWeight: view === "catalog" ? 600 : 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", borderLeft: view === "catalog" ? "3px solid #34d399" : "none", paddingLeft: view === "catalog" ? 11 : 14 }}>
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
-              <path d="M12.5 10.5V12.5H2.5V2.5H4.5M12.5 7.5V10.5M12.5 10.5H9.5M12.5 10.5L8.5 6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Catalog Sharing
+          {userData?.permissions?.includes("party-rates") && (
+            <button onClick={() => setView("party-rates")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "party-rates" ? "rgba(16,185,129,0.1)" : "transparent", color: view === "party-rates" ? "#34d399" : "#64748b", fontSize: 14, fontWeight: view === "party-rates" ? 600 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+              <span style={{ fontSize: 18 }}>💰</span>
+              {!isCollapsed && <span style={{ animation: "fadeInUp 0.2s ease-out" }}>Party Rates</span>}
+            </button>
+          )}
+
+          <button onClick={() => setView("messages")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "messages" ? "rgba(16,185,129,0.1)" : "transparent", color: view === "messages" ? "#34d399" : "#64748b", fontSize: 14, fontWeight: view === "messages" ? 600 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+            <span style={{ fontSize: 18 }}>💬</span>
+            {!isCollapsed && (
+              <span style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", animation: "fadeInUp 0.2s ease-out" }}>
+                Messages
+                {unreadCount > 0 && (
+                  <span style={{ background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 10, minWidth: 18, textAlign: "center" }}>{unreadCount}</span>
+                )}
+              </span>
+            )}
+          </button>
+
+          <button onClick={() => setView("catalog")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: view === "catalog" ? "rgba(16,185,129,0.1)" : "transparent", color: view === "catalog" ? "#34d399" : "#64748b", fontSize: 14, fontWeight: view === "catalog" ? 600 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+            <span style={{ fontSize: 18 }}>🛍️</span>
+            {!isCollapsed && <span style={{ animation: "fadeInUp 0.2s ease-out" }}>Catalog Sharing</span>}
           </button>
 
           {userData?.permissions?.includes("retail_view") && (
-            <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Retail Dispatch
+            <button onClick={() => router.push("/dashboard/retail-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+              <span style={{ fontSize: 18 }}>🚚</span>
+              {!isCollapsed && <span style={{ animation: "fadeInUp 0.2s ease-out" }}>Retail Dispatch</span>}
             </button>
           )}
 
           {userData?.permissions?.includes("ecom_view") && (
-            <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Ecommerce Dispatch
+            <button onClick={() => router.push("/dashboard/ecom-dispatch")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+              <span style={{ fontSize: 18 }}>🌍</span>
+              {!isCollapsed && <span style={{ animation: "fadeInUp 0.2s ease-out" }}>Ecommerce Dispatch</span>}
             </button>
           )}
 
           {userData?.permissions?.includes("inventory_view") && (
-            <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
-              Inventory
+            <button onClick={() => router.push("/dashboard/inventory")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s", textAlign: "left", justifyContent: isCollapsed ? "center" : "flex-start" }}>
+              <span style={{ fontSize: 18 }}>📊</span>
+              {!isCollapsed && <span style={{ animation: "fadeInUp 0.2s ease-out" }}>Inventory</span>}
             </button>
           )}
         </nav>
 
         <div style={{ flex: 1 }} />
  
-        {/* User footer - Condensed Row */}
+        {/* User footer */}
         <div style={{ 
-          padding: "16px 4px", 
+          padding: isCollapsed ? "16px 0" : "16px 8px", 
           borderTop: "1px solid rgba(255,255,255,0.06)", 
-          flexShrink: 0
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: isCollapsed ? "center" : "flex-start"
         }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: 12
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 34, height: 34, borderRadius: 9, background: roleBg[userData.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0 }}>
               {currentName[0]?.toUpperCase() || "U"}
             </div>
-            
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
-              <div style={{ fontSize: 9, color: "#34d399", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>{userData.role}</div>
-            </div>
-
-            <button onClick={handleLogout} title="Sign Out" style={{ 
-              width: 34, 
-              height: 34, 
-              borderRadius: 9, 
-              border: "none",
-              background: "rgba(239,68,68,0.1)", 
-              color: "#f87171", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              cursor: "pointer", 
-              transition: "all 0.2s",
-              flexShrink: 0
-            }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            </button>
+            {!isCollapsed && (
+              <div style={{ flex: 1, minWidth: 0, animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</div>
+                <div style={{ fontSize: 9, color: "#34d399", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>{userData.role}</div>
+              </div>
+            )}
+            {!isCollapsed && (
+              <button onClick={handleLogout} title="Sign Out" style={{ 
+                width: 34, 
+                height: 34, 
+                borderRadius: 9, 
+                border: "none",
+                background: "rgba(239,68,68,0.1)", 
+                color: "#f87171", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center", 
+                cursor: "pointer", 
+                transition: "all 0.2s",
+                flexShrink: 0,
+                animation: "fadeInUp 0.3s ease-out"
+              }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              </button>
+            )}
           </div>
         </div>
       </aside>

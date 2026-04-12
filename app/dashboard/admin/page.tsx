@@ -56,6 +56,12 @@ export default function AdminPage() {
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
   const [editPin, setEditPin] = useState<string>("");
   const [savingRole, setSavingRole] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("adminSidebarCollapsed") === "true";
+    }
+    return false;
+  });
 
   const [adminToDelete, setAdminToDelete] = useState<UserRecord | null>(null);
   const [replacementAdminId, setReplacementAdminId] = useState<string>("");
@@ -81,7 +87,12 @@ export default function AdminPage() {
   const fetchingCatalog = fetchingGlobal;
 
 
-  const S = useMemo(() => getStyles(isMobile, isTablet, isDesktop, sidebarOpen), [isMobile, isTablet, isDesktop, sidebarOpen]);
+  const S = useMemo(() => getStyles(isMobile, isTablet, isDesktop, sidebarOpen, isCollapsed), [isMobile, isTablet, isDesktop, sidebarOpen, isCollapsed]);
+
+  // Persist sidebar state
+  useEffect(() => {
+    localStorage.setItem("adminSidebarCollapsed", isCollapsed.toString());
+  }, [isCollapsed]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/");
@@ -399,6 +410,8 @@ export default function AdminPage() {
           sidebarOpen={sidebarOpen} 
           setSidebarOpen={setSidebarOpen} 
           isDesktop={isDesktop} 
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
           currentName={currentName} 
           userData={userData}
           handleLogout={handleLogout}

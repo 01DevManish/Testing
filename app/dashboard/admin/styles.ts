@@ -1,8 +1,10 @@
 import React from "react";
 
-const SIDEBAR_WIDTH = 240;
+const SIDEBAR_WIDTH = 260;
+const MINI_SIDEBAR_WIDTH = 78;
 
-export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boolean, sidebarOpen: boolean) {
+export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boolean, sidebarOpen: boolean, isCollapsed: boolean = false) {
+  const currentSidebarWidth = !isDesktop ? SIDEBAR_WIDTH : (isCollapsed ? MINI_SIDEBAR_WIDTH : SIDEBAR_WIDTH);
   return {
     page: {
       display: "flex",
@@ -12,7 +14,7 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
     } as React.CSSProperties,
 
     sidebar: {
-      width: SIDEBAR_WIDTH,
+      width: currentSidebarWidth,
       background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)",
       display: "flex",
       flexDirection: "column" as const,
@@ -22,9 +24,10 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       left: 0,
       bottom: 0,
       zIndex: 200,
-      transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+      transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       overflowY: "auto" as const,
       transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
+      willChange: "width, transform",
     } as React.CSSProperties,
 
     overlay: {
@@ -38,11 +41,13 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
 
     main: {
       flex: 1,
-      marginLeft: isDesktop ? SIDEBAR_WIDTH : 0,
-      padding: isMobile ? "16px 14px 24px" : isTablet ? "20px 20px 28px" : "28px 32px 32px",
+      marginLeft: isDesktop ? currentSidebarWidth : 0,
+      padding: isMobile ? "12px 14px 24px" : isTablet ? "20px 24px 28px" : "28px 40px 32px",
+      transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      willChange: "margin-left",
       minHeight: "100vh",
       maxWidth: "100%",
-      overflow: "hidden",
+      overflowX: "hidden",
       boxSizing: "border-box" as const,
     } as React.CSSProperties,
 
@@ -193,8 +198,8 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       background: "#fff",
       borderRadius: 18,
       padding: isMobile ? "24px 18px" : "30px 26px",
-      maxWidth: 480,
       width: "100%",
+      maxWidth: isMobile ? "95%" : 480,
       boxShadow: "0 25px 60px rgba(0,0,0,0.15)",
       position: "relative" as const,
       maxHeight: "90vh",
