@@ -1,5 +1,6 @@
 import { ManagedBox } from "../../types";
 import { renderBarcodeToBase64 } from "@/app/lib/barcodeUtils";
+import { resolveS3Url } from "@/app/dashboard/inventory/components/Products/imageService";
 
 /**
  * Generates and triggers printing for a Managed Box label.
@@ -12,9 +13,10 @@ export const printBoxLabel = (box: ManagedBox, allProducts: any[]) => {
   // Find images for the SKUs
   const itemsWithImages = box.items.map(item => {
     const product = allProducts.find(p => p.id === item.productId);
+    const rawUrl = product?.imageUrl || "https://via.placeholder.com/150?text=No+Image";
     return {
       ...item,
-      imageUrl: product?.imageUrl || "https://via.placeholder.com/150?text=No+Image"
+      imageUrl: resolveS3Url(rawUrl)
     };
   });
 

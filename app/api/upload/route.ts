@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { uploadFile } from '../../lib/s3';
+import sharp from 'sharp';
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +14,6 @@ export async function POST(req: Request) {
     }
     
     if (!file) {
-
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
@@ -38,21 +38,41 @@ export async function POST(req: Request) {
         originalName = file.name;
     }
 
-    // Determine the subfolder based on file type (images/ or pdf/)
-    // Default to 'images/' or 'pdf/' but allow overriding via 'folder' param
+    // Determine the subfolder based on file type
     const customFolder = formData.get('folder') as string;
-    const subFolder = customFolder ? `${customFolder}/` : (fileType.includes('pdf') ? 'pdf/' : 'images/');
+    const isPdf = fileType.includes('pdf') || originalName.toLowerCase().endsWith('.pdf');
+    const subFolder = customFolder ? `${customFolder}/` : (isPdf ? 'pdf/' : 'images/');
+
+    // IMAGE OPTIMIZATION: Convert all images to WebP using sharp
+    let finalBuffer = buffer;
+    let finalFileType = fileType;
+    let finalFileName = originalName;
+
+    if (!isPdf && fileType.startsWith('image/')) {
+        try {
+            console.log(`[Sharp] Optimizing ${originalName} (${fileType})...`);
+            finalBuffer = await sharp(buffer)
+                .webp({ quality: 80, effort: 4 })
+                .toBuffer();
+            
+            finalFileType = 'image/webp';
+            // Swap extension to .webp
+            const nameParts = originalName.split('.');
+            if (nameParts.length > 1) nameParts.pop();
+            finalFileName = `${nameParts.join('.')}.webp`;
+            
+            console.log(`[Sharp] Optimized to WebP. Size: ${(buffer.length/1024).toFixed(1)}KB -> ${(finalBuffer.length/1024).toFixed(1)}KB`);
+        } catch (sharpError) {
+            console.error("Sharp optimization failed, falling back to original:", sharpError);
+            // Fallback to original buffer if sharp fails
+        }
+    }
     
-    // Create a unique filename with timestamp and correct folder hierarchy
     const prefix = process.env.AWS_S3_PATH_PREFIX || "";
-    const fileName = `${prefix}${subFolder}${Date.now()}-${originalName.replace(/\s+/g, '_')}`;
+    const fileName = `${prefix}${subFolder}${Date.now()}-${finalFileName.replace(/\s+/g, '_')}`;
 
-    
     console.log("Attempting S3 upload:", fileName);
-
-
-    const publicUrl = await uploadFile(buffer, fileName, fileType);
-
+    const publicUrl = await uploadFile(finalBuffer, fileName, finalFileType);
 
     return NextResponse.json({ secure_url: publicUrl });
   } catch (error: any) {

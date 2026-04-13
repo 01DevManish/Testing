@@ -134,15 +134,16 @@ export const uploadImage = async (base64OrUrl: string): Promise<string> => {
     }
 
     try {
-        // Automatically optimize images before uploading
+        // We now rely on server-side Sharp for conversion, 
+        // but we still do a quick client-side resize to save bandwidth during upload.
         let processableData = base64OrUrl;
         if (base64OrUrl.startsWith("data:image/")) {
-            processableData = await compressImage(base64OrUrl);
+            // Only resize if it's very large, let server handle the WebP conversion.
+            processableData = await compressImage(base64OrUrl, 1600, 0.9);
         }
 
         const formData = new FormData();
         formData.append("file", processableData);
-
 
         const res = await fetch("/api/upload", {
             method: "POST",
@@ -157,6 +158,8 @@ export const uploadImage = async (base64OrUrl: string): Promise<string> => {
         if (!data.secure_url) {
             throw new Error("Invalid response: secure_url missing");
         }
+        
+        console.log(`[Image-Optimization] Success! Server handled WebP conversion: ${data.secure_url}`);
         return data.secure_url;
     } catch (err: any) {
         console.error("Image Upload Error:", err);

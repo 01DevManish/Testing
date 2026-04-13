@@ -18,7 +18,7 @@ export default function SmartImage({
   style, 
   className, 
   zoomable = true,
-  loading,
+  loading = "lazy",
   ...props 
 }: SmartImageProps) {
   const { openLightbox } = useLightbox();
@@ -37,21 +37,27 @@ export default function SmartImage({
       src={resolvedSrc}
       alt={alt || "Image"}
       loading={isPriority ? "eager" : loading}
-      {...(isPriority ? { fetchpriority: "high" } : {})}
+      {...(isPriority ? { fetchPriority: "high" } : {})}
+      decoding="async"
       {...props}
       onClick={handleClick}
       style={{
         ...style,
         cursor: zoomable ? "zoom-in" : (style?.cursor || "default"),
-        transition: "opacity 0.2s ease-in-out",
+        transition: "opacity 0.2s ease-in-out, transform 0.2s ease",
       }}
       className={className}
-      // Add a hover effect to indicate it's clickable
       onMouseEnter={(e) => {
-        if (zoomable) e.currentTarget.style.opacity = "0.85";
+        if (zoomable) {
+            e.currentTarget.style.opacity = "0.85";
+            e.currentTarget.style.transform = "scale(1.02)";
+        }
       }}
       onMouseLeave={(e) => {
-        if (zoomable) e.currentTarget.style.opacity = "1";
+        if (zoomable) {
+            e.currentTarget.style.opacity = "1";
+            e.currentTarget.style.transform = "scale(1)";
+        }
       }}
     />
   );
