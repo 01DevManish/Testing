@@ -34,18 +34,18 @@ function getNavGroups(userData: any): NavGroup[] {
             items: [
                 { id: "create-dispatch-list", label: "Create Dispatch List", permKey: "retail_dispatch_create" },
                 { id: "all-dispatch-lists", label: "All Dispatch List", permKey: "retail_dispatch_view" },
-                { id: "box-management", label: "Box Management", permKey: "retail_box_view" },
             ],
-            permKey: "retail_dispatch_view" // Box view implies looking at dispatch context usually, but we filter inner items individually
+            permKey: "retail_dispatch_view"
         },
         {
-            key: "tools", label: "Tools",
-            icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a2 2 0 0 1-2.83-2.83l-3.94 3.94Z"></path><path d="m21 21-2.9-2.9"></path><path d="M18 14l-2.07-2.07a2 2 0 0 0-2.83 0l-3.17 3.17a2 2 0 0 0 0 2.83L12 20"></path><path d="m16 2-2 2"></path><path d="M2 21a2 2 0 0 1 0-2.83l10-10"></path></svg>,
+            key: "box_mgnt", label: "Box Management",
+            icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>,
             items: [
-                { id: "add-order", label: "Add Unknown Order", permKey: "retail_dispatch_create" },
-                { id: "scanner", label: "Scan Barcode", permKey: "retail_box_view" }, // or dispatch view
-                { id: "order-list", label: "Legacy Dispatches", permKey: "retail_dispatch_view" },
+                { id: "box-management", label: "Manage Boxes", permKey: "retail_box_view" },
+                { id: "dispatch-box", label: "Dispatch Box (New)", permKey: "retail_box_view" },
+                { id: "all-box-dispatches", label: "Box History", permKey: "retail_box_view" },
             ],
+            permKey: "retail_box_view"
         },
     ];
 

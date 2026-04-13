@@ -18,6 +18,8 @@ import AllPackingLists from "./components/Packaging/AllPackingLists";
 import CreateDispatchList from "./components/Dispatch/CreateDispatchList";
 import AllDispatchLists from "./components/Dispatch/AllDispatchLists";
 import BoxManagementTab from "./components/Box/BoxManagementTab";
+import DispatchBoxTab from "./components/Box/DispatchBoxTab";
+import AllBoxDispatchesTab from "./components/Box/AllBoxDispatchesTab";
 import PackingListDetailsModal from "./components/Packaging/PackingListDetailsModal";
 import NotificationBell from "../../components/NotificationBell";
 import DispatchSidebar from "./components/Layout/DispatchSidebar";
@@ -412,7 +414,17 @@ export default function AdvancedDispatchDashboard() {
           )}
           {activeView === "box-management" && (
             <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
-              <BoxManagementTab packingLists={packingLists} />
+              <BoxManagementTab packingLists={packingLists} products={products} />
+            </div>
+          )}
+          {activeView === "dispatch-box" && (
+            <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
+              <DispatchBoxTab products={products} />
+            </div>
+          )}
+          {activeView === "all-box-dispatches" && (
+            <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
+              <AllBoxDispatchesTab packingLists={packingLists} />
             </div>
           )}
           {activeView === "catalog" && (

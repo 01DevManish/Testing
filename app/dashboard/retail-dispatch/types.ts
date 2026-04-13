@@ -142,6 +142,22 @@ export type ActiveView =
   | "create-dispatch-list"
   | "all-dispatch-lists"
   | "box-management"
+  | "dispatch-box"
+  | "all-box-dispatches"
   | "catalog"
   | "messages";
+
+export interface ManagedBox {
+  id: string; // e.g. B1
+  barcode: string; // 13 digits
+  capacity: number;
+  items: { 
+    productId: string;
+    productName: string;
+    sku: string;
+    quantity: number;
+  }[];
+  status: "Available" | "Filled" | "In-Transit";
+  createdAt: number;
+}
 

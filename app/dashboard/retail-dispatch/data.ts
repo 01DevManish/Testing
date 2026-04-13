@@ -1,4 +1,4 @@
-import { Order, OrderStatus, Party, Transporter } from "./types";
+import { Order, OrderStatus, Party, Transporter, ManagedBox } from "./types";
 import { ref, get, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
@@ -278,6 +278,76 @@ export const api = {
       });
     } catch (e) {
       console.error("Failed to delete packing list:", e);
+      throw e;
+    }
+  },
+
+  // ── Managed Boxes API ──
+  getManagedBoxes: async (): Promise<ManagedBox[]> => {
+    const boxesRef = ref(db, "managed_boxes");
+    const snap = await get(boxesRef);
+    if (!snap.exists()) return [];
+    
+    const data: ManagedBox[] = [];
+    snap.forEach((child) => {
+      data.push({ id: child.key as string, ...child.val() });
+    });
+    return data;
+  },
+
+  getNextManagedBoxId: async (): Promise<string> => {
+    const boxesRef = ref(db, "managed_boxes");
+    const snap = await get(boxesRef);
+    if (!snap.exists()) return "B1";
+    
+    let max = 0;
+    snap.forEach((child) => {
+      const id = child.key as string;
+      const num = parseInt(id.replace("B", ""));
+      if (!isNaN(num) && num > max) max = num;
+    });
+    return `B${max + 1}`;
+  },
+
+  createManagedBox: async (box: ManagedBox, actor?: { uid: string; name: string }): Promise<void> => {
+    if (!box.id) throw new Error("Box ID is required");
+    try {
+      await set(ref(db, `managed_boxes/${box.id}`), box);
+      
+      // Log activity
+      await logActivity({
+        type: "dispatch",
+        action: "create",
+        title: "Box Created",
+        description: `Managed box ${box.id} was created with capacity ${box.capacity}.`,
+        userId: actor?.uid || "unknown",
+        userName: actor?.name || "System",
+        userRole: "staff",
+        metadata: { boxId: box.id, barcode: box.barcode }
+      });
+    } catch (e) {
+      console.error("Failed to create box:", e);
+      throw e;
+    }
+  },
+
+  deleteManagedBox: async (id: string, actor?: { uid: string; name: string }): Promise<void> => {
+    try {
+      await remove(ref(db, `managed_boxes/${id}`));
+      
+      // Log activity
+      await logActivity({
+        type: "dispatch",
+        action: "delete",
+        title: "Box Deleted",
+        description: `Managed box ${id} was deleted by ${actor?.name || "Admin"}.`,
+        userId: actor?.uid || "unknown",
+        userName: actor?.name || "Admin",
+        userRole: "admin",
+        metadata: { id }
+      });
+    } catch (e) {
+      console.error("Failed to delete box:", e);
       throw e;
     }
   }

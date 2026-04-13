@@ -1,3 +1,5 @@
+"use client";
+
 import JsBarcode from "jsbarcode";
 
 /**
@@ -69,4 +71,27 @@ export const renderBarcodeToBase64 = (code: string): string => {
   });
 
   return canvas.toDataURL("image/png");
+};
+
+/**
+ * Generates a 13-digit unique barcode for a managed box.
+ * Structure: 23 (Prefix) + 11 random digits (no 000 sequence).
+ */
+export const generateBoxMgtBarcode = (): string => {
+  let code = "";
+  let attempts = 0;
+  
+  while (attempts < 100) {
+    const randomPart = Math.random().toString().slice(2, 13).padStart(11, "0");
+    code = `23${randomPart}`;
+    
+    // Check for "000" sequence
+    if (!code.includes("000")) {
+      return code;
+    }
+    attempts++;
+  }
+  
+  // Fallback if random fails many times (unlikely but safe)
+  return `23${Date.now().toString().slice(-11)}`;
 };
