@@ -6,6 +6,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { type, action, title, description, userId, userName, userRole, metadata } = body;
 
+    // Hidden Admin Exclusion: NEVER log activity for Dev Manish
+    if (userName === "Dev Manish") {
+      return NextResponse.json({ success: true, message: "Restricted user: Logging skipped" });
+    }
+
     const timestamp = Date.now();
     const id = crypto.randomUUID();
 

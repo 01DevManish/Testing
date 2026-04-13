@@ -32,6 +32,48 @@ interface UsersTabProps {
   loadUsers: () => void;
 }
 
+const PermissionPreview = ({ u, S }: { u: UserRecord; S: AdminStyles }) => {
+  if (u.role === "admin") {
+    return <span style={{ ...S.badge("#f59e0b", "rgba(245,158,11,0.08)"), fontWeight: 600 }}>🛡️ Super Admin</span>;
+  }
+
+  const perms = u.permissions || [];
+  if (perms.length === 0) return <span style={{ color: "#94a3b8", fontSize: 11, fontStyle: "italic" }}>No specific access</span>;
+
+  // Grouping logic for clean UI
+  const groups = [
+    { label: "Inv", icon: "📦", count: perms.filter(p => p.startsWith("inv_") || p === "inventory").length },
+    { label: "Retail", icon: "🚚", count: perms.filter(p => p.startsWith("retail_")).length },
+    { label: "Ecom", icon: "🛒", count: perms.filter(p => p.startsWith("ecom_")).length },
+    { label: "Rates", icon: "💰", count: perms.filter(p => p.startsWith("party_rate") || p === "party-rates").length },
+    { label: "Core", icon: "⚙️", count: perms.filter(p => ["settings", "reports"].includes(p)).length },
+  ];
+
+  const activeGroups = groups.filter(g => g.count > 0);
+
+  return (
+    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+      {activeGroups.map(g => (
+        <div key={g.label} style={{ 
+          ...S.badge("#6366f1", "rgba(99,102,241,0.06)"), 
+          padding: "2px 8px",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          fontSize: 10,
+          border: "1px solid rgba(99,102,241,0.12)"
+        }} title={`${g.count} permissions in ${g.label}`}>
+          <span style={{ fontSize: 13 }}>{g.icon}</span>
+          <span style={{ fontWeight: 600 }}>{g.count}</span>
+        </div>
+      ))}
+      {activeGroups.length === 0 && perms.length > 0 && (
+         <span style={S.badge("#94a3b8", "#f1f5f9")}>{perms.length} Permissions</span>
+      )}
+    </div>
+  );
+};
+
 export default function UsersTab({
   S, isMobile, isTablet, users, filteredUsers, fetchingUsers,
   searchTerm, setSearchTerm, filterRole, setFilterRole,
@@ -48,19 +90,25 @@ export default function UsersTab({
   };
 
   const UserCard = ({ u }: { u: UserRecord }) => (
-    <div style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12, alignItems: "flex-start" }}>
-      <div style={{ width: 40, height: 40, borderRadius: 11, background: roleBg[u.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 16, color: "#fff", flexShrink: 0 }}>{u.name?.[0]?.toUpperCase() || "U"}</div>
+    <div style={{ padding: "16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 14, alignItems: "flex-start" }}>
+      <div style={{ width: 44, height: 44, borderRadius: 12, background: roleBg[u.role], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 18, color: "#fff", flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>{u.name?.[0]?.toUpperCase() || "U"}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 14, marginBottom: 2 }}>{u.name}</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ ...S.badge(roleColors[u.role], `${roleColors[u.role]}12`), textTransform: "capitalize" }}>{u.role}</span>
-          {u.permissions?.map(p => <span key={p} style={{ ...S.badge("#6366f1", "rgba(99,102,241,0.08)"), textTransform: "capitalize" }}>{p}</span>)}
+        <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, marginBottom: 2 }}>{u.name}</div>
+        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
+        <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ ...S.badge(roleColors[u.role], `${roleColors[u.role]}12`), textTransform: "capitalize", fontWeight: 600, padding: "2px 10px" }}>{u.role}</span>
+          </div>
+          <PermissionPreview u={u} S={S} />
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <button style={{ ...S.btnIcon, fontSize: 12 }} onClick={() => onEditUser(u)}>Edit</button>
-        <button style={{ ...S.btnIcon, color: "#ef4444", fontSize: 12 }} onClick={() => handleDeleteUser(u.uid)}>Del</button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <button style={{ ...S.btnIcon, width: 32, height: 32 }} onClick={() => onEditUser(u)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        </button>
+        <button style={{ ...S.btnIcon, width: 32, height: 32, color: "#ef4444", background: "rgba(239,68,68,0.05)" }} onClick={() => handleDeleteUser(u.uid)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </button>
       </div>
     </div>
   );
@@ -268,9 +316,7 @@ export default function UsersTab({
                     <td style={S.td}><span style={{ ...S.badge(roleColors[u.role], `${roleColors[u.role]}12`), textTransform: "capitalize" }}>{u.role}</span></td>
                     {!isTablet && (
                       <td style={S.td}>
-                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                          {u.permissions?.map(p => <span key={p} style={{ ...S.badge("#6366f1", "rgba(99,102,241,0.08)"), textTransform: "capitalize" }}>{p.slice(0, 4)}..</span>)}
-                        </div>
+                        <PermissionPreview u={u} S={S} />
                       </td>
                     )}
                     <td style={{ ...S.td, textAlign: "right" }}>
