@@ -59,7 +59,7 @@ export const generatePackingListPdf = async (list: any, save = true): Promise<Bl
         item.productName,
         item.sku,
         item.quantity,
-        item.packagingType || list.packagingType || "Box",
+        item.packagingType || list.packagingType || "Standard",
         "", // Additional
         ""  // Remarks
     ]);
@@ -174,9 +174,10 @@ export const generatePackingListPdf = async (list: any, save = true): Promise<Bl
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     
-    doc.text("Packed By: __________________________", 40, footerY);
-    doc.text("Checked By: _________________________", 40, footerY + 25);
-    doc.text("Authorized Sign: ____________________", col2X, footerY + 25);
+    doc.text(`Prepared By: ${list.createdBy || list.updatedBy || "System"}`, 40, footerY - 20);
+    doc.text("Packed By: __________________________", 40, footerY + 5);
+    doc.text("Checked By: _________________________", 40, footerY + 30);
+    doc.text("Authorized Sign: ____________________", col2X, footerY + 30);
 
     const blob = doc.output("blob");
     const url = URL.createObjectURL(blob);

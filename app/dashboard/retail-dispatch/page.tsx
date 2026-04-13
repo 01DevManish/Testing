@@ -124,6 +124,16 @@ export default function AdvancedDispatchDashboard() {
     }
   };
 
+  const handleDeletePackingList = async (id: string) => {
+    if (!user) return;
+    try {
+      await api.deletePackingList(id, { uid: user.uid, name: currentName, role: currentRole });
+      setPackingLists(packingLists.filter(l => l.id !== id));
+    } catch (e) {
+      alert("Failed to delete packing list.");
+    }
+  };
+
   // ── Granular Sub-Module Permissions ──────────────────────────
   const canViewPacking = hasPermission(userData, "retail_packing_view");
   const canCreatePacking = hasPermission(userData, "retail_packing_create");
@@ -169,7 +179,7 @@ export default function AdvancedDispatchDashboard() {
   const stats = {
     todayPacking: packingLists.filter(l => new Date(l.createdAt).toISOString().split('T')[0] === todayDate).length,
     todayDispatch: packingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt && new Date(l.dispatchedAt).toISOString().split('T')[0] === todayDate).length,
-    filteredDispatch: packingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt && new Date(l.dispatchedAt).toISOString().split('T')[0] === statsDate).length,
+    totalDispatch: packingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt).length,
     pending: orders.filter(o => o.status === "Pending").length,
   };
 
@@ -198,7 +208,7 @@ export default function AdvancedDispatchDashboard() {
             backdropFilter: "blur(8px)",
             opacity: sidebarOpen ? 1 : 0,
             visibility: sidebarOpen ? "visible" : "hidden",
-            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "all 0.2s cubic-bezier(0, 0, 0.2, 1)",
           }}
         />
       )}
@@ -209,7 +219,7 @@ export default function AdvancedDispatchDashboard() {
         top: 0, left: 0, bottom: 0, zIndex: 200,
         width: isDesktop ? (isCollapsed ? 78 : 260) : 280,
         transform: isDesktop ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
-        transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "width 0.2s cubic-bezier(0, 0, 0.2, 1), transform 0.2s cubic-bezier(0, 0, 0.2, 1)",
         boxShadow: (!isDesktop && sidebarOpen) ? "20px 0 40px rgba(0,0,0,0.3)" : "none",
       }}>
         <DispatchSidebar
@@ -232,7 +242,7 @@ export default function AdvancedDispatchDashboard() {
         marginLeft: isDesktop ? (isCollapsed ? 78 : 260) : 0,
         padding: isMobile ? "20px 14px" : "28px 40px",
         minHeight: "100vh",
-        transition: "margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "margin-left 0.2s cubic-bezier(0, 0, 0.2, 1)",
         willChange: "margin-left"
       }}>
         <div style={{ maxWidth: 1600, margin: "0 auto" }}>
@@ -259,7 +269,7 @@ export default function AdvancedDispatchDashboard() {
                   { label: "Today's Packing", value: stats.todayPacking, color: "#6366f1", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg> },
                   { label: "Today's Dispatch", value: stats.todayDispatch, color: "#10b981", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg> },
                   {
-                    label: "Total Dispatch", value: stats.filteredDispatch, color: "#3b82f6", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>,
+                    label: "Total Dispatch", value: stats.totalDispatch, color: "#3b82f6", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>,
                   },
                   { label: "Pending Orders", value: stats.pending, color: "#f59e0b", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg> },
                 ].map(s => (
@@ -387,6 +397,8 @@ export default function AdvancedDispatchDashboard() {
               <AllPackingLists
                 onEdit={(list) => { setEditingPackingList(list); setActiveView("create-packing-list"); }}
                 onView={(list) => setViewingPackingList(list)}
+                onDelete={handleDeletePackingList}
+                canDelete={canDelete}
               />
             </div>
           )}

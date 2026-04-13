@@ -139,6 +139,8 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         };
       });
 
+    const commonPkgType = items[0]?.packagingType || "Box";
+
     if (items.length === 0) {
       alert("Please select at least one product with a quantity greater than zero.");
       return;
@@ -177,6 +179,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         partyCity: fullPartyCity,
         items,
         transporter,
+        packagingType: commonPkgType,
         assignedTo: assignedUserId,
         assignedToName: assignedUser?.name || "Unknown",
         status: isEdit ? editingList.status : "Pending",

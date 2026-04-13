@@ -118,7 +118,7 @@ export default function InventorySidebar({
             background: "#0f172a",
             display: "flex", flexDirection: "column",
             height: "100%", overflow: "visible",
-            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "width 0.2s cubic-bezier(0, 0, 0.2, 1)",
             willChange: "width",
             position: "relative"
         }}>
@@ -135,7 +135,7 @@ export default function InventorySidebar({
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: (isDesktop && isCollapsed) ? 0 : 14, justifyContent: (isDesktop && isCollapsed) ? "center" : "flex-start", width: "100%" }}>
                     <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: "#fff", padding: 4, flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />
                     {(!isCollapsed || !isDesktop) && (
-                        <div style={{ animation: "fadeInUp 0.3s ease-out" }}>
+                        <div style={{ animation: "fadeInUp 0.15s ease-out" }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>EURUS LIFESTYLE</div>
                             <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Inventory Hub</div>
                         </div>

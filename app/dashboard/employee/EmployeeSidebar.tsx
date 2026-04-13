@@ -115,7 +115,7 @@ export default function EmployeeSidebar({
             zIndex: 199,
             opacity: sidebarOpen ? 1 : 0,
             visibility: sidebarOpen ? "visible" : "hidden",
-            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "all 0.2s cubic-bezier(0, 0, 0.2, 1)",
           }} 
           onClick={() => setSidebarOpen(false)} 
         />
@@ -133,7 +133,7 @@ export default function EmployeeSidebar({
         bottom: 0,
         zIndex: 200,
         transform: isDesktop ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
-        transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "width 0.2s cubic-bezier(0, 0, 0.2, 1), transform 0.2s cubic-bezier(0, 0, 0.2, 1)",
         boxShadow: (!isDesktop && sidebarOpen) ? "20px 0 40px rgba(0,0,0,0.3)" : "none",
       }}>
         {/* Brand Header */}

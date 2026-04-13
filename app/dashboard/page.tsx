@@ -228,7 +228,7 @@ export default function DashboardPage() {
       left: 0,
       bottom: 0,
       zIndex: 100,
-      transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      transition: "width 0.15s cubic-bezier(0, 0, 0.2, 1), transform 0.15s cubic-bezier(0, 0, 0.2, 1)",
       transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
       willChange: "width, transform",
       overflow: "visible"
@@ -246,7 +246,7 @@ export default function DashboardPage() {
       marginLeft: isDesktop ? (isCollapsed ? 78 : SIDEBAR_WIDTH) : 0,
       padding: isMobile ? "80px 16px 32px" : "28px 40px 32px",
       minHeight: "100vh",
-      transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      transition: "margin-left 0.15s cubic-bezier(0, 0, 0.2, 1)",
       willChange: "margin-left"
     } as React.CSSProperties,
     btnIcon: { width: 36, height: 36, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontSize: 16 } as React.CSSProperties,
@@ -440,7 +440,7 @@ export default function DashboardPage() {
 
       <style jsx global>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out; }
+        .animate-fade-in-up { animation: fadeInUp 0.25s ease-out; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>

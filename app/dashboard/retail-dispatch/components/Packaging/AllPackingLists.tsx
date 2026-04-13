@@ -7,7 +7,17 @@ import { PageHeader, Card } from "../ui";
 import { PackingList } from "../../types";
 import { generatePackingListPdf } from "../../PackingListPdf";
 
-export default function AllPackingLists({ onEdit, onView }: { onEdit?: (list: any) => void; onView?: (list: any) => void }) {
+export default function AllPackingLists({ 
+  onEdit, 
+  onView, 
+  onDelete, 
+  canDelete 
+}: { 
+  onEdit?: (list: any) => void; 
+  onView?: (list: any) => void;
+  onDelete?: (id: string) => void;
+  canDelete?: boolean;
+}) {
   const [lists, setLists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -237,6 +247,20 @@ export default function AllPackingLists({ onEdit, onView }: { onEdit?: (list: an
                           onMouseLeave={e => e.currentTarget.style.background = "#f5f3ff"}
                         >
                           Edit
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button 
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete packing list #${l.id?.slice(-6).toUpperCase()}?`)) {
+                              onDelete?.(l.id);
+                            }
+                          }}
+                          style={{ fontSize: 11, fontWeight: 600, color: "#ef4444", background: "#fef2f2", padding: "6px 12px", borderRadius: 8, transition: "all 0.2s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
+                          onMouseLeave={e => e.currentTarget.style.background = "#fef2f2"}
+                        >
+                          Delete
                         </button>
                       )}
                     </div>

@@ -24,7 +24,7 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       left: 0,
       bottom: 0,
       zIndex: 200,
-      transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      transition: "width 0.15s cubic-bezier(0, 0, 0.2, 1), transform 0.15s cubic-bezier(0, 0, 0.2, 1)",
       overflowY: "auto" as const,
       transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
       willChange: "width, transform",
@@ -43,7 +43,7 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
       flex: 1,
       marginLeft: isDesktop ? currentSidebarWidth : 0,
       padding: isMobile ? "12px 14px 24px" : isTablet ? "20px 24px 28px" : "28px 40px 32px",
-      transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      transition: "margin-left 0.15s cubic-bezier(0, 0, 0.2, 1)",
       willChange: "margin-left",
       minHeight: "100vh",
       maxWidth: "100%",
@@ -229,7 +229,7 @@ export function getStyles(isMobile: boolean, isTablet: boolean, isDesktop: boole
     } as React.CSSProperties,
 
     tabContent: {
-      animation: "fadeInUp 0.4s ease-out",
+      animation: "fadeInUp 0.15s ease-out",
     } as React.CSSProperties,
 
     activityCard: {

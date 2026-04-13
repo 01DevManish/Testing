@@ -342,7 +342,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             {/* Search input removed */}
 
             <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
-              {getCombinedDispatches(todayDispatchSearch, todayDispatchFilter).Today.map(a => (
+              {getCombinedDispatches(todayDispatchSearch, todayDispatchFilter).Today.slice(0, 3).map(a => (
                 <div key={a.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", flexDirection: "column" }}>
                   <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>By: <span style={{ fontWeight: 400, color: "#475569" }}>{a.user}</span> • {new Date(a.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>

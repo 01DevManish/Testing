@@ -104,7 +104,7 @@ export default function DispatchSidebar({
             background: "#0f172a",
             display: "flex", flexDirection: "column",
             height: "100%", overflow: "visible",
-            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "width 0.2s cubic-bezier(0, 0, 0.2, 1)",
             willChange: "width",
             position: "relative"
         }}>
@@ -116,19 +116,19 @@ export default function DispatchSidebar({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: (isDesktop && isCollapsed) ? "center" : "flex-start",
-                transition: "all 0.3s ease" 
+                transition: "all 0.15s ease-out" 
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: (isDesktop && isCollapsed) ? 0 : 14, justifyContent: (isDesktop && isCollapsed) ? "center" : "flex-start", width: "100%" }}>
                     <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: "#fff", padding: 4, flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />
                     {(!isCollapsed || !isDesktop) && (
-                        <div style={{ animation: "fadeInUp 0.3s ease-out" }}>
+                        <div style={{ animation: "fadeInUp 0.15s ease-out" }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>EURUS LIFESTYLE</div>
                             <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: FONT }}>Retail Dispatch Hub</div>
                         </div>
                     )}
                 </div>
                 {(!isCollapsed || !isDesktop) && (
-                    <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 400, cursor: "pointer", animation: "fadeInUp 0.3s ease-out" }}>
+                    <button onClick={onDashboardBack} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 10px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontFamily: FONT, fontWeight: 400, cursor: "pointer", animation: "fadeInUp 0.15s ease-out" }}>
                         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                             <path d="M8 2L4 6.5L8 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
@@ -178,7 +178,7 @@ export default function DispatchSidebar({
 
             {/* Section label */}
             {(!isCollapsed || !isDesktop) && (
-                <div style={{ padding: "14px 18px 6px", flexShrink: 0, animation: "fadeInUp 0.3s ease-out" }}>
+                <div style={{ padding: "14px 18px 6px", flexShrink: 0, animation: "fadeInUp 0.15s ease-out" }}>
                     <div style={{ fontSize: 9, fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.14em", fontFamily: FONT }}>
                         Dispatch Management
                     </div>
@@ -211,7 +211,7 @@ export default function DispatchSidebar({
                                     {group.icon}
                                 </span>
                                 {!isCollapsed && (
-                                    <span style={{ flex: 1, fontSize: 13, fontWeight: hasActive ? 600 : 500, letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "space-between", animation: "fadeInUp 0.2s ease-out" }}>
+                                    <span style={{ flex: 1, fontSize: 13, fontWeight: hasActive ? 600 : 500, letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "space-between", animation: "fadeInUp 0.1s ease-out" }}>
                                         {group.label}
                                         {group.key === "communication" && unreadCount > 0 && (
                                             <span style={{ background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #0f172a", marginLeft: 8 }}>
@@ -292,7 +292,7 @@ export default function DispatchSidebar({
                     </div>
                     
                     {!isCollapsed && (
-                        <div style={{ flex: 1, minWidth: 0, animation: "fadeInUp 0.3s ease-out" }}>
+                        <div style={{ flex: 1, minWidth: 0, animation: "fadeInUp 0.15s ease-out" }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{currentName}</div>
                             <div style={{ fontSize: 9, color: "#818cf8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", fontFamily: FONT }}>{currentRole}</div>
                         </div>
@@ -312,7 +312,7 @@ export default function DispatchSidebar({
                             cursor: "pointer", 
                             transition: "all 0.2s",
                             flexShrink: 0,
-                            animation: "fadeInUp 0.3s ease-out"
+                            animation: "fadeInUp 0.15s ease-out"
                         }}>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                         </button>

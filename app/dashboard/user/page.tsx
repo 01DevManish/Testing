@@ -74,7 +74,7 @@ export default function UserPage() {
       left: 0, 
       bottom: 0, 
       zIndex: 100, 
-      transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      transition: "width 0.15s cubic-bezier(0, 0, 0.2, 1), transform 0.15s cubic-bezier(0, 0, 0.2, 1)",
       transform: (!isDesktop && !sidebarOpen) ? "translateX(-100%)" : "translateX(0)",
       willChange: "width, transform",
       overflow: "visible"
@@ -92,7 +92,7 @@ export default function UserPage() {
       marginLeft: isDesktop ? (isCollapsed ? 78 : SIDEBAR_WIDTH) : 0, 
       padding: isMobile ? "70px 16px 32px" : "28px 32px 32px", 
       minHeight: "100vh", 
-      transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      transition: "margin-left 0.15s cubic-bezier(0, 0, 0.2, 1)",
       willChange: "margin-left"
     } as React.CSSProperties,
     btnSecondary: { padding: "10px 18px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" } as React.CSSProperties,

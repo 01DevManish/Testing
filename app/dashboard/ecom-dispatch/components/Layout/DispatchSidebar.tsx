@@ -98,7 +98,7 @@ export default function DispatchSidebar({
             background: "#0f172a",
             display: "flex", flexDirection: "column",
             height: "100%", overflow: "visible",
-            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "width 0.2s cubic-bezier(0, 0, 0.2, 1)",
             willChange: "width",
             position: "relative"
         }}>
@@ -110,7 +110,7 @@ export default function DispatchSidebar({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: (isDesktop && isCollapsed) ? "center" : "flex-start",
-                transition: "all 0.3s ease" 
+                transition: "all 0.15s ease-out" 
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: (isDesktop && isCollapsed) ? 0 : 14, justifyContent: (isDesktop && isCollapsed) ? "center" : "flex-start", width: "100%" }}>
                     <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: "#fff", padding: 4, flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />

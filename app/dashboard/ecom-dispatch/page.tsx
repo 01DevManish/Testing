@@ -201,7 +201,7 @@ export default function AdvancedDispatchDashboard() {
             backdropFilter: "blur(8px)",
             opacity: sidebarOpen ? 1 : 0,
             visibility: sidebarOpen ? "visible" : "hidden",
-            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "all 0.2s cubic-bezier(0, 0, 0.2, 1)",
           }} 
         />
       )}
@@ -212,7 +212,7 @@ export default function AdvancedDispatchDashboard() {
         top: 0, left: 0, bottom: 0, zIndex: 200,
         width: isDesktop ? (isCollapsed ? 78 : 260) : 280,
         transform: isDesktop ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
-        transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "width 0.2s cubic-bezier(0, 0, 0.2, 1), transform 0.2s cubic-bezier(0, 0, 0.2, 1)",
         boxShadow: (!isDesktop && sidebarOpen) ? "20px 0 40px rgba(0,0,0,0.3)" : "none",
       }}>
         <DispatchSidebar
@@ -237,7 +237,7 @@ export default function AdvancedDispatchDashboard() {
         flex: 1, 
         marginLeft: isDesktop ? (isCollapsed ? 78 : 260) : 0,
         minHeight: "100vh", 
-        transition: "margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "margin-left 0.2s cubic-bezier(0, 0, 0.2, 1)",
         willChange: "margin-left"
       }}>
         <div style={{ padding: isMobile ? "20px 14px" : "28px 40px", maxWidth: 1600, margin: "0 auto" }}>

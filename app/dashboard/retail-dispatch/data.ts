@@ -247,5 +247,26 @@ export const api = {
       console.error("Failed to delete order:", e);
       throw e;
     }
+  },
+
+  deletePackingList: async (id: string, actor?: { uid: string; name: string; role: string }): Promise<void> => {
+    try {
+      await remove(ref(db, `packingLists/${id}`));
+
+      // Log activity
+      await logActivity({
+        type: "dispatch",
+        action: "delete",
+        title: "Packing List Deleted",
+        description: `Packing list ${id} was permanently removed by ${actor?.name || "Admin"}.`,
+        userId: actor?.uid || "unknown",
+        userName: actor?.name || "Admin",
+        userRole: (actor?.role as any) || "admin",
+        metadata: { id }
+      });
+    } catch (e) {
+      console.error("Failed to delete packing list:", e);
+      throw e;
+    }
   }
 };
