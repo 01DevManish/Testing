@@ -265,7 +265,8 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                 invoiceNo: form.invoiceNo,
                 lrNo: form.lrNo,
                 confirmedByPin: true,
-                dispatchType: dispatchType
+                dispatchType: dispatchType,
+                stockDeducted: !form.isNewProduct && !!form.product
             });
 
             // Log activity

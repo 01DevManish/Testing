@@ -50,6 +50,7 @@ export interface Order {
   awb?: string;
   createdAt?: number;
   updatedAt?: number;
+  stockDeducted?: boolean;
 }
 
 // ── New Dispatch Types ──

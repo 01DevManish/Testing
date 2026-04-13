@@ -147,11 +147,23 @@ export const api = {
       const snap = await get(orderRef);
       if (!snap.exists()) throw new Error("Order not found");
       
-      const existing = snap.val();
+      const existing = snap.val() as Order;
       const newLog = { status: newStatus, timestamp: new Date().toISOString(), user, note: updates.packedNotes };
       const updatedLogs = existing.logs ? [...existing.logs, newLog] : [newLog];
       
       const updatedOrder = { ...existing, ...updates, status: newStatus, logs: updatedLogs, updatedAt: Date.now() };
+
+      // Automatic Stock Deduction
+      if (newStatus === "Dispatched" && !existing.stockDeducted) {
+        if (existing.products && existing.products.length > 0) {
+          console.log(`Deducting stock for retail order ${id}...`);
+          for (const prod of existing.products) {
+            await firestoreApi.deductStock(prod.id, prod.quantity);
+          }
+          updatedOrder.stockDeducted = true;
+        }
+      }
+      
       await set(orderRef, updatedOrder);
 
       // Log activity
@@ -166,7 +178,7 @@ export const api = {
         metadata: { orderId: id, status: newStatus }
       });
 
-      return { id, ...updatedOrder } as Order;
+      return { ...updatedOrder } as Order;
     } catch (e) {
       console.error(e);
       throw e;
