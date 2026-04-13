@@ -1,6 +1,9 @@
 import { adminAuth, adminDb } from "@/app/lib/firebaseAdmin";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
+
 export async function GET(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -18,24 +21,26 @@ export async function GET(req: Request) {
     const dbUsers = dbSnap.val() || {};
 
     // 3. Merge Data
-    const mergedUsers = authUsers.map((u) => {
+    const mergedUsers = authUsers.map((u: any) => {
       const dbInfo = dbUsers[u.uid] || {};
       return {
         uid: u.uid,
         id: u.uid, // Compatibility
         email: u.email,
         name: u.displayName || dbInfo.name || "Unknown User",
-        role: dbInfo.role || "user",
-        permissions: dbInfo.permissions || [],
-        dispatchPin: dbInfo.dispatchPin || "",
+        role: dbInfo.role || (dbInfo.role as string) || "user",
+        permissions: (dbInfo.permissions as string[]) || [],
+        dispatchPin: (dbInfo.dispatchPin as string) || "",
         createdAt: u.metadata.creationTime,
         lastSignIn: u.metadata.lastSignInTime,
         profilePic: u.photoURL || dbInfo.profilePic || null,
       };
-    }).sort((a, b) => {
+    }).sort((a: any, b: any) => {
         // Sort admins first, then by email
-        if (a.role === "admin" && b.role !== "admin") return -1;
-        if (a.role !== "admin" && b.role === "admin") return 1;
+        const aRole = a.role || "";
+        const bRole = b.role || "";
+        if (aRole === "admin" && bRole !== "admin") return -1;
+        if (aRole !== "admin" && bRole === "admin") return 1;
         return (a.email || "").localeCompare(b.email || "");
     });
 

@@ -78,14 +78,24 @@ E8xR5kgY4Rqeesghs3arZnFY
     console.log("[FirebaseAdmin] SDK Initialized Successfully.");
   } catch (error: any) {
     if (!/already exists/.test(error.message)) {
-      console.error("[FirebaseAdmin] Initialization Error:", error.stack);
+      console.error("[FirebaseAdmin] Initialization Error:", error.message);
     }
-    globalWithFirebase.firebaseAdminApp = admin.app();
   }
 }
 
-const adminApp = globalWithFirebase.firebaseAdminApp!;
-export const adminAuth = admin.auth(adminApp);
-export const adminDb = admin.database(adminApp);
-export const adminMessaging = admin.messaging(adminApp);
+/**
+ * Helper to get the default or initialized app safely.
+ * During build time, if credentials are missing, we return null to allow build to continue.
+ */
+function getAdminApp() {
+  if (admin.apps.length > 0) return admin.apps[0];
+  return null;
+}
+
+const adminApp = getAdminApp();
+
+// Export proxies or lazy initializers to prevent crash during import-time on missing credentials
+export const adminAuth = adminApp ? admin.auth(adminApp) : ({} as any);
+export const adminDb = adminApp ? admin.database(adminApp) : ({} as any);
+export const adminMessaging = adminApp ? admin.messaging(adminApp) : ({} as any);
 

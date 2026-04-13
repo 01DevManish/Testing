@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminMessaging, adminDb } from "../../../lib/firebaseAdmin";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const { uid, title, body, link, data } = await req.json();
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     // 3. Clean up invalid tokens (optional but recommended)
     if (response.failureCount > 0) {
       const tokensToRemove: string[] = [];
-      response.responses.forEach((resp, idx) => {
+      response.responses.forEach((resp: any, idx: number) => {
         if (!resp.success) {
           const error = resp.error?.code;
           if (error === 'messaging/invalid-registration-token' || error === 'messaging/registration-token-not-registered') {
