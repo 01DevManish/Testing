@@ -120,14 +120,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     listeners.forEach(({ path, setter, cacheKey }) => {
       const dbRef = ref(db, path);
       const listener = onValue(dbRef, (snapshot) => {
-        const data = snapshot.exists() ? Object.entries(snapshot.val()).map(([id, val]: [string, any]) => ({
-          ...val,
-          id
-        })) : [];
+        const val = snapshot.val();
+        let data: any[] = [];
+        
+        if (snapshot.exists() && val) {
+          data = Object.entries(val).map(([key, record]: [string, any]) => ({
+            ...record,
+            id: key,
+            uid: record.uid || key // Force UID if missing
+          }));
+        }
         
         setter(data);
         localStorage.setItem(cacheKey, JSON.stringify(data));
-        setLoading(false); // Definitely stop loading once first real data arrives
+        setLoading(false);
       });
       activeListeners.push({ ref: dbRef, listener });
     });

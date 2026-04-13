@@ -475,6 +475,7 @@ export default function ProductList({
                                                                 src={p.imageUrl} 
                                                                 alt={p.productName} 
                                                                 style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                                                {...({ priority: paginatedItems.indexOf(p) < 10 } as any)}
                                                             />
                                                         ) : (
                                                             <span style={{ fontSize: 9, fontWeight: 400, color: "#94a3b8", fontFamily: FONT }}>IMG</span>

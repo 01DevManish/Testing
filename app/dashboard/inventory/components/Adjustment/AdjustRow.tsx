@@ -5,6 +5,7 @@ import { ref, update } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { FONT, Product } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
+import SmartImage from "../../../../components/SmartImage";
 
 export default function AdjustRow({ p, user, onRefresh, isMobile }: { 
     p: Product, 
@@ -63,7 +64,7 @@ export default function AdjustRow({ p, user, onRefresh, isMobile }: {
             <td style={{ padding: "14px 16px" }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f1f5f9", overflow: "hidden", flexShrink: 0 }}>
-                        {p.imageUrl && <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                        {p.imageUrl && <SmartImage src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                     </div>
                     <div>
                         <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{p.productName}</div>
@@ -100,7 +101,7 @@ export default function AdjustRow({ p, user, onRefresh, isMobile }: {
                             <p style={{ fontSize: 15, color: "#64748b", fontWeight: 400, margin: "0 0 24px", fontFamily: FONT, lineHeight: 1.5 }}>You are adjusting <strong>{qty} {p.unit || "units"}</strong> for:<br /><span style={{ color: "#1e293b", fontWeight: 400 }}>{p.productName}</span></p>
                             <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16, marginBottom: 30, display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
                                 <div style={{ width: 50, height: 50, borderRadius: 10, background: "#fff", border: "1.5px solid #e2e8f0", overflow: "hidden", flexShrink: 0 }}>
-                                    {p.imageUrl && <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                                    {p.imageUrl && <SmartImage src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} {...({ priority: true } as any)} />}
                                 </div>
                                 <div>
                                     <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current Stock</div>

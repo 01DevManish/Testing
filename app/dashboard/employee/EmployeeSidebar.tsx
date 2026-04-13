@@ -96,7 +96,7 @@ export default function EmployeeSidebar({
     {
       label: "Business",
       items: [
-        { key: "party-rates", label: "Party Wise Rates", icon: ICONS.party, permission: "party-rates" },
+        { key: "party-rates", label: "Party Wise Rates", icon: ICONS.party, permission: "party_rate_view" },
         { key: "catalog", label: "Catalog Sharing", icon: ICONS.catalog },
       ]
     }

@@ -1,20 +1,91 @@
 import * as admin from "firebase-admin";
+import path from "path";
+import fs from "fs";
 
-if (!admin.apps.length) {
-  const serviceAccount = {
-    type: "service_account",
-    project_id: "eurus-lifestyle",
-    private_key_id: "186c1ef5140cc8009ea19260c53d317fa3e021ef",
-    private_key: (process.env.FIREBASE_PRIVATE_KEY || "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCzorD58icDgIxx\ngXrBKefI3hxe9q6Dj61x1kA+1OxprHmbCcnrg4uBlRupARxyamtztUzoEymjS8fk\nW3jgZl0NeNiN9P7Ro/Ng0wjtmlldjvX7iW/6DZgz+LwejlDi4NoViJoDnMXNcC76\nuh50ZRejn0G3YwZf93AxEoUOI5YXGjHFi/01EFnpkJ6rUXPjzZQBkyahInI4kfMF\nnPcPiffpztP5pfxvcg+gFA7vtn+ydwLUsYXVPbloCMfPQesRTHFN2aCBaRN0qv+1\n69w8CEoxFcPSLNL23lRDxU5wiy+aDt+4MoezHHhbKjk8K31gxCYFCoaBSY91/PiJ\nqZlY38ExAgMBAAECggEACnIkfnRhZme8QwF3hPIN43VfCvqnTUk2mc8Or1isYry/\n2Y8pKcPdgeyMzjgdUl3z36ekUD6FBlTqy9Gx5sKtGJJ1bVPY2ZICHhhHhaGbHsCo\ndzcXxt+xgRwuvEwkUf0nUWc/JYShT//9C2F1UelrBX3GUYa1oTD/Wissh5T0LmWj\nm/WTYgrx3xowV2t/tjlbjFZzLFTygslSfUYk5cwVcm5WXl7Rmi/hQM8kIZZXFhgk\nwN04aKX0VqQKniTe4+lKTcYNGZVShlb5HhkPkewncnAVlm+aTR/LySG+1UeyxNgg\nKat7sM3xxB2so5Uw9Cuydw8tgH7KdMmivB30hCh2UQKBgQDZVUb7s7w9CfMUzXyX\nMbI1na+4lzHhJHzCUSqPa3CeghDXs1O4XrJXplL2yEZpn+jOnYbv1rDBgYZZV7Gk\nTtGbDmnx2+ZN4ifYhSorl3o7WKY490juAWHqj6VZA2MgDtTy8TZkwwirJWud75Qz\nJtT1ixoYwh5xhkhVIlaPsr31FQKBgQDTmG1avOPNvUkSMFT0OajJBAgBXbKTYVgT\ntnyakBUZ0vddj+5ye3S5Ej8Mr4ApqHjriGGmdfYp57FvmLb3X+xp5FMTGJ5ffZZ3\n7cWs8whbYk7k5n+fDJZZHdIscK5Wk9TlEOZqQdpDKdM+2bwh5cnuqYW3/vbKqz/J\npGgFRmkarQKBgAMVhLZZrJgpJfvrlpMGr4K3RCEYdCq/u81+HV5/pc96BQcqkkuR\nfHJl99NssCMbk9AqyBlrMILudZua9Phh7fOHVtWJy1Dbnrkh2qFXuvJQpbs1NyG5\nf0w20Z/bvnJcA4WXCrCPW/Yhx88r8SxwpqD9Yldrmcb+otQicpwDa1KpAoGAGbJe\nPXHJHJhLQnk6J/rEo7zol/ngEQP2ZVZ5JXAwD9XOEr/DDoYts7gijhDWOLjsDnae\nnU+gGJC5vLrIJZyxol6HND9+JEylNGVc51cQgcCbojLX9uHZdHMprhn1IjCL31HB\nGdBriFKRBAX/UgKNFn3h7ml5YT2Q3pUnyNQ3OXUCgYEAy92SgVKyyYMe1bFrQBoa\nwYQwlEqB9hUTMmPh/rmdA3L9ziqlgwN3RBYUV3biOh1yzhIcPF6eMv5tCQZKOskd\nVzci9ntJMIKlL3O5oKd11RiegivFEKv3S0PDzIomUmWP7draFOTQ27iR1/gzZSH+\ng8bA9VIVX6g7OwiHMGcqDdw=\n-----END PRIVATE KEY-----\n").replace(/\\n/g, "\n").trim(),
-    client_email: "firebase-adminsdk-fbsvc@eurus-lifestyle.iam.gserviceaccount.com",
-  };
+/**
+ * Singleton pattern for Firebase Admin to prevent multiple initializations 
+ * during Next.js Hot Module Replacement (HMR).
+ */
+const globalWithFirebase = global as typeof globalThis & {
+  firebaseAdminApp: admin.app.App | undefined;
+};
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as any),
-    databaseURL: "https://eurus-lifestyle-default-rtdb.firebaseio.com",
-  });
+if (!globalWithFirebase.firebaseAdminApp) {
+  let serviceAccount: any;
+
+  // 1. Try Loading from JSON File (Primary)
+  const keyPath = path.join(process.cwd(), "firebase-admin-key.json");
+  if (fs.existsSync(keyPath)) {
+    try {
+      serviceAccount = JSON.parse(fs.readFileSync(keyPath, "utf8"));
+    } catch (e) {
+      console.error("[FirebaseAdmin] Failed to parse JSON key file:", e);
+    }
+  }
+
+  // 2. Fallback to Hardcoded/Env Key
+  if (!serviceAccount) {
+    const cleanKey = (key: string | undefined) => {
+      if (!key) return undefined;
+      const header = "-----BEGIN PRIVATE KEY-----";
+      const footer = "-----END PRIVATE KEY-----";
+      let body = key.replace(header, "").replace(footer, "").replace(/\s/g, "");
+      const lines = body.match(/.{1,64}/g) || [];
+      return `${header}\n${lines.join("\n")}\n${footer}\n`;
+    };
+
+    serviceAccount = {
+      type: "service_account",
+      project_id: process.env.FIREBASE_PROJECT_ID || "eurus-lifestyle",
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID || "ee5042010c8484d6089500a4b35032fda59eabed",
+      private_key: cleanKey(process.env.FIREBASE_PRIVATE_KEY) || cleanKey(`-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDLLpmqs88ji7PO
+eSpU1uD+IQgYqSyilIieVvoJtpJNN2sxHdQA2fT8WjzmGrw153wsQNyt5seYgIVp
+CabWtsYcvxa8rwWpMU8B6V6jjT23kf1gU/wtGRDQVWB3Cn2MqlRLojlxsg5dqFm6
+oDqna+8QVvUFfPu3OqgDYyWmz7s1HyT2j58VlYzD8SJbLN/3ZaVAd+k0+ezcw1ga
+FwWViezp371MMD9xoiS42YH8PePYsvsyxPjhfPAk6nsMN2AqoDqZa8cToe1hFlBb
+OOBIUyfr1PDTm/qfLEHPPKT5ttb25rXZmiU+PW2pIpn2qFvY2GxIt8y4a8cYtK66
+LuUoc/hNAgMBAAECggEADUsMdzhh6D2y4yKWxCu11zKSjMh+uNlWceOXYszM2Bv0
+2acNsIuSBXOi8dwUbcNqIpwQxBjp/J6F+/gLcBdPsWBILMqXqHjnJiUeUb2DKPA2
+f1enU00FRlgbolYvniUjtDoWH4vqeDK0QitLAxqi7rL9v2DsuBFwnh4dv8LuCNzV
+gecpB4NVp+YzWf/PbweuYt3PuwLKIJwpSKXoQUBfhBTnOcVFknTMV9aMimyXU3OU
+2iF68Qq0TzpoeSVXOcdu4C+lN8SsNIrHg52dvVORddXNGsH+baf9c8K9t9853kJy
+aRSjyUbgTevUQX/5N2b08ZONUKbU9lt4Wd4MCE1QoQKBgQD+JEEjrqJ6ea1J8V2K
+ngUzAn8TAIVt0/nN4A5VEDU/AG+mpX+PNjJtQFrlxrNtFCweNCiwI+6jgmgtuAQRf
+hzH1Qt8IZ+ZgsFZ3HalI5RRpphk3ARKeU1fZ4pGay1vI2UXNN3bmeldazvY6ZTYy
+RMdLlTLMjrK6Gl3+bigt57K+IQKBgQDMqvNzb6UKuTSXN+6A+xkfOa6aJ043bEIe
+o+gcbGl5qZc/e3x41i7M1WsTSDKlugRuqxe3XuqQPZXLvPtdePTDEdP+Vh9JzttH
+mLFZJg8Ys4uEiD4mqEIEj3jYFPRc+NEJJBzGb1EiffsbK9/EkKNxqMIKYBNRX8+f
+olIot2H8rQKBgQDa/TKEJL8s+hwwUyNfbftNIF7Rj+zW60tkZvIAKdhGmcbGhDIv
+tLFAWdSB94kZ/V8MUW+QbgofP54JtCaoij6qMG0vORhyyIA5M/3jKkJkpxOjKfF5
+LCfPQERnNkRo1ZAoPVrfTxxmy1+xAfWpa0qv/mg/i9bGNmI4E4PbyoNjAQKBgQDF
+xB6Qmf4RmZre0DYPvhKtYJB99qMW3O4bK2ibJorY++3hctJ49QWt+j+IF0iRaWjl
+A0BceUQQ8uFvSIJf9QQWBoEhj1iWemLbEQm1yhfmV3/mJbxgoE+Clpw/uCfUOr3K
+pnGDsYbl3HQq8j88ckLtDhPJ8MJZ7En0x+W54FG31QKBgAMJTJnpD5tOHqi30Edw
+XtPBnpvw/yGKv0cGkQOSnKx9rgtK8MUrm6qxWtTjprnBNfKQ59DPZGEj4NF2cfNB
+Dw47O42FujaIYzO3aWE2KhTIKp4//gInDdis0TtWDrDG/dW9N0IjW21xBdyroMSd
+E8xR5kgY4Rqeesghs3arZnFY
+-----END PRIVATE KEY-----`),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL || "firebase-adminsdk-fbsvc@eurus-lifestyle.iam.gserviceaccount.com",
+    };
+  }
+
+  try {
+    globalWithFirebase.firebaseAdminApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: "https://eurus-lifestyle-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    });
+    console.log("[FirebaseAdmin] SDK Initialized Successfully.");
+  } catch (error: any) {
+    if (!/already exists/.test(error.message)) {
+      console.error("[FirebaseAdmin] Initialization Error:", error.stack);
+    }
+    globalWithFirebase.firebaseAdminApp = admin.app();
+  }
 }
 
-export const adminAuth = admin.auth();
-export const adminDb = admin.database();
-export const adminMessaging = admin.messaging();
+const adminApp = globalWithFirebase.firebaseAdminApp!;
+export const adminAuth = admin.auth(adminApp);
+export const adminDb = admin.database(adminApp);
+export const adminMessaging = admin.messaging(adminApp);
+

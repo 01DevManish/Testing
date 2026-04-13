@@ -7,6 +7,7 @@ import { db } from "../../../../lib/firebase";
 import { FONT, Product, Collection } from "../../types";
 import { Card, PageHeader } from "../../ui";
 import BarcodeSVG from "./BarcodeSVG";
+import SmartImage from "../../../../components/SmartImage";
 
 export default function BarcodeView({
     products,
@@ -248,7 +249,7 @@ export default function BarcodeView({
                                     {paginatedItems.map(p => (
                                         <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9", background: selectedIds.has(p.id) ? "rgba(99,102,241,0.02)" : "transparent" }}>
                                             <td style={{ padding: "12px 14px" }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} style={{ cursor: "pointer" }} /></td>
-                                            <td style={{ padding: "8px 14px" }}><div style={{ width: 36, height: 36, borderRadius: 8, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>{p.imageUrl ? <img src={p.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10, color: "#cbd5e1" }}>📦</span>}</div></td>
+                                            <td style={{ padding: "8px 14px" }}><div style={{ width: 36, height: 36, borderRadius: 8, background: "#f8fafc", overflow: "hidden", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>{p.imageUrl ? <SmartImage src={p.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} {...({ priority: paginatedItems.indexOf(p) < 4 } as any)} /> : <span style={{ fontSize: 10, color: "#cbd5e1" }}>📦</span>}</div></td>
                                             <td style={{ padding: "12px 14px", fontSize: 13, color: "#1e293b", fontWeight: 400, fontFamily: FONT }}>{p.sku}</td>
                                             <td style={{ padding: "12px 14px", fontSize: 12, color: "#64748b", fontFamily: FONT }}><div style={{ display: "flex", flexDirection: "column", gap: 2 }}><span>{p.collection || "—"}</span><span style={{ fontSize: 10, color: "#94a3b8" }}>#{getCollectionCode(p.collection || "")}</span></div></td>
                                             <td style={{ padding: "12px 14px", textAlign: "right" }}><button onClick={() => handleGenerate(p)} style={{ padding: "6px 12px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", transition: "0.2s" }}>Generate</button></td>

@@ -32,10 +32,12 @@ export default function PartyRateModule({
     const { user, userData } = useAuth();
 
     // ── Granular Party Rate Permissions ─────────────────────────
-    const canView = isAdmin || hasPermission(userData, "party_rate_view");
-    const canCreate = isAdmin || hasPermission(userData, "party_rate_create");
-    const canEdit = isAdmin || hasPermission(userData, "party_rate_edit");
-    const canDeleteParty = userData?.role === "admin"; // Delete is admin-only
+    // We pass true to hasPermission to ignore the "admin" superuser role
+    // and respect the actual assigned granular permissions (Limited Admin mode).
+    const canView = hasPermission(userData, "party_rate_view", true);
+    const canCreate = hasPermission(userData, "party_rate_create", true);
+    const canEdit = hasPermission(userData, "party_rate_edit", true);
+    const canDeleteParty = userData?.role === "admin"; // Delete remains admin-only
     
     // View State
     const [viewingCatalog, setViewingCatalog] = useState<PartyRate | null>(null);

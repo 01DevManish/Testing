@@ -1,4 +1,5 @@
-"use client";
+"use client"; // Refresh triggered for routing fix
+
 
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -79,9 +80,52 @@ export default function AdminPage() {
   const [savingTask, setSavingTask] = useState(false);
   const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "in-progress" | "completed">("all");
 
+  const [authUsers, setAuthUsers] = useState<UserRecord[]>([]);
+  const [fetchingAuthUsers, setFetchingAuthUsers] = useState(false);
+  const [hasLoadedAuth, setHasLoadedAuth] = useState(false);
+
   // Global fetching aliases
-  const users = useMemo(() => allUsers.filter(u => u.email !== "01devmanish@gmail.com"), [allUsers]);
-  const fetchingUsers = fetchingGlobal;
+  const users = useMemo(() => {
+    // If we have successfully loaded authUsers (Source of Truth), use them exclusively.
+    // Fallback to allUsers ONLY until the first Auth fetch completes.
+    const source = hasLoadedAuth ? authUsers : allUsers;
+    return source.filter(u => u.email !== "01devmanish@gmail.com");
+  }, [allUsers, authUsers, hasLoadedAuth]);
+
+  const fetchAuthUsers = useCallback(async () => {
+    setFetchingAuthUsers(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+
+    try {
+      const { auth } = await import("../../lib/firebase");
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/users", {
+        headers: { "Authorization": `Bearer ${idToken}` },
+        signal: controller.signal
+      });
+      const data = await res.json();
+      if (data.users) {
+        setAuthUsers(data.users);
+        setHasLoadedAuth(true);
+      }
+    } catch (e: any) {
+      if (e.name === "AbortError") {
+        console.warn("[Admin] Auth Users fetch timed out. Falling back to local DB.");
+      } else {
+        console.error("Failed to fetch auth users:", e);
+      }
+    } finally {
+      clearTimeout(timeout);
+      setFetchingAuthUsers(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchAuthUsers();
+  }, [fetchAuthUsers]);
+
+  const fetchingUsers = fetchingAuthUsers;
   const fetchingPartyRates = fetchingGlobal;
   const fetchingBrands = fetchingGlobal;
   const fetchingCatalog = fetchingGlobal;
@@ -187,23 +231,43 @@ export default function AdminPage() {
       setReplacementAdminId("");
       return;
     }
-    if (!confirm("Permanently DEACTIVATE this user? They will be logged out immediately and lose all access.")) return;
+    if (!confirm("Permanently DELETE this user? They will be logged out immediately and lose all access from Auth and Database.")) return;
     try {
+      // 1. Delete from Firebase Auth via Admin API
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: uid,
+          adminUid: user.uid
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete user from Auth");
+
+      // 2. Remove from RTDB (redundant but safe)
       await remove(ref(db, `users/${uid}`));
 
       // Log activity
       await logActivity({
         type: "user",
         action: "delete",
-        title: "User Deactivated",
-        description: `User "${userToDelete.name}" (${userToDelete.email}) was deactivated by ${currentName}.`,
+        title: "User Permanently Deleted",
+        description: `User "${userToDelete.name}" (${userToDelete.email}) was permanently removed by ${currentName}.`,
         userId: user.uid,
         userName: currentName,
         userRole: "admin"
       });
 
-      setUsers(users.filter(u => u.uid !== uid));
-    } catch (e) { console.error(e); }
+      // Re-fetch Auth users to reflect deletion instantly
+      await fetchAuthUsers();
+      
+      alert("User deleted successfully from Auth and Database.");
+    } catch (e: any) { 
+      console.error(e); 
+      alert(e.message || "Failed to delete user.");
+    }
   };
 
   const handleAdminReplacement = async () => {
@@ -513,7 +577,7 @@ export default function AdminPage() {
                 partyRates={partyRates}
                 products={products}
                 fetching={fetchingPartyRates}
-                isAdmin={true}
+                isAdmin={false}
                 loadData={refreshData}
               />
             ) : tab === "brands" ? (

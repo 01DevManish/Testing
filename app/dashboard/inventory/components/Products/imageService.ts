@@ -1,12 +1,29 @@
 const REGION = process.env.NEXT_PUBLIC_AWS_S3_REGION || "ap-south-1";
 const BUCKET = process.env.NEXT_PUBLIC_AWS_S3_BUCKET || "epanelimages";
 const ARCHIVE_PREFIX = process.env.NEXT_PUBLIC_S3_ARCHIVE_PREFIX || "Cloudinary_Archive_2026-04-10_10_27_479_Originals/";
+const CLOUDFRONT_DOMAIN = process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN; // e.g., https://d123.cloudfront.net
 
 /**
  * Resolves any image URL to its S3 counterpart.
  * If the URL is already S3, it returns it as is.
  * If it's a Cloudinary URL, it maps it to the S3 Archive folder.
  */
+
+let formatSupport: "avif" | "webp" | "original" = "original";
+
+if (typeof window !== "undefined") {
+    try {
+        const canvas = document.createElement("canvas");
+        if (canvas.toDataURL("image/avif").indexOf("data:image/avif") === 0) {
+            formatSupport = "avif";
+        } else if (canvas.toDataURL("image/webp").indexOf("data:image/webp") === 0) {
+            formatSupport = "webp";
+        }
+    } catch (e) {
+        // Fallback to basic string check if canvas fails
+    }
+}
+
 export const resolveS3Url = (url: string): string => {
     if (!url) return "";
     
@@ -14,20 +31,41 @@ export const resolveS3Url = (url: string): string => {
     if (url.includes("amazonaws.com")) return url;
 
     // If it's a Cloudinary URL, map to our S3 Archive
-    // Pattern: https://res.cloudinary.com/[cloud]/image/upload/v[version]/[path]/[public_id].[ext]
     if (url.includes("cloudinary.com")) {
         try {
             const parts = url.split("/");
-            const filename = parts[parts.length - 1]; // Just the file name with extension
+            const filename = parts[parts.length - 1]; 
             const s3Url = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${ARCHIVE_PREFIX}${filename}`;
             console.log(`[S3-Resolve] Cloudinary: ${url} -> S3: ${s3Url}`);
-            return s3Url;
+            url = s3Url; // Continue to CloudFront rewrite if enabled
         } catch (err) {
             console.error("S3 Resolution Error:", err);
         }
     }
 
+    // Step 2: Rewrite S3 URLs to CloudFront URLs for fast Edge optimized delivery
+    if (CLOUDFRONT_DOMAIN && url.includes("amazonaws.com")) {
+        const domain = CLOUDFRONT_DOMAIN.endsWith("/") ? CLOUDFRONT_DOMAIN.slice(0, -1) : CLOUDFRONT_DOMAIN;
+        // Extract the path from the S3 URL
+        const domainParts = url.split(".amazonaws.com/");
+        if (domainParts.length > 1) {
+            let path = domainParts[1];
+            
+            // Step 3: Progressive Format Rewrite (Client-Side Negotiation)
+            // If the browser supports AVIF/WebP, we explicitly ask for it to bypass Edge logic and show in inspector
+            if (formatSupport !== "original") {
+                const parts = path.split('.');
+                if (parts.length > 1) {
+                    const ext = parts.pop()?.toLowerCase();
+                    if (ext && ['jpg', 'jpeg', 'png'].includes(ext)) {
+                        path = `${parts.join('.')}.${formatSupport}`;
+                    }
+                }
+            }
 
+            return `${domain}/${path}${process.env.NEXT_PUBLIC_IMAGE_VERSION ? `?v=${process.env.NEXT_PUBLIC_IMAGE_VERSION}` : ""}`;
+        }
+    }
 
     return url;
 };

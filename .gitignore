@@ -41,6 +41,9 @@ yarn-error.log*
 next-env.d.ts
 service-account.json
 serviceAccountKey.json
+firebase-admin-key.json
+scratch/
+
 # firebase sync scripts
 firebase-sync/
 # docker data

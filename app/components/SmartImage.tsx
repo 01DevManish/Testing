@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useLightbox } from "../context/LightboxContext";
+import { resolveS3Url } from "../dashboard/inventory/components/Products/imageService";
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   zoomable?: boolean;
@@ -17,21 +18,26 @@ export default function SmartImage({
   style, 
   className, 
   zoomable = true,
+  loading,
   ...props 
 }: SmartImageProps) {
   const { openLightbox } = useLightbox();
+  const resolvedSrc = (src && typeof src === "string") ? resolveS3Url(src) : src;
+  const isPriority = (props as any).priority === true;
 
   const handleClick = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (zoomable && src && typeof src === "string") {
-      openLightbox(src);
+    if (zoomable && resolvedSrc && typeof resolvedSrc === "string") {
+      openLightbox(resolvedSrc);
     }
     if (props.onClick) props.onClick(e);
   };
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt || "Image"}
+      loading={isPriority ? "eager" : loading}
+      {...(isPriority ? { fetchpriority: "high" } : {})}
       {...props}
       onClick={handleClick}
       style={{

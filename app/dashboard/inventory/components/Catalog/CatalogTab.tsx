@@ -193,6 +193,8 @@ export default function CatalogTab({ products, categories, collections, brands, 
                                         src={resolveS3Url(p.imageUrl || "/placeholder-prod.png")} 
                                         alt={p.productName} 
                                         style={imageStyle} 
+                                        loading={products.indexOf(p) < 8 ? "eager" : "lazy"}
+                                        {...({ fetchpriority: products.indexOf(p) < 8 ? "high" : "auto" } as any)}
                                     />
                                     {isSelected && (
                                         <div style={checkOverlay}>

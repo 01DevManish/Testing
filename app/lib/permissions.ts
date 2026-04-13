@@ -123,12 +123,18 @@ interface UserLike {
 
 /**
  * Check if a user has a specific permission.
- * Admin users always return true (including delete).
+ * Admin users usually return true unless ignoreAdminRole is true.
  * Handles backward compatibility via LEGACY_MAP.
  */
-export function hasPermission(user: UserLike | null | undefined, permission: Permission): boolean {
+export function hasPermission(
+  user: UserLike | null | undefined, 
+  permission: Permission, 
+  ignoreAdminRole: boolean = false
+): boolean {
   if (!user) return false;
-  if (user.role === "admin") return true;
+  
+  // Admin is a superuser unless we explicitly want to check granular permissions
+  if (user.role === "admin" && !ignoreAdminRole) return true;
 
   const userPerms = user.permissions || [];
 

@@ -208,7 +208,13 @@ export default function Overview({ products, categories, collections, loading, o
                                         <tr key={p.id}>
                                             <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc" }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                                                    <div style={{ width: 42, height: 42, borderRadius: 10, background: "#fff", overflow: "hidden", border: "1.5px solid #f1f5f9", flexShrink: 0 }}>{p.imageUrl ? <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div>📦</div>}</div>
+                                                    <div style={{ width: 42, height: 42, borderRadius: 10, background: "#fff", overflow: "hidden", border: "1.5px solid #f1f5f9", flexShrink: 0 }}>
+                                                        <SmartImage 
+                                                            src={p.imageUrl || "/placeholder-prod.png"} 
+                                                            style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                                            {...({ priority: paginatedStock.indexOf(p) < 4 } as any)}
+                                                        />
+                                                    </div>
                                                     <div><div style={{ fontSize: 13, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{p.productName}</div><div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>{p.category}</div></div>
                                                 </div>
                                             </td>
