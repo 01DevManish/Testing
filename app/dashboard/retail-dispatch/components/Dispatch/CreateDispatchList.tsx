@@ -168,36 +168,54 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     const code = rawValue.trim();
     if (!code) return { success: false, message: "Empty code" };
 
-    const match = scannableItems.find(item => {
-      if (item.isPacked) return false;
-      let scannedSkuPart = code;
-      if (code.length === 13) scannedSkuPart = code.substring(3, 6);
+    // 1. Identify the CURRENT TARGET (First unpacked item)
+    const targetItem = scannableItems.find(i => !i.isPacked);
+    
+    // 2. Helper to check if a code matches an item
+    const isMatching = (item: any, scanCode: string) => {
+      let scannedSkuPart = scanCode;
+      if (scanCode.length === 13) scannedSkuPart = scanCode.substring(3, 6);
       
       const targetSkuDigits = (item.sku || "").replace(/\D/g, "");
       const targetSkuPart = targetSkuDigits.substring(Math.max(0, targetSkuDigits.length - 3)).padStart(3, "0");
 
-      const isBarcodeMatch = code === item.barcode;
+      const isBarcodeMatch = scanCode === item.barcode;
       const isSkuMatch = 
         (scannedSkuPart && scannedSkuPart === targetSkuPart) || 
-        code.toUpperCase() === item.sku.toUpperCase() ||
-        (code.length >= 3 && item.sku.includes(code));
-
+        scanCode.toUpperCase() === item.sku.toUpperCase() ||
+        (scanCode.length >= 3 && item.sku.includes(scanCode));
+      
       return isBarcodeMatch || isSkuMatch;
-    });
+    };
 
-    if (match) {
-      const newItems = scannableItems.map(i => 
-        i.id === match.id 
-          ? { ...i, boxName: i.boxName || currentBoxName, isPacked: true, scannedValue: code } 
-          : i
-      );
-      setScannableItems(newItems);
-      setLastScanned({ value: code, match: true, expected: match.sku });
-      return { success: true, item: match };
+    // 3. Check if we have a match at all
+    const anyMatch = scannableItems.find(item => !item.isPacked && isMatching(item, code));
+
+    if (!anyMatch) {
+      setLastScanned({ value: code, match: false, expected: "Invalid" });
+      return { success: false, message: "Barcode not found in list" };
     }
 
-    setLastScanned({ value: code, match: false, expected: "No Match" });
-    return { success: false, message: "No match found for this SKU/Barcode" };
+    // 4. Sequential Check: Is it the target we're looking for?
+    if (targetItem && !isMatching(targetItem, code)) {
+      setLastScanned({ value: code, match: false, expected: targetItem.sku });
+      return { 
+        success: false, 
+        message: `WRONG ITEM! Expected ${targetItem.sku}`,
+        expectedSku: targetItem.sku 
+      };
+    }
+
+    // 5. Success: Process the match
+    const match = anyMatch; 
+    const newItems = scannableItems.map(i => 
+      i.id === match.id 
+        ? { ...i, boxName: i.boxName || currentBoxName, isPacked: true, scannedValue: code } 
+        : i
+    );
+    setScannableItems(newItems);
+    setLastScanned({ value: code, match: true, expected: match.sku });
+    return { success: true, item: match };
   };
 
   const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
