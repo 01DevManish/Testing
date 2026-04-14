@@ -22,6 +22,15 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "global-barcode-scanner";
   const [mounted, setMounted] = useState(false);
+  
+  // CRITICAL: Prevent stale closures for scanner callbacks
+  const latestOnScanRef = useRef(onScan);
+  const latestLastMessageRef = useRef(lastMessage);
+  
+  useEffect(() => {
+    latestOnScanRef.current = onScan;
+    latestLastMessageRef.current = lastMessage;
+  }, [onScan, lastMessage]);
 
   // Stats
   const packedCount = scannableItems.filter(i => i.isPacked).length;
@@ -57,7 +66,7 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
       await html5QrCode.start(
         { facingMode: "environment" },
         config,
-        (decodedText) => handleDetection(decodedText),
+        (decodedText) => latestHandleDetectionRef.current(decodedText),
         () => {} // Quiet on frame errors
       );
       setIsScanning(true);
@@ -78,6 +87,36 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
     };
   }, [mounted]);
 
+  // Hardware Barcode Scanner Support (Acts as extremely fast keyboard + ENTER)
+  useEffect(() => {
+    let hwBarcode = "";
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        const currentTime = Date.now();
+        // Hardware scanners type very fast. If delay > 50ms between keys, it's probably human typing (reset).
+        if (currentTime - lastKeyTime > 50) {
+            hwBarcode = ""; 
+        }
+        
+        if (e.key === "Enter") {
+            if (hwBarcode.length >= 3) {
+                e.preventDefault();
+                latestHandleDetectionRef.current(hwBarcode);
+            }
+            hwBarcode = "";
+        } else if (e.key.length === 1) { // Normal characters
+            hwBarcode += e.key;
+        }
+        
+        lastKeyTime = currentTime;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []); // Empty deps, using refs for everything inside
+
+
   const playBeep = (type: "success" | "error") => {
     try {
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -89,14 +128,14 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
 
         if (type === "success") {
             oscillator.type = "sine";
-            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime); // High pitched beep
+            gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.1);
         } else {
-            oscillator.type = "sawtooth";
-            oscillator.frequency.setValueAtTime(110, audioCtx.currentTime); // Low A
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            oscillator.type = "square";
+            oscillator.frequency.setValueAtTime(150, audioCtx.currentTime); // Low buzz
+            gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.3);
         }
@@ -106,10 +145,12 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
   };
 
   const handleDetection = (code: string) => {
+    const currentLastMsg = latestLastMessageRef.current;
     // Ultra-low debounce for continuous background scanning (1 scan per ~0.3s)
-    if (Date.now() - (lastMessage?.time || 0) < 300 && lastMessage?.text.includes(code)) return;
+    if (Date.now() - (currentLastMsg?.time || 0) < 300 && currentLastMsg?.text.includes(code)) return;
 
-    const result = onScan(code);
+    // Use LATEST onScan to prevent stale React state closures!
+    const result = latestOnScanRef.current(code);
     const now = Date.now();
 
     if (result.success) {
@@ -135,6 +176,12 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
       setLastMessage(prev => prev?.time === now ? null : prev);
     }, 400);
   };
+  
+  // Track latest handleDetection to ensure HW scanner uses the right one without re-binding listeners
+  const latestHandleDetectionRef = useRef(handleDetection);
+  useEffect(() => {
+    latestHandleDetectionRef.current = handleDetection;
+  });
 
   const currentIdx = parseInt(currentBoxName.replace(/\D/g, "")) || 1;
 
@@ -205,45 +252,44 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
             </div>
         </div>
 
-        {/* Target SKU Box (Floating near the bottom crosshair) */}
-        <div className="absolute bottom-10 left-4 right-4 z-50 pointer-events-none">
+        {/* Target SKU Box (Premium Native Card) */}
+        <div className="absolute bottom-10 left-4 right-4 z-[80] pointer-events-none">
             {nextItem ? (
-                <div className="bg-indigo-600/95 backdrop-blur-2xl border border-indigo-400/50 rounded-[32px] p-5 shadow-[0_10px_40px_rgba(79,70,229,0.5)] animate-in slide-in-from-bottom duration-500 pointer-events-auto flex items-center gap-5">
-                     <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl border border-white/20 flex-shrink-0 shadow-inner">
+                <div key={nextItem.sku} className="bg-white/95 backdrop-blur-3xl border-t-[6px] border-indigo-600 rounded-[32px] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-in slide-in-from-bottom duration-300 pointer-events-auto flex items-center gap-5">
+                     <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-slate-200 shrink-0">
                          📦
                      </div>
                      <div className="flex-1 min-w-0">
-                         <div className="flex justify-between items-center mb-1">
-                             <span className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em]">Scan Target</span>
-                             <span className="text-[10px] text-white font-black bg-black/20 px-2.5 py-0.5 rounded-full border border-black/10">Pack {packedCount + 1}/{totalCount}</span>
+                         <div className="flex justify-between items-center mb-1.5">
+                             <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Next Item to Scan</span>
+                             <span className="text-[10px] text-indigo-700 font-black bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-sm">{packedCount + 1} / {totalCount}</span>
                          </div>
-                         <h2 className="text-white text-xl font-black truncate font-mono uppercase tracking-tight">{nextItem.sku}</h2>
+                         <h2 className="text-slate-900 text-2xl font-black truncate tracking-tighter uppercase font-mono">{nextItem.sku}</h2>
+                         <p className="text-slate-500 text-[11px] font-bold truncate tracking-wide mt-0.5">{nextItem.productName}</p>
                      </div>
                 </div>
             ) : (
-                <div className="bg-emerald-500/95 backdrop-blur-2xl rounded-[32px] p-5 flex items-center gap-4 shadow-2xl pointer-events-auto border border-emerald-400">
-                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 animate-bounce">
+                <div className="bg-emerald-500/95 backdrop-blur-3xl rounded-[32px] p-6 flex items-center justify-center flex-col shadow-2xl pointer-events-auto border-2 border-white/50 animate-bounce">
+                     <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-3xl mb-3">
                          🎉
                      </div>
-                     <div>
-                        <h2 className="text-white text-lg font-black uppercase tracking-wider">All Done!</h2>
-                        <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Scanning Completed</p>
-                     </div>
+                     <h2 className="text-white text-xl font-black uppercase tracking-wider">All Items Scanned!</h2>
+                     <p className="text-white/80 text-xs font-bold uppercase tracking-widest mt-1">Ready for Dispatch</p>
                 </div>
             )}
         </div>
 
         {/* Camera Error Display */}
         {errorStatus && (
-           <div className="absolute inset-0 z-[70] bg-slate-950 flex flex-col items-center justify-center p-12 text-center">
+           <div className="absolute inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-12 text-center pointer-events-auto">
               <div className="w-20 h-20 bg-rose-500 rounded-[28px] flex items-center justify-center text-4xl mb-6 shadow-2xl rotate-3">⚠️</div>
-              <h3 className="text-white text-xl font-black mb-3">Camera Connection Lost</h3>
+              <h3 className="text-white text-xl font-black mb-3">Camera Disabled</h3>
               <p className="text-white/50 text-xs font-bold uppercase tracking-widest leading-loose mb-10">{errorStatus}</p>
               <button 
                 onClick={startScanner}
                 className="bg-indigo-500 text-white font-black px-12 py-4 rounded-2xl shadow-[0_10px_30px_rgba(99,102,241,0.4)] active:scale-95 transition-all"
               >
-                REINITIALIZE CAMERA
+                ENABLE CAMERA
               </button>
            </div>
         )}
