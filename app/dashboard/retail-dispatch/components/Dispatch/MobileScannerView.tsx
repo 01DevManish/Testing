@@ -106,8 +106,8 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
   };
 
   const handleDetection = (code: string) => {
-    // Ultra-low debounce for continuous background scanning (1 scan per ~0.5s)
-    if (Date.now() - (lastMessage?.time || 0) < 400 && lastMessage?.text.includes(code)) return;
+    // Ultra-low debounce for continuous background scanning (1 scan per ~0.3s)
+    if (Date.now() - (lastMessage?.time || 0) < 300 && lastMessage?.text.includes(code)) return;
 
     const result = onScan(code);
     const now = Date.now();
@@ -133,7 +133,7 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
     // Extremely fast clear for continuous scanning loop
     setTimeout(() => {
       setLastMessage(prev => prev?.time === now ? null : prev);
-    }, 500);
+    }, 400);
   };
 
   const currentIdx = parseInt(currentBoxName.replace(/\D/g, "")) || 1;
@@ -187,47 +187,50 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
             </p>
         </div>
 
-        {/* Top Navigation & Target Header */}
-        <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
-            
-            {/* Minimal Top Bar with Close Button */}
-            <div className="flex justify-between items-start p-4 mb-2">
-                <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-3 shadow-lg pointer-events-auto">
-                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                   <span className="text-white text-[10px] font-black uppercase tracking-widest">{partyName.substring(0,15)}</span>
-                </div>
-                
-                <button 
-                  onClick={onClose}
-                  className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg hover:bg-rose-500/80 pointer-events-auto"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-                  </svg>
-                </button>
-            </div>
+        {/* Native App Top Navigation Bar */}
+        <div className="absolute top-0 left-0 right-0 p-4 pt-6 z-50 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent pointer-events-none pb-12">
+            <button 
+                onClick={onClose}
+                className="pointer-events-auto flex items-center gap-1.5 text-white/90 hover:text-white transition-colors py-2 pr-4 rounded-full active:scale-95"
+            >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m15 18-6-6 6-6"/>
+                </svg>
+                <span className="font-black text-sm tracking-wide">Back</span>
+            </button>
 
-            {/* Target SKU Box */}
-            <div className="px-4">
-               {nextItem ? (
-                   <div className="bg-white/15 backdrop-blur-3xl border border-white/20 rounded-3xl p-5 shadow-2xl pointer-events-auto transform transition-transform">
-                       <div className="flex justify-between items-center mb-2">
-                           <span className="text-[9px] text-white/70 font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                               <div className="w-4 h-4 bg-indigo-500 rounded flex items-center justify-center text-[10px]">🎯</div> Target
-                           </span>
-                           <span className="text-[10px] text-white/90 font-black uppercase bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">Pack {packedCount + 1} of {totalCount}</span>
-                       </div>
-                       <div className="flex flex-col">
-                           <h2 className="text-white text-[22px] font-black truncate tracking-tight uppercase font-mono">{nextItem.sku}</h2>
-                           <p className="text-white/70 text-[11px] font-bold truncate tracking-wide mt-0.5">{nextItem.productName}</p>
-                       </div>
-                   </div>
-               ) : (
-                   <div className="bg-emerald-500/90 backdrop-blur-2xl rounded-3xl p-5 text-center animate-bounce shadow-2xl pointer-events-auto border border-emerald-400">
-                       <h2 className="text-white text-lg font-black uppercase italic tracking-wider">🎉 Scanning Complete!</h2>
-                   </div>
-               )}
+            <div className="bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,1)]"></div>
+                <span className="text-white text-[10px] font-black uppercase tracking-widest">{partyName.substring(0,18)}</span>
             </div>
+        </div>
+
+        {/* Target SKU Box (Floating near the bottom crosshair) */}
+        <div className="absolute bottom-10 left-4 right-4 z-50 pointer-events-none">
+            {nextItem ? (
+                <div className="bg-indigo-600/95 backdrop-blur-2xl border border-indigo-400/50 rounded-[32px] p-5 shadow-[0_10px_40px_rgba(79,70,229,0.5)] animate-in slide-in-from-bottom duration-500 pointer-events-auto flex items-center gap-5">
+                     <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl border border-white/20 flex-shrink-0 shadow-inner">
+                         📦
+                     </div>
+                     <div className="flex-1 min-w-0">
+                         <div className="flex justify-between items-center mb-1">
+                             <span className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em]">Scan Target</span>
+                             <span className="text-[10px] text-white font-black bg-black/20 px-2.5 py-0.5 rounded-full border border-black/10">Pack {packedCount + 1}/{totalCount}</span>
+                         </div>
+                         <h2 className="text-white text-xl font-black truncate font-mono uppercase tracking-tight">{nextItem.sku}</h2>
+                     </div>
+                </div>
+            ) : (
+                <div className="bg-emerald-500/95 backdrop-blur-2xl rounded-[32px] p-5 flex items-center gap-4 shadow-2xl pointer-events-auto border border-emerald-400">
+                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 animate-bounce">
+                         🎉
+                     </div>
+                     <div>
+                        <h2 className="text-white text-lg font-black uppercase tracking-wider">All Done!</h2>
+                        <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Scanning Completed</p>
+                     </div>
+                </div>
+            )}
         </div>
 
         {/* Camera Error Display */}
@@ -246,33 +249,34 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
         )}
       </div>
 
-      {/* Viewport 2: Activity Log (Premium List) */}
-      <div className="flex-1 bg-slate-50 flex flex-col rounded-t-[32px] -mt-6 z-[55] relative shadow-[0_-20px_40px_rgba(0,0,0,0.15)] overflow-hidden">
+      {/* Viewport 2: Activity Log (Mobile Drawer Style) */}
+      <div className="flex-1 bg-white flex flex-col rounded-t-[32px] -mt-6 z-[55] relative shadow-[0_-20px_40px_rgba(0,0,0,0.15)] overflow-hidden">
         
+        {/* Drawer Handle */}
+        <div className="w-full flex justify-center py-3 bg-white">
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+        </div>
+
         {/* Header/Status Strip */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-xl border-b border-slate-100">
+        <div className="flex items-center justify-between px-6 pb-4 bg-white border-b border-slate-100">
            <div className="flex items-center gap-4">
               <div className="flex flex-col">
-                 <span className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mb-0.5">Scanned</span>
-                 <span className="text-xl font-black text-slate-900 leading-none">{packedCount} <span className="text-sm font-bold text-slate-300">/</span> <span className="text-sm font-bold text-slate-400">{totalCount}</span></span>
-              </div>
-              <div className="h-8 w-[1px] bg-slate-200"></div>
-              <div className="flex flex-col">
-                 <span className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mb-0.5">Current Box</span>
-                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{currentBoxName}</span>
-                 </div>
+                 <h3 className="text-slate-800 font-black text-lg">Scan Log</h3>
+                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em]">{packedCount} of {totalCount} items verified</span>
               </div>
            </div>
            
-           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
-               <button onClick={() => onBoxChange(Math.max(1, currentIdx - 1))} className="w-8 h-8 flex items-center justify-center bg-white text-slate-600 rounded-lg text-sm font-black shadow-sm active:scale-95 transition-transform">−</button>
-               <button onClick={() => onBoxChange(currentIdx + 1)} className="w-8 h-8 flex items-center justify-center bg-white text-slate-600 rounded-lg text-sm font-black shadow-sm active:scale-95 transition-transform">+</button>
+           <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-100 shadow-sm">
+               <span className="text-[9px] text-slate-400 font-black uppercase mr-1 pl-1">BOX</span>
+               <span className="text-[11px] font-black text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-100">{currentBoxName}</span>
+               <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+               <button onClick={() => onBoxChange(Math.max(1, currentIdx - 1))} className="w-7 h-7 flex items-center justify-center bg-white text-slate-600 rounded-lg text-sm font-black active:scale-95 transition-transform" aria-label="Previous Box">−</button>
+               <button onClick={() => onBoxChange(currentIdx + 1)} className="w-7 h-7 flex items-center justify-center bg-white text-slate-600 rounded-lg text-sm font-black active:scale-95 transition-transform" aria-label="Next Box">+</button>
            </div>
         </div>
 
-        {/* History Scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 pb-12 pt-2">
+        {/* History Scrollable (The Background Autofill Visuals) */}
+        <div className="flex-1 overflow-y-auto px-4 pb-12 pt-3 bg-slate-50">
             {scanHistory.map((item) => (
                 <div key={item.id} className="bg-white mx-1 my-2 p-4 rounded-3xl flex items-center gap-5 border border-slate-100 shadow-sm transition-all animate-in slide-in-from-bottom-2 duration-400">
                     <div className="w-12 h-12 rounded-[20px] bg-emerald-50 text-emerald-500 flex items-center justify-center text-lg shadow-inner shrink-0 border border-emerald-100">
