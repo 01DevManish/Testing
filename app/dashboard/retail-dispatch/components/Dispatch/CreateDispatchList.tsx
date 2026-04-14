@@ -8,6 +8,7 @@ import { logActivity } from "../../../../lib/activityLogger";
 import { generateBoxBarcode, generateDispatchBarcode } from "../../../../lib/barcodeUtils";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "../ui";
 import { firestoreApi } from "../../data";
+import MobileScannerView from "./MobileScannerView";
 
 interface ScannableItem {
   id: string; // row unique id
@@ -38,12 +39,12 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastScanned, setLastScanned] = useState<{ value: string; match: boolean; expected: string } | null>(null);
   const [packageType, setPackageType] = useState<"Box" | "Bale">("Box");
+  const [showMobileScanner, setShowMobileScanner] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        // Load Inventory for matching
         const inv = await firestoreApi.getInventoryProducts();
         setInventory(inv);
 
@@ -71,7 +72,6 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const handleSelectList = async (list: any) => {
     setSelectedList(list);
     
-    // Resolve Party Rates for this party to get packaging types
     let partyRateMap: Record<string, string> = {};
     try {
       const partyRatesRef = ref(db, "partyRates");
@@ -93,14 +93,10 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       console.warn("Failed to resolve party rates for packaging:", e);
     }
 
-    // Expand items by quantity
     const expanded: ScannableItem[] = [];
-    list.items.forEach((item: any, idx: number) => {
-      // Find real barcode from inventory state
+    list.items.forEach((item: any) => {
       const invProd = inventory.find(p => p.id === item.productId || p.sku === item.sku);
       const barcode = invProd?.barcode || "";
-      
-      // Resolve packaging type from party rate map (case-insensitive)
       const prodKey = (item.productName || "").trim().toLowerCase();
       const packagingType = partyRateMap[prodKey] || item.packagingType || item.packingType || list.packagingType || list.packingType || "Box";
 
@@ -119,12 +115,10 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     });
     setScannableItems(expanded);
     
-    // Generate Dispatch ID upfront for barcode consistency
     const newDispId = `DISP-${Math.floor(1000 + Math.random() * 8999)}`;
     setDispatchId(newDispId);
-    
     setBoxBarcodes({});
-    setCurrentBoxIndex(1); // Reset box count
+    setCurrentBoxIndex(1);
     setSelectedIds(new Set());
   };
 
@@ -149,24 +143,13 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
 
   const handleCreateBox = () => {
     if (selectedIds.size === 0) return;
-
-    // 1. Identify items for this box
     const itemsInBox = scannableItems.filter(i => selectedIds.has(i.id));
-    
-    // 2. Resolve Collection IDs and unique SKUs for these items
     const collectionCodes = itemsInBox
       .map(item => inventory.find(p => p.id === item.productId)?.collectionCode || "000")
-      .filter((v, i, a) => a.indexOf(v) === i); // Unique
+      .filter((v, i, a) => a.indexOf(v) === i);
 
     const uniqueSkuCount = new Set(itemsInBox.map(i => i.sku)).size;
-
-    // 3. Generate 15-digit Barcode
-    const barcode = generateBoxBarcode(
-      currentBoxName,
-      collectionCodes,
-      uniqueSkuCount,
-      itemsInBox.length
-    );
+    const barcode = generateBoxBarcode(currentBoxName, collectionCodes, uniqueSkuCount, itemsInBox.length);
 
     const newItems = scannableItems.map(item => {
       if (selectedIds.has(item.id)) {
@@ -181,61 +164,46 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     setCurrentBoxIndex(prev => prev + 1);
   };
 
+  const handleAutoScan = (rawValue: string) => {
+    const code = rawValue.trim();
+    if (!code) return { success: false, message: "Empty code" };
+
+    const match = scannableItems.find(item => {
+      if (item.isPacked) return false;
+      let scannedSkuPart = code;
+      if (code.length === 13) scannedSkuPart = code.substring(3, 6);
+      
+      const targetSkuDigits = (item.sku || "").replace(/\D/g, "");
+      const targetSkuPart = targetSkuDigits.substring(Math.max(0, targetSkuDigits.length - 3)).padStart(3, "0");
+
+      const isBarcodeMatch = code === item.barcode;
+      const isSkuMatch = 
+        (scannedSkuPart && scannedSkuPart === targetSkuPart) || 
+        code.toUpperCase() === item.sku.toUpperCase() ||
+        (code.length >= 3 && item.sku.includes(code));
+
+      return isBarcodeMatch || isSkuMatch;
+    });
+
+    if (match) {
+      const newItems = scannableItems.map(i => 
+        i.id === match.id 
+          ? { ...i, boxName: i.boxName || currentBoxName, isPacked: true, scannedValue: code } 
+          : i
+      );
+      setScannableItems(newItems);
+      setLastScanned({ value: code, match: true, expected: match.sku });
+      return { success: true, item: match };
+    }
+
+    setLastScanned({ value: code, match: false, expected: "No Match" });
+    return { success: false, message: "No match found for this SKU/Barcode" };
+  };
+
   const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       const item = scannableItems[idx];
-      const rawValue = item.scannedValue.trim();
-      
-      // Extraction: Index 3-6 is digits 4, 5, 6 (Pos 4 to 6)
-      let scannedSkuPart = rawValue;
-      if (rawValue.length === 13) {
-        scannedSkuPart = rawValue.substring(3, 6);
-      }
-
-      // Normalization: Match how inventory generates SKU parts (last 3 digits)
-      const targetSkuDigits = (item.sku || "").replace(/\D/g, "");
-      // Take the 3 digits that the system is likely looking for
-      const targetSkuPart = targetSkuDigits.substring(Math.max(0, targetSkuDigits.length - 3)).padStart(3, "0");
-
-      const isBarcodeMatch = rawValue === item.barcode;
-      // MATCH LOGIC: Full match OR 3-digit part match OR exact SKU match
-      const isSkuMatch = 
-        (scannedSkuPart && scannedSkuPart === targetSkuPart) || 
-        rawValue.toUpperCase() === item.sku.toUpperCase() ||
-        (rawValue.length >= 3 && item.sku.includes(rawValue));
-
-      setLastScanned({ value: rawValue, match: !!(isBarcodeMatch || isSkuMatch), expected: item.sku });
-
-      if (isBarcodeMatch || isSkuMatch) {
-        if (!item.boxName) {
-          alert(`Please assign this item to a box (B1, B2...) before scanning.`);
-          const newItems = [...scannableItems];
-          newItems[idx].scannedValue = "";
-          setScannableItems(newItems);
-          return;
-        }
-
-        const newItems = [...scannableItems];
-        newItems[idx].isPacked = true;
-        setScannableItems(newItems);
-        
-        // Auto-Focus Next
-        setTimeout(() => {
-          const nextInput = document.getElementById(`scan-${idx + 1}`) as HTMLInputElement;
-          if (nextInput) {
-            nextInput.focus();
-          } else {
-             document.getElementById(`scan-${idx}`)?.blur();
-          }
-        }, 10);
-      } else {
-        console.log("Mismatch Details:", { 
-          fullScan: rawValue, 
-          extracted: scannedSkuPart, 
-          target: targetSkuPart, 
-          originalSku: item.sku 
-        });
-      }
+      handleAutoScan(item.scannedValue);
     }
   };
 
@@ -244,14 +212,16 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     newItems[idx].scannedValue = value;
     setScannableItems(newItems);
     
-    const rawValue = value.trim();
-    if (rawValue.length === 13) {
-      const scannedSkuPart = rawValue.substring(3, 6);
-      const targetSkuDigits = (newItems[idx].sku || "").replace(/\D/g, "");
+    if (value.trim().length >= 3) {
+      const item = newItems[idx];
+      let scannedSkuPart = value.trim();
+      if (value.trim().length === 13) scannedSkuPart = value.trim().substring(3, 6);
+      
+      const targetSkuDigits = (item.sku || "").replace(/\D/g, "");
       const targetSkuPart = targetSkuDigits.substring(targetSkuDigits.length - 3).padStart(3, "0");
 
-      if (scannedSkuPart === targetSkuPart || rawValue === newItems[idx].barcode) {
-        if (!newItems[idx].boxName) return;
+      if (scannedSkuPart === targetSkuPart || value.trim() === item.barcode || value.trim().toUpperCase() === item.sku.toUpperCase()) {
+        if (!item.boxName) return;
         newItems[idx].isPacked = true;
         setScannableItems(newItems);
         setTimeout(() => {
@@ -259,28 +229,17 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           if (nextInput) nextInput.focus();
         }, 10);
       }
-    } else if (rawValue.toUpperCase() === newItems[idx].sku.toUpperCase()) {
-       if (!newItems[idx].boxName) return;
-       newItems[idx].isPacked = true;
-       setScannableItems(newItems);
-       setTimeout(() => {
-         const nextInput = document.getElementById(`scan-${idx + 1}`) as HTMLInputElement;
-         if (nextInput) nextInput.focus();
-       }, 10);
     }
   };
 
   const handleDispatch = async () => {
     if (!selectedList) return;
-    
-    // 1. Check if all items are packed
     const allPacked = scannableItems.every(i => i.isPacked);
     if (!allPacked) {
       alert("Please scan all items before finalizing.");
       return;
     }
 
-    // 2. Verify PIN
     if (pin !== userData?.dispatchPin) {
       alert("Incorrect MPIN. Access denied.");
       setPin("");
@@ -291,14 +250,10 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     try {
       const listRef = ref(db, `packingLists/${selectedList.id}`);
       const dispId = dispatchId || `DISP-${Math.floor(1000 + Math.random() * 8999)}`;
-      
       const totalBoxes = currentBoxIndex - 1;
       const totalItems = scannableItems.length;
-
-      // New 15-digit Dispatch Barcode
       const finalDispatchBarcode = generateDispatchBarcode(dispId, totalBoxes, totalItems);
 
-      // Prepare updated items list for the record (carrying over packagingType)
       const updatedRecordItems = scannableItems.reduce((acc: any[], item) => {
         const existing = acc.find(x => x.productName === item.productName && x.boxName === item.boxName);
         if (existing) {
@@ -319,10 +274,10 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         status: "Packed",
         invoiceNo,
         dispatchId: dispId,
-        dispatchBarcode: finalDispatchBarcode, // Save the new 15-digit barcode
+        dispatchBarcode: finalDispatchBarcode,
         boxBarcodes,
         lrNo,
-        bails: totalBoxes, // Save the total box/bail count
+        bails: totalBoxes,
         items: updatedRecordItems, 
         dispatchedAt: Date.now(),
         dispatchedBy: userData?.name || user?.name || "System"
@@ -342,14 +297,8 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           invoiceNo,
           lrNo, 
           unitsScanned: scannableItems.length,
-          totalBoxes: currentBoxIndex,
-          items: scannableItems.map(i => ({ 
-            productName: i.productName, 
-            sku: i.sku, 
-            boxName: i.boxName, 
-            packagingType: i.packagingType 
-          })),
-          boxMapping: scannableItems.map(i => ({ p: i.productName, b: i.boxName }))
+          totalBoxes: totalBoxes,
+          items: scannableItems.map(i => ({ productName: i.productName, sku: i.sku, boxName: i.boxName, packagingType: i.packagingType }))
         }
       });
 
@@ -419,7 +368,6 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         </Card>
       ) : (
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Side: Scanning Table */}
             <div className="lg:col-span-2">
                <Card style={{ padding: 0, overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
                   <div className="p-4 border-b border-slate-100 bg-white flex justify-between items-center">
@@ -446,9 +394,18 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                               Create {packageType} {currentBoxName} ({selectedIds.size} selected)
                            </button>
                         )}
-                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
-                           <span className="text-[10px] font-bold text-slate-400 uppercase mr-3">Next {packageType}</span>
-                           <span className="text-sm font-black text-slate-600">{currentBoxName}</span>
+                        <div className="flex items-center gap-2">
+                           <button 
+                             onClick={() => setShowMobileScanner(true)}
+                             className="flex items-center gap-2 bg-slate-900 text-white text-[10px] font-bold px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+                           >
+                              <span className="text-sm">📱</span>
+                              <span>Mobile Scanner</span>
+                           </button>
+                           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase mr-3">Next {packageType}</span>
+                              <span className="text-sm font-black text-slate-600">{currentBoxName}</span>
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -560,7 +517,6 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                </Card>
             </div>
 
-            {/* Right Side: Options & Finalize */}
             <div className="space-y-6">
                <Card style={{ padding: 24 }}>
                   <div className="flex justify-between items-start mb-6">
@@ -584,7 +540,6 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                         <p className="text-[10px] text-slate-400 mt-2 italic px-1">This field is mandatory for tracking.</p>
                      </div>
 
-                     {/* Verification Section */}
                      <div className="pt-4 border-t border-slate-100">
                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Security Verification</label>
                         <input 
@@ -608,6 +563,18 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                </Card>
             </div>
          </div>
+      )}
+
+      {showMobileScanner && selectedList && (
+        <MobileScannerView 
+          partyName={selectedList.partyName}
+          scannableItems={scannableItems}
+          currentBoxName={currentBoxName}
+          packageType={packageType}
+          onBoxChange={(idx) => setCurrentBoxIndex(idx)}
+          onScan={handleAutoScan}
+          onClose={() => setShowMobileScanner(false)}
+        />
       )}
     </div>
   );
