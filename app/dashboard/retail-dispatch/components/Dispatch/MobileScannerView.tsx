@@ -106,8 +106,8 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
   };
 
   const handleDetection = (code: string) => {
-    // Debounce rapid fire - lowered for high speed
-    if (Date.now() - (lastMessage?.time || 0) < 600 && lastMessage?.text.includes(code)) return;
+    // Ultra-low debounce for continuous background scanning (1 scan per ~0.5s)
+    if (Date.now() - (lastMessage?.time || 0) < 400 && lastMessage?.text.includes(code)) return;
 
     const result = onScan(code);
     const now = Date.now();
@@ -130,10 +130,10 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
       playBeep("error");
     }
 
-    // Faster clear for continuous scanning
+    // Extremely fast clear for continuous scanning loop
     setTimeout(() => {
       setLastMessage(prev => prev?.time === now ? null : prev);
-    }, 800);
+    }, 500);
   };
 
   const currentIdx = parseInt(currentBoxName.replace(/\D/g, "")) || 1;
@@ -144,11 +144,11 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
     <div className="fixed inset-0 w-full h-full z-[99999] bg-white flex flex-col font-sans overflow-hidden animate-in fade-in duration-300">
       
       {/* Viewport 1: Camera Feed (Dominant) */}
-      <div className={`relative h-[70vh] transition-colors duration-300 overflow-hidden shadow-2xl ${
-        lastMessage?.type === "success" ? "bg-emerald-950" : 
-        lastMessage?.type === "error" ? "bg-rose-950" : "bg-black"
+      <div className={`relative h-[72vh] transition-colors duration-200 overflow-hidden shadow-2xl ${
+        lastMessage?.type === "success" ? "bg-emerald-600" : 
+        lastMessage?.type === "error" ? "bg-rose-600" : "bg-black"
       }`}>
-        <div id={scannerId} className={`w-full h-full transition-opacity duration-300 ${lastMessage ? "opacity-40" : "opacity-95"}`}></div>
+        <div id={scannerId} className={`w-full h-full transition-opacity duration-200 ${lastMessage ? "opacity-30" : "opacity-100"}`}></div>
         
         {/* Viewfinder Overlay */}
         <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
@@ -187,49 +187,48 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
             </p>
         </div>
 
-        {/* GUIDED HEADER: Massive Target SKU */}
-        <div className="absolute top-0 left-0 right-0 p-4 pt-10 z-50 pointer-events-none">
-            {nextItem ? (
-                <div className="bg-white/10 backdrop-blur-3xl border border-white/20 rounded-[32px] p-6 shadow-2xl animate-in slide-in-from-top duration-500 pointer-events-auto">
-                    <div className="flex justify-between items-start mb-1">
-                        <span className="text-[10px] text-indigo-300 font-black uppercase tracking-[0.2em]">Next Item to Scan</span>
-                        <div className="flex items-center gap-1.5 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30">
-                            <span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></span>
-                            <span className="text-[8px] text-indigo-200 font-bold uppercase">Mission Active</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-5">
-                        <div className="flex-1 min-w-0">
-                            <h2 className="text-white text-2xl font-black truncate tracking-tight uppercase leading-tight font-mono">{nextItem.sku}</h2>
-                            <p className="text-white/60 text-[11px] font-bold truncate tracking-wide">{nextItem.productName}</p>
-                        </div>
-                        <div className="shrink-0 flex flex-col items-center">
-                            <div className="text-2xl mb-1">📦</div>
-                            <span className="text-[9px] text-white/40 font-black uppercase">PACK {packedCount + 1}/{totalCount}</span>
-                        </div>
-                    </div>
+        {/* Top Navigation & Target Header */}
+        <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
+            
+            {/* Minimal Top Bar with Close Button */}
+            <div className="flex justify-between items-start p-4 mb-2">
+                <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-3 shadow-lg pointer-events-auto">
+                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                   <span className="text-white text-[10px] font-black uppercase tracking-widest">{partyName.substring(0,15)}</span>
                 </div>
-            ) : (
-                <div className="bg-emerald-500/90 backdrop-blur-2xl rounded-3xl p-6 text-center animate-bounce shadow-2xl">
-                    <span className="text-3xl mb-2 block">🎉</span>
-                    <h2 className="text-white text-xl font-black uppercase italic">Scanning Complete!</h2>
-                    <p className="text-white/80 text-xs font-bold">All items have been verified.</p>
-                </div>
-            )}
-        </div>
+                
+                <button 
+                  onClick={onClose}
+                  className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg hover:bg-rose-500/80 pointer-events-auto"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                  </svg>
+                </button>
+            </div>
 
-        {/* Action Bar (Center-Right) */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-4">
-             <button 
-                onClick={onClose}
-                className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-2xl flex items-center justify-center active:scale-90 transition-transform"
-            >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-                </svg>
-            </button>
+            {/* Target SKU Box */}
+            <div className="px-4">
+               {nextItem ? (
+                   <div className="bg-white/15 backdrop-blur-3xl border border-white/20 rounded-3xl p-5 shadow-2xl pointer-events-auto transform transition-transform">
+                       <div className="flex justify-between items-center mb-2">
+                           <span className="text-[9px] text-white/70 font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                               <div className="w-4 h-4 bg-indigo-500 rounded flex items-center justify-center text-[10px]">🎯</div> Target
+                           </span>
+                           <span className="text-[10px] text-white/90 font-black uppercase bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">Pack {packedCount + 1} of {totalCount}</span>
+                       </div>
+                       <div className="flex flex-col">
+                           <h2 className="text-white text-[22px] font-black truncate tracking-tight uppercase font-mono">{nextItem.sku}</h2>
+                           <p className="text-white/70 text-[11px] font-bold truncate tracking-wide mt-0.5">{nextItem.productName}</p>
+                       </div>
+                   </div>
+               ) : (
+                   <div className="bg-emerald-500/90 backdrop-blur-2xl rounded-3xl p-5 text-center animate-bounce shadow-2xl pointer-events-auto border border-emerald-400">
+                       <h2 className="text-white text-lg font-black uppercase italic tracking-wider">🎉 Scanning Complete!</h2>
+                   </div>
+               )}
+            </div>
         </div>
-
 
         {/* Camera Error Display */}
         {errorStatus && (
@@ -248,30 +247,27 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
       </div>
 
       {/* Viewport 2: Activity Log (Premium List) */}
-      <div className="flex-1 bg-slate-50 flex flex-col rounded-t-[40px] -mt-10 z-[55] relative shadow-[0_-30px_60px_rgba(0,0,0,0.2)] border-t border-white overflow-hidden">
+      <div className="flex-1 bg-slate-50 flex flex-col rounded-t-[32px] -mt-6 z-[55] relative shadow-[0_-20px_40px_rgba(0,0,0,0.15)] overflow-hidden">
         
         {/* Header/Status Strip */}
-        <div className="flex items-center justify-between px-8 py-5 bg-white/50 backdrop-blur-md">
-           <div className="flex items-center gap-5">
+        <div className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-xl border-b border-slate-100">
+           <div className="flex items-center gap-4">
               <div className="flex flex-col">
-                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Validated</span>
-                 <span className="text-xl font-black text-slate-900">{packedCount} <span className="text-slate-300">/</span> {totalCount}</span>
+                 <span className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mb-0.5">Scanned</span>
+                 <span className="text-xl font-black text-slate-900 leading-none">{packedCount} <span className="text-sm font-bold text-slate-300">/</span> <span className="text-sm font-bold text-slate-400">{totalCount}</span></span>
               </div>
-              <div className="h-8 w-[1.5px] bg-slate-200"></div>
+              <div className="h-8 w-[1px] bg-slate-200"></div>
               <div className="flex flex-col">
-                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Package</span>
+                 <span className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mb-0.5">Current Box</span>
                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-indigo-600">{currentBoxName}</span>
-                    <div className="flex gap-0.5">
-                       <button onClick={() => onBoxChange(Math.max(1, currentIdx - 1))} className="w-5 h-5 flex items-center justify-center bg-slate-200 text-slate-600 rounded text-xs font-bold">-</button>
-                       <button onClick={() => onBoxChange(currentIdx + 1)} className="w-5 h-5 flex items-center justify-center bg-slate-200 text-slate-600 rounded text-xs font-bold">+</button>
-                    </div>
+                    <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{currentBoxName}</span>
                  </div>
               </div>
            </div>
            
-           <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping"></div>
+           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+               <button onClick={() => onBoxChange(Math.max(1, currentIdx - 1))} className="w-8 h-8 flex items-center justify-center bg-white text-slate-600 rounded-lg text-sm font-black shadow-sm active:scale-95 transition-transform">−</button>
+               <button onClick={() => onBoxChange(currentIdx + 1)} className="w-8 h-8 flex items-center justify-center bg-white text-slate-600 rounded-lg text-sm font-black shadow-sm active:scale-95 transition-transform">+</button>
            </div>
         </div>
 
