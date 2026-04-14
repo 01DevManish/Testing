@@ -78,31 +78,62 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
     };
   }, [mounted]);
 
+  const playBeep = (type: "success" | "error") => {
+    try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        if (type === "success") {
+            oscillator.type = "sine";
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        } else {
+            oscillator.type = "sawtooth";
+            oscillator.frequency.setValueAtTime(110, audioCtx.currentTime); // Low A
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.3);
+        }
+    } catch (e) {
+        console.warn("Audio feedback failed:", e);
+    }
+  };
+
   const handleDetection = (code: string) => {
-    // Debounce rapid fire
-    if (Date.now() - (lastMessage?.time || 0) < 1800 && lastMessage?.text.includes(code)) return;
+    // Debounce rapid fire - lowered for high speed
+    if (Date.now() - (lastMessage?.time || 0) < 600 && lastMessage?.text.includes(code)) return;
 
     const result = onScan(code);
     const now = Date.now();
 
     if (result.success) {
       setLastMessage({ type: "success", text: `Scanned: ${code}`, time: now });
-      if ("vibrate" in navigator) navigator.vibrate(100);
+      if ("vibrate" in navigator) navigator.vibrate(80);
+      playBeep("success");
+      
       setScanHistory(prev => [{
         id: now,
         productName: result.item.productName,
         sku: result.item.sku,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         box: currentBoxName
-      }, ...prev].slice(0, 8));
+      }, ...prev].slice(0, 10));
     } else {
       setLastMessage({ type: "error", text: result.message || "No match", time: now });
       if ("vibrate" in navigator) navigator.vibrate([80, 50, 80]);
+      playBeep("error");
     }
 
+    // Faster clear for continuous scanning
     setTimeout(() => {
       setLastMessage(prev => prev?.time === now ? null : prev);
-    }, 2500);
+    }, 800);
   };
 
   const currentIdx = parseInt(currentBoxName.replace(/\D/g, "")) || 1;
@@ -199,24 +230,6 @@ export default function MobileScannerView({ partyName, scannableItems, currentBo
             </button>
         </div>
 
-        {/* Global Result Overlay (Intense) */}
-        {lastMessage && (
-            <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center pointer-events-none animate-in zoom-in-95 duration-200">
-                <div className={`p-10 rounded-[48px] shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col items-center border-4 ${
-                    lastMessage.type === "success" ? "bg-emerald-500/95 border-emerald-400" : "bg-rose-500/95 border-rose-400"
-                }`}>
-                    <div className="text-6xl mb-4 drop-shadow-2xl">
-                        {lastMessage.type === "success" ? "✅" : "❌"}
-                    </div>
-                    <h1 className="text-white text-3xl font-black italic tracking-tighter uppercase drop-shadow-md">
-                        {lastMessage.type === "success" ? "MATCHED!" : "WRONG SKU!"}
-                    </h1>
-                    <p className="text-white/80 text-xs font-bold mt-2 tracking-widest uppercase">
-                        {lastMessage.text}
-                    </p>
-                </div>
-            </div>
-        )}
 
         {/* Camera Error Display */}
         {errorStatus && (

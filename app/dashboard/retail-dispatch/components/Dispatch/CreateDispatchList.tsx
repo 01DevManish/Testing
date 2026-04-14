@@ -173,19 +173,13 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     
     // 2. Helper to check if a code matches an item
     const isMatching = (item: any, scanCode: string) => {
-      let scannedSkuPart = scanCode;
-      if (scanCode.length === 13) scannedSkuPart = scanCode.substring(3, 6);
+      // Prioritize Barcode if available
+      if (item.barcode) {
+        return scanCode === item.barcode;
+      }
       
-      const targetSkuDigits = (item.sku || "").replace(/\D/g, "");
-      const targetSkuPart = targetSkuDigits.substring(Math.max(0, targetSkuDigits.length - 3)).padStart(3, "0");
-
-      const isBarcodeMatch = scanCode === item.barcode;
-      const isSkuMatch = 
-        (scannedSkuPart && scannedSkuPart === targetSkuPart) || 
-        scanCode.toUpperCase() === item.sku.toUpperCase() ||
-        (scanCode.length >= 3 && item.sku.includes(scanCode));
-      
-      return isBarcodeMatch || isSkuMatch;
+      // Fallback to EXACT SKU matching (no substring matching for accuracy)
+      return scanCode.toUpperCase() === (item.sku || "").toUpperCase();
     };
 
     // 3. Check if we have a match at all
