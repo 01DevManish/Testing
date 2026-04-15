@@ -6,6 +6,8 @@ import { BtnPrimary, BtnGhost } from "../../ui";
 import { generateCatalogPdf } from "./PdfGenerator";
 import { resolveS3Url } from "../Products/imageService";
 
+const CATALOG_SHARE_LOGO_URL = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.webp";
+
 interface ShareModalProps {
     selectedProducts: Product[];
     brands: { id: string, name: string, logoUrl?: string }[];
@@ -270,8 +272,11 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
                     <div style={{ width: 64, height: 64, borderRadius: 12, background: "#fff", border: "1px solid #f1f5f9", padding: 8, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <img 
-                            src={resolveS3Url("logo.png")} 
+                            src={CATALOG_SHARE_LOGO_URL} 
                             alt="Logo" 
+                            onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = resolveS3Url("logo.png");
+                            }}
                             style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} 
                         />
                     </div>

@@ -135,12 +135,14 @@ export default function BoxManagementTab({ packingLists, products }: BoxManageme
                         <div>
                            <div style={{ fontSize: 18, fontWeight: 700, color: "#1e293b" }}>{box.id}</div>
                            <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>{box.status}</div>
+                           {box.partyName && <div style={{ fontSize: 11, color: "#6366f1", fontWeight: 700, marginTop: 2 }}>{box.partyName}</div>}
                         </div>
                         <div style={{ width: 10, height: 10, borderRadius: "50%", background: box.status === "Available" ? "#10b981" : "#f59e0b" }} />
                      </div>
 
                      <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
                         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Items: <span style={{ fontWeight: 700, color: "#1e293b" }}>{box.items?.length || 0} / {box.capacity}</span></div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 6 }}>Total Boxes: <span style={{ fontWeight: 700, color: "#334155" }}>{box.totalBoxes || 1}</span></div>
                         <div style={{ width: "100%", height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
                            <div style={{ width: `${Math.min(100, ((box.items?.length || 0) / box.capacity) * 100)}%`, height: "100%", background: "#6366f1" }} />
                         </div>
@@ -152,7 +154,7 @@ export default function BoxManagementTab({ packingLists, products }: BoxManageme
                      </div>
                      
                       <div style={{ alignSelf: "flex-end", display: "flex", gap: 8 }}>
-                         <BtnPrimary style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => printBoxLabel(box, products)}>Print Label</BtnPrimary>
+                         <BtnPrimary style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => printBoxLabel(box)}>Print Label</BtnPrimary>
                          <BtnGhost style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => setEditingBox(box)}>Edit</BtnGhost>
                          <BtnGhost style={{ fontSize: 11, padding: "4px 8px", color: "#ef4444" }} onClick={() => { if(confirm("Permanent Delete?")) api.deleteManagedBox(box.id).then(loadManagedBoxes) }}>Delete</BtnGhost>
                       </div>

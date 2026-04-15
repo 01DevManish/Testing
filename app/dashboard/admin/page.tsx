@@ -479,7 +479,7 @@ export default function AdminPage() {
           currentName={currentName}
           userData={userData}
           handleLogout={handleLogout}
-          usersCount={users.length}
+          usersCount={filteredUsers.length}
           tasksCount={taskPendingCount > 0 ? taskPendingCount : undefined}
         />
 
@@ -518,7 +518,6 @@ export default function AdminPage() {
                 S={S}
                 isMobile={isMobile}
                 isTablet={isTablet}
-                users={users}
                 filteredUsers={filteredUsers}
                 fetchingUsers={fetchingUsers}
                 searchTerm={searchTerm}
@@ -540,7 +539,6 @@ export default function AdminPage() {
                   setEditPermissions(u.permissions || []);
                   setEditPin(u.dispatchPin || "");
                 }}
-                loadUsers={refreshData}
               />
             ) : tab === "tasks" ? (
               <TasksTab

@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { ref, get } from "firebase/database";
+import { ref, get, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { renderBarcodeToBase64, generateDispatchBarcode } from "../../lib/barcodeUtils";
 
@@ -18,6 +18,24 @@ const truncate = (text: string, maxChars: number): string => {
     return text.length > maxChars ? text.substring(0, maxChars - 2) + ".." : text;
 };
 
+const uploadPdfToS3 = async (pdfBlob: Blob, fileName: string): Promise<string | null> => {
+    try {
+        const formData = new FormData();
+        formData.append("file", new File([pdfBlob], fileName, { type: "application/pdf" }));
+        formData.append("folder", "retail-dispatch/dispatch-pdf");
+
+        const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data?.secure_url || null;
+    } catch {
+        return null;
+    }
+};
+
 // Resolve category & collection from inventory for items missing those fields
 const resolveItemFields = async (items: any[]): Promise<any[]> => {
     try {
@@ -25,29 +43,192 @@ const resolveItemFields = async (items: any[]): Promise<any[]> => {
         if (!snap.exists()) return items;
 
         const invMap: Record<string, any> = {};
+        const invSkuMap: Record<string, any> = {};
         snap.forEach(d => {
             const data = d.val();
             const name = (data.productName || "").trim().toLowerCase();
+            const sku = (data.sku || "").trim().toUpperCase();
             invMap[name] = {
                 category: data.category || "",
                 collection: data.collection || "",
                 brand: data.brand || "",
+                imageUrl: data.imageUrl || "",
+                productId: d.key || "",
             };
+            if (sku) {
+                invSkuMap[sku] = {
+                    category: data.category || "",
+                    collection: data.collection || "",
+                    brand: data.brand || "",
+                    imageUrl: data.imageUrl || "",
+                    productId: d.key || "",
+                };
+            }
         });
 
         return items.map(item => {
             const key = (item.productName || "").trim().toLowerCase();
-            const inv = invMap[key];
+            const skuKey = (item.sku || "").trim().toUpperCase();
+            const invByName = invMap[key];
+            const invBySku = invSkuMap[skuKey];
+            const inv = invBySku || invByName;
             return {
                 ...item,
                 category: item.category || inv?.category || "",
                 collectionName: item.collectionName || inv?.collection || "",
                 brandName: item.brandName || inv?.brand || "",
+                imageUrl: item.imageUrl || inv?.imageUrl || "",
+                productId: item.productId || inv?.productId || "",
             };
         });
     } catch (e) {
         console.warn("Could not resolve inventory fields:", e);
         return items;
+    }
+};
+
+const tryEmbedRasterImage = async (pdfDoc: PDFDocument, url: string) => {
+    if (!url) return null;
+    try {
+        const bytes = await fetch(url).then(res => res.arrayBuffer());
+        try {
+            return await pdfDoc.embedPng(bytes);
+        } catch {
+            return await pdfDoc.embedJpg(bytes);
+        }
+    } catch {
+        return null;
+    }
+};
+
+const appendBoxSummaryPages = async (
+    pdfDoc: PDFDocument,
+    resolvedItems: any[],
+    boxBarcodes: Record<string, string> = {}
+) => {
+    const grouped = resolvedItems.reduce((acc: Record<string, any[]>, item: any) => {
+        const box = item.boxName || "UNASSIGNED";
+        if (!acc[box]) acc[box] = [];
+        acc[box].push(item);
+        return acc;
+    }, {});
+
+    const boxNames = Object.keys(grouped).filter(n => n !== "UNASSIGNED").sort((a, b) => {
+        const an = parseInt((a.match(/\d+/) || ["0"])[0], 10);
+        const bn = parseInt((b.match(/\d+/) || ["0"])[0], 10);
+        if (an !== bn) return an - bn;
+        return a.localeCompare(b);
+    });
+
+    if (boxNames.length === 0) return;
+
+    const mergedBarcodes: Record<string, string> = { ...boxBarcodes };
+    try {
+        const managedSnap = await get(ref(db, "managed_boxes"));
+        if (managedSnap.exists()) {
+            boxNames.forEach((boxName) => {
+                if (mergedBarcodes[boxName]) return;
+                const managed = managedSnap.child(boxName);
+                const managedCode = managed.exists() ? managed.val()?.barcode : "";
+                if (managedCode) mergedBarcodes[boxName] = managedCode;
+            });
+        }
+    } catch (e) {
+        console.warn("Could not read managed box barcodes:", e);
+    }
+
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    for (const boxName of boxNames) {
+        const page = pdfDoc.addPage([595.28, 841.89]);
+        const { width, height } = page.getSize();
+        const draw = (text: string, x: number, fromTop: number, size = 10, bold = false) => {
+            if (!text && text !== "0") return;
+            page.drawText(String(text), {
+                x,
+                y: height - fromTop,
+                size,
+                font: bold ? fontBold : font,
+                color: rgb(0, 0, 0),
+            });
+        };
+
+        draw(`Box Summary: ${boxName}`, 35, 45, 20, true);
+        const boxCode = mergedBarcodes?.[boxName] || "-";
+        draw(`Barcode No: ${boxCode}`, 35, 70, 11, true);
+
+        if (boxCode !== "-") {
+            try {
+                const barcodeDataUrl = renderBarcodeToBase64(boxCode);
+                const barcodeBytes = await fetch(barcodeDataUrl).then(res => res.arrayBuffer());
+                const barcodeImg = await pdfDoc.embedPng(barcodeBytes);
+                page.drawImage(barcodeImg, {
+                    x: 35,
+                    y: height - 145,
+                    width: 180,
+                    height: 45
+                });
+            } catch {
+                // ignore barcode image failures
+            }
+        }
+
+        draw("Products in this box:", 35, 165, 12, true);
+
+        const items = grouped[boxName];
+        const cols = 3;
+        const cardW = 170;
+        const cardH = 185;
+        const gapX = 12;
+        const gapY = 14;
+        const startX = 35;
+        const startTop = 190;
+
+        for (let i = 0; i < items.length; i++) {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            const x = startX + col * (cardW + gapX);
+            const top = startTop + row * (cardH + gapY);
+            const bottomY = height - (top + cardH);
+            if (bottomY < 30) break;
+
+            page.drawRectangle({
+                x,
+                y: bottomY,
+                width: cardW,
+                height: cardH,
+                borderWidth: 1,
+                borderColor: rgb(0.85, 0.88, 0.92),
+                color: rgb(1, 1, 1),
+            });
+
+            const item = items[i];
+            const image = await tryEmbedRasterImage(pdfDoc, item.imageUrl || "");
+            if (image) {
+                page.drawImage(image, {
+                    x: x + 10,
+                    y: bottomY + 62,
+                    width: cardW - 20,
+                    height: 110
+                });
+            } else {
+                page.drawRectangle({
+                    x: x + 10,
+                    y: bottomY + 62,
+                    width: cardW - 20,
+                    height: 110,
+                    borderWidth: 1,
+                    borderColor: rgb(0.9, 0.92, 0.95),
+                    color: rgb(0.97, 0.98, 0.99),
+                });
+                draw("Image not available", x + 34, top + 72, 8);
+            }
+
+            draw(`SKU: ${item.sku || "N/A"}`, x + 10, top + 132, 10, true);
+            draw(`Qty: ${item.quantity || 1}`, x + 10, top + 148, 10);
+            draw(truncate(item.productName || "-", 28), x + 10, top + 164, 9);
+        }
     }
 };
 
@@ -99,9 +280,9 @@ export const generateTemplateDispatchPdf = async (list: any) => {
             });
         };
 
-        // ═══════════════════════════════════════════════════════
-        // LEFT BOX — Bill To / Ship To
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // LEFT BOX â€” Bill To / Ship To
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         const bX = 35; // Calibrated for left margin
         let bY = 168;
         draw("Bill To:", bX, bY, 9, true);
@@ -151,9 +332,9 @@ export const generateTemplateDispatchPdf = async (list: any) => {
             draw(ids, bX, bY, 9.5, true);
         }
 
-        // ═══════════════════════════════════════════════════════
-        // RIGHT BOX — Dispatch Details
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // RIGHT BOX â€” Dispatch Details
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         const valX = 430;
         const rY = 175;  // Aligned with labels of the template
         const rG = 11.2; // Row gap calibrated for template lines
@@ -180,9 +361,9 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         // 7. Transporter Name
         draw(truncate(list.transporter || "-", 20), valX, rY + rG * 6, 10);
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // TABLE Section
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         const tStartY = 305;
         const tRowH = 20.3; // Height adjustment for grid lines
         const maxRows = 17;
@@ -201,17 +382,17 @@ export const generateTemplateDispatchPdf = async (list: any) => {
             draw(truncate(item.boxName || "-", 15), 445, rowY, 10);
         });
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // TOTAL ROW
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         const totalQty = resolvedItems.reduce(
             (acc: number, item: any) => acc + (item.quantity || 1), 0
         );
         draw(String(totalQty), 395, 665, 11, true);
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // FOOTER Section (Prepared By & System URL)
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         const fY = 708;
         if (list.assignedToName) {
             draw(list.assignedToName, 115, fY, 13, true);
@@ -221,28 +402,31 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         const systemUrl = typeof window !== 'undefined' ? window.location.origin + "/dashboard/retail-dispatch" : "https://euruslifestyle.in/dashboard/retail-dispatch";
         draw(`Generated from: ${systemUrl}`, 35, 815, 7.5);
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // SAVE & OUTPUT
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        await appendBoxSummaryPages(pdfDoc, resolvedItems, list.boxBarcodes || {});
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
+        const localBlobUrl = URL.createObjectURL(blob);
 
-        // Open PDF in a new window for printing instead of downloading
-        const newWindow = window.open(url, '_blank');
-        if (newWindow) {
-            newWindow.focus();
-        } else {
-            // Fallback for popup blockers
-            const link = document.createElement("a");
-            link.href = url;
-            const pName = (list.partyName || "Record").replace(/\s+/g, "_");
-            link.download = `Dispatch_List_${pName}.pdf`;
-            link.click();
+        const fileName = `Dispatch_List_${(list.partyName || "Record").replace(/\s+/g, "_")}_${Date.now()}.pdf`;
+        const uploadedUrl = await uploadPdfToS3(blob, fileName);
+
+        if (uploadedUrl && list.id) {
+            try {
+                await update(ref(db, `packingLists/${list.id}`), { pdfUrl: uploadedUrl });
+            } catch {
+                // non-blocking db sync failure
+            }
         }
 
-        // Cleanup after a short delay to allow the new tab to load the blob
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        const viewUrl = uploadedUrl || localBlobUrl;
+        const newWindow = window.open(viewUrl, '_blank');
+        if (newWindow) newWindow.focus();
+        else alert("Popup blocked. Please allow popups to view the PDF.");
+
+        setTimeout(() => URL.revokeObjectURL(localBlobUrl), 8000);
 
     } catch (error) {
         console.error("Template PDF Generation Error:", error);

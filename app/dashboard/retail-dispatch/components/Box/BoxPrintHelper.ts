@@ -1,24 +1,13 @@
 import { ManagedBox } from "../../types";
 import { renderBarcodeToBase64 } from "@/app/lib/barcodeUtils";
-import { resolveS3Url } from "@/app/dashboard/inventory/components/Products/imageService";
 
 /**
- * Generates and triggers printing for a Managed Box label.
- * Includes barcode, timestamp, and a collage of SKU images.
+ * Thermal-friendly managed box labels.
+ * Left: D1 / D2 ... Right: 1/60, 2/60 ...
  */
-export const printBoxLabel = (box: ManagedBox, allProducts: any[]) => {
+export const printBoxLabel = (box: ManagedBox) => {
   const barcodeBase64 = renderBarcodeToBase64(box.barcode);
-  const printDate = new Date().toLocaleString();
-  
-  // Find images for the SKUs
-  const itemsWithImages = box.items.map(item => {
-    const product = allProducts.find(p => p.id === item.productId);
-    const rawUrl = product?.imageUrl || "https://via.placeholder.com/150?text=No+Image";
-    return {
-      ...item,
-      imageUrl: resolveS3Url(rawUrl)
-    };
-  });
+  const totalBoxes = Math.max(1, Number(box.totalBoxes) || 1);
 
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
@@ -30,61 +19,103 @@ export const printBoxLabel = (box: ManagedBox, allProducts: any[]) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Print Box Label - ${box.id}</title>
+        <title>Thermal Box Label - ${box.id}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
-          body { font-family: 'Inter', sans-serif; margin: 0; padding: 40px; color: #1e293b; line-height: 1.5; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-          .box-id { font-size: 48px; font-weight: 800; margin: 0; color: #000; }
-          .timestamp { font-size: 12px; color: #64748b; font-weight: 600; margin-top: 4px; }
-          .barcode-container { display: flex; flex-direction: column; align-items: center; text-align: center; }
-          .barcode-img { height: 75px; display: block; }
-          .barcode-text { font-family: monospace; font-size: 18px; font-weight: 800; letter-spacing: 4px; margin-top: 4px; width: 100%; }
-          
-          .collage-title { font-size: 18px; font-weight: 800; text-transform: uppercase; color: #1e293b; margin-bottom: 25px; letter-spacing: 2px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; text-align: center; }
-          .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-          .grid-item { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; text-align: center; background: #fff; page-break-inside: avoid; }
-          .sku-img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background: #f8fafc; }
-          .sku-code { font-size: 11px; font-weight: 700; color: #1e293b; font-family: monospace; word-break: break-all; }
-          
-          @media print {
-            body { padding: 0; }
-            .header { margin-bottom: 20px; }
-            .grid { gap: 15px; }
-            button { display: none; }
+          @page {
+            size: 100mm 150mm; /* Standard 4x6 thermal */
+            margin: 0;
+          }
+
+          body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #000;
+          }
+
+          .sheet {
+            width: 100mm;
+            height: 150mm;
+            box-sizing: border-box;
+            padding: 6mm;
+            page-break-after: always;
+            display: flex;
+            align-items: stretch;
+          }
+
+          .label {
+            width: 100%;
+            border: 1px solid #000;
+            border-radius: 2mm;
+            padding: 5mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+
+          .head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+          }
+
+          .left-id {
+            font-size: 26pt;
+            font-weight: 800;
+            line-height: 1;
+          }
+
+          .right-ratio {
+            font-size: 20pt;
+            font-weight: 800;
+            line-height: 1;
+          }
+
+          .barcode-wrap {
+            text-align: center;
+            margin-top: 4mm;
+          }
+
+          .barcode-img {
+            width: 100%;
+            height: auto;
+            max-height: 28mm;
+            object-fit: contain;
+          }
+
+          .barcode-text {
+            font-family: monospace;
+            font-size: 13pt;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-top: 2mm;
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <h1 class="box-id">${box.id}</h1>
-            <div class="timestamp">Printed On: ${printDate}</div>
-          </div>
-          <div class="barcode-container">
-            <img src="${barcodeBase64}" class="barcode-img" />
-            <div class="barcode-text">${box.barcode}</div>
-          </div>
-        </div>
+        ${Array.from({ length: totalBoxes }, (_, idx) => {
+          const pageNo = idx + 1;
+          return `
+          <div class="sheet">
+            <div class="label">
+              <div class="head">
+                <div class="left-id">${box.id}</div>
+                <div class="right-ratio">${pageNo}/${totalBoxes}</div>
+              </div>
 
-        <div class="collage-title">Box Collection</div>
-        <div class="grid">
-          ${itemsWithImages.map(item => `
-            <div class="grid-item">
-              <img src="${item.imageUrl}" class="sku-img" />
-              <div class="sku-code">${item.sku}</div>
+              <div class="barcode-wrap">
+                <img src="${barcodeBase64}" class="barcode-img" />
+                <div class="barcode-text">${box.barcode}</div>
+              </div>
             </div>
-          `).join('')}
-        </div>
+          </div>`;
+        }).join("")}
 
         <script>
           window.onload = () => {
-             setTimeout(() => {
-                window.print();
-                printWindow.onafterprint = () => {
-                   printWindow.close();
-                };
-             }, 300);
+            setTimeout(() => {
+              window.print();
+              window.onafterprint = () => window.close();
+            }, 250);
           };
         </script>
       </body>

@@ -148,9 +148,12 @@ export type ActiveView =
   | "messages";
 
 export interface ManagedBox {
-  id: string; // e.g. B1
+  id: string; // e.g. D1
   barcode: string; // 13 digits
+  partyId?: string;
+  partyName?: string;
   capacity: number;
+  totalBoxes?: number; // e.g. 60 physical labels under the same box group
   items: { 
     productId: string;
     productName: string;

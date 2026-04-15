@@ -3,7 +3,7 @@ import { ref, get, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 
-// ── Firebase API for Dispatch ──
+// â”€â”€ Firebase API for Dispatch â”€â”€
 
 export const firestoreApi = {
   // Parties
@@ -282,36 +282,53 @@ export const api = {
     }
   },
 
-  // ── Managed Boxes API ──
+  // â”€â”€ Managed Boxes API â”€â”€
   getManagedBoxes: async (): Promise<ManagedBox[]> => {
-    const boxesRef = ref(db, "managed_boxes");
-    const snap = await get(boxesRef);
+    try {
+      const res = await fetch("/api/managed-boxes", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json?.boxes)) return json.boxes as ManagedBox[];
+      }
+    } catch (e) {
+      console.warn("Managed boxes fetch from DynamoDB failed. Falling back to Firebase.", e);
+    }
+
+    const snap = await get(ref(db, "managed_boxes"));
     if (!snap.exists()) return [];
-    
-    const data: ManagedBox[] = [];
+
+    const list: ManagedBox[] = [];
     snap.forEach((child) => {
-      data.push({ id: child.key as string, ...child.val() });
+      list.push({ id: child.key as string, ...child.val() });
     });
-    return data;
+    return list;
   },
 
   getNextManagedBoxId: async (): Promise<string> => {
-    const boxesRef = ref(db, "managed_boxes");
-    const snap = await get(boxesRef);
-    if (!snap.exists()) return "B1";
-    
+    const allBoxes = await api.getManagedBoxes();
     let max = 0;
-    snap.forEach((child) => {
-      const id = child.key as string;
-      const num = parseInt(id.replace("B", ""));
+    allBoxes.forEach((box) => {
+      const id = box.id;
+      const match = id.match(/^D(\d+)$/i);
+      const num = match ? parseInt(match[1], 10) : NaN;
       if (!isNaN(num) && num > max) max = num;
     });
-    return `B${max + 1}`;
+    return `D${max + 1}`;
   },
 
   createManagedBox: async (box: ManagedBox, actor?: { uid: string; name: string }): Promise<void> => {
     if (!box.id) throw new Error("Box ID is required");
     try {
+      const res = await fetch("/api/managed-boxes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ box }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to write managed box to DynamoDB");
+      }
+
       await set(ref(db, `managed_boxes/${box.id}`), box);
       
       // Log activity
@@ -333,6 +350,14 @@ export const api = {
 
   deleteManagedBox: async (id: string, actor?: { uid: string; name: string }): Promise<void> => {
     try {
+      const res = await fetch(`/api/managed-boxes?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to delete managed box from DynamoDB");
+      }
+
       await remove(ref(db, `managed_boxes/${id}`));
       
       // Log activity
@@ -350,5 +375,20 @@ export const api = {
       console.error("Failed to delete box:", e);
       throw e;
     }
+  },
+
+  createBoxDispatchRecord: async (payload: Record<string, unknown>): Promise<void> => {
+    const res = await fetch("/api/box-dispatches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || "Failed to write box dispatch record to DynamoDB");
+    }
   }
 };
+
+

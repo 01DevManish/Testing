@@ -96,13 +96,14 @@ export default function PartyRateModule({
     };
 
     const handleVerifyGst = async (gstin: string) => {
-        if (!gstin || gstin.length !== 15) {
+        const normalizedGstin = (gstin || "").trim().toUpperCase();
+        if (!normalizedGstin || normalizedGstin.length !== 15) {
             alert("Please enter a valid 15-digit GST number.");
             return;
         }
         setIsVerifying(true);
         try {
-            const res = await fetch(`/api/gst?gstin=${gstin}`);
+            const res = await fetch(`/api/gst?gstin=${encodeURIComponent(normalizedGstin)}`);
             const result = await res.json();
             if (result.success && result.data) {
                 setGstVerified(true);
@@ -110,14 +111,14 @@ export default function PartyRateModule({
                     ...prev,
                     billTo: {
                         ...prev.billTo,
-                        companyName: result.data.companyName,
+                        companyName: result.data.companyName || prev.billTo.companyName,
                         traderName: result.data.traderName || result.data.ownerName || "",
                         address: result.data.address,
                         state: result.data.state,
                         district: result.data.district,
                         pincode: result.data.pincode,
-                        gstNo: gstin,
-                        panNo: gstin.substring(2, 12)
+                        gstNo: result.data.gstNo || normalizedGstin,
+                        panNo: result.data.panNo || normalizedGstin.substring(2, 12)
                     }
                 }));
             } else {

@@ -424,7 +424,7 @@ export default function AdvancedDispatchDashboard() {
           )}
           {activeView === "all-box-dispatches" && (
             <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
-              <AllBoxDispatchesTab packingLists={packingLists} />
+              <AllBoxDispatchesTab packingLists={packingLists} products={products} />
             </div>
           )}
           {activeView === "catalog" && (

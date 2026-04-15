@@ -36,6 +36,13 @@ interface Props {
 export default function ProductList({
     products, categories, collections, user, loading, isAdminOrManager, canCreate, canEdit, canDelete, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
 }: Props) {
+    const getStockStatus = (stock?: number): "out-of-stock" | "low-stock" | "in-stock" => {
+        const safeStock = Number(stock) || 0;
+        if (safeStock === 0) return "out-of-stock";
+        if (safeStock < 10) return "low-stock";
+        return "in-stock";
+    };
+
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
     const [filterCol, setFilterCol] = useState("all");
@@ -69,11 +76,11 @@ export default function ProductList({
         if (filterCol !== "all") list = list.filter(p => p.collection === filterCol);
         if (filterStatus !== "all") {
             if (filterStatus === "out-of-stock") {
-                list = list.filter(p => (p.status as string) === "out-of-stock" || (p.stock || 0) <= 0);
+                list = list.filter(p => getStockStatus(p.stock) === "out-of-stock");
             } else if (filterStatus === "low-stock") {
-                list = list.filter(p => (p.status as string) === "low-stock" || ((p.stock || 0) > 0 && (p.stock || 0) <= (p.minStock || 5)));
+                list = list.filter(p => getStockStatus(p.stock) === "low-stock");
             } else if (filterStatus === "in-stock") {
-                list = list.filter(p => (p.stock || 0) > (p.minStock || 5));
+                list = list.filter(p => getStockStatus(p.stock) === "in-stock");
             } else {
                 list = list.filter(p => (p.status as string) === filterStatus);
             }
@@ -454,9 +461,9 @@ export default function ProductList({
                             </thead>
                             <tbody>
                                 {paginatedItems.map(p => {
-                                    const isLow = p.stock > 0 && p.stock <= (p.minStock || 5);
-                                    const isOut = (p.stock || 0) <= 0;
-                                    const effectiveStatus = isOut ? "out-of-stock" : (isLow ? "low-stock" : p.status);
+                                    const effectiveStatus = getStockStatus(p.stock);
+                                    const isLow = effectiveStatus === "low-stock";
+                                    const isOut = effectiveStatus === "out-of-stock";
                                     const sc = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.active;
                                     return (
                                         <tr key={p.id} style={{ background: "#fff" }}
@@ -501,9 +508,9 @@ export default function ProductList({
                                                 {user.role === "admin" && p.costPrice > 0 && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice).toLocaleString("en-IN")}</div>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#f59e0b" : p.stock <= 0 ? "#ef4444" : "#1e293b" }}>{p.stock}</div>
+                                                <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#f59e0b" : isOut ? "#ef4444" : "#1e293b" }}>{p.stock}</div>
                                                 {isLow && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 400, fontFamily: FONT }}>Low</div>}
-                                                {p.stock <= 0 && <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 400, fontFamily: FONT }}>Empty</div>}
+                                                {isOut && <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 400, fontFamily: FONT }}>Empty</div>}
                                             </td>
                                             <td style={td}>
                                                 <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{p.gstRate ?? 18}%</span>

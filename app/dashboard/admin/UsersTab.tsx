@@ -12,7 +12,6 @@ interface UsersTabProps {
   S: AdminStyles;
   isMobile: boolean;
   isTablet: boolean;
-  users: UserRecord[];
   filteredUsers: UserRecord[];
   fetchingUsers: boolean;
   searchTerm: string;
@@ -29,7 +28,6 @@ interface UsersTabProps {
   handleAddEmployee: () => void;
   handleDeleteUser: (uid: string) => void;
   onEditUser: (u: UserRecord) => void;
-  loadUsers: () => void;
 }
 
 const PermissionPreview = ({ u, S }: { u: UserRecord; S: AdminStyles }) => {
@@ -75,18 +73,19 @@ const PermissionPreview = ({ u, S }: { u: UserRecord; S: AdminStyles }) => {
 };
 
 export default function UsersTab({
-  S, isMobile, isTablet, users, filteredUsers, fetchingUsers,
+  S, isMobile, isTablet, filteredUsers, fetchingUsers,
   searchTerm, setSearchTerm, filterRole, setFilterRole,
   showAddForm, setShowAddForm, newEmployee, setNewEmployee,
   addingEmployee, addError, setAddError, handleAddEmployee,
-  handleDeleteUser, onEditUser, loadUsers,
+  handleDeleteUser, onEditUser,
 }: UsersTabProps) {
+  const visibleUsers = filteredUsers;
   const stats = {
-    total: users.length,
-    admins: users.filter(u => u.role === "admin").length,
-    managers: users.filter(u => u.role === "manager").length,
-    employees: users.filter(u => u.role === "employee").length,
-    users: users.filter(u => u.role === "user").length,
+    total: visibleUsers.length,
+    admins: visibleUsers.filter(u => u.role === "admin").length,
+    managers: visibleUsers.filter(u => u.role === "manager").length,
+    employees: visibleUsers.filter(u => u.role === "employee").length,
+    users: visibleUsers.filter(u => u.role === "user").length,
   };
 
   const UserCard = ({ u }: { u: UserRecord }) => (
