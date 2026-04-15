@@ -244,7 +244,9 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         const { width, height } = page.getSize();
 
         // 3. Generate Dispatch Barcode Image
-        const totalBoxes = list.bails || (list.items || []).reduce((acc: Set<string>, i: any) => { if(i.boxName) acc.add(i.boxName); return acc; }, new Set()).size;
+        const totalBoxes =
+            Number(list.bails || 0) ||
+            (list.items || []).reduce((acc: Set<string>, i: any) => { if (i.boxName) acc.add(i.boxName); return acc; }, new Set()).size;
         const totalItems = (list.items || []).reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
         const dispCode = list.dispatchBarcode || generateDispatchBarcode(list.dispatchNo || list.dispatchId || "0000", totalBoxes, totalItems);
         const dispBarcodeDataUrl = renderBarcodeToBase64(dispCode);
@@ -356,7 +358,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         draw(list.assignedToName || "-", valX, rY + rG * 4, 10);
 
         // 6. Box / Bail Count
-        draw(String(list.bails || 0), valX, rY + rG * 5, 11, true);
+        draw(String(totalBoxes || 0), valX, rY + rG * 5, 11, true);
 
         // 7. Transporter Name
         draw(truncate(list.transporter || "-", 20), valX, rY + rG * 6, 10);
@@ -395,7 +397,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         const fY = 708;
         if (list.assignedToName) {
-            draw(list.assignedToName, 115, fY, 13, true);
+            draw(list.assignedToName, 102, fY, 13, true);
         }
 
         // Add System URL to bottom left for record reference
@@ -405,7 +407,6 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // SAVE & OUTPUT
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        await appendBoxSummaryPages(pdfDoc, resolvedItems, list.boxBarcodes || {});
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
         const localBlobUrl = URL.createObjectURL(blob);

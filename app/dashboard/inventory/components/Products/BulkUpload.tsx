@@ -33,6 +33,21 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const parseExcelNumber = (value: unknown, fallback = 0): number => {
+        if (value === null || value === undefined || value === "") return fallback;
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+
+        const normalized = String(value)
+            .replace(/₹/g, "")
+            .replace(/,/g, "")
+            .replace(/\s+/g, "")
+            .trim();
+
+        if (!normalized) return fallback;
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
     const downloadTemplate = async () => {
         try {
             setDownloading(true);
@@ -255,8 +270,8 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     const matchedBrand = brands.find(b => b.name.toLowerCase() === brandName.toLowerCase());
 
                     const timestamp = Date.now();
-                    const stock = Number(row["Opening Stock"]) || 0;
-                    const minStock = Number(row["Min Stock (Alert)"]) || 5;
+                    const stock = parseExcelNumber(row["Opening Stock"], 0);
+                    const minStock = parseExcelNumber(row["Min Stock (Alert)"], 5);
                     const reqStatus = row["Status"]?.toString().trim().toLowerCase().replace(/\s+/g, "-");
 
                     // Image processing: Skip upload if it's already a Cloudinary URL from our account
@@ -287,10 +302,10 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                         collection: row["Collection"]?.toString().trim() || "",
                         brand: brandName,
                         brandId: matchedBrand?.id || "",
-                        price: Number(row["Selling Price (Rs.)*"]) || 0,
-                        wholesalePrice: Number(row["Wholesale Price (Rs.)"]) || 0,
-                        mrp: Number(row["MRP (Rs.)"]) || 0,
-                        costPrice: Number(row["Cost Price (Rs.)"]) || 0,
+                        price: parseExcelNumber(row["Selling Price (Rs.)*"], 0),
+                        wholesalePrice: parseExcelNumber(row["Wholesale Price (Rs.)"], 0),
+                        mrp: parseExcelNumber(row["MRP (Rs.)"], 0),
+                        costPrice: parseExcelNumber(row["Cost Price (Rs.)"], 0),
                         stock: stock,
                         minStock: minStock,
                         unit: row["Unit"]?.toString().trim() || "PCS",

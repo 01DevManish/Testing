@@ -66,6 +66,8 @@ export async function GET(req: NextRequest) {
         || (process.env.CASHFREE_ENV === "sandbox"
             ? "https://sandbox.cashfree.com/verification"
             : "https://api.cashfree.com/verification");
+    const sandboxUrl = "https://sandbox.cashfree.com/verification";
+    const prodUrl = "https://api.cashfree.com/verification";
 
     if (!clientId || !clientSecret) {
         return NextResponse.json(
@@ -78,18 +80,22 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const response = await fetch(`${baseUrl}/gstin`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-client-id": clientId,
-                "x-client-secret": clientSecret
-            },
-            body: JSON.stringify({ GSTIN: gstin }),
-            cache: "no-store"
-        });
+        const callCashfree = async (url: string) => {
+            const response = await fetch(`${url}/gstin`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-client-id": clientId,
+                    "x-client-secret": clientSecret
+                },
+                body: JSON.stringify({ GSTIN: gstin }),
+                cache: "no-store"
+            });
 
-        if (!response.ok) {
+            if (response.ok) {
+                return { ok: true as const, status: response.status, data: await response.json(), errorMessage: "" };
+            }
+
             let errorMessage = `GST Service Error (${response.status})`;
             try {
                 const failed = await response.json();
@@ -98,7 +104,24 @@ export async function GET(req: NextRequest) {
                 const errorText = await response.text();
                 if (errorText) errorMessage = `${errorMessage}: ${errorText}`;
             }
-            console.error("Cashfree GST API Error:", response.status, errorMessage);
+            return { ok: false as const, status: response.status, data: null, errorMessage };
+        };
+
+        let result = await callCashfree(baseUrl);
+
+        // Auto-fix env mismatch: retry on opposite Cashfree environment endpoint.
+        if (!result.ok) {
+            const msg = result.errorMessage.toLowerCase();
+            if (msg.includes("belongs to prod environment") && baseUrl.includes("sandbox")) {
+                result = await callCashfree(prodUrl);
+            } else if (msg.includes("belongs to sandbox environment") && !baseUrl.includes("sandbox")) {
+                result = await callCashfree(sandboxUrl);
+            }
+        }
+
+        if (!result.ok) {
+            const errorMessage = result.errorMessage;
+            console.error("Cashfree GST API Error:", result.status, errorMessage);
 
             const lower = errorMessage.toLowerCase();
             if (lower.includes("ip not whitelisted")) {
@@ -111,10 +134,10 @@ export async function GET(req: NextRequest) {
                 }
             }
 
-            return NextResponse.json({ success: false, error: errorMessage }, { status: response.status });
+            return NextResponse.json({ success: false, error: errorMessage }, { status: result.status });
         }
 
-        const data = await response.json();
+        const data = result.data;
 
         if (data?.valid === true || (typeof data?.gst_in_status === "string" && data?.gst_in_status.length > 0)) {
             const splitAddress = data?.principal_place_split_address || {};

@@ -22,6 +22,7 @@ import UsersTab from "./UsersTab";
 import TasksTab from "./TasksTab";
 import EditRoleModal from "./EditRoleModal";
 import DashboardTab from "./DashboardTab";
+import ReportsTab from "./ReportsTab";
 import LogsTab from "./LogsTab";
 import CatalogTab from "../inventory/components/Catalog/CatalogTab";
 import MessagingTab from "../../components/MessagingTab";
@@ -42,13 +43,14 @@ export default function AdminPage() {
   const {
     users: allUsers, setUsers,
     products, partyRates, setPartyRates,
+    orders,
     brands, setBrands,
     categories, collections,
     loading: fetchingGlobal, refreshData
   } = useData();
 
   // ── UI State ──────────────────────────────────────────────
-  const [tab, setTab] = useState<"dashboard" | "users" | "tasks" | "logs" | "brands" | "catalog" | "party-rates" | "profile" | "messages">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "reports" | "users" | "tasks" | "logs" | "brands" | "catalog" | "party-rates" | "profile" | "messages">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<"all" | UserRole>("all");
@@ -510,6 +512,14 @@ export default function AdminPage() {
                 isTablet={isTablet}
                 users={users}
                 tasks={tasks}
+              />
+            ) : tab === "reports" ? (
+              <ReportsTab
+                S={S}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                products={products}
+                orders={orders}
               />
             ) : tab === "messages" ? (
               <MessagingTab users={users} isMobile={isMobile} />

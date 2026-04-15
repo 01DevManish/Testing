@@ -94,6 +94,12 @@ export default function AllDispatchLists({ onView }: AllDispatchListsProps) {
   if (loading) return <div className="p-8 text-center text-slate-500">Loading history...</div>;
 
   const filteredLists = lists;
+  const getBoxOrBailCount = (l: PackingList) => {
+    const explicit = Number(l.bails || 0);
+    if (explicit > 0) return explicit;
+    const uniqueBoxes = new Set((l.items || []).map((i: any) => i?.boxName).filter(Boolean));
+    return uniqueBoxes.size;
+  };
 
   return (
     <Card style={{ padding: 0, overflow: "hidden" }}>
@@ -127,7 +133,7 @@ export default function AllDispatchLists({ onView }: AllDispatchListsProps) {
                 <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{l.partyName}</td>
                 <td style={{ padding: "14px 24px", textAlign: "center" }}>
                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, background: "#f1f5f9", fontSize: 13, color: "#475569", fontWeight: 600 }}>
-                     {l.bails || 0} Items
+                     {getBoxOrBailCount(l)} Box/Bail
                    </div>
                 </td>
                 <td style={{ padding: "14px 24px" }}>
@@ -163,7 +169,7 @@ export default function AllDispatchLists({ onView }: AllDispatchListsProps) {
                          </div>
                       )}
                       
-                      {l.status === "Completed" && (
+                      {(l.status === "Completed" || l.status === "Packed") && (
                         <div style={{ display: "flex", gap: 6 }}>
                           <button 
                             onClick={() => handleDownload(l, "dispatch")}
