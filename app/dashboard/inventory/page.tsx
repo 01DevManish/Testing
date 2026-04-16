@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ref, get, update, query, orderByChild, equalTo, remove } from "firebase/database";
+import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -29,14 +30,16 @@ import { uploadImage } from "./components/Products/imageService";
 import { transformImageUrl } from "../../lib/urlUtils";
 
 // ── Types ─────────────────────────────────────────────────────
-import { ActiveView, Product, Category, Collection, ItemGroup } from "./types";
+import { ActiveView, Product } from "./types";
 
 // ── Shared UI ─────────────────────────────────────────────────
 import { FONT } from "./types";
 
 // ── Edit Product modal (lightweight wrapper) ──────────────────
 import { Input, Textarea, Select, FormField, BtnPrimary, BtnGhost } from "./ui";
-import { UNITS, GST_RATES, STATUS_CONFIG } from "./types";
+import { UNITS, GST_RATES } from "./types";
+
+type EditProductForm = Omit<Product, "id" | "createdAt" | "updatedAt">;
 
 // ── Responsive hook ───────────────────────────────────────────
 function useWindowWidth() {
@@ -68,8 +71,6 @@ export default function InventoryPage() {
     localStorage.setItem("inventorySidebarCollapsed", isCollapsed.toString());
   }, [isCollapsed]);
 
-  const sidebarWidth = isMobile ? 0 : (isCollapsed ? 78 : 260);
-
   // ── Sidebar ───────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>("overview");
@@ -80,13 +81,13 @@ export default function InventoryPage() {
     categories, setCategories,
     collections, setCollections,
     groups, setGroups,
-    brands, setBrands,
+    brands,
     loading: fetching, refreshData 
   } = useData();
 
   // ── Edit modal ────────────────────────────────────────────
   const [editProduct, setEditProduct] = useState<Product | null>(null);
-  const [editForm, setEditForm] = useState<any>(null);
+  const [editForm, setEditForm] = useState<EditProductForm | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editGallery, setEditGallery] = useState<string[]>([]);
   const editFileRef = useRef<HTMLInputElement>(null);
@@ -125,22 +126,8 @@ export default function InventoryPage() {
   }, [loading, user, hasAccess, router]);
 
   // ── Granular Sub-Module Permissions ──────────────────────────
-  const canViewItems = hasPermission(userData, "inv_items_view");
   const canCreateItems = hasPermission(userData, "inv_items_create");
   const canEditItems = hasPermission(userData, "inv_items_edit");
-  const canBulkUpload = hasPermission(userData, "inv_bulk_create");
-  
-  const canViewCollections = hasPermission(userData, "inv_collections_view");
-  const canCreateCollections = hasPermission(userData, "inv_collections_create");
-  const canEditCollections = hasPermission(userData, "inv_collections_edit");
-
-  const canViewGrouping = hasPermission(userData, "inv_grouping_view");
-  const canCreateGrouping = hasPermission(userData, "inv_grouping_create");
-  const canEditGrouping = hasPermission(userData, "inv_grouping_edit");
-
-  const canViewBarcode = hasPermission(userData, "inv_barcode_view");
-  const canCreateBarcode = hasPermission(userData, "inv_barcode_create");
-  const canEditBarcode = hasPermission(userData, "inv_barcode_edit");
 
   // Legacy aliases for compatibility with existing component props
   const canCreate = canCreateItems;
@@ -156,20 +143,6 @@ export default function InventoryPage() {
   const loadAll = useCallback(async () => {
     refreshData();
   }, [refreshData]);
-
-  const productStubs = useMemo(() => 
-    products.map(p => ({ 
-      id: p.id, 
-      productName: p.productName, 
-      stock: p.stock, 
-      unit: p.unit || "PCS", 
-      minStock: p.minStock, 
-      status: p.status,
-      collection: p.collection,
-      category: p.category
-    })), 
-    [products]
-  );
 
   const handleLogout = async () => { await logout(); router.replace("/"); };
 
@@ -225,13 +198,13 @@ export default function InventoryPage() {
     if (galleryHasNew || thumbnailIsNew) {
         // Upload all base64 images in gallery
         const uploadPromises = editGallery.map(img => 
-            img.startsWith("data:") ? uploadImage(img) : Promise.resolve(img)
+            img.startsWith("data:") ? uploadImage(img, editForm.sku) : Promise.resolve(img)
         );
         finalImageUrls = await Promise.all(uploadPromises);
         
         // Update main thumbnail if it was a base64
         if (thumbnailIsNew) {
-            finalImageUrl = await uploadImage(editForm.imageUrl);
+            finalImageUrl = await uploadImage(editForm.imageUrl, editForm.sku);
         } else if (galleryHasNew) {
             // If gallery changed, sync thumbnail if it points to an old base64 version of a gallery image
             const idx = editGallery.indexOf(editForm.imageUrl);
@@ -273,9 +246,10 @@ export default function InventoryPage() {
       const finalProducts = products.map(p => p.id === editProduct.id ? { ...p, ...updated } : p);
       setProducts(finalProducts);
       setEditProduct(null); setEditForm(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Update Error:", err);
-      alert(err.message || "Failed to update product.");
+      const message = err instanceof Error ? err.message : "Failed to update product.";
+      alert(message);
     } finally {
       setEditSaving(false);
     }

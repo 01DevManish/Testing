@@ -22,25 +22,37 @@ export default function SmartImage({
   ...props 
 }: SmartImageProps) {
   const { openLightbox } = useLightbox();
-  const resolvedSrc = (src && typeof src === "string") ? resolveS3Url(src) : src;
-  const isPriority = (props as any).priority === true;
+  const originalSrc = (src && typeof src === "string") ? src : "";
+  const resolvedSrc = originalSrc ? resolveS3Url(originalSrc) : originalSrc;
+  const [displaySrc, setDisplaySrc] = React.useState<string>(resolvedSrc);
+  const isPriority = (props as { priority?: boolean }).priority === true;
+
+  React.useEffect(() => {
+    setDisplaySrc(resolvedSrc);
+  }, [resolvedSrc]);
 
   const handleClick = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (zoomable && resolvedSrc && typeof resolvedSrc === "string") {
-      openLightbox(resolvedSrc);
+    if (zoomable && displaySrc) {
+      openLightbox(displaySrc);
     }
     if (props.onClick) props.onClick(e);
   };
 
   return (
     <img
-      src={resolvedSrc}
+      src={displaySrc}
       alt={alt || "Image"}
       loading={isPriority ? "eager" : loading}
       {...(isPriority ? { fetchPriority: "high" } : {})}
       decoding="async"
       {...props}
       onClick={handleClick}
+      onError={(e) => {
+        if (originalSrc && displaySrc !== originalSrc) {
+          setDisplaySrc(originalSrc);
+        }
+        if (props.onError) props.onError(e);
+      }}
       style={{
         ...style,
         cursor: zoomable ? "zoom-in" : (style?.cursor || "default"),

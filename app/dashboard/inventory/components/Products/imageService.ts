@@ -1,3 +1,5 @@
+import { normalizeStorageImageUrl } from "../../../../lib/urlUtils";
+
 const REGION = process.env.NEXT_PUBLIC_AWS_S3_REGION || "ap-south-1";
 const BUCKET = process.env.NEXT_PUBLIC_AWS_S3_BUCKET || "epanelimages";
 const ARCHIVE_PREFIX = process.env.NEXT_PUBLIC_S3_ARCHIVE_PREFIX || "Cloudinary_Archive_2026-04-10_10_27_479_Originals/";
@@ -19,7 +21,7 @@ if (typeof window !== "undefined") {
         } else if (canvas.toDataURL("image/webp").indexOf("data:image/webp") === 0) {
             formatSupport = "webp";
         }
-    } catch (e) {
+    } catch {
         // Fallback to basic string check if canvas fails
     }
 }
@@ -128,12 +130,18 @@ const compressImage = async (base64: string, maxWidth = 1400, quality = 0.8): Pr
  * Supports both base64 strings and standard URLs.
  * Automatically compresses and converts images to modern formats (AVIF/WebP).
  */
-export const uploadImage = async (base64OrUrl: string): Promise<string> => {
+export const uploadImage = async (base64OrUrl: string, sku?: string): Promise<string> => {
     if (!base64OrUrl || (!base64OrUrl.startsWith("data:") && !base64OrUrl.startsWith("http"))) {
         return base64OrUrl;
     }
 
     try {
+        // For already-hosted URLs (S3/Cloudinary/HTTP links), do not re-upload.
+        // Re-uploading URL strings as base64 corrupts files on the server path.
+        if (base64OrUrl.startsWith("http")) {
+            return normalizeStorageImageUrl(base64OrUrl);
+        }
+
         // We now rely on server-side Sharp for conversion, 
         // but we still do a quick client-side resize to save bandwidth during upload.
         let processableData = base64OrUrl;
@@ -144,6 +152,9 @@ export const uploadImage = async (base64OrUrl: string): Promise<string> => {
 
         const formData = new FormData();
         formData.append("file", processableData);
+        if (sku && sku.trim()) {
+            formData.append("sku", sku.trim());
+        }
 
         const res = await fetch("/api/upload", {
             method: "POST",
@@ -161,9 +172,10 @@ export const uploadImage = async (base64OrUrl: string): Promise<string> => {
         
         console.log(`[Image-Optimization] Success! Server handled WebP conversion: ${data.secure_url}`);
         return data.secure_url;
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Image Upload Error:", err);
-        throw new Error(err.message || "Network error occurred during upload");
+        const message = err instanceof Error ? err.message : "Network error occurred during upload";
+        throw new Error(message);
     }
 };
 

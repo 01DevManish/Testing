@@ -2,10 +2,35 @@ import { NextResponse } from 'next/server';
 import { uploadFile } from '../../lib/s3';
 import sharp from 'sharp';
 
+const EXT_FROM_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/avif": "avif",
+  "image/gif": "gif",
+  "application/pdf": "pdf",
+};
+
+const sanitizeSku = (sku: string): string =>
+  sku
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+
+const inferExtFromName = (name: string): string => {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  return ext || "jpg";
+};
+
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file');
+    const skuRaw = (formData.get("sku") as string | null) || "";
+    const safeSku = sanitizeSku(skuRaw);
 
     // Verify S3 credentials
     if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
@@ -22,14 +47,32 @@ export async function POST(req: Request) {
     let originalName: string;
 
     if (typeof file === "string") {
-        // Handle base64 string
-        const base64Data = file.split(',')[1] || file;
-        buffer = Buffer.from(base64Data, 'base64');
-        
-        // Try to detect content type from base64 if present
-        const match = file.match(/^data:(.*);base64,/);
-        fileType = match ? match[1] : 'image/jpeg';
-        originalName = "upload.jpg";
+        if (file.startsWith("http://") || file.startsWith("https://")) {
+            // Handle remote URL: fetch bytes server-side.
+            const remote = await fetch(file);
+            if (!remote.ok) {
+              throw new Error(`Failed to fetch image URL (${remote.status})`);
+            }
+            const arrBuf = await remote.arrayBuffer();
+            buffer = Buffer.from(arrBuf);
+
+            fileType = remote.headers.get("content-type") || "image/jpeg";
+            const pathname = (() => {
+              try { return new URL(file).pathname; } catch { return ""; }
+            })();
+            const fromUrl = pathname.split("/").pop() || "";
+            const fallbackExt = EXT_FROM_TYPE[fileType] || "jpg";
+            originalName = fromUrl || `upload.${fallbackExt}`;
+        } else {
+            // Handle base64 string
+            const base64Data = file.split(',')[1] || file;
+            buffer = Buffer.from(base64Data, 'base64');
+            
+            // Try to detect content type from base64 if present
+            const match = file.match(/^data:(.*);base64,/);
+            fileType = match ? match[1] : 'image/jpeg';
+            originalName = "upload.jpg";
+        }
     } else {
         // Handle File object
         const bytes = await file.arrayBuffer();
@@ -69,15 +112,20 @@ export async function POST(req: Request) {
     }
     
     const prefix = process.env.AWS_S3_PATH_PREFIX || "";
-    const fileName = `${prefix}${subFolder}${Date.now()}-${finalFileName.replace(/\s+/g, '_')}`;
+    const ext = inferExtFromName(finalFileName);
+    const defaultName = `${Date.now()}-${finalFileName.replace(/\s+/g, "_")}`;
+    const skuName = safeSku ? `${safeSku}-${Date.now()}.${ext}` : defaultName;
+    const chosenName = !isPdf && safeSku ? skuName : defaultName;
+    const fileName = `${prefix}${subFolder}${chosenName}`;
 
     console.log("Attempting S3 upload:", fileName);
     const publicUrl = await uploadFile(finalBuffer, fileName, finalFileType);
 
     return NextResponse.json({ secure_url: publicUrl });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Server-side upload error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error during upload" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Internal Server Error during upload";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

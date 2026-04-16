@@ -406,10 +406,7 @@ export default function AdvancedDispatchDashboard() {
           )}
           {activeView === "all-dispatch-lists" && (
             <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
-              <AllDispatchLists
-                onView={(list) => setViewingPackingList(list)}
-                onEdit={(list) => { setEditingPackingList(list); setActiveView("create-packing-list"); }}
-              />
+              <AllDispatchLists />
             </div>
           )}
           {activeView === "box-management" && (

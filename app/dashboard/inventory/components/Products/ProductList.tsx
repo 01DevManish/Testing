@@ -9,6 +9,7 @@ import { logActivity } from "../../../../lib/activityLogger";
 import { deleteImage } from "./imageService";
 import ExcelJS from "exceljs";
 import SmartImage from "../../../../components/SmartImage";
+import { normalizeStorageImageUrl } from "../../../../lib/urlUtils";
 
 
 type SortKey = "productName" | "category" | "collection" | "price" | "stock" | "status" | "createdAt";
@@ -196,12 +197,14 @@ export default function ProductList({
         try {
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet("Inventory_Bulk_Edit");
+            const isAdmin = user.role === "admin";
 
             const headers = [
                 "Product Name*", "SKU*", "Category", "Collection", "Brand",
-                "Description", "Selling Price (Rs.)*", "Wholesale Price (Rs.)", "MRP (Rs.)", "Cost Price (Rs.)",
+                "Description", "Selling Price (Rs.)*", "Wholesale Price (Rs.)", "MRP (Rs.)",
+                ...(isAdmin ? ["Cost Price (Rs.)"] : []),
                 "GST Rate", "HSN Code", "Opening Stock", "Min Stock (Alert)", "Unit",
-                "Size", "Thumbnail URL", "Status"
+                "Size", "Thumbnail URL"
             ];
 
             worksheet.addRow(headers);
@@ -214,7 +217,12 @@ export default function ProductList({
             worksheet.columns = headers.map(() => ({ width: 22 }));
 
             // Data mapping
-            filtered.forEach(p => {
+            // Export full inventory so bulk re-upload can update every SKU cost in one go.
+            products.forEach(p => {
+                const workingImageUrl =
+                    (typeof p.imageUrl === "string" && p.imageUrl.trim()) ||
+                    (Array.isArray(p.imageUrls) ? (p.imageUrls.find((img) => typeof img === "string" && img.trim()) || "") : "");
+                const exportImageUrl = normalizeStorageImageUrl(workingImageUrl);
                 worksheet.addRow([
                     p.productName || "",
                     p.sku || "",
@@ -225,15 +233,14 @@ export default function ProductList({
                     p.price || 0,
                     p.wholesalePrice || 0,
                     p.mrp || 0,
-                    p.costPrice || 0,
+                    ...(isAdmin ? [p.costPrice || 0] : []),
                     `${p.gstRate || 18}%`,
                     p.hsnCode || "",
                     p.stock || 0,
                     p.minStock || 5,
                     p.unit || "PCS",
                     p.size || "",
-                    p.imageUrl || "",
-                    p.status || "active"
+                    exportImageUrl
                 ]);
             });
 
@@ -244,9 +251,10 @@ export default function ProductList({
                 });
             });
 
-            // Lock specific columns: SKU(2), Category(3), Collection(4), Brand(5), GST(11), HSN(12)
-            // WE UNLOCKED: Size(16) and Thumbnail(17) per user request to allow bulk editing of these fields.
-            const lockedCols = [2, 3, 4, 5, 11, 12];
+            // Lock specific columns: SKU, Category, Collection, Brand, GST, HSN
+            const gstCol = isAdmin ? 11 : 10;
+            const hsnCol = isAdmin ? 12 : 11;
+            const lockedCols = [2, 3, 4, 5, gstCol, hsnCol];
 
 
             lockedCols.forEach(colIndex => {
@@ -505,7 +513,7 @@ export default function ProductList({
                                             </td>
                                             <td style={td}>
                                                 <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 13, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
-                                                {user.role === "admin" && p.costPrice > 0 && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice).toLocaleString("en-IN")}</div>}
+                                                {user.role === "admin" && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}</div>}
                                             </td>
                                             <td style={td}>
                                                 <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#f59e0b" : isOut ? "#ef4444" : "#1e293b" }}>{p.stock}</div>

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useRef } from "react";
@@ -7,7 +8,7 @@ import {
     FONT, UNITS, GST_RATES, Product, Category, Collection
 } from "../../types";
 import {
-    Input, Textarea, Select, FormField, SectionDivider,
+    Input, Textarea, Select, FormField,
     BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader,
 } from "../../ui";
 import ImageGallery from "../Layout/ImageGallery";
@@ -28,8 +29,7 @@ export default function CreateProduct({
     brands = [],
     user: currentUser, 
     onCreated,
-    isMobile,
-    isDesktop
+    isMobile
 }: { 
     categories: Category[], 
     collections: Collection[],
@@ -63,7 +63,7 @@ export default function CreateProduct({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const set = (k: keyof typeof EMPTY, v: any) => {
+    const set = <K extends keyof typeof EMPTY>(k: K, v: (typeof EMPTY)[K]) => {
         setForm(f => ({ ...f, [k]: v }));
         setErrors(e => { const ne = { ...e }; delete ne[k as string]; return ne; });
     };
@@ -148,7 +148,7 @@ export default function CreateProduct({
             
             // Upload all gallery images to Cloudinary
             if (galleryImages.length > 0) {
-                const uploadPromises = galleryImages.map(img => uploadImage(img));
+                const uploadPromises = galleryImages.map(img => uploadImage(img, form.sku));
                 finalImageUrls = await Promise.all(uploadPromises);
                 
                 // Set first image as main thumbnail if main image was one of the uploaded ones
@@ -215,9 +215,10 @@ export default function CreateProduct({
             setGalleryImages([]);
             setSuccess(`Product "${created.productName}" created successfully.`);
             alert(`Product "${created.productName}" created successfully!`);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Save Error:", err);
-            alert(err.message || "Failed to create product.");
+            const message = err instanceof Error ? err.message : "Failed to create product.";
+            alert(message);
         } finally {
             setSaving(false);
         }

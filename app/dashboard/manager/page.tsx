@@ -165,7 +165,7 @@ export default function ManagerPage() {
                   </div>
                 ))}
               </div>
-              <TeamTab isMobile={isMobile} />
+              <TeamTab isMobile={isMobile} managerUid={user.uid} />
            </>
         )}
 
@@ -184,7 +184,7 @@ export default function ManagerPage() {
           </div>
         )}
 
-        {view === "team" && <TeamTab isMobile={isMobile} />}
+        {view === "team" && <TeamTab isMobile={isMobile} managerUid={user.uid} />}
 
         {view === "party-rates" && (
             <PartyRateModule 

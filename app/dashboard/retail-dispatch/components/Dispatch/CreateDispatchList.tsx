@@ -40,6 +40,15 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const [lastScanned, setLastScanned] = useState<{ value: string; match: boolean; expected: string } | null>(null);
   const [packageType, setPackageType] = useState<"Box" | "Bale">("Box");
   const [showMobileScanner, setShowMobileScanner] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const isMobile = viewportWidth < 640;
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -329,10 +338,12 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }}>
       <PageHeader title="Finalize Dispatch List" sub="Convert a completed packing list into a final dispatch.">
-        <BtnGhost onClick={onClose}>Cancel</BtnGhost>
-        <BtnPrimary onClick={handleDispatch} disabled={!selectedList || saving}>
-          {saving ? "Finalizing..." : "Finalize Dispatch"}
-        </BtnPrimary>
+        <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto" }}>
+          <BtnGhost onClick={onClose} style={isMobile ? { flex: 1, justifyContent: "center" } : undefined}>Cancel</BtnGhost>
+          <BtnPrimary onClick={handleDispatch} disabled={!selectedList || saving} style={isMobile ? { flex: 1, justifyContent: "center" } : undefined}>
+            {saving ? "Finalizing..." : "Finalize Dispatch"}
+          </BtnPrimary>
+        </div>
       </PageHeader>
 
       {!selectedList ? (
@@ -341,6 +352,32 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
              <h3 className="text-base font-semibold text-slate-800">Pending Packing Lists</h3>
              <p className="text-xs text-slate-500 mt-1">Select a packing list to finalize its dispatch.</p>
            </div>
+           {isMobile && (
+             <div className="p-4 space-y-3 bg-slate-50/70">
+               {packingLists.map((list) => (
+                 <div key={list.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                   <div className="flex items-center justify-between gap-3">
+                     <div className="text-sm font-bold text-slate-800">#{list.id.slice(-6)}</div>
+                     <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+                       {list.items?.length || 0} Items
+                     </div>
+                   </div>
+                   <div className="mt-2 text-sm font-semibold text-slate-700">{list.partyName}</div>
+                   <div className="mt-1 text-xs text-slate-500">Assigned: {list.assignedToName}</div>
+                   <button
+                     onClick={() => handleSelectList(list)}
+                     className="mt-3 w-full text-sm font-bold text-white bg-indigo-600 px-3 py-2.5 rounded-lg active:scale-[0.99] transition-transform"
+                   >
+                     Select and Start Scanning
+                   </button>
+                 </div>
+               ))}
+               {packingLists.length === 0 && (
+                 <div className="px-6 py-10 text-center text-slate-400 italic text-sm">No pending packing lists found.</div>
+               )}
+             </div>
+           )}
+           {!isMobile && (
            <div className="overflow-x-auto">
              <table className="w-full border-collapse">
                <thead className="bg-slate-50">
@@ -377,12 +414,13 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                </tbody>
              </table>
            </div>
+           )}
         </Card>
       ) : (
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
                <Card style={{ padding: 0, overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
-                  <div className="p-4 border-b border-slate-100 bg-white flex justify-between items-center">
+                  <div className={`p-4 border-b border-slate-100 bg-white ${isMobile ? "flex flex-col items-stretch gap-3" : "flex justify-between items-center"}`}>
                      <div>
                         <h4 className="text-sm font-bold text-slate-800">Dispatch Scanning</h4>
                         <div className="flex items-center gap-2 mt-1">
@@ -397,19 +435,19 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                           </select>
                         </div>
                      </div>
-                     <div className="flex items-center gap-4">
+                     <div className={`flex ${isMobile ? "flex-col items-stretch" : "items-center"} gap-3`}>
                         {selectedIds.size > 0 && (
                            <button 
                              onClick={handleCreateBox}
-                             className="bg-indigo-600 text-white text-[10px] font-bold px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 animate-in zoom-in duration-200"
+                             className={`bg-indigo-600 text-white ${isMobile ? "text-xs" : "text-[10px]"} font-bold px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 animate-in zoom-in duration-200`}
                            >
                               Create {packageType} {currentBoxName} ({selectedIds.size} selected)
                            </button>
                         )}
-                        <div className="flex items-center gap-2">
+                        <div className={`flex ${isMobile ? "flex-col items-stretch" : "items-center"} gap-2`}>
                            <button 
                              onClick={() => setShowMobileScanner(true)}
-                             className="flex items-center gap-2 bg-slate-900 text-white text-[10px] font-bold px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+                             className={`flex items-center justify-center gap-2 bg-slate-900 text-white ${isMobile ? "text-xs" : "text-[10px]"} font-bold px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200`}
                            >
                               <span className="text-sm">📱</span>
                               <span>Mobile Scanner</span>
@@ -426,7 +464,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                      <table className="w-full border-collapse">
                         <thead className="bg-[#f8fafc] sticky top-0 z-10 border-b border-slate-200">
                            <tr>
-                              <th className="px-4 py-3 text-center w-10">
+                              <th className={`${isMobile ? "px-2 py-2" : "px-4 py-3"} text-center w-10`}>
                                  <input 
                                     type="checkbox" 
                                     checked={selectedIds.size === scannableItems.length && scannableItems.length > 0}
@@ -434,16 +472,16 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                  />
                               </th>
-                              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Item Details</th>
-                              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Scanner Input</th>
-                              <th className="px-6 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">Box No.</th>
-                              <th className="px-6 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">Verify</th>
+                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Item Details</th>
+                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Scanner Input</th>
+                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Box No.</th>
+                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Verify</th>
                            </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                            {scannableItems.map((item, idx) => (
                              <tr key={item.id} className={`group hover:bg-white transition-colors ${item.isPacked ? 'bg-emerald-50/10' : selectedIds.has(item.id) ? 'bg-indigo-50/30' : ''}`}>
-                                <td className="px-4 py-3 text-center">
+                                <td className={`${isMobile ? "px-2 py-2" : "px-4 py-3"} text-center`}>
                                    <input 
                                       type="checkbox"
                                       disabled={item.isPacked || !!item.boxName}
@@ -452,11 +490,11 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                                       className={`w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 ${item.isPacked || !!item.boxName ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}`}
                                    />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"}`}>
                                    <div className="text-[13px] font-semibold text-slate-700">{item.productName}</div>
                                    <div className="text-[10px] font-mono text-slate-400 mt-0.5">SKU: {item.sku}</div>
                                 </td>
-                                <td className="px-6 py-4 w-[280px]">
+                                <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"} w-[280px]`}>
                                    <div className="relative group/field">
                                       <input 
                                          id={`scan-${idx}`}
@@ -493,7 +531,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                                       )}
                                    </div>
                                 </td>
-                                 <td className="px-6 py-4 text-center">
+                                 <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"} text-center`}>
                                     {item.boxName ? (
                                        <div className="flex flex-col items-center gap-1">
                                           <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold text-[11px] px-2.5 py-1 rounded-md border border-amber-100">
@@ -509,7 +547,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                                        <span className="text-[10px] text-slate-300 font-medium italic">Pending</span>
                                     )}
                                  </td>
-                                <td className="px-6 py-4 text-center">
+                                <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"} text-center`}>
                                    <div className={`w-8 h-8 mx-auto rounded-lg flex items-center justify-center transition-all ${
                                       item.isPacked 
                                       ? 'text-emerald-500 scale-110' 

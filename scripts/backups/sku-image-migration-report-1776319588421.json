@@ -1,0 +1,15 @@
+{
+  "bucket": "epanelimages",
+  "region": "ap-south-1",
+  "backupPath": "D:\\Eurus ERP\\Testing\\scripts\\backups\\inventory-cost-backup-2026-04-16T04-31-44-778Z.json",
+  "scanned": 463,
+  "eligible": 352,
+  "copied": 357,
+  "unchanged": 0,
+  "skippedNoSku": 0,
+  "skippedNoImage": 111,
+  "unresolvedSource": 0,
+  "inventoryUpdates": 1056,
+  "mappedSkus": 352,
+  "completedAt": "2026-04-16T06:06:28.421Z"
+}

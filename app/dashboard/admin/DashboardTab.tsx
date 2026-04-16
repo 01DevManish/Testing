@@ -69,6 +69,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   const [inventorySearch, setInventorySearch] = useState("");
   const [inventoryPage, setInventoryPage] = useState(1);
   const [criticalPage, setCriticalPage] = useState(1);
+  const showCostPrice = userData?.role === "admin";
 
   // Reset pagination when searching
   useEffect(() => { setInventoryPage(1); }, [inventorySearch]);
@@ -388,6 +389,11 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                   <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{p.sku}</div>
+                    {showCostPrice && (
+                      <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+                        Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
+                      </div>
+                    )}
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 400, color: "#ef4444", textAlign: "right", flexShrink: 0 }}>
                     {p.stock} <span style={{ fontSize: 10, color: "#94a3b8" }}>{p.unit}</span>
@@ -496,7 +502,14 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                       </div>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>SKU: {p.sku}</div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: 0 }}>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>SKU: {p.sku}</div>
+                        {showCostPrice && (
+                          <div style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>
+                            Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
+                          </div>
+                        )}
+                      </div>
                       {p.stock <= p.minStock && (
                         <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 400 }}>Low Stock</div>
                       )}

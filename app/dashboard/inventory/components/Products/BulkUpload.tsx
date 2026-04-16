@@ -9,8 +9,7 @@ import { db } from "../../../../lib/firebase";
 import { FONT, Product, Category, Collection, UNITS, GST_RATES } from "../../types";
 import { SuccessBanner, BtnPrimary, BtnGhost, Card, PageHeader } from "../../ui";
 import { logActivity } from "../../../../lib/activityLogger";
-import { uploadImage } from "./imageService";
-import { transformImageUrl } from "../../../../lib/urlUtils";
+import { transformImageUrl, normalizeStorageImageUrl, isSameImageIdentity } from "../../../../lib/urlUtils";
 
 interface BulkUploadProps {
     categories: Category[];
@@ -32,6 +31,23 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
 
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const uploadImageUrlWithSku = async (url: string, sku: string): Promise<string> => {
+        const formData = new FormData();
+        formData.append("file", url);
+        formData.append("folder", "inventory/images");
+        formData.append("sku", sku);
+
+        const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+        const data = await res.json().catch(() => ({ error: "Invalid server response" }));
+        if (!res.ok || !data.secure_url) {
+            throw new Error(data.error || "Failed to upload URL image");
+        }
+        return data.secure_url as string;
+    };
 
     const parseExcelNumber = (value: unknown, fallback = 0): number => {
         if (value === null || value === undefined || value === "") return fallback;
@@ -235,10 +251,12 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
 
             const inventorySnap = await get(ref(db, "inventory"));
             const skuMap = new Map<string, string>(); // sku -> id
+            const existingProductsById = new Map<string, Product>();
             if (inventorySnap.exists()) {
                 inventorySnap.forEach(snap => {
                     const val = snap.val();
                     if (val.sku) skuMap.set(val.sku.toString().trim().toLowerCase(), snap.key!);
+                    existingProductsById.set(snap.key!, val as Product);
                 });
             }
 
@@ -264,6 +282,7 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     }
 
                     const existingId = skuMap.get(sku.toLowerCase());
+                    const existingProduct = existingId ? existingProductsById.get(existingId) : undefined;
 
 
                     const brandName = row["Brand"]?.toString().trim() || "";
@@ -274,28 +293,33 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     const minStock = parseExcelNumber(row["Min Stock (Alert)"], 5);
                     const reqStatus = row["Status"]?.toString().trim().toLowerCase().replace(/\s+/g, "-");
 
-                    // Image processing: Skip upload if it's already a Cloudinary URL from our account
+                    // Image processing:
+                    // - blank in Excel => keep existing image untouched
+                    // - changed URL => upload once to S3 with SKU-based filename
+                    // - same URL => skip re-upload
                     let finalImageUrl = "";
-                    let rawImageUrl = row["Thumbnail URL"]?.toString().trim() || "";
+                    const rawImageUrl = row["Thumbnail URL"]?.toString().trim() || "";
                     if (rawImageUrl) {
                         try {
-                            const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "dd4hmahlm"; // Our Cloudinary cloud name
-                            if (rawImageUrl.includes(`res.cloudinary.com/${cloudName}`)) {
-                                // Already uploaded to our account, skip and use existing URL
-                                finalImageUrl = rawImageUrl;
+                            const transformedUrl = transformImageUrl(rawImageUrl);
+                            const normalizedInputUrl = normalizeStorageImageUrl(transformedUrl);
+                            const existingMainImage = String(existingProduct?.imageUrl || "").trim();
+
+                            if (existingMainImage && (isSameImageIdentity(normalizedInputUrl, existingMainImage) || isSameImageIdentity(rawImageUrl, existingMainImage))) {
+                                finalImageUrl = existingMainImage;
                             } else {
-                                // Transform Dropbox and other external URLs to direct links
-                                const transformedUrl = transformImageUrl(rawImageUrl);
-                                finalImageUrl = await uploadImage(transformedUrl);
+                                finalImageUrl = await uploadImageUrlWithSku(transformedUrl, sku);
                             }
                         } catch (imgErr: any) {
                             console.warn(`Row ${rowNum}: Image processing failed, continuing without image.`, imgErr);
-                            // Fallback to existing or empty if upload fails
+                            finalImageUrl = "";
+                            errors.push(`Row ${rowNum}: Image URL could not be processed. Existing image kept unchanged.`);
                         }
                     }
 
 
-                    const productData: Omit<Product, "id"> = {
+                    const hasCostPriceColumn = Object.prototype.hasOwnProperty.call(row, "Cost Price (Rs.)");
+                    const productData = {
                         productName,
                         sku,
                         category: row["Category"]?.toString().trim() || "",
@@ -313,31 +337,53 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                         hsnCode: row["HSN Code"]?.toString().trim() || "",
                         gstRate: parseInt(row["GST Rate"]?.toString().replace("%", "").trim()) || 18,
                         description: row["Description"]?.toString().trim() || "",
-                        imageUrl: finalImageUrl,
-                        imageUrls: [],
                         status: (reqStatus === "active" || reqStatus === "inactive" || reqStatus === "low-stock" || reqStatus === "out-of-stock") 
                             ? reqStatus 
                             : (stock <= 0 ? "out-of-stock" : (stock <= minStock ? "low-stock" : "active")),
-                        createdAt: timestamp,
-                        updatedAt: timestamp,
-                        createdBy: user.uid,
-                        createdByName: user.name,
-                        updatedBy: user.uid,
-                        updatedByName: user.name
                     };
 
                     if (existingId) {
                         // UPDATE Existing Product
-                        const { createdAt, createdBy, createdByName, ...updateData } = productData as any;
+                        const existingGallery = Array.isArray(existingProduct?.imageUrls)
+                            ? existingProduct!.imageUrls.filter((img) => typeof img === "string" && img.trim())
+                            : [];
+                        const safeCostPrice = hasCostPriceColumn
+                            ? productData.costPrice
+                            : Number(existingProduct?.costPrice || 0);
+                        const updateData: Partial<Product> & Record<string, unknown> = {
+                            ...productData,
+                            costPrice: safeCostPrice,
+                            updatedAt: timestamp,
+                            updatedBy: user.uid,
+                            updatedByName: user.name
+                        };
+
+                        // If Thumbnail URL is blank in Excel, preserve existing image fields.
+                        // If Thumbnail URL is provided and valid, update main image without wiping gallery.
+                        if (rawImageUrl && finalImageUrl && !isSameImageIdentity(finalImageUrl, String(existingProduct?.imageUrl || ""))) {
+                            updateData.imageUrl = finalImageUrl;
+                            const mergedGallery = [finalImageUrl, ...existingGallery.filter(img => img !== finalImageUrl)];
+                            updateData.imageUrls = mergedGallery;
+                        }
+
                         await update(ref(db, `inventory/${existingId}`), {
-                            ...updateData,
-                            updatedAt: timestamp
+                            ...updateData
                         });
                         updateCount++;
                     } else {
                         // CREATE New Product
                         const newRef = push(ref(db, "inventory"));
-                        await rtdbSet(newRef, productData);
+                        await rtdbSet(newRef, {
+                            ...productData,
+                            imageUrl: finalImageUrl,
+                            imageUrls: finalImageUrl ? [finalImageUrl] : [],
+                            createdAt: timestamp,
+                            updatedAt: timestamp,
+                            createdBy: user.uid,
+                            createdByName: user.name,
+                            updatedBy: user.uid,
+                            updatedByName: user.name
+                        });
                         successCount++;
                         skuMap.set(sku.toLowerCase(), newRef.key!);
                     }

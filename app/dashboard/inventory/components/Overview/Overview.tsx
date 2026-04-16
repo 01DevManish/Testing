@@ -24,18 +24,27 @@ export default function Overview({ products, categories, collections, loading, o
     const [breakdownSearch, setBreakdownSearch] = useState("");
     const [stockPage, setStockPage] = useState(1);
     const STOCK_ITEMS_PER_PAGE = 4;
+    const isAdmin = userRole === "admin";
 
     useEffect(() => {
         setStockPage(1);
     }, [searchTerm, filterStatus]);
 
     const stats = useMemo(() => {
+        const toSafeNumber = (value: unknown): number => {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
         const total = products.length;
         const totalStock = products.reduce((s, p) => s + (p.stock || 0), 0);
         const inStock = products.filter(p => p.stock > p.minStock).length;
         const outStock = products.filter(p => p.stock <= 0).length;
         const lowStock = products.filter(p => p.stock > 0 && p.stock <= (p.minStock || 5)).length;
-        const totalVal = products.reduce((s, p) => s + (p.price * p.stock), 0);
+        const totalVal = products.reduce(
+            (sum, p) => sum + (toSafeNumber(p.costPrice) * toSafeNumber(p.stock)),
+            0
+        );
 
         const list = [
             { label: "Total Products", value: total, color: "#6366f1" },
@@ -44,12 +53,12 @@ export default function Overview({ products, categories, collections, loading, o
             { label: "Out of Stock", value: outStock, color: "#ef4444" },
         ];
 
-        if (userRole === "admin") {
+        if (isAdmin) {
             list.splice(1, 0, { label: "Total Stock", value: totalStock, color: "#3b82f6" });
             list.push({ label: "Total Asset Value", value: totalVal, color: "#8b5cf6" });
         }
         return { list, total, totalStock, totalVal };
-    }, [products, userRole]);
+    }, [products, isAdmin]);
 
     const breakdownData = useMemo(() => {
         let breakdown: Record<string, number> = {};
@@ -98,7 +107,7 @@ export default function Overview({ products, categories, collections, loading, o
         <div>
             <PageHeader title="Inventory Overview" sub="Comprehensive view of your entire stock status." />
 
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : `repeat(${userRole === 'admin' ? 6 : 4}, 1fr)`, gap: 14, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : `repeat(${isAdmin ? 6 : 4}, 1fr)`, gap: 14, marginBottom: 20 }}>
                 {stats.list.map((s, i) => (
                     <Card key={i}>
                         <div style={{ padding: "16px 18px" }}>
@@ -131,6 +140,11 @@ export default function Overview({ products, categories, collections, loading, o
                                         </div>
                                         <div style={{ textAlign: "right" }}>
                                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>₹{p.price.toLocaleString("en-IN")}</div>
+                                            {isAdmin && (
+                                                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>
+                                                    Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
+                                                </div>
+                                            )}
                                             <div style={{ fontSize: 11, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontWeight: 400, fontFamily: FONT }}>
                                                 {p.stock <= 0 ? "Out of Stock" : p.stock <= p.minStock ? "Low Stock" : "In Stock"}
                                             </div>
@@ -199,6 +213,7 @@ export default function Overview({ products, categories, collections, loading, o
                                     <tr>
                                         <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product Details</th>
                                         <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>SKU</th>
+                                        {isAdmin && <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Cost Price</th>}
                                         <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Pieces</th>
                                         <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Status</th>
                                     </tr>
@@ -219,6 +234,11 @@ export default function Overview({ products, categories, collections, loading, o
                                                 </div>
                                             </td>
                                             <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 13, color: "#64748b", fontFamily: FONT }}>{p.sku}</td>
+                                            {isAdmin && (
+                                                <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 13, color: "#64748b", fontFamily: FONT, textAlign: "right" }}>
+                                                    Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
+                                                </td>
+                                            )}
                                             <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 15, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 500, fontFamily: FONT, textAlign: "right" }}>{p.stock}</td>
                                             <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", textAlign: "right" }}>
                                                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: p.stock <= 0 ? "#fff1f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4", color: p.stock <= 0 ? "#e11d48" : p.stock <= p.minStock ? "#d97706" : "#15803d", fontWeight: 500, fontSize: 11, fontFamily: FONT }}>

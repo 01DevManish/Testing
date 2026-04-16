@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ref, get, query, orderByChild, equalTo } from "firebase/database";
+import { ref, get } from "firebase/database";
 import { db } from "../../lib/firebase";
 
 interface Employee {
@@ -16,9 +16,10 @@ interface Employee {
 
 interface TeamTabProps {
   isMobile: boolean;
+  managerUid: string;
 }
 
-export default function TeamTab({ isMobile }: TeamTabProps) {
+export default function TeamTab({ isMobile, managerUid }: TeamTabProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,15 +28,40 @@ export default function TeamTab({ isMobile }: TeamTabProps) {
     async function loadTeam() {
       setLoading(true);
       try {
-        const q = query(ref(db, "users"), orderByChild("role"), equalTo("employee"));
-        const snapshot = await get(q);
+        const [usersSnap, tasksSnap] = await Promise.all([
+          get(ref(db, "users")),
+          get(ref(db, "tasks")),
+        ]);
+
         const list: Employee[] = [];
-        if (snapshot.exists()) {
-          snapshot.forEach((child) => {
-            list.push({ uid: child.key, ...child.val() } as Employee);
+
+        const assignedEmployeeUids = new Set<string>();
+        if (tasksSnap.exists()) {
+          tasksSnap.forEach((task) => {
+            const t = task.val();
+            if (
+              t?.createdBy === managerUid &&
+              t?.assignedToRole === "employee" &&
+              typeof t?.assignedTo === "string" &&
+              t.assignedTo.trim()
+            ) {
+              assignedEmployeeUids.add(t.assignedTo);
+            }
           });
         }
-        setEmployees(list);
+
+        if (usersSnap.exists()) {
+          usersSnap.forEach((child) => {
+            const user = child.val() || {};
+            const uid = String(child.key || "");
+            if (!uid) return;
+            if (user.role !== "employee") return;
+            if (!assignedEmployeeUids.has(uid)) return;
+            if (!user.name || !user.email) return;
+            list.push({ uid, ...user } as Employee);
+          });
+        }
+        setEmployees(list.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (err) {
         console.error("Error loading team:", err);
       } finally {
@@ -43,7 +69,7 @@ export default function TeamTab({ isMobile }: TeamTabProps) {
       }
     }
     loadTeam();
-  }, []);
+  }, [managerUid]);
 
   const filteredTeam = employees.filter(emp => 
     emp.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
