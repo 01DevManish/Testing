@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { TouchEvent as ReactTouchEvent } from "react";
 import { createPortal } from "react-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import { resolveS3Url } from "../../../inventory/components/Products/imageService";
@@ -40,10 +41,13 @@ export default function MobileScannerView({
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [isLogExpanded, setIsLogExpanded] = useState(false);
   const [scanHistory, setScanHistory] = useState<Array<{ id: number; sku: string; productName: string; time: string; box: string }>>([]);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "global-barcode-scanner";
-  const lastScanAtRef = useRef(0);
+  const nextAllowedScanAtRef = useRef(0);
+  const touchStartYRef = useRef<number | null>(null);
 
   const latestOnScanRef = useRef(onScan);
 
@@ -108,13 +112,13 @@ export default function MobileScannerView({
 
   const handleDetection = (code: string) => {
     const now = Date.now();
-    if (now - lastScanAtRef.current < 1000) return;
-    lastScanAtRef.current = now;
+    if (now < nextAllowedScanAtRef.current) return;
 
     const result = latestOnScanRef.current(code);
 
     if (result.success) {
       setLastMessage({ type: "success", text: `Scanned: ${code}`, time: now });
+      nextAllowedScanAtRef.current = now + 3000;
       if ("vibrate" in navigator) navigator.vibrate(80);
       playBeep("success");
 
@@ -130,13 +134,36 @@ export default function MobileScannerView({
       ].slice(0, 12));
     } else {
       setLastMessage({ type: "error", text: result.message || "No match", time: now });
+      nextAllowedScanAtRef.current = now + 800;
       if ("vibrate" in navigator) navigator.vibrate([80, 50, 80]);
       playBeep("error");
     }
 
     setTimeout(() => {
       setLastMessage((prev) => (prev?.time === now ? null : prev));
-    }, 800);
+    }, result.success ? 3000 : 900);
+  };
+
+  const handleSheetTouchStart = (e: ReactTouchEvent<HTMLButtonElement>) => {
+    touchStartYRef.current = e.touches[0]?.clientY ?? null;
+    setIsDraggingSheet(true);
+  };
+
+  const handleSheetTouchMove = (e: ReactTouchEvent<HTMLButtonElement>) => {
+    if (touchStartYRef.current === null) return;
+    const currentY = e.touches[0]?.clientY ?? touchStartYRef.current;
+    const delta = currentY - touchStartYRef.current;
+    const clamped = Math.max(-180, Math.min(180, delta));
+    setDragOffset(clamped);
+  };
+
+  const handleSheetTouchEnd = () => {
+    const delta = dragOffset;
+    if (delta < -50) setIsLogExpanded(true);
+    if (delta > 50) setIsLogExpanded(false);
+    setDragOffset(0);
+    setIsDraggingSheet(false);
+    touchStartYRef.current = null;
   };
 
   const latestHandleDetectionRef = useRef(handleDetection);
@@ -300,10 +327,20 @@ export default function MobileScannerView({
       </div>
 
       <div
-        className="relative z-[55] -mt-6 flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_-20px_40px_rgba(0,0,0,0.15)]"
-        style={{ height: isLogExpanded ? "100vh" : "126px", transition: "height 220ms ease" }}
+        className="absolute bottom-0 left-0 right-0 z-[55] flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_-20px_40px_rgba(0,0,0,0.15)]"
+        style={{
+          height: isLogExpanded ? "96vh" : "126px",
+          transform: `translateY(${dragOffset}px)`,
+          transition: isDraggingSheet ? "none" : "height 220ms ease, transform 220ms ease",
+        }}
       >
-        <button onClick={() => setIsLogExpanded((prev) => !prev)} className="w-full border-b border-slate-100 bg-white py-3">
+        <button
+          onClick={() => setIsLogExpanded((prev) => !prev)}
+          onTouchStart={handleSheetTouchStart}
+          onTouchMove={handleSheetTouchMove}
+          onTouchEnd={handleSheetTouchEnd}
+          className="w-full border-b border-slate-100 bg-white py-3 touch-none"
+        >
           <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-300"></div>
         </button>
 
