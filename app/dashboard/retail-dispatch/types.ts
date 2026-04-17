@@ -124,7 +124,9 @@ export interface PackingList {
   dispatchedBy?: string;
   bails?: number;
   partyPhone?: string;
-  pdfUrl?: string; // Cloudinary stored PDF
+  packingPdfUrl?: string; // Stored packing list PDF URL
+  dispatchPdfUrl?: string; // Stored dispatch list PDF URL
+  pdfUrl?: string; // Legacy mixed field (kept for backward compatibility)
   createdAt: number;
   createdBy: string;
 }

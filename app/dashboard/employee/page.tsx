@@ -12,6 +12,7 @@ import { getStyles } from "../admin/styles";
 import { useData } from "../../context/DataContext";
 import MessagingTab from "../../components/MessagingTab";
 import NotificationBell from "../../components/NotificationBell";
+import MobileTopBar from "../../components/MobileTopBar";
 import CatalogTab from "../inventory/components/Catalog/CatalogTab";
 import EmployeeSidebar from "./EmployeeSidebar";
 import { hasPermission } from "@/app/lib/permissions";
@@ -181,16 +182,24 @@ export default function EmployeePage() {
 
       {/* =================== MAIN =================== */}
       <main style={S.main}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
-            <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+        {!isDesktop ? (
+          <MobileTopBar
+            title={`${greeting}, ${currentName.split(" ")[0]}!`}
+            subtitle={new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            onMenuClick={() => setSidebarOpen(true)}
+            rightSlot={<NotificationBell />}
+          />
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}!</h1>
+              <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+            </div>
+            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+              <NotificationBell />
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <NotificationBell />
-            {!isDesktop && <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>}
-          </div>
-        </div>
+        )}
 
         {/* ========== STATS ========== */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>

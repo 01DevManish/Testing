@@ -48,6 +48,10 @@ const CACHE_KEYS = {
   TRANSPORTERS: "eurus_cache_transporters",
 };
 
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
+const HIDDEN_ADMIN_NAME = "dev manish";
+const VALID_USER_ROLES = new Set(["admin", "manager", "employee", "user"]);
+
 type EntityPath =
   | "inventory"
   | "partyRates"
@@ -81,9 +85,42 @@ const NODE_DEFS: Array<{
   { path: "transporters", cacheKey: CACHE_KEYS.TRANSPORTERS, realtime: true, aliases: ["transporters"] },
 ];
 
-const normalizeSnapshotToList = (val: unknown): Array<Record<string, unknown>> => {
+const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<string, unknown>> => {
   if (!val || typeof val !== "object") return [];
-  return Object.entries(val as Record<string, unknown>).map(([key, record]) => {
+
+  const entries = Object.entries(val as Record<string, unknown>);
+
+  if (path === "users") {
+    return entries.flatMap(([
+      key,
+      record,
+    ]): Array<Record<string, unknown>> => {
+        if (!record || typeof record !== "object") return [];
+        const safeRecord = record as Record<string, unknown>;
+
+        const uid = typeof safeRecord.uid === "string" && safeRecord.uid.trim()
+          ? safeRecord.uid.trim()
+          : key;
+        const email = typeof safeRecord.email === "string" ? safeRecord.email.trim() : "";
+        const name = typeof safeRecord.name === "string" ? safeRecord.name.trim() : "";
+        const roleRaw = typeof safeRecord.role === "string" ? safeRecord.role.trim().toLowerCase() : "employee";
+        const role = VALID_USER_ROLES.has(roleRaw) ? roleRaw : "employee";
+
+        const isHidden = email.toLowerCase() === HIDDEN_ADMIN_EMAIL || name.toLowerCase() === HIDDEN_ADMIN_NAME;
+        if (!uid || !email || !name || isHidden) return [];
+
+        return [{
+          ...safeRecord,
+          id: key,
+          uid,
+          email,
+          name,
+          role,
+        }];
+      });
+  }
+
+  return entries.map(([key, record]) => {
     const safeRecord = (record && typeof record === "object")
       ? (record as Record<string, unknown>)
       : {};
@@ -97,6 +134,33 @@ const normalizeSnapshotToList = (val: unknown): Array<Record<string, unknown>> =
 
 const castEntityList = <T,>(data: Array<Record<string, unknown>>): T[] =>
   data as unknown as T[];
+
+const sanitizeCachedUsers = (rows: unknown[]): UserRecord[] => {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const user = row as Record<string, unknown>;
+      const uid = typeof user.uid === "string" ? user.uid.trim() : "";
+      const email = typeof user.email === "string" ? user.email.trim() : "";
+      const name = typeof user.name === "string" ? user.name.trim() : "";
+      const roleRaw = typeof user.role === "string" ? user.role.trim().toLowerCase() : "employee";
+      const role = VALID_USER_ROLES.has(roleRaw) ? roleRaw : "employee";
+      const isHidden = email.toLowerCase() === HIDDEN_ADMIN_EMAIL || name.toLowerCase() === HIDDEN_ADMIN_NAME;
+
+      if (!uid || !email || !name || isHidden) return null;
+
+      return {
+        ...user,
+        uid,
+        email,
+        name,
+        role,
+      } as UserRecord;
+    })
+    .filter((user): user is UserRecord => Boolean(user));
+};
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -113,13 +177,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // 1. Initial Load from LocalStorage (Instant 0ms feel)
   useEffect(() => {
-    const loadFromCache = <T,>(key: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+    const loadFromCache = <T,>(
+      key: string,
+      setter: React.Dispatch<React.SetStateAction<T[]>>,
+      transform?: (rows: unknown[]) => T[]
+    ) => {
       const cached = localStorage.getItem(key);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) {
-            setter(parsed as T[]);
+            const next = transform ? transform(parsed as unknown[]) : (parsed as T[]);
+            setter(next);
             return true;
           } else {
             console.warn(`Cache for ${key} is invalid type. Clearing.`);
@@ -135,7 +204,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     loadFromCache(CACHE_KEYS.PRODUCTS, setProducts);
     loadFromCache(CACHE_KEYS.PARTIES, setPartyRates);
-    loadFromCache(CACHE_KEYS.USERS, setUsers);
+    loadFromCache(CACHE_KEYS.USERS, setUsers, sanitizeCachedUsers);
     loadFromCache(CACHE_KEYS.BRANDS, setBrands);
     loadFromCache(CACHE_KEYS.CATEGORIES, setCategories);
     loadFromCache(CACHE_KEYS.COLLECTIONS, setCollections);
@@ -188,7 +257,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     try {
       const snapshot = await get(ref(db, path));
-      const data = snapshot.exists() ? normalizeSnapshotToList(snapshot.val()) : [];
+      const data = snapshot.exists() ? normalizeSnapshotToList(path, snapshot.val()) : [];
       applyEntityData(path, data);
       localStorage.setItem(def.cacheKey, JSON.stringify(data));
     } catch (error) {
@@ -207,7 +276,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (node.realtime) {
         const dbRef = ref(db, node.path);
         const listener = onValue(dbRef, (snapshot) => {
-          const data = snapshot.exists() ? normalizeSnapshotToList(snapshot.val()) : [];
+          const data = snapshot.exists() ? normalizeSnapshotToList(node.path, snapshot.val()) : [];
           applyEntityData(node.path, data);
           localStorage.setItem(node.cacheKey, JSON.stringify(data));
           setLoading(false);

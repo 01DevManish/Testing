@@ -14,8 +14,8 @@ interface BoxDispatchRecord {
   id: string;
   isBoxDispatch?: boolean;
   partyName?: string;
-  createdAt: string;
-  createdBy?: { name?: string };
+  createdAt: string | number;
+  createdBy?: string | { name?: string };
   sourceBoxId?: string;
   bails?: number;
   items?: DispatchListItem[];
@@ -35,9 +35,9 @@ export default function AllBoxDispatchesTab({ packingLists, products }: AllBoxDi
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [packingLists]);
 
-  const formatDate = (iso: string) => {
-    if (!iso) return "N/A";
-    return new Date(iso).toLocaleString("en-IN", {
+  const formatDate = (value: string | number) => {
+    if (!value) return "N/A";
+    return new Date(value).toLocaleString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -104,7 +104,7 @@ export default function AllBoxDispatchesTab({ packingLists, products }: AllBoxDi
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{totalUnits} Units</div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>{l.items?.length || 0} unique SKUs</div>
                     </td>
-                    <td style={{ padding: "18px 24px", fontSize: 13, fontWeight: 500, color: "#475569" }}>{l.createdBy?.name || "Admin"}</td>
+                    <td style={{ padding: "18px 24px", fontSize: 13, fontWeight: 500, color: "#475569" }}>{typeof l.createdBy === "string" ? l.createdBy : l.createdBy?.name || "Admin"}</td>
                     <td style={{ padding: "18px 24px", textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: 8 }}>
                         <BtnGhost

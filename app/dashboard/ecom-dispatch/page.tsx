@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { api } from "./data";
+import MobileTopBar from "../../components/MobileTopBar";
 import { Order, OrderStatus, ActiveView } from "./types";
 import OrderList from "./components/Items/OrderList";
 import Scanner from "./components/Box/Scanner";
@@ -243,21 +244,11 @@ export default function AdvancedDispatchDashboard() {
         <div style={{ padding: isMobile ? "20px 14px" : "28px 40px", maxWidth: 1600, margin: "0 auto" }}>
         {/* Mobile top bar */}
         {!isDesktop && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-            <button 
-                onClick={() => setSidebarOpen(true)} 
-                style={{
-                  ...S.btnIcon,
-                  background: "transparent",
-                  border: "none",
-                  boxShadow: "none",
-                  padding: 0
-                }}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            </button>
-            <span style={{ fontSize: 18, fontWeight: 600, color: "#0f172a" }}>Ecom Dispatch</span>
-          </div>
+          <MobileTopBar
+            title="Ecom Dispatch"
+            subtitle="Track ecommerce fulfillment"
+            onMenuClick={() => setSidebarOpen(true)}
+          />
         )}
 
         {activeView === "overview" && (

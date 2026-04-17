@@ -378,7 +378,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
             draw(`${idx + 1}.`, 35, rowY, 10);
             draw(truncate(item.category || "", 18), 70, rowY, 10);
             draw(truncate(item.collectionName || "", 16), 166, rowY, 10);
-            draw(truncate(item.sku || "N/A", 12), 258, rowY, 10);
+            draw(truncate(item.sku || "N/A", 12), 252, rowY, 10);
             draw(truncate(item.packagingType || item.packingType || list.packagingType || list.packingType || "Box", 12), 305, rowY, 10);
             draw(String(item.quantity || 1), 395, rowY, 10.5, true);
             draw(truncate(item.boxName || "-", 15), 445, rowY, 10);
@@ -416,7 +416,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
 
         if (uploadedUrl && list.id) {
             try {
-                await update(ref(db, `packingLists/${list.id}`), { pdfUrl: uploadedUrl });
+                await update(ref(db, `packingLists/${list.id}`), { dispatchPdfUrl: uploadedUrl });
             } catch {
                 // non-blocking db sync failure
             }

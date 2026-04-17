@@ -28,6 +28,7 @@ import CatalogTab from "./components/Catalog/CatalogTab";
 import ImageGallery from "./components/Layout/ImageGallery";
 import { uploadImage } from "./components/Products/imageService";
 import { transformImageUrl } from "../../lib/urlUtils";
+import MobileTopBar from "../../components/MobileTopBar";
 
 // ── Types ─────────────────────────────────────────────────────
 import { ActiveView, Product } from "./types";
@@ -415,14 +416,11 @@ export default function InventoryPage() {
         }}>
           {/* Mobile top bar */}
           {!isDesktop && (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-              <button onClick={() => setSidebarOpen(true)} style={{ width: 36, height: 36, borderRadius: 9, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 4h12M2 8h12M2 12h8" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" />
-                </svg>
-              </button>
-              <span style={{ fontSize: 15, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Inventory</span>
-            </div>
+            <MobileTopBar
+              title="Inventory"
+              subtitle="Manage products, stock and catalog"
+              onMenuClick={() => setSidebarOpen(true)}
+            />
           )}
 
           {renderView()}

@@ -28,9 +28,12 @@ interface CreatePackingListProps {
 }
 
 const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", "Own Vehicle", "Other"];
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
+const HIDDEN_ADMIN_NAME = "dev manish";
 
 export default function CreatePackingList({ onClose, onCreated, editingList }: CreatePackingListProps) {
   const { user, userData, fetchAllUsers } = useAuth();
+  const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   const [parties, setParties] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
@@ -47,6 +50,13 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
   const [transporter, setTransporter] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
   const [partySearch, setPartySearch] = useState("");
+  const isMobile = viewportWidth < 640;
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const sendAssignmentNotification = async (targetUid: string, partyName: string, isUpdate: boolean) => {
     try {
@@ -216,7 +226,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
             
             if (uploadRes.ok) {
                 const { secure_url } = await uploadRes.json();
-                await update(ref(db, `packingLists/${finalId}`), { pdfUrl: secure_url });
+                await update(ref(db, `packingLists/${finalId}`), { packingPdfUrl: secure_url });
                 console.log("PDF uploaded to Cloudinary:", secure_url);
             }
         }
@@ -286,23 +296,45 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     (p.partyName || "").toLowerCase().includes(partySearch.toLowerCase())
   );
 
+  const assignableUsers = (allUsers || []).filter((u: any) => {
+    if (!u || typeof u !== "object") return false;
+    const uid = typeof u.uid === "string" ? u.uid.trim() : "";
+    const email = typeof u.email === "string" ? u.email.trim().toLowerCase() : "";
+    const name = typeof u.name === "string" ? u.name.trim() : "";
+    const nameLower = name.toLowerCase();
+    if (!uid || !name) return false;
+    if (email === HIDDEN_ADMIN_EMAIL || nameLower === HIDDEN_ADMIN_NAME) return false;
+    return true;
+  });
+
+  const getRoleLabel = (role: unknown) => {
+    if (typeof role !== "string") return "Employee";
+    const normalized = role.trim().toLowerCase();
+    if (!normalized) return "Employee";
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
+
   if (loading) return <div className="p-8 text-center text-slate-500">Loading data...</div>;
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }}>
       <PageHeader title="Create Packing List" sub="Generate a fulfillment list for an employee to pack.">
-        <BtnGhost onClick={onClose}>Cancel</BtnGhost>
-        <BtnPrimary onClick={handleCreate} disabled={saving}>
-          {saving ? "Generating..." : "✨ Generate Packing List"}
-        </BtnPrimary>
+        <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto" }}>
+          <BtnGhost onClick={onClose} style={isMobile ? { flex: 1, justifyContent: "center", fontSize: 12 } : undefined}>
+            Cancel
+          </BtnGhost>
+          <BtnPrimary onClick={handleCreate} disabled={saving} style={isMobile ? { flex: 1, justifyContent: "center", fontSize: 12 } : undefined}>
+            {saving ? "Generating..." : "Generate List"}
+          </BtnPrimary>
+        </div>
       </PageHeader>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: isMobile ? 16 : 24, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {/* STEP 1: Select Party */}
-          <Card style={{ padding: 24 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 500, color: "#1e293b", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ width: 28, height: 28, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>1</span>
+          <Card style={{ padding: isMobile ? 16 : 24 }}>
+            <h3 style={{ fontSize: isMobile ? 14 : 16, fontWeight: 500, color: "#1e293b", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: isMobile ? 24 : 28, height: isMobile ? 24 : 28, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 12 : 14 }}>1</span>
               Select Retail Party
             </h3>
             
@@ -314,7 +346,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                     placeholder="Search Party Name" 
                     value={partySearch}
                     onChange={(e) => setPartySearch(e.target.value)}
-                    style={{ width: "100%", padding: "12px 16px", borderRadius: 0, border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none" }}
+                    style={{ width: "100%", padding: isMobile ? "11px 14px" : "12px 16px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: isMobile ? 13 : 14, outline: "none" }}
                   />
                 </div>
                 <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
@@ -326,29 +358,29 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                         setPartySearch(""); 
                         if (p.transporter) setTransporter(p.transporter);
                       }}
-                      style={{ padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s" }}
+                      style={{ padding: isMobile ? "12px 14px" : "12px 16px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s", gap: 10 }}
                       onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b" }}>{p.partyName}</div>
-                        <div style={{ fontSize: 12, color: "#64748b" }}>{p.billTo?.city}, {p.billTo?.state} | GST: {p.billTo?.gstNo || "N/A"}</div>
+                        <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 500, color: "#1e293b" }}>{p.partyName}</div>
+                        <div style={{ fontSize: isMobile ? 11 : 12, color: "#64748b" }}>{p.billTo?.city}, {p.billTo?.state} | GST: {p.billTo?.gstNo || "N/A"}</div>
                       </div>
-                      <span style={{ fontSize: 11, color: "#6366f1", fontWeight: 500 }}>Select →</span>
+                      <span style={{ fontSize: isMobile ? 10 : 11, color: "#6366f1", fontWeight: 500, whiteSpace: "nowrap" }}>Select</span>
                     </div>
                   ))}
                   {filteredParties.length === 0 && <div className="p-8 text-center text-slate-400 italic text-sm">No parties found.</div>}
                 </div>
               </>
             ) : (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "#f8fafc", borderRadius: 12, border: "1.5px solid #eef2ff" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", padding: isMobile ? "14px 16px" : "16px 20px", background: "#f8fafc", borderRadius: 12, border: "1.5px solid #eef2ff", gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "#1e293b" }}>{selectedParty.partyName}</div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{selectedParty.billTo?.address || "No address provided"}</div>
+                  <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 600, color: "#1e293b" }}>{selectedParty.partyName}</div>
+                  <div style={{ fontSize: isMobile ? 11 : 12, color: "#64748b", marginTop: 2 }}>{selectedParty.billTo?.address || "No address provided"}</div>
                 </div>
                 <button 
                   onClick={() => { setSelectedParty(null); setSelectedItems({}); }}
-                  style={{ padding: "6px 12px", borderRadius: 8, background: "#fff", border: "1px solid #e2e8f0", fontSize: 12, color: "#6366f1", cursor: "pointer" }}
+                  style={{ padding: "6px 12px", borderRadius: 8, background: "#fff", border: "1px solid #e2e8f0", fontSize: isMobile ? 11 : 12, color: "#6366f1", cursor: "pointer" }}
                 >
                   Change Party
                 </button>
@@ -359,69 +391,105 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
           {/* STEP 2: Product List with Party-wise Rates */}
           {selectedParty && (
             <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                <h3 style={{ fontSize: 16, fontWeight: 500, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ width: 28, height: 28, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>2</span>
+              <div style={{ padding: isMobile ? "16px 16px 14px" : "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
+                <h3 style={{ fontSize: isMobile ? 14 : 16, fontWeight: 500, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ width: isMobile ? 24 : 28, height: isMobile ? 24 : 28, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 12 : 14 }}>2</span>
                   Select Products & Quantities
                 </h3>
-                <p style={{ fontSize: 12, color: "#64748b", marginTop: 6, marginLeft: 38 }}>
+                <p style={{ fontSize: isMobile ? 11 : 12, color: "#64748b", marginTop: 6, marginLeft: isMobile ? 34 : 38 }}>
                   Pricing is automatically pulled from the <b>{selectedParty.partyName}</b> rate list.
                 </p>
               </div>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead style={{ background: "#f8fafc" }}>
-                    <tr>
-                      <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Product Name</th>
-                      <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>SKU</th>
-                      <th style={{ padding: "12px 24px", textAlign: "right", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Assigned Rate</th>
-                      <th style={{ padding: "12px 24px", textAlign: "center", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", width: 140 }}>Quantity</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(selectedParty.rates || []).map((r: any, idx: number) => {
-                      const invMatch = inventory.find(p => p.productName === r.productName);
-                      return (
-                        <tr key={idx} style={{ borderBottom: "1px solid #f8fafc" }}>
-                          <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{r.productName}</td>
-                          <td style={{ padding: "14px 24px", fontSize: 13, color: "#64748b" }}>{r.sku || invMatch?.sku || "—"}</td>
-                          <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", textAlign: "right", fontWeight: 600 }}>₹{r.rate}</td>
-                          <td style={{ padding: "14px 24px", textAlign: "center" }}>
-                            <input 
-                              type="number" 
-                              min="0"
-                              placeholder="0"
-                              value={selectedItems[r.productName] || ""}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                setSelectedItems({ ...selectedItems, [r.productName]: val });
-                              }}
-                              style={{ width: "80px", padding: "8px", borderRadius: 0, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 14, outline: "none", color: selectedItems[r.productName] > 0 ? "#6366f1" : "#1e293b", fontWeight: selectedItems[r.productName] > 0 ? 600 : 400 }}
-                            />
+              {isMobile ? (
+                <div style={{ display: "grid", gap: 10, padding: 12 }}>
+                  {(selectedParty.rates || []).map((r: any, idx: number) => {
+                    const invMatch = inventory.find(p => p.productName === r.productName);
+                    return (
+                      <div key={idx} style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, background: "#fff", display: "grid", gap: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{r.productName}</div>
+                          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>SKU: {r.sku || invMatch?.sku || "-"}</div>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Assigned Rate</div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>Rs. {r.rate}</div>
+                          </div>
+                          <input 
+                            type="number" 
+                            min="0"
+                            placeholder="0"
+                            value={selectedItems[r.productName] || ""}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              setSelectedItems({ ...selectedItems, [r.productName]: val });
+                            }}
+                            style={{ width: 88, padding: "10px 8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 13, outline: "none", color: selectedItems[r.productName] > 0 ? "#6366f1" : "#1e293b", fontWeight: selectedItems[r.productName] > 0 ? 600 : 400 }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(selectedParty.rates || []).length === 0 && (
+                    <div style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>
+                      No rates have been assigned to this party yet. Please update the Party-wise Rate List first.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead style={{ background: "#f8fafc" }}>
+                      <tr>
+                        <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Product Name</th>
+                        <th style={{ padding: "12px 24px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>SKU</th>
+                        <th style={{ padding: "12px 24px", textAlign: "right", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase" }}>Assigned Rate</th>
+                        <th style={{ padding: "12px 24px", textAlign: "center", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", width: 140 }}>Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedParty.rates || []).map((r: any, idx: number) => {
+                        const invMatch = inventory.find(p => p.productName === r.productName);
+                        return (
+                          <tr key={idx} style={{ borderBottom: "1px solid #f8fafc" }}>
+                            <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{r.productName}</td>
+                            <td style={{ padding: "14px 24px", fontSize: 13, color: "#64748b" }}>{r.sku || invMatch?.sku || "-"}</td>
+                            <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", textAlign: "right", fontWeight: 600 }}>Rs. {r.rate}</td>
+                            <td style={{ padding: "14px 24px", textAlign: "center" }}>
+                              <input 
+                                type="number" 
+                                min="0"
+                                placeholder="0"
+                                value={selectedItems[r.productName] || ""}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  setSelectedItems({ ...selectedItems, [r.productName]: val });
+                                }}
+                                style={{ width: "80px", padding: "8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 14, outline: "none", color: selectedItems[r.productName] > 0 ? "#6366f1" : "#1e293b", fontWeight: selectedItems[r.productName] > 0 ? 600 : 400 }}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {(selectedParty.rates || []).length === 0 && (
+                        <tr>
+                          <td colSpan={4} style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic" }}>
+                            No rates have been assigned to this party yet. Please update the Party-wise Rate List first.
                           </td>
                         </tr>
-                      );
-                    })}
-                    {(selectedParty.rates || []).length === 0 && (
-                      <tr>
-                        <td colSpan={4} style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic" }}>
-                          No rates have been assigned to this party yet. Please update the Party-wise Rate List first.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Card>
           )}
         </div>
 
-        <div style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ position: isMobile ? "static" : "sticky", top: 24, display: "flex", flexDirection: "column", gap: 24 }}>
           {/* Assignment & Logistics */}
-          <Card style={{ padding: 24 }}>
-             <h3 style={{ fontSize: 15, fontWeight: 500, color: "#1e293b", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-               📦 Logistics & Assignment
-             </h3>
+          <Card style={{ padding: isMobile ? 16 : 24 }}>
+             <h3 style={{ fontSize: isMobile ? 14 : 15, fontWeight: 500, color: "#1e293b", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>Logistics and Assignment</h3>
              
              <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -437,33 +505,35 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                 </div>
 
                 {showAddTransporter ? (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8, flexDirection: isMobile ? "column" : "row" }}>
                     <input 
                       type="text" 
                       placeholder="Transporter Name" 
                       value={newTransporterName}
                       onChange={(e) => setNewTransporterName(e.target.value)}
-                      style={{ flex: 1, padding: "8px 12px", borderRadius: 0, border: "1.5px solid #6366f1", fontSize: 13, outline: "none" }}
+                      style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid #6366f1", fontSize: isMobile ? 12 : 13, outline: "none" }}
                     />
-                    <button 
-                      onClick={handleAddTransporter}
-                      disabled={isAddingTransporter || !newTransporterName.trim()}
-                      style={{ padding: "0 12px", borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontSize: 12, cursor: "pointer" }}
-                    >
-                      {isAddingTransporter ? "Saving" : "Save"}
-                    </button>
-                    <button 
-                      onClick={() => { setShowAddTransporter(false); setNewTransporterName(""); }}
-                      style={{ padding: "0 8px", background: "none", border: "none", color: "#ef4444", fontSize: 16, cursor: "pointer" }}
-                    >
-                      ✕
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button 
+                        onClick={handleAddTransporter}
+                        disabled={isAddingTransporter || !newTransporterName.trim()}
+                        style={{ flex: 1, minHeight: 38, padding: "0 12px", borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontSize: 12, cursor: "pointer" }}
+                      >
+                        {isAddingTransporter ? "Saving" : "Save"}
+                      </button>
+                      <button 
+                        onClick={() => { setShowAddTransporter(false); setNewTransporterName(""); }}
+                        style={{ minWidth: 42, background: "none", border: "1px solid #fecaca", color: "#ef4444", fontSize: 14, borderRadius: 8, cursor: "pointer" }}
+                      >
+                        X
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <select 
                     value={transporter}
                     onChange={(e) => setTransporter(e.target.value)}
-                    style={{ width: "100%", padding: "11px 14px", borderRadius: 0, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 14 }}
+                    style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: isMobile ? 13 : 14 }}
                   >
                     <option value="">Select Transporter</option>
                     {/* Hardcoded defaults then DB values */}
@@ -480,33 +550,33 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                 <select 
                   value={assignedUserId}
                   onChange={(e) => setAssignedUserId(e.target.value)}
-                  style={{ width: "100%", padding: "11px 14px", borderRadius: 0, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 14 }}
+                  style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: isMobile ? 13 : 14 }}
                 >
                   <option value="">Select User</option>
-                  {(allUsers || []).map((e: any) => (
+                  {assignableUsers.map((e: any) => (
                     <option key={e.uid} value={e.uid}>
-                      {e.name} ({e.role?.charAt(0).toUpperCase() + e.role?.slice(1)})
+                      {e.name} ({getRoleLabel(e.role)})
                     </option>
                   ))}
                 </select>
              </div>
              
-             <p style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.5, margin: "12px 0 0" }}>
+             <p style={{ fontSize: isMobile ? 10 : 11, color: "#94a3b8", lineHeight: 1.5, margin: "12px 0 0" }}>
                The assigned employee will see this list on their dashboard and will be responsible for packing these items.
              </p>
           </Card>
 
           {/* Summary Card */}
           {selectedParty && Object.values(selectedItems).some(q => q > 0) && (
-            <Card style={{ padding: 24, background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", border: "none", color: "#fff" }}>
-               <h3 style={{ fontSize: 14, fontWeight: 500, marginBottom: 16, opacity: 0.9 }}>Selection Summary</h3>
+            <Card style={{ padding: isMobile ? 16 : 24, background: "#fff", border: "1px solid #e2e8f0", color: "#0f172a", boxShadow: "none" }}>
+               <h3 style={{ fontSize: isMobile ? 13 : 14, fontWeight: 500, marginBottom: 16, color: "#64748b" }}>Selection Summary</h3>
                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, opacity: 0.8 }}>Distinct Items:</span>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{Object.values(selectedItems).filter(v => v > 0).length}</span>
+                  <span style={{ fontSize: isMobile ? 12 : 13, color: "#64748b" }}>Distinct Items:</span>
+                  <span style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: "#0f172a" }}>{Object.values(selectedItems).filter(v => v > 0).length}</span>
                </div>
-               <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>Total Quantity:</span>
-                  <span style={{ fontSize: 16, fontWeight: 700 }}>{Object.values(selectedItems).reduce((a, b) => a + b, 0)} Pcs</span>
+               <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>
+                  <span style={{ fontSize: isMobile ? 13 : 14, fontWeight: 500, color: "#0f172a" }}>Total Quantity:</span>
+                  <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: "#6366f1" }}>{Object.values(selectedItems).reduce((a, b) => a + b, 0)} Pcs</span>
                </div>
             </Card>
           )}
@@ -515,3 +585,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     </div>
   );
 }
+
+
+
+

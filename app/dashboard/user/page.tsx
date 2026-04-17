@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 const roleBg: Record<string, string> = { admin: "linear-gradient(135deg,#ef4444,#f97316)", manager: "linear-gradient(135deg,#f59e0b,#fbbf24)", employee: "linear-gradient(135deg,#10b981,#34d399)", user: "linear-gradient(135deg,#3b82f6,#60a5fa)" };
 
 // Responsive hook
+import MobileTopBar from "../../components/MobileTopBar";
 function useWindowSize() {
   const [size, setSize] = useState({ width: typeof window !== "undefined" ? window.innerWidth : 1200 });
   useEffect(() => {
@@ -213,15 +214,20 @@ export default function UserPage() {
       {/* =================== MAIN =================== */}
       <main style={S.main}>
         {/* Top bar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}</h1>
-            <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+        {!isDesktop ? (
+          <MobileTopBar
+            title={`${greeting}, ${currentName.split(" ")[0]}`}
+            subtitle={new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            onMenuClick={() => setSidebarOpen(true)}
+          />
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{greeting}, {currentName.split(" ")[0]}</h1>
+              <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            {!isDesktop && <button onClick={() => setSidebarOpen(true)} style={S.btnIcon}>☰</button>}
-          </div>
-        </div>
+        )}
 
         {/* ========== WELCOME CARD ========== */}
         <div style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", borderRadius: 20, padding: isMobile ? 20 : 32, marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 24, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}>

@@ -132,6 +132,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   };
 
   const currentBoxName = `${packageType === "Box" ? "B" : "BL"}${currentBoxIndex}`;
+  const allItemsPacked = scannableItems.every((item) => item.isPacked);
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -417,202 +418,385 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
            )}
         </Card>
       ) : (
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-               <Card style={{ padding: 0, overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
-                  <div className={`p-4 border-b border-slate-100 bg-white ${isMobile ? "flex flex-col items-stretch gap-3" : "flex justify-between items-center"}`}>
-                     <div>
-                        <h4 className="text-sm font-bold text-slate-800">Dispatch Scanning</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-[11px] text-slate-500">Assign to:</p>
-                          <select 
-                            value={packageType} 
-                            onChange={(e) => setPackageType(e.target.value as "Box" | "Bale")}
-                            className="text-[11px] bg-slate-100 border-none rounded px-2 py-0.5 font-bold text-indigo-600 outline-none cursor-pointer"
-                          >
-                            <option value="Box">Box</option>
-                            <option value="Bale">Bale</option>
-                          </select>
-                        </div>
-                     </div>
-                     <div className={`flex ${isMobile ? "flex-col items-stretch" : "items-center"} gap-3`}>
-                        {selectedIds.size > 0 && (
-                           <button 
-                             onClick={handleCreateBox}
-                             className={`bg-indigo-600 text-white ${isMobile ? "text-xs" : "text-[10px]"} font-bold px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 animate-in zoom-in duration-200`}
-                           >
-                              Create {packageType} {currentBoxName} ({selectedIds.size} selected)
-                           </button>
-                        )}
-                        <div className={`flex ${isMobile ? "flex-col items-stretch" : "items-center"} gap-2`}>
-                           <button 
-                             onClick={() => setShowMobileScanner(true)}
-                             className={`flex items-center justify-center gap-2 bg-slate-900 text-white ${isMobile ? "text-xs" : "text-[10px]"} font-bold px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200`}
-                           >
-                              <span className="text-sm">📱</span>
-                              <span>Mobile Scanner</span>
-                           </button>
-                           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase mr-3">Next {packageType}</span>
-                              <span className="text-sm font-black text-slate-600">{currentBoxName}</span>
-                           </div>
-                        </div>
-                     </div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+          <div className="lg:col-span-2">
+            <Card
+              style={{
+                padding: 0,
+                overflow: "hidden",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+              }}
+            >
+              <div
+                className={`border-b border-slate-100 bg-white ${isMobile ? "p-4" : "p-5"} ${
+                  isMobile ? "space-y-3" : "flex items-start justify-between gap-4"
+                }`}
+              >
+                <div className="space-y-2">
+                  <div>
+                    <h4 className={`${isMobile ? "text-sm font-semibold" : "text-base font-semibold"} text-slate-800`}>
+                      Dispatch Scanning
+                    </h4>
+                    <p className={`${isMobile ? "text-[11px]" : "text-xs"} mt-1 text-slate-500`}>
+                      Scan each item in sequence and assign it to the active {packageType.toLowerCase()}.
+                    </p>
                   </div>
-
-                  <div className="max-h-[550px] overflow-y-auto bg-[#f8fafc]/50">
-                     <table className="w-full border-collapse">
-                        <thead className="bg-[#f8fafc] sticky top-0 z-10 border-b border-slate-200">
-                           <tr>
-                              <th className={`${isMobile ? "px-2 py-2" : "px-4 py-3"} text-center w-10`}>
-                                 <input 
-                                    type="checkbox" 
-                                    checked={selectedIds.size === scannableItems.length && scannableItems.length > 0}
-                                    onChange={toggleSelectAll}
-                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                 />
-                              </th>
-                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Item Details</th>
-                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Scanner Input</th>
-                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Box No.</th>
-                              <th className={`${isMobile ? "px-3 py-2" : "px-6 py-3"} text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider`}>Verify</th>
-                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                           {scannableItems.map((item, idx) => (
-                             <tr key={item.id} className={`group hover:bg-white transition-colors ${item.isPacked ? 'bg-emerald-50/10' : selectedIds.has(item.id) ? 'bg-indigo-50/30' : ''}`}>
-                                <td className={`${isMobile ? "px-2 py-2" : "px-4 py-3"} text-center`}>
-                                   <input 
-                                      type="checkbox"
-                                      disabled={item.isPacked || !!item.boxName}
-                                      checked={selectedIds.has(item.id)}
-                                      onChange={() => toggleSelection(item.id)}
-                                      className={`w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 ${item.isPacked || !!item.boxName ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}`}
-                                   />
-                                </td>
-                                <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"}`}>
-                                   <div className="text-[13px] font-semibold text-slate-700">{item.productName}</div>
-                                   <div className="text-[10px] font-mono text-slate-400 mt-0.5">SKU: {item.sku}</div>
-                                </td>
-                                <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"} w-[280px]`}>
-                                   <div className="relative group/field">
-                                      <input 
-                                         id={`scan-${idx}`}
-                                         type="text"
-                                         placeholder="Ready for scan"
-                                         autoComplete="off"
-                                         value={item.scannedValue}
-                                         disabled={item.isPacked}
-                                         onChange={(e) => handleInputChange(idx, e.target.value)}
-                                         onKeyDown={(e) => handleKeyDown(idx, e)}
-                                         onFocus={(e) => (e.target as HTMLInputElement).select()}
-                                         className={`w-full bg-white border-[1.5px] font-mono text-[13px] p-2.5 px-4 rounded-none outline-none transition-all ${
-                                           item.isPacked 
-                                            ? 'border-emerald-200 bg-emerald-50/20 text-emerald-700 shadow-inner' 
-                                            : item.scannedValue.length > 0
-                                              ? 'border-rose-200 bg-rose-50/20 text-rose-700 focus:border-rose-500 ring-rose-50/50'
-                                              : 'border-slate-200 text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-4 ring-indigo-50/50'
-                                         }`}
-                                      />
-                                      {item.isPacked ? (
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                           <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-200">
-                                              <svg width="10" height="8" viewBox="0 0 12 9" fill="none">
-                                                 <path d="M1 4.5L4.5 8L11 1.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                              </svg>
-                                           </div>
-                                        </div>
-                                      ) : item.scannedValue.length > 0 && (
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                           <div className="w-5 h-5 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-200">
-                                              <span className="text-white text-[10px] font-bold">✕</span>
-                                           </div>
-                                        </div>
-                                      )}
-                                   </div>
-                                </td>
-                                 <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"} text-center`}>
-                                    {item.boxName ? (
-                                       <div className="flex flex-col items-center gap-1">
-                                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold text-[11px] px-2.5 py-1 rounded-md border border-amber-100">
-                                             {item.boxName}
-                                          </span>
-                                          {boxBarcodes[item.boxName] && (
-                                            <span className="text-[9px] font-mono text-slate-400">
-                                              {boxBarcodes[item.boxName]}
-                                            </span>
-                                          )}
-                                       </div>
-                                    ) : (
-                                       <span className="text-[10px] text-slate-300 font-medium italic">Pending</span>
-                                    )}
-                                 </td>
-                                <td className={`${isMobile ? "px-3 py-3" : "px-6 py-4"} text-center`}>
-                                   <div className={`w-8 h-8 mx-auto rounded-lg flex items-center justify-center transition-all ${
-                                      item.isPacked 
-                                      ? 'text-emerald-500 scale-110' 
-                                      : 'text-slate-200 group-hover:text-slate-300'
-                                   }`}>
-                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                         <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.78 4.78 4 4 0 0 1-6.74 0 4 4 0 0 1-4.77-4.78 4 4 0 0 1 0-6.74z" />
-                                         {item.isPacked && <path d="m9 12 2 2 4-4" />}
-                                      </svg>
-                                   </div>
-                                </td>
-                             </tr>
-                           ))}
-                        </tbody>
-                     </table>
-                  </div>
-               </Card>
-            </div>
-
-            <div className="space-y-6">
-               <Card style={{ padding: 24 }}>
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                       <h3 className="text-lg font-semibold text-slate-800">{selectedList.partyName}</h3>
-                       <p className="text-xs text-slate-500">#{selectedList.id.slice(-6)}</p>
+                  <div className={`flex ${isMobile ? "flex-col items-start gap-2" : "items-center gap-3"}`}>
+                    <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Assign To</span>
+                      <select
+                        value={packageType}
+                        onChange={(e) => setPackageType(e.target.value as "Box" | "Bale")}
+                        className="ml-2 cursor-pointer bg-transparent text-xs font-medium text-indigo-600 outline-none"
+                      >
+                        <option value="Box">Box</option>
+                        <option value="Bale">Bale</option>
+                      </select>
                     </div>
-                    <button onClick={() => setSelectedList(null)} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Change List</button>
+                    {isMobile && (
+                      <div className="inline-flex items-center rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5">
+                        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-indigo-500">Next</span>
+                        <span className="ml-2 text-sm font-semibold text-indigo-700">{currentBoxName}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={`flex ${isMobile ? "flex-col items-stretch gap-2" : "items-center gap-3"}`}>
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={handleCreateBox}
+                      className={`flex items-center justify-center rounded-xl bg-indigo-600 text-white transition-colors hover:bg-indigo-700 ${
+                        isMobile ? "px-4 py-3 text-xs font-semibold" : "px-4 py-2.5 text-[11px] font-semibold"
+                      }`}
+                    >
+                      Create {packageType} {currentBoxName} ({selectedIds.size})
+                    </button>
+                  )}
+                  <div className={`flex ${isMobile ? "flex-col items-stretch gap-2" : "items-center gap-2"}`}>
+                    <button
+                      onClick={() => setShowMobileScanner(true)}
+                      className={`flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white transition-colors hover:bg-slate-800 ${
+                        isMobile ? "px-4 py-3 text-xs font-semibold" : "px-4 py-2.5 text-[11px] font-semibold"
+                      }`}
+                    >
+                      <span>Mobile Scanner</span>
+                    </button>
+                    {!isMobile && (
+                      <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Next {packageType}</span>
+                        <span className="ml-3 text-sm font-semibold text-slate-700">{currentBoxName}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {isMobile ? (
+                <div className="space-y-3 bg-slate-50/60 p-4">
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <label className="flex items-center gap-3 text-[11px] text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === scannableItems.length && scannableItems.length > 0}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      Select all rows
+                    </label>
+                    <span className="text-[11px] font-medium text-slate-500">{scannableItems.length} items</span>
                   </div>
 
-                  <div className="space-y-6">
-                     <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Invoice Number</label>
-                        <input 
-                           type="text"
-                           placeholder="INV-"
-                           value={invoiceNo}
-                           onChange={(e) => setInvoiceNo(e.target.value)}
-                           className="w-full p-2.5 rounded-none border border-slate-200 bg-white text-sm font-semibold outline-none focus:border-indigo-500 transition-all shadow-sm"
+                  {scannableItems.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-2xl border px-4 py-4 shadow-sm transition-colors ${
+                        item.isPacked
+                          ? "border-emerald-100 bg-emerald-50/70"
+                          : selectedIds.has(item.id)
+                            ? "border-indigo-200 bg-indigo-50/70"
+                            : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          disabled={item.isPacked || !!item.boxName}
+                          checked={selectedIds.has(item.id)}
+                          onChange={() => toggleSelection(item.id)}
+                          className={`mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 ${
+                            item.isPacked || !!item.boxName ? "cursor-not-allowed opacity-20" : "cursor-pointer"
+                          }`}
                         />
-                        <p className="text-[10px] text-slate-400 mt-2 italic px-1">This field is mandatory for tracking.</p>
-                     </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-medium text-slate-800">{item.productName}</div>
+                              <div className="mt-1 text-[11px] font-mono text-slate-500">SKU: {item.sku}</div>
+                            </div>
+                            <div
+                              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                                item.isPacked
+                                  ? "border-emerald-200 bg-emerald-100 text-emerald-600"
+                                  : "border-slate-200 bg-slate-50 text-slate-300"
+                              }`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.78 4.78 4 4 0 0 1-6.74 0 4 4 0 0 1-4.77-4.78 4 4 0 0 1 0-6.74z" />
+                                {item.isPacked && <path d="m9 12 2 2 4-4" />}
+                              </svg>
+                            </div>
+                          </div>
 
-                     <div className="pt-4 border-t border-slate-100">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Security Verification</label>
-                        <input 
-                           type="password"
-                           placeholder="Enter MPIN"
-                           maxLength={6}
-                           value={pin}
-                           onChange={(e) => setPin(e.target.value)}
-                           className="w-full p-3 rounded-none border border-slate-200 bg-slate-50 text-center text-lg font-bold outline-none focus:border-indigo-500 transition-all mb-4"
-                        />
-                        <BtnPrimary 
-                           onClick={handleDispatch} 
-                           disabled={saving || !scannableItems.every(i => i.isPacked) || pin.length < 4 || !invoiceNo.trim()}
-                           style={{ padding: "14px", fontSize: 14, width: "100%", justifyContent: "center" }}
-                        >
-                           {saving ? "Processing..." : "Complete Verification"}
-                        </BtnPrimary>
-                        <p className="text-[10px] text-center text-slate-400 mt-3 px-4">Ensure all {scannableItems.length} items are scanned and your MPIN is correct to finalize.</p>
-                     </div>
+                          <div className="mt-3">
+                            <label className="mb-1 block text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                              Scanner Input
+                            </label>
+                            <div className="relative">
+                              <input
+                                id={`scan-${idx}`}
+                                type="text"
+                                placeholder="Ready for scan"
+                                autoComplete="off"
+                                value={item.scannedValue}
+                                disabled={item.isPacked}
+                                onChange={(e) => handleInputChange(idx, e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(idx, e)}
+                                onFocus={(e) => (e.target as HTMLInputElement).select()}
+                                className={`w-full rounded-xl border px-4 py-3 font-mono text-xs outline-none transition-all ${
+                                  item.isPacked
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : item.scannedValue.length > 0
+                                      ? "border-rose-200 bg-rose-50 text-rose-700 focus:border-rose-400"
+                                      : "border-slate-200 bg-white text-slate-700 focus:border-indigo-500"
+                                }`}
+                              />
+                              {item.isPacked ? (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
+                                    <svg width="10" height="8" viewBox="0 0 12 9" fill="none">
+                                      <path d="M1 4.5L4.5 8L11 1.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              ) : item.scannedValue.length > 0 ? (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-semibold text-white">
+                                    x
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Box No.</div>
+                              {item.boxName ? (
+                                <div className="mt-1 space-y-1">
+                                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                                    {item.boxName}
+                                  </span>
+                                  {boxBarcodes[item.boxName] && (
+                                    <div className="text-[10px] font-mono text-slate-400">{boxBarcodes[item.boxName]}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="mt-1 text-xs text-slate-400">Pending</div>
+                              )}
+                            </div>
+                            <div className={`rounded-full px-3 py-1 text-[11px] font-medium ${item.isPacked ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                              {item.isPacked ? "Verified" : "Waiting"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="max-h-[550px] overflow-y-auto bg-[#f8fafc]/50">
+                  <table className="w-full border-collapse">
+                    <thead className="sticky top-0 z-10 border-b border-slate-200 bg-[#f8fafc]">
+                      <tr>
+                        <th className="w-10 px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.size === scannableItems.length && scannableItems.length > 0}
+                            onChange={toggleSelectAll}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Item Details</th>
+                        <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Scanner Input</th>
+                        <th className="px-6 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Box No.</th>
+                        <th className="px-6 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Verify</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {scannableItems.map((item, idx) => (
+                        <tr key={item.id} className={`group transition-colors hover:bg-white ${item.isPacked ? "bg-emerald-50/10" : selectedIds.has(item.id) ? "bg-indigo-50/30" : ""}`}>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              disabled={item.isPacked || !!item.boxName}
+                              checked={selectedIds.has(item.id)}
+                              onChange={() => toggleSelection(item.id)}
+                              className={`h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 ${item.isPacked || !!item.boxName ? "cursor-not-allowed opacity-20" : "cursor-pointer"}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-[13px] font-semibold text-slate-700">{item.productName}</div>
+                            <div className="mt-0.5 text-[10px] font-mono text-slate-400">SKU: {item.sku}</div>
+                          </td>
+                          <td className="w-[280px] px-6 py-4">
+                            <div className="relative">
+                              <input
+                                id={`scan-${idx}`}
+                                type="text"
+                                placeholder="Ready for scan"
+                                autoComplete="off"
+                                value={item.scannedValue}
+                                disabled={item.isPacked}
+                                onChange={(e) => handleInputChange(idx, e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(idx, e)}
+                                onFocus={(e) => (e.target as HTMLInputElement).select()}
+                                className={`w-full border-[1.5px] bg-white p-2.5 px-4 font-mono text-[13px] outline-none transition-all ${
+                                  item.isPacked
+                                    ? "border-emerald-200 bg-emerald-50/20 text-emerald-700 shadow-inner"
+                                    : item.scannedValue.length > 0
+                                      ? "border-rose-200 bg-rose-50/20 text-rose-700 ring-rose-50/50 focus:border-rose-500"
+                                      : "border-slate-200 text-slate-700 shadow-sm ring-indigo-50/50 focus:border-indigo-500 focus:ring-4"
+                                }`}
+                              />
+                              {item.isPacked ? (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-200">
+                                    <svg width="10" height="8" viewBox="0 0 12 9" fill="none">
+                                      <path d="M1 4.5L4.5 8L11 1.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              ) : item.scannedValue.length > 0 ? (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-semibold text-white shadow-lg shadow-rose-200">
+                                    x
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {item.boxName ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-amber-100 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                  {item.boxName}
+                                </span>
+                                {boxBarcodes[item.boxName] && (
+                                  <span className="text-[9px] font-mono text-slate-400">{boxBarcodes[item.boxName]}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-medium italic text-slate-300">Pending</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className={`mx-auto flex h-8 w-8 items-center justify-center rounded-lg transition-all ${item.isPacked ? "scale-110 text-emerald-500" : "text-slate-200 group-hover:text-slate-300"}`}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.78 4.78 4 4 0 0 1-6.74 0 4 4 0 0 1-4.77-4.78 4 4 0 0 1 0-6.74z" />
+                                {item.isPacked && <path d="m9 12 2 2 4-4" />}
+                              </svg>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div className="space-y-5">
+            <Card style={{ padding: isMobile ? 18 : 24, background: "#ffffff", border: "1px solid #e2e8f0" }}>
+              <div className={`${isMobile ? "mb-5 space-y-3" : "mb-6 flex items-start justify-between gap-4"}`}>
+                <div>
+                  <h3 className={`${isMobile ? "text-base font-semibold" : "text-lg font-semibold"} text-slate-800`}>
+                    {selectedList.partyName}
+                  </h3>
+                  <p className="mt-1 text-[11px] text-slate-500">#{selectedList.id.slice(-6)}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedList(null)}
+                  className={`${isMobile ? "w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" : "text-xs"} text-slate-500 transition-colors hover:text-red-500`}
+                >
+                  Change List
+                </button>
+              </div>
+
+              <div className={`${isMobile ? "mb-4 grid grid-cols-2 gap-3" : "mb-6 grid grid-cols-2 gap-4"}`}>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Items</div>
+                  <div className={`${isMobile ? "mt-2 text-lg font-semibold" : "mt-2 text-2xl font-semibold"} text-slate-800`}>
+                    {scannableItems.length}
                   </div>
-               </Card>
-            </div>
-         </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Verified</div>
+                  <div className={`${isMobile ? "mt-2 text-lg font-semibold" : "mt-2 text-2xl font-semibold"} text-slate-800`}>
+                    {scannableItems.filter((item) => item.isPacked).length}
+                  </div>
+                </div>
+              </div>
+
+              <div className={`${isMobile ? "space-y-5" : "space-y-6"}`}>
+                <div>
+                  <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                    Invoice Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="INV-"
+                    value={invoiceNo}
+                    onChange={(e) => setInvoiceNo(e.target.value)}
+                    className={`w-full rounded-xl border border-slate-200 bg-white outline-none transition-all focus:border-indigo-500 ${isMobile ? "px-4 py-3 text-sm font-medium" : "p-3 text-sm font-semibold"}`}
+                  />
+                  <p className="mt-2 px-1 text-[10px] text-slate-400">This field is mandatory for tracking.</p>
+                </div>
+
+                <div className="border-t border-slate-100 pt-5">
+                  <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                    Security Verification
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Enter MPIN"
+                    maxLength={6}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    className={`mb-4 w-full rounded-xl border border-slate-200 bg-slate-50 text-center outline-none transition-all focus:border-indigo-500 ${isMobile ? "px-4 py-3 text-base font-semibold" : "p-3 text-lg font-bold"}`}
+                  />
+                  <BtnPrimary
+                    onClick={handleDispatch}
+                    disabled={saving || !allItemsPacked || pin.length < 4 || !invoiceNo.trim()}
+                    style={{
+                      padding: isMobile ? "12px" : "14px",
+                      fontSize: isMobile ? 13 : 14,
+                      width: "100%",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {saving ? "Processing..." : "Complete Verification"}
+                  </BtnPrimary>
+                  <p className="mt-3 px-2 text-center text-[10px] text-slate-400">
+                    Ensure all {scannableItems.length} items are scanned and your MPIN is correct to finalize.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
       )}
 
       {showMobileScanner && selectedList && (
@@ -629,3 +813,4 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     </div>
   );
 }
+

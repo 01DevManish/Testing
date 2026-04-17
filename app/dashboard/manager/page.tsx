@@ -9,6 +9,7 @@ import ProfileTab from "../admin/ProfileTab";
 import PartyRateModule from "../party-rate";
 import MessagingTab from "../../components/MessagingTab";
 import NotificationBell from "../../components/NotificationBell";
+import MobileTopBar from "../../components/MobileTopBar";
 import { useData } from "../../context/DataContext";
 import CatalogTab from "../inventory/components/Catalog/CatalogTab";
 import { getStyles } from "../admin/styles";
@@ -138,16 +139,24 @@ export default function ManagerPage() {
 
       <main style={S.main}>
         {/* Top bar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0 }}>Portal Dashboard, {currentName.split(" ")[0]}!</h1>
-            <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0" }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
+        {!isDesktop ? (
+          <MobileTopBar
+            title={`Portal Dashboard, ${currentName.split(" ")[0]}!`}
+            subtitle={new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+            onMenuClick={() => setSidebarOpen(true)}
+            rightSlot={<NotificationBell />}
+          />
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 400, color: "#0f172a", margin: 0 }}>Portal Dashboard, {currentName.split(" ")[0]}!</h1>
+              <p style={{ fontSize: 14, color: "#94a3b8", margin: "4px 0 0" }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
+            </div>
+            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+              <NotificationBell />
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <NotificationBell />
-            {!isDesktop && <button onClick={() => setSidebarOpen(true)} style={{ width: 36, height: 36, borderRadius: 10, background: "#fff", border: "1px solid #e2e8f0", cursor: "pointer" }}>☰</button>}
-          </div>
-        </div>
+        )}
 
         {view === "dashboard" && (
            <>

@@ -47,6 +47,35 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 const SESSION_KEY = "eurus_session";
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
+const HIDDEN_ADMIN_NAME = "dev manish";
+
+const normalizeRole = (role: unknown): UserRole => {
+  if (role === "admin" || role === "manager" || role === "employee" || role === "user") return role;
+  return "employee";
+};
+
+const sanitizeUserRecord = (raw: unknown, fallbackUid: string): UserData | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const input = raw as Partial<UserData>;
+  const uid = (typeof input.uid === "string" && input.uid.trim()) ? input.uid.trim() : fallbackUid;
+  const email = typeof input.email === "string" ? input.email.trim() : "";
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  const isHidden = email.toLowerCase() === HIDDEN_ADMIN_EMAIL || name.toLowerCase() === HIDDEN_ADMIN_NAME;
+
+  if (!uid || !email || !name || isHidden) return null;
+
+  return {
+    uid,
+    email,
+    name,
+    role: normalizeRole(input.role),
+    permissions: Array.isArray(input.permissions) ? input.permissions.filter((p): p is string => typeof p === "string") : [],
+    dispatchPin: input.dispatchPin,
+    profilePic: input.profilePic,
+    requiresPasswordChange: input.requiresPasswordChange,
+  };
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
@@ -427,7 +456,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const list: UserData[] = [];
     if (snapshot.exists()) {
       snapshot.forEach((child) => {
-        list.push(child.val() as UserData);
+        const normalized = sanitizeUserRecord(child.val(), child.key || "");
+        if (normalized) list.push(normalized);
       });
     }
     return list;
@@ -439,7 +469,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const list: UserData[] = [];
     if (snapshot.exists()) {
       snapshot.forEach((child) => {
-        list.push(child.val() as UserData);
+        const normalized = sanitizeUserRecord(child.val(), child.key || "");
+        if (normalized && normalized.role === "employee") list.push(normalized);
       });
     }
     return list;
