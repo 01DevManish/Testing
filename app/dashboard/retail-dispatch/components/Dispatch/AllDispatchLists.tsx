@@ -222,13 +222,14 @@ export default function AllDispatchLists() {
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search Dispatch ID"
             style={{
-              flex: "1 1 320px",
-              minWidth: isMobile ? "100%" : 220,
-              padding: isMobile ? "11px 12px" : "10px 12px",
-              borderRadius: 10,
+              flex: isMobile ? "1 1 auto" : "1 1 320px",
+              minWidth: isMobile ? 0 : 220,
+              width: isMobile ? "100%" : undefined,
+              padding: isMobile ? "8px 10px" : "10px 12px",
+              borderRadius: 8,
               border: "1.5px solid #e2e8f0",
               background: "#fff",
-              fontSize: isMobile ? 12 : 13,
+              fontSize: isMobile ? 11 : 13,
               color: "#0f172a",
               outline: "none",
             }}
@@ -238,11 +239,11 @@ export default function AllDispatchLists() {
             onChange={(e) => setStatusFilter(e.target.value as "all" | "packed" | "completed")}
             style={{
               width: isMobile ? "100%" : 170,
-              padding: isMobile ? "11px 12px" : "10px 12px",
-              borderRadius: 10,
+              padding: isMobile ? "8px 10px" : "10px 12px",
+              borderRadius: 8,
               border: "1.5px solid #e2e8f0",
               background: "#fff",
-              fontSize: isMobile ? 12 : 13,
+              fontSize: isMobile ? 11 : 13,
               color: "#0f172a",
               outline: "none",
               cursor: "pointer",
@@ -256,14 +257,14 @@ export default function AllDispatchLists() {
       </div>
 
       {isMobile ? (
-        <div style={{ display: "grid", gap: 10, padding: 12 }}>
+        <div style={{ display: "grid", gap: 8, padding: 10 }}>
           {paginatedLists.map((list) => {
             const statusMeta = getStatusMeta(list.status);
             return (
-              <div key={list.id} style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, background: "#fff", display: "grid", gap: 12 }}>
+              <div key={list.id} style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 12, background: "#fff", display: "grid", gap: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>#{list.dispatchId || list.id?.slice(-6).toUpperCase()}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>#{list.dispatchId || list.id?.slice(-6).toUpperCase()}</div>
                     <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
                       {list.dispatchedAt ? new Date(list.dispatchedAt).toLocaleDateString() : "N/A"}
                     </div>
@@ -275,7 +276,7 @@ export default function AllDispatchLists() {
                       justifyContent: "center",
                       padding: "5px 10px",
                       borderRadius: 999,
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: 600,
                       background: statusMeta.bg,
                       color: statusMeta.color,
@@ -288,26 +289,26 @@ export default function AllDispatchLists() {
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{list.partyName || "N/A"}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{list.partyName || "N/A"}</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>
                     {list.partyCity || "City not set"}{list.partyPhone ? ` | ${list.partyPhone}` : ""}
                   </div>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-                  <div style={{ padding: "10px 12px", borderRadius: 12, background: "#f8fafc", border: "1px solid #eef2f7" }}>
+                  <div style={{ padding: "9px 10px", borderRadius: 11, background: "#f8fafc", border: "1px solid #eef2f7" }}>
                     <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 5 }}>Packages</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{getBoxOrBailCount(list)} Box/Bail</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{getBoxOrBailCount(list)} Box/Bail</div>
                   </div>
-                  <div style={{ padding: "10px 12px", borderRadius: 12, background: "#f8fafc", border: "1px solid #eef2f7" }}>
+                  <div style={{ padding: "9px 10px", borderRadius: 11, background: "#f8fafc", border: "1px solid #eef2f7" }}>
                     <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 5 }}>Dispatched By</div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{list.dispatchedBy || "N/A"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "#0f172a" }}>{list.dispatchedBy || "N/A"}</div>
                   </div>
                 </div>
 
-                <div style={{ padding: "10px 12px", borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0" }}>
+                <div style={{ padding: "9px 10px", borderRadius: 11, background: "#fff", border: "1px solid #e2e8f0" }}>
                   <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 5 }}>LR Number</div>
-                  <div style={{ fontSize: 13, color: list.lrNo ? "#0f172a" : "#94a3b8", fontWeight: list.lrNo ? 500 : 400 }}>
+                  <div style={{ fontSize: 12, color: list.lrNo ? "#0f172a" : "#94a3b8", fontWeight: list.lrNo ? 500 : 400 }}>
                     {list.lrNo ? `LR: ${list.lrNo}` : "LR not assigned"}
                   </div>
                 </div>
@@ -320,19 +321,19 @@ export default function AllDispatchLists() {
                           placeholder="Enter LR No."
                           value={tempLr[list.id || ""] || ""}
                           onChange={(e) => setTempLr((prev) => ({ ...prev, [list.id || ""]: e.target.value }))}
-                          style={{ width: "100%", padding: "11px 12px", border: "1.5px solid #dbe4f0", borderRadius: 10, fontSize: 12, outline: "none", background: "#fff" }}
+                            style={{ width: "100%", padding: "10px 11px", border: "1.5px solid #dbe4f0", borderRadius: 10, fontSize: 11, outline: "none", background: "#fff" }}
                         />
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
                           <button
                             onClick={() => list.id && handleFinalize(list.id)}
                             disabled={updating === list.id}
-                            style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "10px 10px", borderRadius: 10, fontSize: 12, fontWeight: 500, opacity: updating === list.id ? 0.7 : 1 }}
+                            style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, opacity: updating === list.id ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}
                           >
                             {updating === list.id ? "Saving..." : "Save LR"}
                           </button>
                           <button
                             onClick={() => setEditingLrId(null)}
-                            style={{ background: "#fff", color: "#475569", border: "1px solid #dbe4f0", padding: "10px 10px", borderRadius: 10, fontSize: 12, fontWeight: 400 }}
+                            style={{ background: "#fff", color: "#475569", border: "1px solid #dbe4f0", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center" }}
                           >
                             Cancel
                           </button>
@@ -341,7 +342,7 @@ export default function AllDispatchLists() {
                     ) : (
                       <button
                         onClick={() => list.id && setEditingLrId(list.id)}
-                        style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "10px 12px", borderRadius: 10, fontSize: 12, fontWeight: 500 }}
+                        style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}
                       >
                         Set LR
                       </button>
@@ -352,13 +353,13 @@ export default function AllDispatchLists() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
                   <button
                     onClick={() => handleDownload(list, "dispatch")}
-                    style={{ background: "#f8fafc", border: "1px solid #dbe4f0", padding: "10px 10px", borderRadius: 10, fontSize: 12, fontWeight: 500, color: "#1e293b" }}
+                    style={{ background: "#f8fafc", border: "1px solid #dbe4f0", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}
                   >
                     Disp
                   </button>
                   <button
                     onClick={() => handleDownload(list, "packing")}
-                    style={{ background: "#6366f1", border: "none", padding: "10px 10px", borderRadius: 10, fontSize: 12, fontWeight: 500, color: "#fff" }}
+                    style={{ background: "#6366f1", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
                   >
                     Pack
                   </button>

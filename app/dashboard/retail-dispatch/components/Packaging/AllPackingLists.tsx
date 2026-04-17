@@ -228,19 +228,19 @@ export default function AllPackingLists({
         </div>
 
         {isMobile ? (
-          <div style={{ display: "grid", gap: 10, padding: 12 }}>
+        <div style={{ display: "grid", gap: 8, padding: 10 }}>
             {filteredLists.map((list) => (
-              <div key={list.id} style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, background: "#fff", display: "grid", gap: 12 }}>
+              <div key={list.id} style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 12, background: "#fff", display: "grid", gap: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>#{list.id?.slice(-6).toUpperCase()}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>#{list.id?.slice(-6).toUpperCase()}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{new Date(list.createdAt).toLocaleDateString()}</div>
                   </div>
                   <span
                     style={{
                       padding: "5px 10px",
                       borderRadius: 999,
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: 600,
                       background: `${getStatusColor(list.status)}15`,
                       color: getStatusColor(list.status),
@@ -251,13 +251,13 @@ export default function AllPackingLists({
                   </span>
                 </div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{list.partyName}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Assigned to {list.assignedToName}</div>
-                  <div style={{ fontSize: 11, color: "#6366f1", marginTop: 2 }}>{list.transporter}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{list.partyName}</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>Assigned to {list.assignedToName}</div>
+                  <div style={{ fontSize: 10, color: "#6366f1", marginTop: 2 }}>{list.transporter}</div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 12, background: "#f8fafc", border: "1px solid #eef2f7" }}>
-                  <span style={{ fontSize: 11, color: "#64748b" }}>Items</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{list.items?.length || 0} Products</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: 11, background: "#f8fafc", border: "1px solid #eef2f7" }}>
+                  <span style={{ fontSize: 10, color: "#64748b" }}>Items</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{list.items?.length || 0} Products</span>
                 </div>
                 <div
                   style={{
@@ -274,20 +274,20 @@ export default function AllPackingLists({
                   <button
                     onClick={() => handlePdf(list)}
                     disabled={downloadingId === list.id}
-                    style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#10b981", padding: "10px 8px", borderRadius: 10, border: "none", opacity: downloadingId === list.id ? 0.7 : 1 }}
+                    style={{ fontSize: 10, fontWeight: 600, color: "#fff", background: "#10b981", padding: "9px 8px", borderRadius: 10, border: "none", opacity: downloadingId === list.id ? 0.7 : 1 }}
                   >
                     {downloadingId === list.id ? "..." : "PDF"}
                   </button>
                   <button
                     onClick={() => onView?.(list)}
-                    style={{ fontSize: 11, fontWeight: 600, color: "#475569", background: "#f1f5f9", padding: "10px 8px", borderRadius: 10, border: "1px solid #e2e8f0" }}
+                    style={{ fontSize: 10, fontWeight: 600, color: "#475569", background: "#f1f5f9", padding: "9px 8px", borderRadius: 10, border: "1px solid #e2e8f0" }}
                   >
                     View
                   </button>
                   {list.status === "Pending" && (
                     <button
                       onClick={() => onEdit?.(list)}
-                      style={{ fontSize: 11, fontWeight: 600, color: "#6366f1", background: "#f5f3ff", padding: "10px 8px", borderRadius: 10, border: "1px solid #e9d5ff" }}
+                      style={{ fontSize: 10, fontWeight: 600, color: "#6366f1", background: "#f5f3ff", padding: "9px 8px", borderRadius: 10, border: "1px solid #e9d5ff" }}
                     >
                       Edit
                     </button>
@@ -299,7 +299,7 @@ export default function AllPackingLists({
                           onDelete?.(list.id);
                         }
                       }}
-                      style={{ fontSize: 11, fontWeight: 600, color: "#ef4444", background: "#fef2f2", padding: "10px 8px", borderRadius: 10, border: "1px solid #fecaca" }}
+                      style={{ fontSize: 10, fontWeight: 600, color: "#ef4444", background: "#fef2f2", padding: "9px 8px", borderRadius: 10, border: "1px solid #fecaca" }}
                     >
                       Delete
                     </button>

@@ -9,12 +9,14 @@ import { generateBoxBarcode, generateDispatchBarcode } from "../../../../lib/bar
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "../ui";
 import { firestoreApi } from "../../data";
 import MobileScannerView from "./MobileScannerView";
+import { resolveS3Url } from "../../../inventory/components/Products/imageService";
 
 interface ScannableItem {
   id: string; // row unique id
   productId: string;
   productName: string;
   sku: string;
+  imageUrl?: string;
   barcode?: string;
   packagingType?: string;
   scannedValue: string;
@@ -38,6 +40,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const [currentBoxIndex, setCurrentBoxIndex] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastScanned, setLastScanned] = useState<{ value: string; match: boolean; expected: string } | null>(null);
+  const [lastMatchedItem, setLastMatchedItem] = useState<ScannableItem | null>(null);
   const [packageType, setPackageType] = useState<"Box" | "Bale">("Box");
   const [showMobileScanner, setShowMobileScanner] = useState(false);
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
@@ -106,6 +109,9 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     list.items.forEach((item: any) => {
       const invProd = inventory.find(p => p.id === item.productId || p.sku === item.sku);
       const barcode = invProd?.barcode || "";
+      const imageUrl =
+        (typeof invProd?.imageUrl === "string" && invProd.imageUrl) ||
+        (Array.isArray(invProd?.imageUrls) && typeof invProd.imageUrls[0] === "string" ? invProd.imageUrls[0] : "");
       const prodKey = (item.productName || "").trim().toLowerCase();
       const packagingType = partyRateMap[prodKey] || item.packagingType || item.packingType || list.packagingType || list.packingType || "Box";
 
@@ -115,6 +121,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           productId: item.productId,
           productName: item.productName,
           sku: item.sku || "N/A",
+          imageUrl,
           barcode: barcode,
           packagingType: packagingType,
           scannedValue: "",
@@ -129,10 +136,14 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     setBoxBarcodes({});
     setCurrentBoxIndex(1);
     setSelectedIds(new Set());
+    setLastMatchedItem(null);
   };
 
   const currentBoxName = `${packageType === "Box" ? "B" : "BL"}${currentBoxIndex}`;
   const allItemsPacked = scannableItems.every((item) => item.isPacked);
+  const nextItemToScan = scannableItems.find((item) => !item.isPacked) || null;
+  const previewItem = nextItemToScan || lastMatchedItem;
+  const canFinalize = !!selectedList && !saving && allItemsPacked && pin.trim().length >= 4 && !!invoiceNo.trim();
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -219,6 +230,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     );
     setScannableItems(newItems);
     setLastScanned({ value: code, match: true, expected: match.sku });
+    setLastMatchedItem({ ...match, boxName: match.boxName || currentBoxName, isPacked: true, scannedValue: code });
     return { success: true, item: match };
   };
 
@@ -246,6 +258,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         if (!item.boxName) return;
         newItems[idx].isPacked = true;
         setScannableItems(newItems);
+        setLastMatchedItem({ ...newItems[idx] });
         setTimeout(() => {
           const nextInput = document.getElementById(`scan-${idx + 1}`) as HTMLInputElement;
           if (nextInput) nextInput.focus();
@@ -341,7 +354,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       <PageHeader title="Finalize Dispatch List" sub="Convert a completed packing list into a final dispatch.">
         <div style={{ display: "flex", gap: 8, width: isMobile ? "100%" : "auto" }}>
           <BtnGhost onClick={onClose} style={isMobile ? { flex: 1, justifyContent: "center" } : undefined}>Cancel</BtnGhost>
-          <BtnPrimary onClick={handleDispatch} disabled={!selectedList || saving} style={isMobile ? { flex: 1, justifyContent: "center" } : undefined}>
+          <BtnPrimary onClick={handleDispatch} disabled={!canFinalize} style={isMobile ? { flex: 1, justifyContent: "center" } : undefined}>
             {saving ? "Finalizing..." : "Finalize Dispatch"}
           </BtnPrimary>
         </div>
@@ -442,6 +455,23 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                       Scan each item in sequence and assign it to the active {packageType.toLowerCase()}.
                     </p>
                   </div>
+                  {previewItem && (
+                    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <img
+                        src={resolveS3Url(previewItem.imageUrl || "/placeholder-prod.png")}
+                        alt={previewItem.productName}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder-prod.png"; }}
+                        className="h-12 w-12 rounded-xl border border-slate-200 bg-white object-cover"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          {nextItemToScan ? "Now Scanning" : "Last Scanned"}
+                        </p>
+                        <p className="truncate text-xs font-semibold text-slate-700">{previewItem.productName}</p>
+                        <p className="truncate text-[11px] font-mono text-slate-500">{previewItem.sku}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className={`flex ${isMobile ? "flex-col items-start gap-2" : "items-center gap-3"}`}>
                     <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
                       <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Assign To</span>
@@ -779,7 +809,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                   />
                   <BtnPrimary
                     onClick={handleDispatch}
-                    disabled={saving || !allItemsPacked || pin.length < 4 || !invoiceNo.trim()}
+                    disabled={!canFinalize}
                     style={{
                       padding: isMobile ? "12px" : "14px",
                       fontSize: isMobile ? 13 : 14,

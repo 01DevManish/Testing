@@ -16,11 +16,11 @@ interface PackingPdfItem {
 interface PackingPdfPayload {
   id?: string;
   partyName?: string;
-  brandName?: string;
+ 
   partyAddress?: string;
   transporter?: string;
   createdAt?: number;
-  baleNo?: string | number;
+ 
   packagingType?: string;
   packingType?: string;
   items?: PackingPdfItem[];
@@ -186,13 +186,11 @@ export const generatePackingListPdf = async (
   };
 
   drawField("Party Name:", list.partyName || "", 40, infoY, 300);
-  drawField("Brand Name:", list.brandName || "", col2X, infoY, 175);
   drawField("Address:", list.partyAddress || "", 40, infoY + infoLineH, 300);
   drawField("Transport:", list.transporter || "", 40, infoY + infoLineH * 2, 300);
 
   const dateStr = new Date(list.createdAt || Date.now()).toLocaleDateString("en-IN");
   drawField("Date:", dateStr, 40, infoY + infoLineH * 3, 150);
-  drawField("Bale No:", String(list.baleNo || "-"), 220, infoY + infoLineH * 3, 120);
 
   autoTable(doc, {
     head: [["Sr.No", "Product Category", "Product Name", "SKU ID", "Qty", "Packaging Type", "Additional", "Remarks"]],

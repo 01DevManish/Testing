@@ -329,8 +329,8 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         </div>
       </PageHeader>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: isMobile ? 16 : 24, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: isMobile ? 14 : 24, alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 16 : 24 }}>
           {/* STEP 1: Select Party */}
           <Card style={{ padding: isMobile ? 16 : 24 }}>
             <h3 style={{ fontSize: isMobile ? 14 : 16, fontWeight: 500, color: "#1e293b", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
@@ -349,7 +349,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                     style={{ width: "100%", padding: isMobile ? "11px 14px" : "12px 16px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: isMobile ? 13 : 14, outline: "none" }}
                   />
                 </div>
-                <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+              <div style={{ maxHeight: isMobile ? 210 : 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
                   {filteredParties.map(p => (
                     <div 
                       key={p.id} 
@@ -358,7 +358,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                         setPartySearch(""); 
                         if (p.transporter) setTransporter(p.transporter);
                       }}
-                      style={{ padding: isMobile ? "12px 14px" : "12px 16px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s", gap: 10 }}
+                      style={{ padding: isMobile ? "10px 12px" : "12px 16px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s", gap: 8 }}
                       onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
@@ -401,13 +401,13 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                 </p>
               </div>
               {isMobile ? (
-                <div style={{ display: "grid", gap: 10, padding: 12 }}>
+              <div style={{ display: "grid", gap: 8, padding: 10 }}>
                   {(selectedParty.rates || []).map((r: any, idx: number) => {
                     const invMatch = inventory.find(p => p.productName === r.productName);
                     return (
-                      <div key={idx} style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, background: "#fff", display: "grid", gap: 10 }}>
+                      <div key={idx} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff", display: "grid", gap: 8 }}>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{r.productName}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{r.productName}</div>
                           <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>SKU: {r.sku || invMatch?.sku || "-"}</div>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -424,7 +424,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                               const val = parseInt(e.target.value) || 0;
                               setSelectedItems({ ...selectedItems, [r.productName]: val });
                             }}
-                            style={{ width: 88, padding: "10px 8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 13, outline: "none", color: selectedItems[r.productName] > 0 ? "#6366f1" : "#1e293b", fontWeight: selectedItems[r.productName] > 0 ? 600 : 400 }}
+                            style={{ width: 78, padding: "9px 8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 12, outline: "none", color: selectedItems[r.productName] > 0 ? "#6366f1" : "#1e293b", fontWeight: selectedItems[r.productName] > 0 ? 600 : 400 }}
                           />
                         </div>
                       </div>
@@ -486,7 +486,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
           )}
         </div>
 
-        <div style={{ position: isMobile ? "static" : "sticky", top: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ position: isMobile ? "static" : "sticky", top: 24, display: "flex", flexDirection: "column", gap: isMobile ? 14 : 24 }}>
           {/* Assignment & Logistics */}
           <Card style={{ padding: isMobile ? 16 : 24 }}>
              <h3 style={{ fontSize: isMobile ? 14 : 15, fontWeight: 500, color: "#1e293b", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>Logistics and Assignment</h3>
