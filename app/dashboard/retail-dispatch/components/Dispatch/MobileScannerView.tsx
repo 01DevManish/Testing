@@ -35,6 +35,7 @@ export default function MobileScannerView({
   onScan,
   onClose,
 }: MobileScannerViewProps) {
+  const COLLAPSED_SHEET_HEIGHT = 132;
   const [mounted, setMounted] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [lastMessage, setLastMessage] = useState<{ type: "success" | "error"; text: string; time: number } | null>(null);
@@ -153,7 +154,7 @@ export default function MobileScannerView({
     if (touchStartYRef.current === null) return;
     const currentY = e.touches[0]?.clientY ?? touchStartYRef.current;
     const delta = currentY - touchStartYRef.current;
-    const clamped = Math.max(-180, Math.min(180, delta));
+    const clamped = Math.max(-90, Math.min(180, delta));
     setDragOffset(clamped);
   };
 
@@ -161,6 +162,12 @@ export default function MobileScannerView({
     const delta = dragOffset;
     if (delta < -50) setIsLogExpanded(true);
     if (delta > 50) setIsLogExpanded(false);
+    setDragOffset(0);
+    setIsDraggingSheet(false);
+    touchStartYRef.current = null;
+  };
+
+  const handleSheetTouchCancel = () => {
     setDragOffset(0);
     setIsDraggingSheet(false);
     touchStartYRef.current = null;
@@ -241,8 +248,8 @@ export default function MobileScannerView({
   if (!mounted) return null;
 
   const content = (
-    <div className="fixed inset-0 z-[99999] flex h-full w-full flex-col overflow-hidden bg-white font-sans animate-in fade-in duration-300">
-      <div className={`relative h-[72vh] overflow-hidden shadow-2xl transition-colors duration-200 ${
+    <div className="fixed inset-0 z-[99999] flex h-full w-full flex-col overflow-hidden bg-black font-sans animate-in fade-in duration-300">
+      <div className={`relative flex-1 min-h-0 overflow-hidden shadow-2xl transition-colors duration-200 ${
         lastMessage?.type === "success" ? "bg-emerald-600" : lastMessage?.type === "error" ? "bg-rose-600" : "bg-black"
       }`}>
         <div id={scannerId} className={`h-full w-full transition-opacity duration-200 ${lastMessage ? "opacity-30" : "opacity-100"}`}></div>
@@ -284,7 +291,10 @@ export default function MobileScannerView({
           </div>
         </div>
 
-        <div className="pointer-events-none absolute bottom-10 left-4 right-4 z-[80]">
+        <div
+          className={`pointer-events-none absolute left-4 right-4 z-40 transition-all duration-200 ${isLogExpanded ? "bottom-4 opacity-0 blur-sm" : "bottom-[152px] opacity-100"}`}
+          style={{ transform: `translateY(${Math.max(0, dragOffset * 0.55)}px)` }}
+        >
           {nextItem ? (
             <div className="pointer-events-auto flex items-center gap-5 rounded-[32px] border-t-[6px] border-indigo-600 bg-white/95 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.3)] backdrop-blur-3xl animate-in slide-in-from-bottom duration-300">
               <img
@@ -327,9 +337,9 @@ export default function MobileScannerView({
       </div>
 
       <div
-        className="absolute bottom-0 left-0 right-0 z-[55] flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_-20px_40px_rgba(0,0,0,0.15)]"
+        className="absolute bottom-0 left-0 right-0 z-[95] flex flex-col overflow-hidden rounded-t-[32px] border-t border-white/50 bg-white/95 shadow-[0_-20px_50px_rgba(15,23,42,0.26)] backdrop-blur-sm"
         style={{
-          height: isLogExpanded ? "96vh" : "126px",
+          height: isLogExpanded ? "84vh" : `${COLLAPSED_SHEET_HEIGHT}px`,
           transform: `translateY(${dragOffset}px)`,
           transition: isDraggingSheet ? "none" : "height 220ms ease, transform 220ms ease",
         }}
@@ -339,6 +349,7 @@ export default function MobileScannerView({
           onTouchStart={handleSheetTouchStart}
           onTouchMove={handleSheetTouchMove}
           onTouchEnd={handleSheetTouchEnd}
+          onTouchCancel={handleSheetTouchCancel}
           className="w-full border-b border-slate-100 bg-white py-3 touch-none"
         >
           <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-300"></div>
@@ -365,7 +376,7 @@ export default function MobileScannerView({
             Slide up to view all scanned products with SKU and quantity.
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto bg-slate-50 px-4 pb-12 pt-1">
+          <div className="flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-white px-4 pb-12 pt-1">
             {scannedSummary.map((item) => (
               <div key={`${item.sku}-${item.productName}`} className="mx-1 my-2 flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-sm font-bold text-emerald-600">
