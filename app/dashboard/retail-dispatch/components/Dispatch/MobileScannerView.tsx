@@ -15,6 +15,16 @@ interface MobileScannerViewProps {
   onClose: () => void;
 }
 
+const FALLBACK_SCANNER_IMAGE = "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/1776344255576-CLR-401.webp";
+
+const normalizeScannerImageUrl = (raw?: string): string => {
+  const value = (raw || "").trim();
+  if (!value) return FALLBACK_SCANNER_IMAGE;
+  if (value.startsWith("http://") || value.startsWith("https://")) return resolveS3Url(value);
+  if (value.startsWith("/")) return value;
+  return `https://epanelimages.s3.ap-south-1.amazonaws.com/${value.replace(/^\/+/, "")}`;
+};
+
 export default function MobileScannerView({
   partyName,
   scannableItems,
@@ -251,10 +261,10 @@ export default function MobileScannerView({
           {nextItem ? (
             <div className="pointer-events-auto flex items-center gap-5 rounded-[32px] border-t-[6px] border-indigo-600 bg-white/95 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.3)] backdrop-blur-3xl animate-in slide-in-from-bottom duration-300">
               <img
-                src={resolveS3Url(nextItem.imageUrl || "/placeholder-prod.png")}
+                src={normalizeScannerImageUrl(nextItem.imageUrl || nextItem.image)}
                 alt={nextItem.productName || "Scanned product"}
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = "/placeholder-prod.png";
+                  (e.currentTarget as HTMLImageElement).src = FALLBACK_SCANNER_IMAGE;
                 }}
                 className="h-16 w-16 shrink-0 rounded-2xl border border-slate-200 bg-slate-100 object-cover shadow-inner"
               />
@@ -291,7 +301,7 @@ export default function MobileScannerView({
 
       <div
         className="relative z-[55] -mt-6 flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_-20px_40px_rgba(0,0,0,0.15)]"
-        style={{ height: isLogExpanded ? "50vh" : "126px", transition: "height 220ms ease" }}
+        style={{ height: isLogExpanded ? "100vh" : "126px", transition: "height 220ms ease" }}
       >
         <button onClick={() => setIsLogExpanded((prev) => !prev)} className="w-full border-b border-slate-100 bg-white py-3">
           <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-300"></div>

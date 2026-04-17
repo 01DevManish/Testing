@@ -24,6 +24,16 @@ interface ScannableItem {
   boxName?: string;
 }
 
+const FALLBACK_SCANNER_IMAGE = "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/1776344255576-CLR-401.webp";
+
+const normalizeScannerImageUrl = (raw?: string): string => {
+  const value = (raw || "").trim();
+  if (!value) return FALLBACK_SCANNER_IMAGE;
+  if (value.startsWith("http://") || value.startsWith("https://")) return resolveS3Url(value);
+  if (value.startsWith("/")) return value;
+  return `https://epanelimages.s3.ap-south-1.amazonaws.com/${value.replace(/^\/+/, "")}`;
+};
+
 export default function CreateDispatchList({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { user, userData } = useAuth();
   const [packingLists, setPackingLists] = useState<any[]>([]);
@@ -109,9 +119,14 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     list.items.forEach((item: any) => {
       const invProd = inventory.find(p => p.id === item.productId || p.sku === item.sku);
       const barcode = invProd?.barcode || "";
-      const imageUrl =
-        (typeof invProd?.imageUrl === "string" && invProd.imageUrl) ||
-        (Array.isArray(invProd?.imageUrls) && typeof invProd.imageUrls[0] === "string" ? invProd.imageUrls[0] : "");
+      const firstGalleryImage = Array.isArray(invProd?.imageUrls)
+        ? (invProd.imageUrls.find((img: unknown) => typeof img === "string" && img.trim()) || "")
+        : "";
+      const rawImageUrl =
+        (typeof invProd?.imageUrl === "string" && invProd.imageUrl.trim()) ||
+        firstGalleryImage ||
+        (typeof invProd?.image === "string" ? invProd.image : "");
+      const imageUrl = normalizeScannerImageUrl(rawImageUrl);
       const prodKey = (item.productName || "").trim().toLowerCase();
       const packagingType = partyRateMap[prodKey] || item.packagingType || item.packingType || list.packagingType || list.packingType || "Box";
 
@@ -458,9 +473,9 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                   {previewItem && (
                     <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
                       <img
-                        src={resolveS3Url(previewItem.imageUrl || "/placeholder-prod.png")}
+                        src={normalizeScannerImageUrl(previewItem.imageUrl)}
                         alt={previewItem.productName}
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder-prod.png"; }}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_SCANNER_IMAGE; }}
                         className="h-12 w-12 rounded-xl border border-slate-200 bg-white object-cover"
                       />
                       <div className="min-w-0">
