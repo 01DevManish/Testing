@@ -289,7 +289,7 @@ export default function RateCatalogView({
                                 </th>
                                 <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Product Name</th>
                                 <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#64748b" }}>SKU</th>
-                                <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Packaging</th>
+                                <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Pkg Price (₹)</th>
                                 {isAdmin && <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Rate (₹)</th>}
                                 {isAdmin && <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Discount</th>}
                                 {isAdmin && <th style={{ padding: "12px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: "#64748b" }}>Final Total</th>}
@@ -298,7 +298,8 @@ export default function RateCatalogView({
                         </thead>
                         <tbody>
                             {filteredRates.map((r) => {
-                                const base = Number(r.rate || 0) + Number(r.packagingCost || 0);
+                                const pkgPrice = Number(r.packagingCost || 0);
+                                const base = Number(r.rate || 0) + pkgPrice;
                                 const disc = (r.discountType || "amount") === "percentage" ? (base * (r.discount || 0) / 100) : Number(r.discount || 0);
                                 const subtotal = Math.max(0, base - disc);
                                 const total = subtotal + (subtotal * (r.gstRate || 0) / 100);
@@ -311,7 +312,10 @@ export default function RateCatalogView({
                                         <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{r.productName}</td>
                                         <td style={{ padding: "12px 20px", fontSize: 12, color: "#94a3b8" }}>{r.sku || "—"}</td>
                                         <td style={{ padding: "12px 20px", fontSize: 12, color: "#64748b" }}>
-                                            {r.packagingType ? <Badge color="#0ea5e9" bg="#f0f9ff">{r.packagingType}</Badge> : "None"}
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>₹{pkgPrice.toFixed(2)}</div>
+                                            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+                                                {r.packagingType || "No Packaging"}
+                                            </div>
                                         </td>
                                         {isAdmin && <td style={{ padding: "12px 20px", textAlign: "right", fontSize: 13, fontWeight: 600 }}>₹{r.rate}</td>}
                                         {isAdmin && <td style={{ padding: "12px 20px", textAlign: "right", color: "#ef4444", fontSize: 12 }}>
