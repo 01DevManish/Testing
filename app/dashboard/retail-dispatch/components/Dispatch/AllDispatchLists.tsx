@@ -99,11 +99,11 @@ export default function AllDispatchLists() {
       }
 
       if (type === "dispatch") {
-        if (list.dispatchPdfUrl) {
-          window.open(list.dispatchPdfUrl, "_blank");
-          return;
-        }
-        await generateDispatchListPdf({ ...list, ...fullPartyData });
+        // Always generate fresh PDF to reflect latest layout/data changes.
+        await generateDispatchListPdf(
+          { ...list, ...fullPartyData },
+          { uploadToS3: false, preferUploadedUrl: false }
+        );
       } else {
         await generatePackingListPdf({ ...list, ...fullPartyData });
       }
@@ -114,17 +114,20 @@ export default function AllDispatchLists() {
   };
 
   const getBoxOrBailCount = (list: PackingList) => {
-    const explicit = Number(list.bails || 0);
-    if (explicit > 0) return explicit;
     const uniqueBoxes = new Set(
       (list.items || [])
         .map((item) => {
           const maybeBox = (item as { boxName?: string }).boxName;
-          return typeof maybeBox === "string" ? maybeBox.trim() : "";
+          const name = typeof maybeBox === "string" ? maybeBox.trim() : "";
+          if (!name || name === "-" || name.toUpperCase() === "UNASSIGNED") return "";
+          return name;
         })
         .filter(Boolean),
     );
-    return uniqueBoxes.size || (list.items?.length ?? 0);
+    if (uniqueBoxes.size > 0) return uniqueBoxes.size;
+    const explicit = Number(list.bails || 0);
+    if (explicit > 0) return explicit;
+    return list.items?.length ?? 0;
   };
 
   const stats = useMemo(() => {

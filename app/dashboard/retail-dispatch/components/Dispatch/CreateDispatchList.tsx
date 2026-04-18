@@ -300,7 +300,12 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     try {
       const listRef = ref(db, `packingLists/${selectedList.id}`);
       const dispId = dispatchId || `DISP-${Math.floor(1000 + Math.random() * 8999)}`;
-      const totalBoxes = currentBoxIndex - 1;
+      // Use actual assigned box names from scanned items (avoids off-by-one from currentBoxIndex UI state).
+      const totalBoxes = new Set(
+        scannableItems
+          .map(i => (i.boxName || "").trim())
+          .filter(Boolean)
+      ).size;
       const totalItems = scannableItems.length;
       const finalDispatchBarcode = generateDispatchBarcode(dispId, totalBoxes, totalItems);
 

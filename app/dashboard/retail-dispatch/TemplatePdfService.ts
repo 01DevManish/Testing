@@ -232,7 +232,10 @@ const appendBoxSummaryPages = async (
     }
 };
 
-export const generateTemplateDispatchPdf = async (list: any) => {
+export const generateTemplateDispatchPdf = async (
+    list: any,
+    options?: { uploadToS3?: boolean; preferUploadedUrl?: boolean }
+) => {
     try {
         // 1. Load template (Strictly A4: 595.28 x 841.89 pt)
         const response = await fetch("/templates/dispatch_list_template.pdf");
@@ -244,9 +247,13 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         const { width, height } = page.getSize();
 
         // 3. Generate Dispatch Barcode Image
-        const totalBoxes =
-            Number(list.bails || 0) ||
-            (list.items || []).reduce((acc: Set<string>, i: any) => { if (i.boxName) acc.add(i.boxName); return acc; }, new Set()).size;
+        const normalizedBoxNames = (list.items || [])
+            .map((i: any) => String(i?.boxName || "").trim())
+            .filter((name: string) => !!name && name !== "-" && name.toUpperCase() !== "UNASSIGNED");
+        const boxesFromItems = new Set(normalizedBoxNames).size;
+        const explicitBoxes = Number(list.bails || 0);
+        // Prefer actual boxes present in item rows; fallback to stored bails for legacy records.
+        const totalBoxes = boxesFromItems > 0 ? boxesFromItems : explicitBoxes;
         const totalItems = (list.items || []).reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
         const dispCode = list.dispatchBarcode || generateDispatchBarcode(list.dispatchNo || list.dispatchId || "0000", totalBoxes, totalItems);
         const dispBarcodeDataUrl = renderBarcodeToBase64(dispCode);
@@ -367,12 +374,13 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         // TABLE Section
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         const tStartY = 305;
-        const tRowH = 20.3; // Height adjustment for grid lines
+        const tRowH = 20.0;
+        const tTextNudge = -5.2; // move text up so template row lines don't strike through
         const maxRows = 17;
 
         resolvedItems.forEach((item: any, idx: number) => {
             if (idx >= maxRows) return;
-            const rowY = tStartY + (idx * tRowH);
+            const rowY = tStartY + (idx * tRowH) + tTextNudge;
 
             // Shifted and aligned for template columns
             draw(`${idx + 1}.`, 35, rowY, 10);
@@ -380,7 +388,7 @@ export const generateTemplateDispatchPdf = async (list: any) => {
             draw(truncate(item.collectionName || "", 16), 166, rowY, 10);
             draw(truncate(item.sku || "N/A", 12), 252, rowY, 10);
             draw(truncate(item.packagingType || item.packingType || list.packagingType || list.packingType || "Box", 12), 305, rowY, 10);
-            draw(String(item.quantity || 1), 395, rowY, 10.5, true);
+            draw(String(item.quantity || 1), 395, rowY, 10, true);
             draw(truncate(item.boxName || "-", 15), 445, rowY, 10);
         });
 
@@ -411,18 +419,24 @@ export const generateTemplateDispatchPdf = async (list: any) => {
         const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
         const localBlobUrl = URL.createObjectURL(blob);
 
-        const fileName = `Dispatch_List_${(list.partyName || "Record").replace(/\s+/g, "_")}_${Date.now()}.pdf`;
-        const uploadedUrl = await uploadPdfToS3(blob, fileName);
+        const shouldUploadToS3 = options?.uploadToS3 ?? true;
+        const preferUploadedUrl = options?.preferUploadedUrl ?? true;
+        let uploadedUrl: string | null = null;
 
-        if (uploadedUrl && list.id) {
-            try {
-                await update(ref(db, `packingLists/${list.id}`), { dispatchPdfUrl: uploadedUrl });
-            } catch {
-                // non-blocking db sync failure
+        if (shouldUploadToS3) {
+            const fileName = `Dispatch_List_${(list.partyName || "Record").replace(/\s+/g, "_")}_${Date.now()}.pdf`;
+            uploadedUrl = await uploadPdfToS3(blob, fileName);
+
+            if (uploadedUrl && list.id) {
+                try {
+                    await update(ref(db, `packingLists/${list.id}`), { dispatchPdfUrl: uploadedUrl });
+                } catch {
+                    // non-blocking db sync failure
+                }
             }
         }
 
-        const viewUrl = uploadedUrl || localBlobUrl;
+        const viewUrl = preferUploadedUrl ? (uploadedUrl || localBlobUrl) : localBlobUrl;
         const newWindow = window.open(viewUrl, '_blank');
         if (newWindow) newWindow.focus();
         else alert("Popup blocked. Please allow popups to view the PDF.");
