@@ -11,7 +11,7 @@ const formatDispatchDate = (timestamp?: number) => {
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
     month: "short",
-    year: "numeric",
+    year: "numeric", 
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(timestamp));
@@ -67,8 +67,8 @@ export default function RetailDispatchOverviewMobile({
       <Card style={{ padding: 16, display: "grid", gap: 14 }}>
         <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a", fontFamily: FONT }}>Quick filters</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 124px", gap: 10, alignItems: "stretch" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "stretch", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, minWidth: 0, flex: 1 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
             <input
               className="no-focus-ring"
@@ -76,23 +76,23 @@ export default function RetailDispatchOverviewMobile({
               value={searchQuery}
               placeholder="Search dispatch / LR"
               onChange={(event) => onSearchQueryChange(event.target.value)}
-              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#0f172a", fontFamily: FONT }}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#0f172a", fontFamily: FONT, minWidth: 0 }}
             />
             {searchQuery && (
-              <button onClick={onClearSearch} style={{ border: "none", background: "transparent", color: "#6366f1", fontSize: 12, fontWeight: 600, padding: 0, fontFamily: FONT }}>
+              <button onClick={onClearSearch} style={{ border: "none", background: "transparent", color: "#6366f1", fontSize: 12, fontWeight: 600, padding: 0, fontFamily: FONT, whiteSpace: "nowrap" }}>
                 Clear
               </button>
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, width: 128, flexShrink: 0 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
             <input
               type="date"
               value={statsDate}
               onChange={(event) => onStatsDateChange(event.target.value)}
               aria-label="Dispatch date"
-              style={{ width: "100%", border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#0f172a", fontWeight: 500, fontFamily: FONT, minWidth: 0 }}
+              style={{ width: "100%", border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#0f172a", fontWeight: 600, fontFamily: FONT, minWidth: 0 }}
             />
           </div>
         </div>
@@ -168,26 +168,24 @@ export default function RetailDispatchOverviewMobile({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gap: 10 }}>
                 <div style={{ padding: "12px 14px", borderRadius: 16, background: "#fff", border: "1px solid #e2e8f0" }}>
                   <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "#94a3b8", marginBottom: 4, fontFamily: FONT }}>
                     Party
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", marginBottom: 2, fontFamily: FONT }}>{dispatch.partyName}</div>
-                  <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, fontFamily: FONT }}>
-                    LR {dispatch.lrNo ? dispatch.lrNo : "not assigned yet"}
-                  </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
                   {[
+                    { label: "LR", value: dispatch.lrNo || "Pending" },
                     { label: "Units", value: totalUnits },
                     { label: "Items", value: dispatch.items?.length || 0 },
-                    { label: "Pkg", value: dispatch.bails || 0 },
+                    { label: "Pack", value: dispatch.bails || 0 },
                   ].map((metric) => (
-                    <div key={metric.label} style={{ padding: "12px 10px", borderRadius: 14, background: "#fff", border: "1px solid #e2e8f0", textAlign: "center" }}>
-                      <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 6, fontFamily: FONT }}>{metric.label}</div>
-                      <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a", fontFamily: FONT }}>{metric.value}</div>
+                    <div key={metric.label} style={{ minWidth: 84, flex: "0 0 auto", padding: "10px 10px", borderRadius: 14, background: "#fff", border: "1px solid #e2e8f0", textAlign: "center" }}>
+                      <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.05em" }}>{metric.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", fontFamily: FONT, whiteSpace: "nowrap" }}>{metric.value}</div>
                     </div>
                   ))}
                 </div>

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { FONT, Product, Category, Collection } from "../../types";
 import { Card, PageHeader, EmptyState } from "../../ui";
 import SmartImage from "../../../../components/SmartImage";
+import { MOBILE_ADMIN_OVERVIEW_GRID, MOBILE_STAFF_OVERVIEW_GRID } from "../mobile/mobileGrid";
 
 export default function Overview({ products, categories, collections, loading, onNavigate, currentName, userRole, canCreate, canDelete, isMobile, isDesktop }: {
     products: Product[];
@@ -107,15 +108,15 @@ export default function Overview({ products, categories, collections, loading, o
         <div>
             <PageHeader title="Inventory Overview" sub="Comprehensive view of your entire stock status." />
 
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : `repeat(${isAdmin ? 6 : 4}, 1fr)`, gap: 14, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? (isAdmin ? MOBILE_ADMIN_OVERVIEW_GRID : MOBILE_STAFF_OVERVIEW_GRID) : `repeat(${isAdmin ? 6 : 4}, 1fr)`, gap: isMobile ? 8 : 14, marginBottom: 20 }}>
                 {stats.list.map((s, i) => (
                     <Card key={i}>
-                        <div style={{ padding: "16px 18px" }}>
-                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, marginBottom: 10 }} />
-                            <div style={{ fontSize: 20, fontWeight: 400, color: "#1e293b", fontFamily: FONT, marginBottom: 3 }}>
+                        <div style={{ padding: isMobile ? "10px 8px" : "16px 18px" }}>
+                            <div style={{ width: isMobile ? 5 : 6, height: isMobile ? 5 : 6, borderRadius: "50%", background: s.color, marginBottom: isMobile ? 7 : 10 }} />
+                            <div style={{ fontSize: isMobile ? 12 : 20, fontWeight: 400, color: "#1e293b", fontFamily: FONT, marginBottom: 3, lineHeight: 1.2 }}>
                                 {s.label === "Total Asset Value" && typeof s.value === "number" ? `₹${s.value.toLocaleString("en-IN")}` : s.value}
                             </div>
-                            <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT, fontWeight: 400 }}>{s.label}</div>
+                            <div style={{ fontSize: isMobile ? 9 : 11, color: "#94a3b8", fontFamily: FONT, fontWeight: 400, lineHeight: 1.25 }}>{s.label}</div>
                         </div>
                     </Card>
                 ))}

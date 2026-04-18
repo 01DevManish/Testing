@@ -85,10 +85,10 @@ export default function AdjustRow({ p, user, onRefresh, isMobile }: {
                     <input
                         type="number" min="1" value={qty}
                         onChange={e => setQty(e.target.value === "" ? "" : Math.max(1, parseInt(e.target.value) || 1))}
-                        style={{ width: 60, padding: "8px", border: "1.5px solid #e2e8f0", borderRadius: 8, textAlign: "center", fontSize: 14, fontWeight: 400, outline: "none" }}
+                        style={{ width: isMobile ? 46 : 60, padding: isMobile ? "6px 4px" : "8px", border: "1.5px solid #e2e8f0", borderRadius: 8, textAlign: "center", fontSize: isMobile ? 12 : 14, fontWeight: 400, outline: "none" }}
                     />
-                    <button onClick={() => setConfirm({ mode: "add" })} disabled={saving} style={{ padding: "8px 12px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 400, cursor: "pointer" }}>+ Add</button>
-                    <button onClick={() => setConfirm({ mode: "remove" })} disabled={saving} style={{ padding: "8px 12px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 400, cursor: "pointer" }}>- Remove</button>
+                    <button onClick={() => setConfirm({ mode: "add" })} disabled={saving} style={{ padding: isMobile ? "6px 8px" : "8px 12px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontWeight: 400, cursor: "pointer", whiteSpace: "nowrap" }}>+ Add</button>
+                    <button onClick={() => setConfirm({ mode: "remove" })} disabled={saving} style={{ padding: isMobile ? "6px 8px" : "8px 12px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontWeight: 400, cursor: "pointer", whiteSpace: "nowrap" }}>- Remove</button>
                 </div>
 
                 {confirm && (

@@ -305,25 +305,24 @@ export default function ProductList({
     };
 
     return (
-        <div>
-            <PageHeader title="All Products" sub={`${filtered.length} products`}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
-                    {canCreate && <BtnPrimary onClick={onCreateNew} style={isMobile ? { flex: 1, minWidth: 120 } : {}}>+ Add Product</BtnPrimary>}
-                    <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: 13, flex: isMobile ? 1 : "initial" }}>Export for Bulk Edit</BtnGhost>
-                </div>
-            </PageHeader>
+        <div style={{ maxWidth: "100%", overflowX: "hidden", paddingRight: isMobile ? 2 : 0 }}>
+            <PageHeader title="All Products" sub={`${filtered.length} products`} />
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? (canCreate ? "1fr 1fr" : "1fr") : "auto auto", gap: 8, width: isMobile ? "100%" : "auto", marginBottom: 14 }}>
+                {canCreate && <BtnPrimary onClick={onCreateNew} style={isMobile ? { minWidth: 0, fontSize: 11, padding: "8px 6px", justifyContent: "center", minHeight: 40, whiteSpace: "nowrap" } : {}}>+ Add Product</BtnPrimary>}
+                <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: isMobile ? 11 : 13, padding: isMobile ? "8px 6px" : undefined, minWidth: 0, justifyContent: "center", minHeight: isMobile ? 40 : undefined, whiteSpace: isMobile ? "normal" : "nowrap", lineHeight: 1.2 }}>Export for Bulk Edit</BtnGhost>
+            </div>
 
             <Card>
                 {/* Filters */}
-                <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid #e2e8f0" }}>
+                <div style={{ padding: isMobile ? "10px 10px 8px" : "14px 18px 12px", borderBottom: "1px solid #e2e8f0", width: "100%", boxSizing: "border-box" }}>
                     {/* Search */}
                     <div style={{ 
-                        display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", 
+                        display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, padding: isMobile ? "10px 12px" : "12px 18px", 
                         background: searchTerm ? "#fff" : "#f8fafc", 
                         border: "1.5px solid", 
                         borderColor: searchTerm ? "#6366f1" : "#e2e8f0",
-                        borderRadius: 16, 
-                        marginBottom: 16, 
+                        borderRadius: isMobile ? 12 : 16, 
+                        marginBottom: isMobile ? 10 : 16, 
                         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                         boxShadow: searchTerm ? "0 4px 12px rgba(99,102,241,0.12)" : "0 2px 4px rgba(0,0,0,0.02)",
                     }}>
@@ -337,7 +336,7 @@ export default function ProductList({
                             placeholder="Search Product / SKU"
                             style={{ 
                                 background: "transparent", border: "none", outline: "none", 
-                                color: "#1e293b", fontSize: 13, width: "100%", fontFamily: FONT,
+                                color: "#1e293b", fontSize: isMobile ? 12 : 13, width: "100%", fontFamily: FONT,
                                 fontWeight: 400,
                                 // Override global focus styles effectively
                                 boxShadow: "none"
@@ -371,12 +370,12 @@ export default function ProductList({
                     {/* Filter chips */}
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                            style={{ padding: "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial" }}>
+                            style={{ padding: isMobile ? "8px 8px" : "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: isMobile ? 11 : 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial", minWidth: 0 }}>
                             <option value="all">All Categories</option>
                             {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                         <select value={filterCol} onChange={e => setFilterCol(e.target.value)}
-                            style={{ padding: "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial" }}>
+                            style={{ padding: isMobile ? "8px 8px" : "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: isMobile ? 11 : 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial", minWidth: 0 }}>
                             <option value="all">All Collections</option>
                             {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
@@ -384,7 +383,7 @@ export default function ProductList({
                             {/* Adjusted filter order: In Stock default, then Low Stock, Out of Stock, then others */}
                             {(["in-stock", "low-stock", "out-of-stock", "all", "active", "inactive"] as const).map(f => (
                                 <button key={f} onClick={() => setFilterStatus(f)}
-                                    style={{ padding: "5px 10px", borderRadius: 20, fontSize: 10, fontWeight: 400, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
+                                    style={{ padding: isMobile ? "5px 9px" : "5px 10px", borderRadius: 20, fontSize: isMobile ? 10 : 10, fontWeight: 500, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
                                     {f === "all" ? "All" : STATUS_CONFIG[f]?.label}
                                 </button>
                             ))}
@@ -446,8 +445,73 @@ export default function ProductList({
                 )}
 
                 {/* Table */}
-                {loading ? <Spinner /> : filtered.length === 0 ? (
-                    <EmptyState title="No products found" sub={products.length === 0 ? "Add your first product to get started." : "Try adjusting your search or filters."} />
+                {isMobile ? (
+                    loading ? <Spinner /> : filtered.length === 0 ? (
+                        <EmptyState title="No products found" sub={products.length === 0 ? "Add your first product to get started." : "Try adjusting your search or filters."} />
+                    ) : (
+                        <div style={{ display: "grid", gap: 10, padding: "10px 10px 10px 8px", width: "100%", boxSizing: "border-box" }}>
+                            {paginatedItems.map((p) => {
+                                const effectiveStatus = getStockStatus(p.stock);
+                                const sc = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.active;
+                                const checked = selectedIds.has(p.id);
+                                return (
+                                    <div key={p.id} style={{ width: "100%", maxWidth: "100%", boxSizing: "border-box", overflow: "hidden", border: `1px solid ${checked ? "#6366f1" : "#e2e8f0"}`, borderRadius: 14, padding: 10, background: checked ? "#eef2ff" : "#fff", display: "grid", gap: 9, boxShadow: checked ? "0 8px 20px rgba(99,102,241,0.12)" : "0 2px 8px rgba(15,23,42,0.04)" }}>
+                                        <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                                            <input type="checkbox" checked={checked} onChange={() => toggleSelect(p.id)} style={{ width: 14, height: 14, accentColor: "#6366f1", cursor: "pointer" }} />
+                                            <div style={{ width: 36, height: 36, borderRadius: 9, background: "#f1f5f9", overflow: "hidden", flexShrink: 0 }}>
+                                                {p.imageUrl ? <SmartImage src={p.imageUrl} alt={p.productName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
+                                            </div>
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <div style={{ fontSize: 13, color: "#0f172a", fontWeight: 600, fontFamily: FONT, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{p.productName}</div>
+                                                <div style={{ fontSize: 10, color: "#64748b", fontFamily: FONT }}>SKU: {p.sku}</div>
+                                            </div>
+                                            </div>
+                                            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                                <span style={{ fontSize: 10, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.color}30`, borderRadius: 999, padding: "3px 8px", whiteSpace: "nowrap", maxWidth: "100%" }}>{sc.label}</span>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+                                            <div style={{ padding: "7px 6px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff" }}>
+                                                <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>Price</div>
+                                                <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
+                                            </div>
+                                            <div style={{ padding: "7px 6px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff" }}>
+                                                <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>Stock</div>
+                                                <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>{p.stock}</div>
+                                            </div>
+                                            <div style={{ padding: "7px 6px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff" }}>
+                                                <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>GST</div>
+                                                <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>{p.gstRate ?? 18}%</div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: "grid", gap: 6 }}>
+                                            <div style={{ padding: "6px 7px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff", minWidth: 0, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                                                <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontFamily: FONT }}>Collection</div>
+                                                <div style={{ minWidth: 0, maxWidth: "65%", fontSize: 10, color: "#1e293b", fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>{p.collection || "N/A"}</div>
+                                            </div>
+                                            <div style={{ padding: "6px 7px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff", minWidth: 0, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                                                <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontFamily: FONT }}>Unit</div>
+                                                <div style={{ minWidth: 0, maxWidth: "65%", fontSize: 10, color: "#1e293b", fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>{p.unit || "PCS"}</div>
+                                            </div>
+                                        </div>
+
+                                        {(canEdit || canDelete) && (
+                                            <div style={{ display: "grid", gridTemplateColumns: canEdit && canDelete ? "repeat(2, minmax(0, 1fr))" : "1fr", gap: 6, minWidth: 0 }}>
+                                                {canEdit && <button onClick={() => onEdit(p)} style={{ padding: "7px 8px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>Edit</button>}
+                                                {canDelete && <button onClick={() => handleDelete(p.id)} style={{ padding: "7px 8px", background: "rgba(239,68,68,0.08)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>Delete</button>}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )
+                ) : (
+                    loading ? <Spinner /> : filtered.length === 0 ? (
+                        <EmptyState title="No products found" sub={products.length === 0 ? "Add your first product to get started." : "Try adjusting your search or filters."} />
                 ) : (
                     <div style={{ overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
@@ -540,7 +604,7 @@ export default function ProductList({
                             </tbody>
                         </table>
                     </div>
-                )}
+                ))}
 
                 {/* Footer with Pagination */}
                 {!loading && filtered.length > 0 && (

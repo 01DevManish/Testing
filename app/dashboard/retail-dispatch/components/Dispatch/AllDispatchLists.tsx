@@ -175,7 +175,7 @@ export default function AllDispatchLists() {
     if (status === "Completed") {
       return { label: "Shipped", color: "#065f46", bg: "#dcfce7", border: "#86efac" };
     }
-    return { label: "Ready - Pending LR", color: "#92400e", bg: "#fef3c7", border: "#fcd34d" };
+    return { label: "Pending LR", color: "#3730a3", bg: "#eef2ff", border: "#c7d2fe" };
   };
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading history...</div>;
@@ -215,16 +215,15 @@ export default function AllDispatchLists() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "nowrap", minWidth: 0 }}>
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search Dispatch ID"
             style={{
-              flex: isMobile ? "1 1 auto" : "1 1 320px",
-              minWidth: isMobile ? 0 : 220,
-              width: isMobile ? "100%" : undefined,
+              flex: "1 1 auto",
+              minWidth: 0,
               padding: isMobile ? "8px 10px" : "10px 12px",
               borderRadius: 8,
               border: "1.5px solid #e2e8f0",
@@ -238,7 +237,8 @@ export default function AllDispatchLists() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as "all" | "packed" | "completed")}
             style={{
-              width: isMobile ? "100%" : 170,
+              width: isMobile ? 124 : 170,
+              flexShrink: 0,
               padding: isMobile ? "8px 10px" : "10px 12px",
               borderRadius: 8,
               border: "1.5px solid #e2e8f0",
@@ -340,30 +340,46 @@ export default function AllDispatchLists() {
                         </div>
                       </>
                     ) : (
-                      <button
-                        onClick={() => list.id && setEditingLrId(list.id)}
-                        style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}
-                      >
-                        Set LR
-                      </button>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                        <button
+                          onClick={() => list.id && setEditingLrId(list.id)}
+                          style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
+                        >
+                          Set LR
+                        </button>
+                        <button
+                          onClick={() => handleDownload(list, "dispatch")}
+                          style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
+                        >
+                          Disp
+                        </button>
+                        <button
+                          onClick={() => handleDownload(list, "packing")}
+                          style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
+                        >
+                          Pack
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-                  <button
-                    onClick={() => handleDownload(list, "dispatch")}
-                    style={{ background: "#f8fafc", border: "1px solid #dbe4f0", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  >
-                    Disp
-                  </button>
-                  <button
-                    onClick={() => handleDownload(list, "packing")}
-                    style={{ background: "#6366f1", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  >
-                    Pack
-                  </button>
-                </div>
+                {list.status !== "Packed" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                    <button
+                      onClick={() => handleDownload(list, "dispatch")}
+                      style={{ background: "#4f46e5", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      Disp
+                    </button>
+                    <button
+                      onClick={() => handleDownload(list, "packing")}
+                      style={{ background: "#4f46e5", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      Pack
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -387,7 +403,7 @@ export default function AllDispatchLists() {
                 <th style={{ width: "16%", padding: "12px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" }}>Dispatch</th>
                 <th style={{ width: "20%", padding: "12px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" }}>Party</th>
                 <th style={{ width: "11%", padding: "12px 12px", textAlign: "center", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" }}>Packages</th>
-                <th style={{ width: "17%", padding: "12px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" }}>Status / LR</th>
+                <th style={{ width: "17%", padding: "12px 12px", textAlign: "center", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" }}>Status / LR</th>
                 <th style={{ width: "12%", padding: "12px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" }}>Dispatched By</th>
                 <th style={{ width: "24%", padding: "12px 12px", textAlign: "right", fontSize: 11, fontWeight: 500, color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" }}>Actions</th>
               </tr>
@@ -419,21 +435,21 @@ export default function AllDispatchLists() {
                     </div>
                   </td>
 
-                  <td style={{ padding: "12px", verticalAlign: "top", wordBreak: "break-word" }}>
+                  <td style={{ padding: "12px", verticalAlign: "top", wordBreak: "break-word", textAlign: "center" }}>
                     {(() => {
                       const statusMeta = getStatusMeta(list.status);
                       return (
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 52 }}>
+                        <div style={{ display: "grid", placeItems: "center", gap: 7, minHeight: 52 }}>
                           <span
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
                               justifyContent: "center",
-                              minWidth: 150,
-                              padding: "4px 10px",
+                              minWidth: 130,
+                              padding: "5px 12px",
                               borderRadius: 999,
                               fontSize: 11,
-                              fontWeight: 500,
+                              fontWeight: 600,
                               background: statusMeta.bg,
                               color: statusMeta.color,
                               border: `1px solid ${statusMeta.border}`,
@@ -481,11 +497,11 @@ export default function AllDispatchLists() {
                               </button>
                             </>
                           ) : (
-                            <button
-                              onClick={() => list.id && setEditingLrId(list.id)}
-                              style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}
-                            >
-                              Set LR
+                              <button
+                                onClick={() => list.id && setEditingLrId(list.id)}
+                                style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}
+                              >
+                                Set LR
                             </button>
                           )}
                         </div>
@@ -496,14 +512,14 @@ export default function AllDispatchLists() {
                           <button
                             onClick={() => handleDownload(list, "dispatch")}
                             title="Dispatch List"
-                            style={{ background: "#f8fafc", border: "1px solid #dbe4f0", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, color: "#1e293b", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                            style={{ background: "#4f46e5", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
                           >
                             Disp
                           </button>
                           <button
                             onClick={() => handleDownload(list, "packing")}
                             title="Packing List"
-                            style={{ background: "#6366f1", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                            style={{ background: "#4f46e5", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
                           >
                             Pack
                           </button>

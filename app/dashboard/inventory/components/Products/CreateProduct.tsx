@@ -248,7 +248,7 @@ export default function CreateProduct({
                     <Card>
                         <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Basic Information</div>
-                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Item Name" required>
                                     <Input
                                         value={form.productName}
@@ -369,7 +369,7 @@ export default function CreateProduct({
                                     `}</style>
                                 </FormField>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Category">
                                     <Select value={form.category} onChange={e => set("category", e.target.value)}>
                                         <option value="">Select Category...</option>
@@ -398,7 +398,7 @@ export default function CreateProduct({
                     <Card>
                         <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Pricing & Tax</div>
-                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="Selling Price (Rs.)" required>
                                     <Input
                                         type="number" min="0" step="0.01"
@@ -415,6 +415,9 @@ export default function CreateProduct({
                                         onChange={e => set("wholesalePrice", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 <FormField label="MRP (Rs.)">
                                     <Input
                                         type="number" min="0" step="0.01"
@@ -422,8 +425,6 @@ export default function CreateProduct({
                                         onChange={e => set("mrp", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
-                            </div>
-                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                                 {currentUser?.role === "admin" && (
                                     <FormField label="Cost Price (Rs.)">
                                         <Input
@@ -433,17 +434,30 @@ export default function CreateProduct({
                                         />
                                     </FormField>
                                 )}
-                                <FormField label="GST Rate">
-                                    <Select value={form.gstRate} onChange={e => set("gstRate", Number(e.target.value))}>
-                                        {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
-                                    </Select>
-                                </FormField>
+                                {currentUser?.role !== "admin" && (
+                                    <FormField label="GST Rate">
+                                        <Select value={form.gstRate} onChange={e => set("gstRate", Number(e.target.value))}>
+                                            {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
+                                        </Select>
+                                    </FormField>
+                                )}
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                {currentUser?.role === "admin" && (
+                                    <FormField label="GST Rate">
+                                        <Select value={form.gstRate} onChange={e => set("gstRate", Number(e.target.value))}>
+                                            {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
+                                        </Select>
+                                    </FormField>
+                                )}
                                 <FormField label="HSN Code">
                                     <Input
                                         value={form.hsnCode}
                                         onChange={e => set("hsnCode", e.target.value)}
                                     />
                                 </FormField>
+                                {!isMobile && <div />}
                             </div>
 
                             {/* Margin calculator */}
@@ -471,7 +485,7 @@ export default function CreateProduct({
                     <Card>
                         <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 16, fontFamily: FONT }}>Stock & Unit</div>
-                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14 }}>
                                 <FormField label="Opening Stock">
                                     <Input
                                         type="number" min="0"
@@ -486,15 +500,15 @@ export default function CreateProduct({
                                         onChange={e => set("minStock", Number(e.target.value) || 0)}
                                     />
                                 </FormField>
+                            </div>
+
+                            {/* Size Selection */}
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : ((sizeOption === "Other") ? "1fr 1fr" : "1fr 1fr"), gap: 14, marginTop: 14 }}>
                                 <FormField label="Unit">
                                     <Select value={form.unit} onChange={e => set("unit", e.target.value)}>
                                         {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                                     </Select>
                                 </FormField>
-                            </div>
-
-                            {/* Size Selection */}
-                            <div style={{ display: "grid", gridTemplateColumns: (sizeOption === "Other" && !isMobile) ? "1fr 1fr" : "1fr", gap: 14, marginTop: 14 }}>
                                 <FormField label="Select Size">
                                     <Select value={sizeOption} onChange={e => handleSizeOption(e.target.value)}>
                                         <option value="">No specific size</option>
@@ -531,42 +545,45 @@ export default function CreateProduct({
                         <div style={{ padding: isMobile ? "16px" : "18px 20px" }}>
                             <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 14, fontFamily: FONT }}>Product Images</div>
 
-                            {/* Main Preview box */}
-                            <div
-                                onClick={() => fileRef.current?.click()}
-                                style={{
-                                    width: isMobile ? "160px" : "100%", aspectRatio: "1 / 1", maxHeight: 220,
-                                    borderRadius: 10, border: "2px dashed #e2e8f0",
-                                    background: "#f8fafc", display: "flex",
-                                    alignItems: "center", justifyContent: "center",
-                                    cursor: "pointer", overflow: "hidden", marginBottom: 16,
-                                    transition: "border-color 0.2s",
-                                    margin: isMobile ? "0 auto 16px" : "0 0 16px"
-                                }}
-                            >
-                                {imagePreview ? (
-                                    <img src={imagePreview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                        onError={() => setImagePreview("")} />
-                                ) : (
-                                    <div style={{ textAlign: "center", padding: 16 }}>
-                                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ margin: "0 auto 8px", color: "#cbd5e1" }}>
-                                            <rect x="3" y="3" width="26" height="26" rx="4" stroke="currentColor" strokeWidth="1.5" />
-                                            <circle cx="11" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
-                                            <path d="M3 22l7-5 5 4 5-6 9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                        <div style={{ fontSize: 12, color: "#94a3b8", fontFamily: FONT }}>Principal Thumbnail</div>
-                                    </div>
-                                )}
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "118px minmax(0, 1fr)" : "1fr", gap: 12, alignItems: "start" }}>
+                                {/* Main Preview box */}
+                                <div
+                                    onClick={() => fileRef.current?.click()}
+                                    style={{
+                                        width: isMobile ? "118px" : "100%", aspectRatio: "1 / 1", maxHeight: isMobile ? 118 : 220,
+                                        borderRadius: 10, border: "2px dashed #e2e8f0",
+                                        background: "#f8fafc", display: "flex",
+                                        alignItems: "center", justifyContent: "center",
+                                        cursor: "pointer", overflow: "hidden",
+                                        transition: "border-color 0.2s",
+                                    }}
+                                >
+                                    {imagePreview ? (
+                                        <img src={imagePreview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                            onError={() => setImagePreview("")} />
+                                    ) : (
+                                        <div style={{ textAlign: "center", padding: 10 }}>
+                                            <svg width={isMobile ? "22" : "32"} height={isMobile ? "22" : "32"} viewBox="0 0 32 32" fill="none" style={{ margin: "0 auto 6px", color: "#cbd5e1" }}>
+                                                <rect x="3" y="3" width="26" height="26" rx="4" stroke="currentColor" strokeWidth="1.5" />
+                                                <circle cx="11" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
+                                                <path d="M3 22l7-5 5 4 5-6 9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                            <div style={{ fontSize: isMobile ? 9 : 12, color: "#94a3b8", fontFamily: FONT }}>Thumbnail</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <div style={{ fontSize: 12, fontWeight: 500, color: "#475569", marginBottom: 8, fontFamily: FONT }}>Image Gallery</div>
+                                    <ImageGallery 
+                                        images={galleryImages} 
+                                        onImagesChange={handleGalleryChange} 
+                                        maxImages={6} 
+                                    />
+                                </div>
                             </div>
 
                             <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
-                            
-                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", marginBottom: 12, fontFamily: FONT }}>Image Gallery</div>
-                            <ImageGallery 
-                                images={galleryImages} 
-                                onImagesChange={handleGalleryChange} 
-                                maxImages={6} 
-                            />
 
                             <div style={{ marginTop: 16 }}>
                                 <FormField label="Main Image URL (Optional fallback)">

@@ -84,10 +84,10 @@ export default function InventoryAdjustment({ products, collections, user, onDon
             <PageHeader title="Inventory Adjustment" sub="Quickly add or remove stock and adjust quantities in one place." />
 
             <Card style={{ marginBottom: 20 }}>
-                <div style={{ padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                    <div style={{ flex: 1, minWidth: 240 }}>
+                <div style={{ padding: isMobile ? "12px 12px" : "16px 20px", display: "flex", gap: 8, flexWrap: "nowrap", alignItems: "center", overflowX: "auto" }}>
+                    <div style={{ flex: 1, minWidth: isMobile ? 180 : 240 }}>
                         <div style={{
-                            display: "flex", alignItems: "center", gap: 10, padding: "10px 16px",
+                            display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, padding: isMobile ? "8px 10px" : "10px 16px",
                             background: search ? "#fff" : "#f8fafc",
                             border: "1.5px solid",
                             borderColor: search ? "#6366f1" : "#e2e8f0",
@@ -101,7 +101,7 @@ export default function InventoryAdjustment({ products, collections, user, onDon
                             <input
                                 type="text" placeholder="Search Product / SKU" value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: 14, width: "100%", fontFamily: FONT, boxShadow: "none" }}
+                                style={{ background: "transparent", border: "none", outline: "none", color: "#1e293b", fontSize: isMobile ? 12 : 14, width: "100%", fontFamily: FONT, boxShadow: "none" }}
                             />
                             {search && (
                                 <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex", padding: 2 }}>
@@ -110,11 +110,11 @@ export default function InventoryAdjustment({ products, collections, user, onDon
                             )}
                         </div>
                     </div>
-                    <select value={filterCol} onChange={e => setFilterCol(e.target.value)} style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
+                    <select value={filterCol} onChange={e => setFilterCol(e.target.value)} style={{ width: isMobile ? 128 : undefined, flexShrink: 0, padding: isMobile ? "8px 8px" : "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Collections</option>
                         {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
-                    <select value={filterSize} onChange={e => setFilterSize(e.target.value)} style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
+                    <select value={filterSize} onChange={e => setFilterSize(e.target.value)} style={{ width: isMobile ? 128 : undefined, flexShrink: 0, padding: isMobile ? "8px 8px" : "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Sizes / Units</option>
                         {sizes.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
