@@ -30,13 +30,15 @@ export default function RateCatalogView({
         r.productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (r.sku || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
+    const getRateKey = (item: { sku?: string; productName?: string }) =>
+        (item.sku || "").trim().toLowerCase() || `name:${(item.productName || "").trim().toLowerCase()}`;
 
     const handleAddRate = () => {
         const rateVal = (document.getElementById("new-rate-val") as HTMLInputElement)?.value;
         const pkgType = (document.getElementById("new-pkg-type") as HTMLSelectElement)?.value;
         const pkgCost = (document.getElementById("new-pkg-cost") as HTMLInputElement)?.value;
-        const discVal = (document.getElementById("new-disc-val") as HTMLInputElement)?.value;
-        const discType = (document.getElementById("new-disc-type") as HTMLSelectElement)?.value as "amount" | "percentage";
+        const discVal = (document.getElementById("new-discount-val") as HTMLInputElement)?.value;
+        const discType = (document.getElementById("new-discount-type") as HTMLSelectElement)?.value as "amount" | "percentage";
         const gstRate = (document.getElementById("new-gst-rate") as HTMLSelectElement)?.value;
 
         if (!selectedProduct || !rateVal) {
@@ -45,7 +47,8 @@ export default function RateCatalogView({
         }
 
         const pName = selectedProduct.productName || "";
-        const updated = [...rates.filter(r => r.productName !== pName), {
+        const selectedKey = getRateKey(selectedProduct);
+        const updated = [...rates.filter(r => getRateKey(r) !== selectedKey), {
             productName: pName,
             sku: selectedProduct.sku || "",
             rate: parseFloat(rateVal),
@@ -81,18 +84,25 @@ export default function RateCatalogView({
             return;
         }
 
-        if (!confirm(`Assign rate to ${matched.length} products with SKU prefix "${pPrefix.toUpperCase()}"?`)) return;
+        const uniqueMatched = matched.reduce<Product[]>((acc, prod) => {
+            const key = getRateKey(prod);
+            if (!acc.some(p => getRateKey(p) === key)) acc.push(prod);
+            return acc;
+        }, []);
+
+        if (!confirm(`Assign rate to ${uniqueMatched.length} products with SKU prefix "${pPrefix.toUpperCase()}"?`)) return;
 
         const pkgType = (document.getElementById("new-pkg-type") as HTMLSelectElement)?.value;
         const pkgCost = (document.getElementById("new-pkg-cost") as HTMLInputElement)?.value;
-        const discVal = (document.getElementById("new-disc-val") as HTMLInputElement)?.value;
-        const discType = (document.getElementById("new-disc-type") as HTMLSelectElement)?.value as "amount" | "percentage";
+        const discVal = (document.getElementById("new-discount-val") as HTMLInputElement)?.value;
+        const discType = (document.getElementById("new-discount-type") as HTMLSelectElement)?.value as "amount" | "percentage";
         const gstRate = (document.getElementById("new-gst-rate") as HTMLSelectElement)?.value;
 
         let updated = [...rates];
-        matched.forEach(prod => {
+        uniqueMatched.forEach(prod => {
             const pName = prod.productName || "";
-            updated = updated.filter(r => r.productName !== pName);
+            const key = getRateKey(prod);
+            updated = updated.filter(r => getRateKey(r) !== key);
             updated.push({
                 productName: pName,
                 sku: prod.sku || "",
@@ -100,7 +110,7 @@ export default function RateCatalogView({
                 packagingType: pkgType || "",
                 packagingCost: parseFloat(pkgCost || "0"),
                 discount: parseFloat(discVal || "0"),
-                discountType: discType,
+                discountType: discType || "amount",
                 gstRate: parseInt(gstRate || "0")
             });
         });
