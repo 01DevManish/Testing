@@ -116,7 +116,7 @@ export default function RateCatalogView({
     };
 
     return (
-        <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+        <div style={{ animation: "fadeIn 0.3s ease-out", maxWidth: "100%", overflowX: "hidden" }}>
             <PageHeader 
                 title={`${party.partyName} Catalog`} 
                 sub="Manage specific product pricing and share customized catalogs"
@@ -135,7 +135,7 @@ export default function RateCatalogView({
 
             {/* Assignment Form */}
             {isAdmin && (
-                <Card style={{ padding: 24, marginBottom: 24, background: "#f8fafc", borderStyle: "dashed", borderColor: "#cbd5e1" }}>
+                <Card style={{ padding: isMobile ? 16 : 24, marginBottom: 24, background: "#f8fafc", borderStyle: "dashed", borderColor: "#cbd5e1" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                         <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#1e293b", display: "flex", alignItems: "center", gap: 8 }}>
                             Register Product Rate
@@ -150,7 +150,7 @@ export default function RateCatalogView({
                                     <Input 
                                         value={selectedProduct ? (selectedProduct.productName || "") : productSearch}
                                         onChange={e => { setProductSearch(e.target.value); if (selectedProduct) setSelectedProduct(null); }}
-                                        placeholder="Search or SKU Prefix..."
+                                        placeholder="Search SKU"
                                         style={{ paddingRight: selectedProduct ? 30 : 12 }}
                                     />
                                     {selectedProduct && <button onClick={() => setSelectedProduct(null)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "#f1f5f9", borderRadius: "50%", width: 22, height: 22, fontSize: 10, cursor: "pointer" }}>✕</button>}
@@ -236,20 +236,37 @@ export default function RateCatalogView({
 
             {/* List Table */}
             <Card style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ 
+                    padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex",
+                    justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center",
+                    flexDirection: isMobile ? "column" : "row", gap: isMobile ? 10 : 0
+                }}>
                     <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#475569" }}>Assigned Rates ({rates.length})</h4>
-                    <div style={{ width: 240, position: "relative" }}>
+                    <div style={{ width: isMobile ? "100%" : 240, position: "relative" }}>
                         <input 
                             type="text" 
-                            placeholder="Search within catalog..." 
+                            placeholder="Search SKU" 
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             style={{ 
-                                width: "100%", padding: "6px 10px 6px 30px", fontSize: 12, 
+                                width: "100%", padding: "6px 10px 6px 30px", fontSize: isMobile ? 11 : 12, 
                                 border: "1px solid #e2e8f0", borderRadius: 8, outline: "none" 
                             }}
                         />
-                        <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12 }}>🔍</span>
+                        <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#94a3b8"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }}
+                        >
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
                     </div>
                 </div>
 
@@ -318,3 +335,4 @@ export default function RateCatalogView({
         </div>
     );
 }
+

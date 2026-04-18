@@ -5,6 +5,7 @@ import { Product, Category, Collection, FONT } from "../../types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "../../ui";
 import ShareModal from "./ShareModal";
 import { resolveS3Url } from "../Products/imageService";
+import { MOBILE_CATALOG_GRID } from "../mobile/mobileGrid";
 
 interface CatalogTabProps {
     products: Product[];
@@ -84,77 +85,155 @@ export default function CatalogTab({ products, categories, collections, brands, 
 
             {/* Filters */}
             <Card style={{ marginBottom: 24, padding: isMobile ? "12px 14px" : "16px 20px" }}>
-                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flexWrap: "wrap", gap: 16, alignItems: isMobile ? "stretch" : "center" }}>
-                    <div style={{ flex: 1, minWidth: isMobile ? "100%" : 240 }}>
-                        <div style={labelStyle}>Search Products</div>
-                        <input 
-                            style={inputStyle} 
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            placeholder="Search Product / SKU"
-                        />
-                    </div>
-                    <div style={{ width: isMobile ? "100%" : 180 }}>
-                        <div style={labelStyle}>Category</div>
-                        <select 
-                            style={inputStyle}
-                            value={selectedCategory}
-                            onChange={e => setSelectedCategory(e.target.value)}
-                        >
-                            <option value="all">All Categories</option>
-                            {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                    </div>
-                    <div style={{ width: isMobile ? "100%" : 180 }}>
-                        <div style={labelStyle}>Collection</div>
-                        <select 
-                            style={inputStyle}
-                            value={selectedCollection}
-                            onChange={e => setSelectedCollection(e.target.value)}
-                        >
-                            <option value="all">All Collections</option>
-                            {uniqueCollections.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                    </div>
-                    <div style={{ width: isMobile ? "100%" : 150 }}>
-                        <div style={labelStyle}>Size</div>
-                        <select 
-                            style={inputStyle}
-                            value={selectedSize}
-                            onChange={e => setSelectedSize(e.target.value)}
-                        >
-                            <option value="all">All Sizes</option>
-                            {uniqueSizes.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-                    {isAdmin && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, alignSelf: "flex-end", height: 40 }}>
-                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#f8fafc", padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", transition: "all 0.2s" }}>
+                {isMobile ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.8fr)", gap: 10, alignItems: "end" }}>
+                            <div style={{ minWidth: 0 }}>
+                                <div style={labelStyle}>Search Products</div>
                                 <input 
-                                    type="checkbox" 
-                                    checked={shareOutOfStock}
-                                    onChange={e => setShareOutOfStock(e.target.checked)}
-                                    style={{ width: 16, height: 16, accentColor: "#6366f1", cursor: "pointer", margin: 0 }}
+                                    style={{ ...inputStyle, fontSize: 13, padding: "9px 12px" }} 
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    placeholder="Search Product / SKU"
                                 />
-                                <span style={{ fontSize: 13, color: "#475569", fontWeight: 500, fontFamily: FONT }}>Share Out of Stock</span>
-                            </label>
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                                <div style={labelStyle}>Size</div>
+                                <select 
+                                    style={{ ...inputStyle, fontSize: 13, padding: "9px 12px" }}
+                                    value={selectedSize}
+                                    onChange={e => setSelectedSize(e.target.value)}
+                                >
+                                    <option value="all">All Sizes</option>
+                                    {uniqueSizes.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
                         </div>
-                    )}
-                    <div style={{ alignSelf: "flex-end" }}>
-                        <BtnGhost 
-                            onClick={() => { 
-                                setSearchTerm(""); 
-                                setSelectedCategory("all"); 
-                                setSelectedCollection("all"); 
-                                setSelectedSize("all");
-                                setShareOutOfStock(false);
-                            }}
-                            style={{ padding: "10px 16px" }}
-                        >
-                            Reset
-                        </BtnGhost>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 10, alignItems: "end" }}>
+                            <div style={{ minWidth: 0 }}>
+                                <div style={labelStyle}>Category</div>
+                                <select 
+                                    style={{ ...inputStyle, fontSize: 13, padding: "9px 12px" }}
+                                    value={selectedCategory}
+                                    onChange={e => setSelectedCategory(e.target.value)}
+                                >
+                                    <option value="all">All Categories</option>
+                                    {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                                <div style={labelStyle}>Collection</div>
+                                <select 
+                                    style={{ ...inputStyle, fontSize: 13, padding: "9px 12px" }}
+                                    value={selectedCollection}
+                                    onChange={e => setSelectedCollection(e.target.value)}
+                                >
+                                    <option value="all">All Collections</option>
+                                    {uniqueCollections.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+                            {isAdmin && (
+                                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#f8fafc", padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", transition: "all 0.2s" }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={shareOutOfStock}
+                                        onChange={e => setShareOutOfStock(e.target.checked)}
+                                        style={{ width: 16, height: 16, accentColor: "#6366f1", cursor: "pointer", margin: 0 }}
+                                    />
+                                    <span style={{ fontSize: 12, color: "#475569", fontWeight: 500, fontFamily: FONT }}>Share Out of Stock</span>
+                                </label>
+                            )}
+                            <BtnGhost 
+                                onClick={() => { 
+                                    setSearchTerm(""); 
+                                    setSelectedCategory("all"); 
+                                    setSelectedCollection("all"); 
+                                    setSelectedSize("all");
+                                    setShareOutOfStock(false);
+                                }}
+                                style={{ padding: "9px 14px" }}
+                            >
+                                Reset
+                            </BtnGhost>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+                        <div style={{ flex: 1, minWidth: 240 }}>
+                            <div style={labelStyle}>Search Products</div>
+                            <input 
+                                style={inputStyle} 
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                placeholder="Search Product / SKU"
+                            />
+                        </div>
+                        <div style={{ width: 180 }}>
+                            <div style={labelStyle}>Category</div>
+                            <select 
+                                style={inputStyle}
+                                value={selectedCategory}
+                                onChange={e => setSelectedCategory(e.target.value)}
+                            >
+                                <option value="all">All Categories</option>
+                                {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ width: 180 }}>
+                            <div style={labelStyle}>Collection</div>
+                            <select 
+                                style={inputStyle}
+                                value={selectedCollection}
+                                onChange={e => setSelectedCollection(e.target.value)}
+                            >
+                                <option value="all">All Collections</option>
+                                {uniqueCollections.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ width: 150 }}>
+                            <div style={labelStyle}>Size</div>
+                            <select 
+                                style={inputStyle}
+                                value={selectedSize}
+                                onChange={e => setSelectedSize(e.target.value)}
+                            >
+                                <option value="all">All Sizes</option>
+                                {uniqueSizes.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        {isAdmin && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, alignSelf: "flex-end", height: 40 }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#f8fafc", padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", transition: "all 0.2s" }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={shareOutOfStock}
+                                        onChange={e => setShareOutOfStock(e.target.checked)}
+                                        style={{ width: 16, height: 16, accentColor: "#6366f1", cursor: "pointer", margin: 0 }}
+                                    />
+                                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 500, fontFamily: FONT }}>Share Out of Stock</span>
+                                </label>
+                            </div>
+                        )}
+                        <div style={{ alignSelf: "flex-end" }}>
+                            <BtnGhost 
+                                onClick={() => { 
+                                    setSearchTerm(""); 
+                                    setSelectedCategory("all"); 
+                                    setSelectedCollection("all"); 
+                                    setSelectedSize("all");
+                                    setShareOutOfStock(false);
+                                }}
+                                style={{ padding: "10px 16px" }}
+                            >
+                                Reset
+                            </BtnGhost>
+                        </div>
+                    </div>
+                )}
             </Card>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -175,7 +254,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                     sub="Try adjusting your search or filters to find what you're looking for."
                 />
             ) : (
-                <div style={gridStyle}>
+                <div style={{ ...gridStyle, gridTemplateColumns: isMobile ? MOBILE_CATALOG_GRID : "repeat(auto-fill, minmax(220px, 1fr))", gap: isMobile ? 8 : 20 }}>
                     {filtered.map(p => {
                         const isSelected = !!selectedProducts.find(item => item.id === p.id);
                         return (
@@ -204,12 +283,12 @@ export default function CatalogTab({ products, categories, collections, brands, 
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ padding: "12px 14px" }}>
-                                    <div style={{ fontSize: 11, fontWeight: 400, color: "#6366f1", textTransform: "uppercase", marginBottom: 2 }}>{p.category}</div>
-                                    <div style={{ fontSize: 14, fontWeight: 400, color: "#0f172a", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
-                                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>SKU: {p.sku}</div>
+                                <div style={{ padding: isMobile ? "8px 8px" : "12px 14px" }}>
+                                    <div style={{ fontSize: isMobile ? 8 : 11, fontWeight: 400, color: "#6366f1", textTransform: "uppercase", marginBottom: 2 }}>{p.category}</div>
+                                    <div style={{ fontSize: isMobile ? 10 : 14, fontWeight: 400, color: "#0f172a", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
+                                    <div style={{ fontSize: isMobile ? 9 : 12, color: "#64748b", marginBottom: isMobile ? 6 : 10 }}>SKU: {p.sku}</div>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <div style={{ fontSize: 15, fontWeight: 400, color: "#0f172a" }}>₹{p.price}</div>
+                                        <div style={{ fontSize: isMobile ? 10 : 15, fontWeight: 400, color: "#0f172a" }}>₹{p.price}</div>
                                         <Badge 
                                             color={p.stock > 0 ? "#10b981" : "#ef4444"} 
                                             bg={p.stock > 0 ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)"}
@@ -276,3 +355,4 @@ const imageContainer: React.CSSProperties = { position: "relative", width: "100%
 const imageStyle: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" };
 const checkOverlay: React.CSSProperties = { position: "absolute", inset: 0, background: "rgba(99,102,241,0.4)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" };
 const floatingBar: React.CSSProperties = { position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#1e293b", padding: "12px 24px", borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, display: "flex", alignItems: "center" };
+

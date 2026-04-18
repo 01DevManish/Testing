@@ -280,6 +280,7 @@ export default function PartyRateModule({
                 setSearchTerm={setSearchTerm}
                 fetching={fetching}
                 isAdmin={canEdit}
+                isMobile={isMobile}
                 onViewProfile={openEditModal}
                 onViewRates={setViewingCatalog}
                 onEditProfile={canEdit ? openEditModal : undefined}

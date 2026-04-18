@@ -606,6 +606,7 @@ export default function AdminPage() {
                 loading={fetchingCatalog}
                 isMobile={isMobile}
                 isDesktop={!isMobile}
+                isAdmin={true}
               />
             ) : tab === "profile" ? (
               <ProfileTab
