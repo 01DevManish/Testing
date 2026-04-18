@@ -196,64 +196,71 @@ export default function Overview({ products, categories, collections, loading, o
             <div style={{ marginTop: 18 }}>
                 <Card>
                     <div style={{ padding: "18px 20px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
                             <div style={{ fontSize: 15, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>Detailed Stock Levels</div>
-                            <div style={{ display: "flex", gap: 10, flex: 1, maxWidth: 480, justifyContent: "flex-end", alignItems: "center" }}>
-                                <input type="text" placeholder="Search Product / SKU" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 14px", border: "1.5px solid #e2e8f0", borderRadius: 12, fontSize: 13, fontFamily: FONT, outline: "none", background: "#f8fafc", flex: 1 }} />
-                                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: "9px 12px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 13, fontFamily: FONT, outline: "none", background: "#f8fafc", cursor: "pointer", width: 140 }}>
-                                    <option value="all">All Status</option>
-                                    <option value="in-stock">In Stock</option>
-                                    <option value="low-stock">Low Stock</option>
-                                    <option value="out-stock">Out of Stock</option>
-                                </select>
+                            <div style={{ display: "flex", gap: 10, flex: 1, maxWidth: isMobile ? "100%" : 480, justifyContent: "flex-end", alignItems: "center", width: isMobile ? "100%" : undefined, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+                                <input type="text" placeholder="Search Product / SKU" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 14px", border: "1.5px solid #e2e8f0", borderRadius: 12, fontSize: 13, fontFamily: FONT, outline: "none", background: "#f8fafc", flex: 1, minWidth: isMobile ? "100%" : 180 }} />
+                                {!isMobile && (
+                                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: "9px 12px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 13, fontFamily: FONT, outline: "none", background: "#f8fafc", cursor: "pointer", width: 140 }}>
+                                        <option value="all">All Status</option>
+                                        <option value="in-stock">In Stock</option>
+                                        <option value="low-stock">Low Stock</option>
+                                        <option value="out-stock">Out of Stock</option>
+                                    </select>
+                                )}
                             </div>
                         </div>
-                        <div style={{ overflowX: "auto", maxHeight: 400 }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                                <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10 }}>
+                        <div style={{ overflowX: "auto", maxHeight: isMobile ? undefined : 400, WebkitOverflowScrolling: "touch" }}>
+                            <table style={{ width: "100%", minWidth: isMobile ? 430 : undefined, borderCollapse: "collapse", textAlign: "left" }}>
+                                <thead style={{ position: isMobile ? "static" : "sticky", top: 0, background: "#fff", zIndex: 10 }}>
                                     <tr>
-                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product Details</th>
-                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>SKU</th>
-                                        {isAdmin && <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Cost Price</th>}
-                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Pieces</th>
-                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Status</th>
+                                        <th style={{ padding: isMobile ? "12px 8px" : "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product Details</th>
+                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", whiteSpace: "nowrap" }}>SKU</th>
+                                        {isAdmin && !isMobile && <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right", whiteSpace: "nowrap" }}>Cost Price</th>}
+                                        <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right", whiteSpace: "nowrap" }}>Pieces</th>
+                                        {!isMobile && <th style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 11, fontWeight: 500, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right", whiteSpace: "nowrap" }}>Status</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {paginatedStock.map(p => (
                                         <tr key={p.id}>
-                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc" }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                                                    <div style={{ width: 42, height: 42, borderRadius: 10, background: "#fff", overflow: "hidden", border: "1.5px solid #f1f5f9", flexShrink: 0 }}>
+                                            <td style={{ padding: isMobile ? "10px 8px" : "12px 16px", borderBottom: "1px solid #f8fafc" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 14 }}>
+                                                    <div style={{ width: isMobile ? 34 : 42, height: isMobile ? 34 : 42, borderRadius: isMobile ? 8 : 10, background: "#fff", overflow: "hidden", border: "1.5px solid #f1f5f9", flexShrink: 0 }}>
                                                         <SmartImage 
                                                             src={p.imageUrl || "/placeholder-prod.png"} 
                                                             style={{ width: "100%", height: "100%", objectFit: "cover" }} 
                                                             {...({ priority: paginatedStock.indexOf(p) < 4 } as any)}
                                                         />
                                                     </div>
-                                                    <div><div style={{ fontSize: 13, fontWeight: 500, color: "#1e293b", fontFamily: FONT }}>{p.productName}</div><div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>{p.category}</div></div>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div style={{ fontSize: isMobile ? 11 : 13, lineHeight: isMobile ? 1.25 : 1.4, fontWeight: 500, color: "#1e293b", fontFamily: FONT, display: "-webkit-box", WebkitLineClamp: isMobile ? 2 : 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.productName}</div>
+                                                        <div style={{ fontSize: isMobile ? 10 : 11, color: "#94a3b8", fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.category}</div>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 13, color: "#64748b", fontFamily: FONT }}>{p.sku}</td>
-                                            {isAdmin && (
-                                                <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 13, color: "#64748b", fontFamily: FONT, textAlign: "right" }}>
+                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 13, color: "#64748b", fontFamily: FONT, whiteSpace: "nowrap" }}>{p.sku}</td>
+                                            {isAdmin && !isMobile && (
+                                                <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 13, color: "#64748b", fontFamily: FONT, textAlign: "right", whiteSpace: "nowrap" }}>
                                                     Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
                                                 </td>
                                             )}
-                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 15, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 500, fontFamily: FONT, textAlign: "right" }}>{p.stock}</td>
-                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", textAlign: "right" }}>
-                                                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: p.stock <= 0 ? "#fff1f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4", color: p.stock <= 0 ? "#e11d48" : p.stock <= p.minStock ? "#d97706" : "#15803d", fontWeight: 500, fontSize: 11, fontFamily: FONT }}>
-                                                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor" }} />
-                                                    {p.stock <= 0 ? "Out" : p.stock <= p.minStock ? "Low" : "In"}
-                                                </div>
-                                            </td>
+                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 15, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 500, fontFamily: FONT, textAlign: "right", whiteSpace: "nowrap" }}>{p.stock}</td>
+                                            {!isMobile && (
+                                                <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", textAlign: "right", whiteSpace: "nowrap" }}>
+                                                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: p.stock <= 0 ? "#fff1f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4", color: p.stock <= 0 ? "#e11d48" : p.stock <= p.minStock ? "#d97706" : "#15803d", fontWeight: 500, fontSize: 11, fontFamily: FONT }}>
+                                                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor" }} />
+                                                        {p.stock <= 0 ? "Out" : p.stock <= p.minStock ? "Low" : "In"}
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                         {totalStockPages > 1 && (
-                            <div style={{ padding: "20px 0 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ padding: "20px 0 0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: isMobile ? "wrap" : "nowrap" }}>
                                 <div style={{ fontSize: 12, color: "#64748b" }}>Showing {((stockPage - 1) * STOCK_ITEMS_PER_PAGE) + 1} - {Math.min(stockPage * STOCK_ITEMS_PER_PAGE, filteredStock.length)} of {filteredStock.length}</div>
                                 <div style={{ display: "flex", gap: 8 }}>
                                     <button disabled={stockPage === 1} onClick={() => setStockPage(p => p - 1)} style={{ padding: "6px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: stockPage === 1 ? "#f8fafc" : "#fff", fontSize: 12 }}>Prev</button>

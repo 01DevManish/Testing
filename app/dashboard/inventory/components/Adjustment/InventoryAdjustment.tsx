@@ -37,13 +37,13 @@ export default function InventoryAdjustment({ products, collections, user, onDon
 
     const filtered = products.filter(p => {
         const q = search.toLowerCase();
-        const matchSearch = 
-            p.productName.toLowerCase().includes(q) || 
+        const matchSearch =
+            p.productName.toLowerCase().includes(q) ||
             p.sku.toLowerCase().includes(q) ||
             p.brand?.toLowerCase().includes(q) ||
             p.category?.toLowerCase().includes(q) ||
             p.collection?.toLowerCase().includes(q);
-            
+
         const matchSize = filterSize === "all" || p.unit === filterSize || p.size === filterSize;
 
         let matchCol = true;
@@ -77,15 +77,15 @@ export default function InventoryAdjustment({ products, collections, user, onDon
                     display: "flex", alignItems: "center", gap: 12,
                     animation: "slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}>
-                    <span style={{ fontSize: 20 }}>✓</span>
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>OK</span>
                     {successMsg}
                 </div>
             )}
             <PageHeader title="Inventory Adjustment" sub="Quickly add or remove stock and adjust quantities in one place." />
 
             <Card style={{ marginBottom: 20 }}>
-                <div style={{ padding: isMobile ? "12px 12px" : "16px 20px", display: "flex", gap: 8, flexWrap: "nowrap", alignItems: "center", overflowX: "auto" }}>
-                    <div style={{ flex: 1, minWidth: isMobile ? 180 : 240 }}>
+                <div style={{ padding: isMobile ? "12px" : "16px 20px", display: "flex", gap: 8, flexWrap: isMobile ? "wrap" : "nowrap", alignItems: "center", overflowX: "visible" }}>
+                    <div style={{ flex: 1, minWidth: isMobile ? "100%" : 240, width: isMobile ? "100%" : undefined }}>
                         <div style={{
                             display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, padding: isMobile ? "8px 10px" : "10px 16px",
                             background: search ? "#fff" : "#f8fafc",
@@ -110,11 +110,11 @@ export default function InventoryAdjustment({ products, collections, user, onDon
                             )}
                         </div>
                     </div>
-                    <select value={filterCol} onChange={e => setFilterCol(e.target.value)} style={{ width: isMobile ? 128 : undefined, flexShrink: 0, padding: isMobile ? "8px 8px" : "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
+                    <select value={filterCol} onChange={e => setFilterCol(e.target.value)} style={{ width: isMobile ? "calc(50% - 4px)" : undefined, flexShrink: 0, padding: isMobile ? "8px 8px" : "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Collections</option>
                         {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
-                    <select value={filterSize} onChange={e => setFilterSize(e.target.value)} style={{ width: isMobile ? 128 : undefined, flexShrink: 0, padding: isMobile ? "8px 8px" : "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
+                    <select value={filterSize} onChange={e => setFilterSize(e.target.value)} style={{ width: isMobile ? "calc(50% - 4px)" : undefined, flexShrink: 0, padding: isMobile ? "8px 8px" : "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: isMobile ? 11 : 13, fontFamily: FONT, outline: "none", cursor: "pointer", background: "#f8fafc" }}>
                         <option value="all">All Sizes / Units</option>
                         {sizes.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -122,26 +122,58 @@ export default function InventoryAdjustment({ products, collections, user, onDon
             </Card>
 
             <Card>
-                <div style={{ overflowX: "auto", maxHeight: "60vh" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                        <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-                            <tr>
-                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product & Info</th>
-                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Current Stock</th>
-                                <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Adjust Quantity</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedItems.map(p => <AdjustRow key={p.id} p={p} user={user} onRefresh={() => { onDone?.(); setSuccessMsg(`Stock updated for ${p.productName}`); }} isMobile={isMobile} />)}
-                        </tbody>
-                    </table>
-                    {filtered.length === 0 && (
-                        <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: 14 }}>No products match your filters.</div>
-                    )}
-                </div>
+                {isMobile ? (
+                    <div>
+                        {paginatedItems.map(p => (
+                            <AdjustRow
+                                key={p.id}
+                                p={p}
+                                user={user}
+                                onRefresh={() => {
+                                    onDone?.();
+                                    setSuccessMsg(`Stock updated for ${p.productName}`);
+                                }}
+                                isMobile={true}
+                                mobileCard={true}
+                            />
+                        ))}
+                        {filtered.length === 0 && (
+                            <div style={{ textAlign: "center", padding: "32px 14px", color: "#94a3b8", fontSize: 14 }}>No products match your filters.</div>
+                        )}
+                    </div>
+                ) : (
+                    <div style={{ overflowX: "auto", maxHeight: "60vh", WebkitOverflowScrolling: "touch" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                            <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                                <tr>
+                                    <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product & Info</th>
+                                    <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Current Stock</th>
+                                    <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Adjust Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginatedItems.map(p => (
+                                    <AdjustRow
+                                        key={p.id}
+                                        p={p}
+                                        user={user}
+                                        onRefresh={() => {
+                                            onDone?.();
+                                            setSuccessMsg(`Stock updated for ${p.productName}`);
+                                        }}
+                                        isMobile={false}
+                                    />
+                                ))}
+                            </tbody>
+                        </table>
+                        {filtered.length === 0 && (
+                            <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8", fontSize: 14 }}>No products match your filters.</div>
+                        )}
+                    </div>
+                )}
 
                 {totalPages > 1 && (
-                    <div style={{ padding: "16px 20px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
+                    <div style={{ padding: isMobile ? "14px 12px" : "16px 20px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: isMobile ? "wrap" : "nowrap", background: "#fff", borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
                         <div style={{ fontSize: 12, color: "#64748b", fontFamily: FONT }}>
                             Showing <strong>{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</strong> - <strong>{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}</strong> of <strong>{filtered.length}</strong> products
                         </div>
