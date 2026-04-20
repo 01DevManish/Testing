@@ -22,6 +22,7 @@ interface TasksTabProps {
   handleCreateTask: (attachments: { name: string; url: string }[]) => void;
   handleDeleteTask: (id: string) => void;
   handleTaskStatus: (id: string, status: Task["status"]) => void;
+  handleUpdateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   assignableUsers: UserRecord[];
   loadTasks: () => void;
 }
@@ -30,13 +31,23 @@ export default function TasksTab({
   S, isMobile, isTablet, tasks, filteredTasks, fetchingTasks,
   taskFilter, setTaskFilter, showTaskForm, setShowTaskForm,
   taskForm, setTaskForm, savingTask, handleCreateTask, handleDeleteTask,
-  handleTaskStatus, assignableUsers, loadTasks,
+  handleTaskStatus, handleUpdateTask, assignableUsers, loadTasks,
 }: TasksTabProps) {
   const [uploading, setUploading] = React.useState(false);
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([]);
   const [userSearch, setUserSearch] = React.useState("");
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const [viewTask, setViewTask] = React.useState<Task | null>(null);
+  const [editTask, setEditTask] = React.useState<Task | null>(null);
+  const [savingEdit, setSavingEdit] = React.useState(false);
+  const [editForm, setEditForm] = React.useState({
+    title: "",
+    description: "",
+    assignedTo: "",
+    priority: "medium" as Task["priority"],
+    status: "pending" as Task["status"],
+  });
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -69,6 +80,49 @@ export default function TasksTab({
     completed: tasks.filter(t => t.status === "completed").length,
   };
 
+  const openEditTask = (task: Task) => {
+    setEditTask(task);
+    setEditForm({
+      title: task.title || "",
+      description: task.description || "",
+      assignedTo: task.assignedTo || "",
+      priority: task.priority,
+      status: task.status,
+    });
+  };
+
+  const saveEditTask = async () => {
+    if (!editTask) return;
+    if (!editForm.title.trim()) {
+      alert("Task title is required.");
+      return;
+    }
+    const assigned = assignableUsers.find(u => u.uid === editForm.assignedTo);
+    if (!assigned) {
+      alert("Please select an assignee.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const updates: Partial<Task> = {
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
+        assignedTo: assigned.uid,
+        assignedToName: assigned.name,
+        assignedToRole: assigned.role,
+        priority: editForm.priority,
+        status: editForm.status,
+      };
+      await handleUpdateTask(editTask.id, updates);
+      setEditTask(null);
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Failed to update task.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const TaskCard = ({ t }: { t: Task }) => (
     <div style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
@@ -99,6 +153,8 @@ export default function TasksTab({
           <option value="pending">Pending</option><option value="in-progress">In Progress</option><option value="completed">Completed</option>
         </select>
         <button style={{ ...S.btnIcon, color: "#ef4444" }} onClick={() => handleDeleteTask(t.id)}>Del</button>
+        <button style={S.btnIcon} onClick={() => setViewTask(t)}>View</button>
+        <button style={S.btnIcon} onClick={() => openEditTask(t)}>Edit</button>
       </div>
     </div>
   );
@@ -350,6 +406,8 @@ export default function TasksTab({
                           <option value="pending">Pending</option><option value="in-progress">In Progress</option><option value="completed">Completed</option>
                         </select>
                         <button style={{ ...S.btnIcon, color: "#ef4444" }} onClick={() => handleDeleteTask(t.id)}>Del</button>
+                        <button style={S.btnIcon} onClick={() => setViewTask(t)}>View</button>
+                        <button style={S.btnIcon} onClick={() => openEditTask(t)}>Edit</button>
                       </div>
                     </td>
                   </tr>
@@ -359,6 +417,82 @@ export default function TasksTab({
           </div>
         )}
       </div>
+
+      {viewTask && (
+        <div style={S.modalOverlay} onClick={() => setViewTask(null)}>
+          <div style={{ ...S.modalCard, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setViewTask(null)} style={{ position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: 8, background: "#f1f5f9", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
+            <h3 style={{ fontSize: 18, fontWeight: 500, color: "#0f172a", margin: "0 0 12px" }}>{viewTask.title}</h3>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <span style={S.badge(priorityColors[viewTask.priority], `${priorityColors[viewTask.priority]}12`)}>{viewTask.priority}</span>
+              <span style={S.badge(statusConfig[viewTask.status]?.color || "#94a3b8", statusConfig[viewTask.status]?.bg || "transparent")}>{statusConfig[viewTask.status]?.label}</span>
+            </div>
+            {viewTask.description && (
+              <div style={{ fontSize: 13, color: "#475569", marginBottom: 14, lineHeight: 1.6, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" }}>
+                {viewTask.description}
+              </div>
+            )}
+            <div style={{ fontSize: 13, color: "#334155", marginBottom: 8 }}><strong>Assigned To:</strong> {viewTask.assignedToName} ({viewTask.assignedToRole})</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}><strong>Created By:</strong> {viewTask.createdByName}</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}><strong>Created:</strong> {new Date(viewTask.createdAt).toLocaleString()}</div>
+            {viewTask.attachments && viewTask.attachments.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, fontWeight: 600 }}>Attachments</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {viewTask.attachments.map((at, idx) => (
+                    <a key={idx} href={at.url} target="_blank" rel="noreferrer" style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#6366f1", fontSize: 12, textDecoration: "none" }}>
+                      {at.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {editTask && (
+        <div style={S.modalOverlay} onClick={() => setEditTask(null)}>
+          <div style={{ ...S.modalCard, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setEditTask(null)} style={{ position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: 8, background: "#f1f5f9", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
+            <h3 style={{ fontSize: 18, fontWeight: 500, color: "#0f172a", margin: "0 0 14px" }}>Edit Task</h3>
+            <div style={{ display: "grid", gap: 10 }}>
+              <div><label style={S.label}>Task Title</label><input style={S.input} value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} /></div>
+              <div><label style={S.label}>Description</label><textarea rows={3} style={{ ...S.input, resize: "vertical" as const }} value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} /></div>
+              <div><label style={S.label}>Assign To</label>
+                <select style={S.input as React.CSSProperties} value={editForm.assignedTo} onChange={e => setEditForm({ ...editForm, assignedTo: e.target.value })}>
+                  <option value="">Select user...</option>
+                  {assignableUsers.map(u => (
+                    <option key={u.uid} value={u.uid}>{u.name} ({u.role})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div><label style={S.label}>Priority</label>
+                  <select style={S.input as React.CSSProperties} value={editForm.priority} onChange={e => setEditForm({ ...editForm, priority: e.target.value as Task["priority"] })}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div><label style={S.label}>Status</label>
+                  <select style={S.input as React.CSSProperties} value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value as Task["status"] })}>
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button style={S.btnSecondary} onClick={() => setEditTask(null)}>Cancel</button>
+              <button style={S.btnPrimary} disabled={savingEdit} onClick={saveEditTask}>
+                {savingEdit ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -450,6 +450,28 @@ export default function AdminPage() {
     }
   };
 
+  const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
+    const payload: Record<string, unknown> = { ...updates };
+    if (updates.status === "completed") payload.completedAt = Date.now();
+    if (updates.status && updates.status !== "completed") payload.completedAt = null;
+
+    await update(ref(db, `tasks/${id}`), payload);
+
+    const task = tasks.find(t => t.id === id);
+    await logActivity({
+      type: "task",
+      action: "update",
+      title: "Task Updated",
+      description: `Task "${task?.title || "Unknown"}" updated by ${currentName}.`,
+      userId: user?.uid || "unknown",
+      userName: currentName,
+      userRole: "admin",
+      metadata: { taskId: id, updatedFields: Object.keys(updates) }
+    });
+
+    setTasks(tasks.map(t => t.id === id ? { ...t, ...(updates as Task), ...(payload.completedAt !== undefined ? { completedAt: payload.completedAt as number | undefined } : {}) } : t));
+  };
+
   const filteredUsers = users.filter(u => {
     // Permanent hidden filter
     if (u.email === "01devmanish@gmail.com") return false;
@@ -575,6 +597,7 @@ export default function AdminPage() {
                 handleCreateTask={handleCreateTask}
                 handleDeleteTask={handleDeleteTask}
                 handleTaskStatus={handleTaskStatus}
+                handleUpdateTask={handleUpdateTask}
                 assignableUsers={users.filter(u => u.role === "admin" || u.role === "manager" || u.role === "employee")}
                 loadTasks={loadTasks}
               />
