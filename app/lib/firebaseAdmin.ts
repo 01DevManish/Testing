@@ -10,8 +10,10 @@ const globalWithFirebase = global as typeof globalThis & {
   firebaseAdminApp: admin.app.App | undefined;
 };
 
-if (!globalWithFirebase.firebaseAdminApp) {
-  let serviceAccount: any;
+const initAdminApp = (): admin.app.App | undefined => {
+  if (globalWithFirebase.firebaseAdminApp) return globalWithFirebase.firebaseAdminApp;
+
+  let serviceAccount: Record<string, unknown> | undefined;
 
   // 1. Try Loading from JSON File (Primary)
   const keyPath = path.join(process.cwd(), "firebase-admin-key.json");
@@ -29,7 +31,7 @@ if (!globalWithFirebase.firebaseAdminApp) {
       if (!key) return undefined;
       const header = "-----BEGIN PRIVATE KEY-----";
       const footer = "-----END PRIVATE KEY-----";
-      let body = key.replace(header, "").replace(footer, "").replace(/\s/g, "");
+      const body = key.replace(header, "").replace(footer, "").replace(/\s/g, "");
       const lines = body.match(/.{1,64}/g) || [];
       return `${header}\n${lines.join("\n")}\n${footer}\n`;
     };
@@ -76,26 +78,48 @@ E8xR5kgY4Rqeesghs3arZnFY
       databaseURL: "https://eurus-lifestyle-default-rtdb.asia-southeast1.firebasedatabase.app/",
     });
     console.log("[FirebaseAdmin] SDK Initialized Successfully.");
-  } catch (error: any) {
-    if (!/already exists/.test(error.message)) {
-      console.error("[FirebaseAdmin] Initialization Error:", error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/already exists/.test(message)) {
+      console.error("[FirebaseAdmin] Initialization Error:", message);
+    }
+    // If app already exists in admin.apps, reuse it.
+    if (admin.apps.length > 0) {
+      globalWithFirebase.firebaseAdminApp = admin.apps[0];
     }
   }
-}
+  return globalWithFirebase.firebaseAdminApp;
+};
 
 /**
  * Helper to get the default or initialized app safely.
- * During build time, if credentials are missing, we return null to allow build to continue.
+ * Throws explicit error if Admin SDK is not initialized.
  */
-function getAdminApp() {
-  if (admin.apps.length > 0) return admin.apps[0];
-  return null;
+function getAdminAppOrThrow() {
+  const app = initAdminApp() || (admin.apps.length > 0 ? admin.apps[0] : undefined);
+  if (!app) {
+    throw new Error(
+      "Firebase Admin SDK is not initialized. Configure FIREBASE_PRIVATE_KEY/FIREBASE_CLIENT_EMAIL or firebase-admin-key.json."
+    );
+  }
+  return app;
 }
 
-const adminApp = getAdminApp();
+const createLazyService = <T>(factory: () => T): T => {
+  return new Proxy({} as T, {
+    get(_target, prop) {
+      const service = factory() as Record<PropertyKey, unknown>;
+      const value = service[prop];
+      if (typeof value === "function") {
+        return (value as (...args: unknown[]) => unknown).bind(service);
+      }
+      return value;
+    },
+  });
+};
 
-// Export proxies or lazy initializers to prevent crash during import-time on missing credentials
-export const adminAuth = adminApp ? admin.auth(adminApp) : ({} as any);
-export const adminDb = adminApp ? admin.database(adminApp) : ({} as any);
-export const adminMessaging = adminApp ? admin.messaging(adminApp) : ({} as any);
+// Export lazy services so callers always get either a real SDK instance or a clear error.
+export const adminAuth = createLazyService(() => admin.auth(getAdminAppOrThrow()));
+export const adminDb = createLazyService(() => admin.database(getAdminAppOrThrow()));
+export const adminMessaging = createLazyService(() => admin.messaging(getAdminAppOrThrow()));
 

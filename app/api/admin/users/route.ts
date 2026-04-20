@@ -2,6 +2,7 @@ import { adminAuth, adminDb } from "@/app/lib/firebaseAdmin";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 
 export async function GET(req: Request) {
