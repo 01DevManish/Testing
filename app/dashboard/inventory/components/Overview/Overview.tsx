@@ -50,8 +50,8 @@ export default function Overview({ products, categories, collections, loading, o
         const list = [
             { label: "Total Products", value: total, color: "#6366f1" },
             { label: "In Stock Items", value: inStock, color: "#10b981" },
-            { label: "Low Stock Alert", value: lowStock, color: "#f59e0b" },
-            { label: "Out of Stock", value: outStock, color: "#ef4444" },
+            { label: "Low Stock Alert", value: lowStock, color: "#a16207" },
+            { label: "Out of Stock", value: outStock, color: "#991b1b" },
         ];
 
         if (isAdmin) {
@@ -146,7 +146,7 @@ export default function Overview({ products, categories, collections, loading, o
                                                     Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
                                                 </div>
                                             )}
-                                            <div style={{ fontSize: 11, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontWeight: 400, fontFamily: FONT }}>
+                                            <div style={{ fontSize: 11, color: p.stock <= 0 ? "#991b1b" : p.stock <= p.minStock ? "#a16207" : "#10b981", fontWeight: 400, fontFamily: FONT }}>
                                                 {p.stock <= 0 ? "Out of Stock" : p.stock <= p.minStock ? "Low Stock" : "In Stock"}
                                             </div>
                                         </div>
@@ -245,7 +245,7 @@ export default function Overview({ products, categories, collections, loading, o
                                                     Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
                                                 </td>
                                             )}
-                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 15, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#1e293b", fontWeight: 500, fontFamily: FONT, textAlign: "right", whiteSpace: "nowrap" }}>{p.stock}</td>
+                                            <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", fontSize: 15, color: p.stock <= 0 ? "#991b1b" : p.stock <= p.minStock ? "#a16207" : "#1e293b", fontWeight: 500, fontFamily: FONT, textAlign: "right", whiteSpace: "nowrap" }}>{p.stock}</td>
                                             {!isMobile && (
                                                 <td style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", textAlign: "right", whiteSpace: "nowrap" }}>
                                                     <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: p.stock <= 0 ? "#fff1f2" : p.stock <= p.minStock ? "#fffbeb" : "#f0fdf4", color: p.stock <= 0 ? "#e11d48" : p.stock <= p.minStock ? "#d97706" : "#15803d", fontWeight: 500, fontSize: 11, fontFamily: FONT }}>

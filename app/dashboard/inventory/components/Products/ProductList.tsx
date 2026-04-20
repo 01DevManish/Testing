@@ -307,9 +307,9 @@ export default function ProductList({
     return (
         <div style={{ maxWidth: "100%", overflowX: "hidden", paddingRight: isMobile ? 2 : 0 }}>
             <PageHeader title="All Products" sub={`${filtered.length} products`} />
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? (canCreate ? "1fr 1fr" : "1fr") : "auto auto", gap: 8, width: isMobile ? "100%" : "auto", marginBottom: 14 }}>
-                {canCreate && <BtnPrimary onClick={onCreateNew} style={isMobile ? { minWidth: 0, fontSize: 11, padding: "8px 6px", justifyContent: "center", minHeight: 40, whiteSpace: "nowrap" } : {}}>+ Add Product</BtnPrimary>}
-                <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: isMobile ? 11 : 13, padding: isMobile ? "8px 6px" : undefined, minWidth: 0, justifyContent: "center", minHeight: isMobile ? 40 : undefined, whiteSpace: isMobile ? "normal" : "nowrap", lineHeight: 1.2 }}>Export for Bulk Edit</BtnGhost>
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, flexWrap: "nowrap", width: "100%", marginBottom: 14 }}>
+                {canCreate && <BtnPrimary onClick={onCreateNew} style={{ minWidth: 0, fontSize: isMobile ? 10 : 12, padding: isMobile ? "7px 10px" : "8px 12px", justifyContent: "center", minHeight: isMobile ? 34 : 36, whiteSpace: "nowrap" }}>+ Add Product</BtnPrimary>}
+                <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: isMobile ? 10 : 12, padding: isMobile ? "7px 10px" : "8px 12px", minWidth: 0, justifyContent: "center", minHeight: isMobile ? 34 : 36, whiteSpace: "nowrap", lineHeight: 1.1 }}>Export for Bulk Edit</BtnGhost>
             </div>
 
             <Card>
@@ -580,9 +580,9 @@ export default function ProductList({
                                                 {user.role === "admin" && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}</div>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#f59e0b" : isOut ? "#ef4444" : "#1e293b" }}>{p.stock}</div>
-                                                {isLow && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 400, fontFamily: FONT }}>Low</div>}
-                                                {isOut && <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 400, fontFamily: FONT }}>Empty</div>}
+                                                <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#a16207" : isOut ? "#991b1b" : "#1e293b" }}>{p.stock}</div>
+                                                {isLow && <div style={{ fontSize: 10, color: "#a16207", fontWeight: 400, fontFamily: FONT }}>Low</div>}
+                                                {isOut && <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 400, fontFamily: FONT }}>Empty</div>}
                                             </td>
                                             <td style={td}>
                                                 <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{p.gstRate ?? 18}%</span>

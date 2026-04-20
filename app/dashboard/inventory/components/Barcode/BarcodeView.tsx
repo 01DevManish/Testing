@@ -8,6 +8,7 @@ import { FONT, Product, Collection } from "../../types";
 import { Card, PageHeader } from "../../ui";
 import BarcodeSVG from "./BarcodeSVG";
 import SmartImage from "../../../../components/SmartImage";
+import { generateBarcodeForProduct, getCollectionCodeFromName, needsBarcodeRefresh, normalizeSkuKey } from "../../utils/barcodeUtils";
 
 export default function BarcodeView({
     products,
@@ -32,82 +33,7 @@ export default function BarcodeView({
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 4;
 
-    const collectionCodes: Record<string, string> = {
-        "Royal": "101",
-        "Veera": "102",
-        "Petal": "103",
-        "Home Satin": "104",
-        "Cotton Linen": "105",
-        "Rise N Shine": "106",
-        "Cozy Nest": "107",
-        "Duke": "417",
-        "Classic": "892",
-        "Coral": "305",
-        "Fantasy": "761",
-        "Rome": "248",
-        "Embosa": "639",
-        "Posh": "574"
-    };
-
-    const getCollectionCode = (collectionName: string) => {
-        const prodCol = (collectionName || "").trim().toLowerCase();
-        const colObj = collections.find(c => c.name.toLowerCase() === prodCol);
-        if (colObj?.collectionCode) return colObj.collectionCode;
-        const matchedColKey = Object.keys(collectionCodes).find(k => k.toLowerCase() === prodCol);
-        if (matchedColKey) return collectionCodes[matchedColKey];
-        let titleHash = 0;
-        for (let i = 0; i < prodCol.length; i++) {
-            titleHash = ((titleHash << 5) - titleHash) + prodCol.charCodeAt(i);
-            titleHash |= 0;
-        }
-        const dynamicCode = Math.abs(titleHash % 892 + 108).toString().padStart(3, "0");
-        return dynamicCode;
-    };
-
-    const getSizeCode = (size: string) => {
-        const s = (size || "").trim().toUpperCase();
-        if (s.includes("SUPER KING")) return "005";
-        if (s.includes("KING FITTED")) return "009";
-        if (s.includes("KING")) return "004";
-        if (s.includes("QUEEN FITTED")) return "008";
-        if (s.includes("QUEEN")) return "003";
-        if (s.includes("DOUBLE FITTED")) return "007";
-        if (s.includes("DOUBLE")) return "002";
-        if (s.includes("SINGLE FITTED")) return "006";
-        if (s.includes("SINGLE")) return "001";
-        return "000";
-    };
-
-    const getSkuPart = (sku: string) => {
-        const p = (sku || "").replace(/\D/g, "");
-        return p.substring(p.length - 3).padStart(3, "0");
-    };
-
-    const getStylePart = (styleId: string) => {
-        const s = (styleId || "").replace(/\D/g, "");
-        if (s) return s.substring(s.length - 3).padStart(3, "0");
-        let h = 0;
-        const cleanStyle = (styleId || "GEN").toUpperCase();
-        for (let i = 0; i < cleanStyle.length; i++) {
-            h = ((h << 5) - h) + cleanStyle.charCodeAt(i);
-            h |= 0;
-        }
-        return Math.abs(h % 900 + 100).toString();
-    };
-
-    const generateBarcodeNumber = (product: Product) => {
-        const colPart = getCollectionCode(product.collection || "");
-        const skuPart = getSkuPart(product.sku);
-        const stylePart = getStylePart(product.styleId || "");
-        const idStr = (product.id || "0000").replace(/[^a-zA-Z0-0]/g, "");
-        let idHash = 0;
-        for (let i = 0; i < idStr.length; i++) {
-            idHash = ((idHash << 5) - idHash) + idStr.charCodeAt(i);
-            idHash |= 0;
-        }
-        const randPart = Math.abs(idHash % 9000 + 1000).toString();
-        return `${colPart}${skuPart}${stylePart}${randPart}`;
-    };
+    const getCollectionCode = (collectionName: string) => getCollectionCodeFromName(collectionName, collections);
 
     const toggleSelect = (id: string) => {
         const next = new Set(selectedIds);
@@ -128,21 +54,9 @@ export default function BarcodeView({
         if (selectedIds.size === 0) return;
         const productsToPrint = products.filter(p => selectedIds.has(p.id));
         for (const p of productsToPrint) {
-            const expectedColPart = getCollectionCode(p.collection || "");
-            const expectedSkuPart = getSkuPart(p.sku);
-            const expectedSizeCode = getSizeCode(p.size || "");
-            let needsNew = !p.barcode;
-            if (p.barcode) {
-                const existingCol = p.barcode.substring(0, 3);
-                const existingSku = p.barcode.substring(3, 6);
-                const existingSize = p.barcode.substring(6, 9);
-                if (existingCol !== expectedColPart || existingSku !== expectedSkuPart || existingSize !== expectedSizeCode) {
-                    needsNew = true;
-                }
-            }
-            if (needsNew) {
-                const code = generateBarcodeNumber(p);
-                try { await update(ref(db, `inventory/${p.id}`), { barcode: code }); } catch (e) { console.error(e); }
+            if (needsBarcodeRefresh(p, collections)) {
+                const code = generateBarcodeForProduct(p, collections);
+                try { await update(ref(db, `inventory/${p.id}`), { barcode: code, barcodeSku: normalizeSkuKey(p.sku) }); } catch (e) { console.error(e); }
             }
         }
         setIsBulkPrint(true);
@@ -152,22 +66,10 @@ export default function BarcodeView({
     const handleGenerate = async (p: Product) => {
         const currentP = products.find(x => x.id === p.id) || p;
         setSelectedProduct(currentP);
-        const expectedColPart = getCollectionCode(currentP.collection || "");
-        const expectedSkuPart = getSkuPart(currentP.sku);
-        const expectedStylePart = getStylePart(currentP.styleId || "");
-        let needsNew = !currentP.barcode;
-        if (currentP.barcode) {
-            const existingCol = currentP.barcode.substring(0, 3);
-            const existingSku = currentP.barcode.substring(3, 6);
-            const existingStyle = currentP.barcode.substring(6, 9);
-            if (existingCol !== expectedColPart || existingSku !== expectedSkuPart || existingStyle !== expectedStylePart) {
-                needsNew = true;
-            }
-        }
-        if (needsNew) {
-            const code = generateBarcodeNumber(currentP);
+        if (needsBarcodeRefresh(currentP, collections)) {
+            const code = generateBarcodeForProduct(currentP, collections);
             try {
-                await update(ref(db, `inventory/${currentP.id}`), { barcode: code });
+                await update(ref(db, `inventory/${currentP.id}`), { barcode: code, barcodeSku: normalizeSkuKey(currentP.sku) });
                 setGeneratedBarcode(code);
             } catch (e) { console.error(e); alert("Failed to save barcode to database."); }
         } else {
@@ -335,8 +237,8 @@ export default function BarcodeView({
                     {isBulkPrint ? (
                         products.filter(p => selectedIds.has(p.id)).map(p => (
                             <div key={p.id} className="barcode-label-container page-break" style={{ width: selectedSize === "50x25" ? "50mm" : selectedSize === "38x25" ? "38mm" : "100mm", height: selectedSize === "50x25" ? "25mm" : selectedSize === "38x25" ? "25mm" : "150mm", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", fontFamily: "'Inter', sans-serif", fontWeight: "600", color: "#000", background: "#fff", padding: "2.5mm", boxSizing: "border-box", overflow: "hidden" }}>
-                                <BarcodeSVG value={p.barcode || generateBarcodeNumber(p)} height={selectedSize === "100x150" ? 170 : 48} width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0} fontSize={selectedSize === "100x150" ? 30 : 16} />
-                                <div style={{ fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt", letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0, fontWeight: "700", marginTop: "0.5mm" }}>{p.barcode || generateBarcodeNumber(p)}</div>
+                                <BarcodeSVG value={p.barcode || generateBarcodeForProduct(p, collections)} height={selectedSize === "100x150" ? 170 : 48} width={selectedSize === "50x25" ? 1.4 : selectedSize === "38x25" ? 1.0 : 3.0} fontSize={selectedSize === "100x150" ? 30 : 16} />
+                                <div style={{ fontSize: selectedSize === "100x150" ? "26pt" : selectedSize === "50x25" ? "9pt" : "7.5pt", letterSpacing: selectedSize === "100x150" ? 4 : selectedSize === "50x25" ? 1.5 : 1.0, fontWeight: "700", marginTop: "0.5mm" }}>{p.barcode || generateBarcodeForProduct(p, collections)}</div>
                                 <div style={{ fontSize: selectedSize === "100x150" ? "14pt" : selectedSize === "50x25" ? "7pt" : "6pt", fontWeight: "700", marginTop: "0.3mm" }}>{p.sku}</div>
                             </div>
                         ))

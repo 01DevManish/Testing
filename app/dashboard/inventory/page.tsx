@@ -29,6 +29,7 @@ import ImageGallery from "./components/Layout/ImageGallery";
 import { uploadImage } from "./components/Products/imageService";
 import { transformImageUrl } from "../../lib/urlUtils";
 import MobileTopBar from "../../components/MobileTopBar";
+import { getBarcodeMappedFields, needsBarcodeRefresh } from "./utils/barcodeUtils";
 
 // ── Types ─────────────────────────────────────────────────────
 import { ActiveView, Product } from "./types";
@@ -98,6 +99,7 @@ export default function InventoryPage() {
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
   const [brandSearch, setBrandSearch] = useState("");
   const brandRef = useRef<HTMLDivElement>(null);
+  const barcodeBackfillDone = useRef(false);
 
   // Close brand dropdown on outside click
   useEffect(() => {
@@ -125,6 +127,47 @@ export default function InventoryPage() {
       return () => clearTimeout(timer);
     }
   }, [loading, user, hasAccess, router]);
+
+  // One-time safety sync: assign missing barcode and sku mapping for existing products.
+  useEffect(() => {
+    if (barcodeBackfillDone.current) return;
+    if (fetching) return;
+    if (!products.length) return;
+    barcodeBackfillDone.current = true;
+
+    const toFix = products.filter((p) =>
+      needsBarcodeRefresh(
+        {
+          id: p.id,
+          sku: p.sku,
+          styleId: p.styleId,
+          collection: p.collection,
+          barcode: p.barcode,
+          barcodeSku: p.barcodeSku
+        },
+        collections
+      )
+    );
+
+    if (!toFix.length) return;
+
+    Promise.all(
+      toFix.map((p) =>
+        update(
+          ref(db, `inventory/${p.id}`),
+          getBarcodeMappedFields(
+            {
+              id: p.id,
+              sku: p.sku,
+              styleId: p.styleId,
+              collection: p.collection
+            },
+            collections
+          )
+        )
+      )
+    ).catch((err) => console.error("Barcode backfill failed:", err));
+  }, [products, collections, fetching]);
 
   // ── Granular Sub-Module Permissions ──────────────────────────
   const canCreateItems = hasPermission(userData, "inv_items_create");
@@ -229,6 +272,16 @@ export default function InventoryPage() {
       updatedBy: user?.uid || "unknown",
       updatedByName: currentName
     };
+      const barcodeFields = getBarcodeMappedFields(
+        {
+          id: editProduct.id,
+          sku: updated.sku,
+          styleId: updated.styleId,
+          collection: updated.collection
+        },
+        collections
+      );
+      Object.assign(updated, barcodeFields);
       if (!user) throw new Error("User not authenticated");
       await update(ref(db, `inventory/${editProduct.id}`), updated);
 
@@ -339,7 +392,13 @@ export default function InventoryPage() {
         return <Overview products={products} categories={categories} collections={collections} loading={fetching} onNavigate={navigate} currentName={currentName} userRole={currentRole} canCreate={canCreate} {...commonProps} />;
       // ── Item Grouping ─────────────────────────────────────
       case "grouping-create":
-        return <CreateItemGroup products={products} user={{ uid: user.uid, name: currentName }} onCreated={g => { setGroups(prev => [g, ...prev]); navigate("grouping-list"); }} {...commonProps} />;
+        return <CreateItemGroup products={products} user={{ uid: user.uid, name: currentName }} onCreated={g => {
+          setGroups(prev => {
+            const withoutSame = prev.filter(x => x.id !== g.id);
+            return [g, ...withoutSame];
+          });
+          navigate("grouping-list");
+        }} {...commonProps} />;
       case "grouping-list":
         return <ItemGroupList groups={groups} products={products} user={{ uid: user.uid, name: currentName }} canDelete={canDelete} isMobile={isMobile} />;
       case "catalog":

@@ -10,6 +10,7 @@ import { FONT, Product, Category, Collection, UNITS, GST_RATES } from "../../typ
 import { SuccessBanner, BtnPrimary, BtnGhost, Card, PageHeader } from "../../ui";
 import { logActivity } from "../../../../lib/activityLogger";
 import { transformImageUrl, normalizeStorageImageUrl, isSameImageIdentity } from "../../../../lib/urlUtils";
+import { getBarcodeMappedFields } from "../../utils/barcodeUtils";
 
 interface BulkUploadProps {
     categories: Category[];
@@ -343,6 +344,15 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     };
 
                     if (existingId) {
+                        const barcodeFields = getBarcodeMappedFields(
+                            {
+                                id: existingId,
+                                sku: productData.sku,
+                                styleId: (existingProduct as any)?.styleId || "",
+                                collection: productData.collection
+                            },
+                            collections
+                        );
                         // UPDATE Existing Product
                         const existingGallery = Array.isArray(existingProduct?.imageUrls)
                             ? existingProduct!.imageUrls.filter((img) => typeof img === "string" && img.trim())
@@ -352,6 +362,7 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                             : Number(existingProduct?.costPrice || 0);
                         const updateData: Partial<Product> & Record<string, unknown> = {
                             ...productData,
+                            ...barcodeFields,
                             costPrice: safeCostPrice,
                             updatedAt: timestamp,
                             updatedBy: user.uid,
@@ -373,8 +384,18 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     } else {
                         // CREATE New Product
                         const newRef = push(ref(db, "inventory"));
+                        const barcodeFields = getBarcodeMappedFields(
+                            {
+                                id: newRef.key as string,
+                                sku: productData.sku,
+                                styleId: "",
+                                collection: productData.collection
+                            },
+                            collections
+                        );
                         await rtdbSet(newRef, {
                             ...productData,
+                            ...barcodeFields,
                             imageUrl: finalImageUrl,
                             imageUrls: finalImageUrl ? [finalImageUrl] : [],
                             createdAt: timestamp,

@@ -33,6 +33,7 @@ export interface Product {
     updatedBy?: string;
     updatedByName?: string;
     barcode?: string;
+    barcodeSku?: string;
 }
 
 // ── Category ───────────────────────────────────────────────────
@@ -85,7 +86,7 @@ export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
     active: { label: "Active", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
     inactive: { label: "Inactive", color: "#94a3b8", bg: "rgba(148,163,184,0.1)" },
-    "low-stock": { label: "Low Stock", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-    "out-of-stock": { label: "Out of Stock", color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
+    "low-stock": { label: "Low Stock", color: "#a16207", bg: "rgba(161,98,7,0.13)" },
+    "out-of-stock": { label: "Out of Stock", color: "#991b1b", bg: "rgba(153,27,27,0.12)" },
     "in-stock": { label: "In Stock", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
-};
+};

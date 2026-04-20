@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, push, set } from "firebase/database";
+import { ref, push, set, get } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { FONT, Collection } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader } from "../../ui";
+import { allocateUniqueCollectionCode } from "../../utils/barcodeUtils";
 
 export default function CreateCollection({ user, onCreated }: { user: { uid: string; name: string }, onCreated?: (c: Collection) => void }) {
     const [name, setName] = useState("");
@@ -19,9 +20,17 @@ export default function CreateCollection({ user, onCreated }: { user: { uid: str
         if (!name.trim()) { setError("Collection name is required"); return; }
         setSaving(true);
         try {
+            const existingSnap = await get(ref(db, "collections"));
+            const existingCollections: Collection[] = [];
+            if (existingSnap.exists()) {
+                existingSnap.forEach((child) => {
+                    existingCollections.push({ id: child.key as string, ...child.val() } as Collection);
+                });
+            }
+            const assignedCode = allocateUniqueCollectionCode(existingCollections, code.trim());
             const d = { 
                 name: name.trim(), 
-                collectionCode: code.trim(),
+                collectionCode: assignedCode,
                 description: desc.trim(), 
                 createdAt: Date.now() 
             };
@@ -40,7 +49,7 @@ export default function CreateCollection({ user, onCreated }: { user: { uid: str
             });
 
             onCreated?.({ id: newRef.key as string, ...d } as Collection);
-            setSuccess(`Collection "${name}" created.`);
+            setSuccess(`Collection "${name}" created with code ${assignedCode}.`);
             setName(""); setCode(""); setDesc(""); setError("");
         } catch (e) { console.error(e); alert("Failed to create collection."); }
         finally { setSaving(false); }

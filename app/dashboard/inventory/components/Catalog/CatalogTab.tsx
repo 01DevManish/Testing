@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Product, Category, Collection, FONT } from "../../types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "../../ui";
 import ShareModal from "./ShareModal";
@@ -26,6 +26,8 @@ export default function CatalogTab({ products, categories, collections, brands, 
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [showShareModal, setShowShareModal] = useState(false);
     const [shareOutOfStock, setShareOutOfStock] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 24;
 
     const uniqueCategories = useMemo(() => {
         const cats = products.map(p => p.category).filter(Boolean) as string[];
@@ -54,6 +56,16 @@ export default function CatalogTab({ products, categories, collections, brands, 
         });
     }, [products, searchTerm, selectedCategory, selectedCollection, selectedSize, shareOutOfStock]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedCategory, selectedCollection, selectedSize, shareOutOfStock]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    const paginatedItems = useMemo(
+        () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+        [filtered, currentPage]
+    );
+
     const finalSelectedProducts = useMemo(() => {
         return shareOutOfStock ? selectedProducts : selectedProducts.filter(p => (p.stock || 0) > 0);
     }, [selectedProducts, shareOutOfStock]);
@@ -67,11 +79,17 @@ export default function CatalogTab({ products, categories, collections, brands, 
     };
 
     const handleSelectAll = () => {
-        if (selectedProducts.length === filtered.length) {
-            setSelectedProducts([]);
-        } else {
-            setSelectedProducts([...filtered]);
+        const visibleIds = new Set(paginatedItems.map(item => item.id));
+        const allVisibleSelected = paginatedItems.length > 0 && paginatedItems.every(item => selectedProducts.some(sel => sel.id === item.id));
+        if (allVisibleSelected) {
+            setSelectedProducts(prev => prev.filter(item => !visibleIds.has(item.id)));
+            return;
         }
+        const merged = [...selectedProducts];
+        paginatedItems.forEach(item => {
+            if (!merged.some(sel => sel.id === item.id)) merged.push(item);
+        });
+        setSelectedProducts(merged);
     };
 
     if (loading) return <div style={{ display: "flex", justifyContent: "center", padding: 100 }}><Spinner /></div>;
@@ -244,7 +262,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                     onClick={handleSelectAll}
                     style={{ background: "none", border: "none", color: "#6366f1", fontSize: 13, fontWeight: 400, cursor: "pointer" }}
                 >
-                    {selectedProducts.length === filtered.length ? "Deselect All" : "Select All Visible"}
+                    {paginatedItems.length > 0 && paginatedItems.every(item => selectedProducts.some(sel => sel.id === item.id)) ? "Deselect All" : "Select All Visible"}
                 </button>
             </div>
 
@@ -255,7 +273,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                 />
             ) : (
                 <div style={{ ...gridStyle, gridTemplateColumns: isMobile ? MOBILE_CATALOG_GRID : "repeat(auto-fill, minmax(220px, 1fr))", gap: isMobile ? 8 : 20 }}>
-                    {filtered.map(p => {
+                    {paginatedItems.map(p => {
                         const isSelected = !!selectedProducts.find(item => item.id === p.id);
                         return (
                             <div 
@@ -272,8 +290,8 @@ export default function CatalogTab({ products, categories, collections, brands, 
                                         src={resolveS3Url(p.imageUrl || "/placeholder-prod.png")} 
                                         alt={p.productName} 
                                         style={imageStyle} 
-                                        loading={products.indexOf(p) < 8 ? "eager" : "lazy"}
-                                        {...({ fetchpriority: products.indexOf(p) < 8 ? "high" : "auto" } as any)}
+                                        loading={paginatedItems.indexOf(p) < 8 ? "eager" : "lazy"}
+                                        {...({ fetchpriority: paginatedItems.indexOf(p) < 8 ? "high" : "auto" } as any)}
                                     />
                                     {isSelected && (
                                         <div style={checkOverlay}>
@@ -290,8 +308,8 @@ export default function CatalogTab({ products, categories, collections, brands, 
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                         <div style={{ fontSize: isMobile ? 10 : 15, fontWeight: 400, color: "#0f172a" }}>₹{p.price}</div>
                                         <Badge 
-                                            color={p.stock > 0 ? "#10b981" : "#ef4444"} 
-                                            bg={p.stock > 0 ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)"}
+                                            color={p.stock > 0 ? "#10b981" : "#991b1b"} 
+                                            bg={p.stock > 0 ? "rgba(16,185,129,0.1)" : "rgba(153,27,27,0.12)"}
                                         >
                                             {p.stock} In Stock
                                         </Badge>
@@ -300,6 +318,30 @@ export default function CatalogTab({ products, categories, collections, brands, 
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {filtered.length > ITEMS_PER_PAGE && (
+                <div style={{ marginTop: 18, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                        Page {currentPage} of {totalPages}
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid #e2e8f0", background: currentPage === 1 ? "#f8fafc" : "#fff", color: currentPage === 1 ? "#cbd5e1" : "#334155", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 12 }}
+                        >
+                            Prev
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid #e2e8f0", background: currentPage === totalPages ? "#f8fafc" : "#fff", color: currentPage === totalPages ? "#cbd5e1" : "#334155", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 12 }}
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
 

@@ -121,10 +121,10 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                         </div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 17, fontWeight: 400, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontFamily: FONT }}>
+                        <div style={{ fontSize: 17, fontWeight: 400, color: p.stock <= 0 ? "#991b1b" : p.stock <= p.minStock ? "#a16207" : "#10b981", fontFamily: FONT }}>
                             {p.stock}
                         </div>
-                        {p.stock <= p.minStock && p.stock > 0 && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 400 }}>Low Stock</div>}
+                        {p.stock <= p.minStock && p.stock > 0 && <div style={{ fontSize: 10, color: "#a16207", fontWeight: 400 }}>Low Stock</div>}
                     </div>
                 </div>
                 <div style={{ marginTop: 10 }}>
@@ -154,10 +154,10 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                     </div>
                 </td>
                 <td style={{ padding: isMobile ? "12px 8px" : "14px 16px" }}>
-                    <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 400, color: p.stock <= 0 ? "#ef4444" : p.stock <= p.minStock ? "#f59e0b" : "#10b981", fontFamily: FONT }}>
+                    <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 400, color: p.stock <= 0 ? "#991b1b" : p.stock <= p.minStock ? "#a16207" : "#10b981", fontFamily: FONT }}>
                         {p.stock}
                     </div>
-                    {!isMobile && p.stock <= p.minStock && p.stock > 0 && <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 400 }}>Low Stock</span>}
+                    {!isMobile && p.stock <= p.minStock && p.stock > 0 && <span style={{ fontSize: 10, color: "#a16207", fontWeight: 400 }}>Low Stock</span>}
                 </td>
                 <td style={{ padding: isMobile ? "12px 10px" : "14px 16px", textAlign: "right", position: "relative" }}>
                     {controls}

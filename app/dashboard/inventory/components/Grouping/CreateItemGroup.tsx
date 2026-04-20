@@ -31,6 +31,7 @@ export default function CreateItemGroup({ products, user, onCreated, isMobile }:
     };
 
     const handleSave = async () => {
+        if (saving) return;
         if (!name.trim()) { setError("Group name is required"); return; }
         setSaving(true);
         try {

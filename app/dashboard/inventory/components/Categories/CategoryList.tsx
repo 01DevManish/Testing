@@ -22,9 +22,9 @@ export default function CategoryList({ categories, user, canDelete }: {
                 <EmptyState title="No Categories Found" sub="You haven't created any categories yet." />
             ) : (
                 <Card>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 1 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, padding: 14 }}>
                         {categories.map((c) => (
-                            <div key={c.id} style={{ padding: 20, borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: "#fff", transition: "all 0.2s" }}>
+                            <div key={c.id} style={{ padding: 16, border: "1px solid #e2e8f0", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: "#fff", transition: "all 0.2s", minWidth: 0 }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: 14, fontWeight: 500, color: "#1e293b", marginBottom: 4 }}>{c.name}</div>
                                     <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, maxWidth: "90%" }}>{c.description || "No description provided."}</div>

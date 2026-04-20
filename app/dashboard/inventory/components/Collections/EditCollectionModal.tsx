@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, update } from "firebase/database";
+import { ref, update, get } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { Collection } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, Card } from "../../ui";
+import { allocateUniqueCollectionCode } from "../../utils/barcodeUtils";
 
 export default function EditCollectionModal({ collection, user, onClose }: {
     collection: Collection;
@@ -21,9 +22,18 @@ export default function EditCollectionModal({ collection, user, onClose }: {
         if (!name.trim()) return;
         setSaving(true);
         try {
+            const snap = await get(ref(db, "collections"));
+            const allCollections: Collection[] = [];
+            if (snap.exists()) {
+                snap.forEach((child) => {
+                    allCollections.push({ id: child.key as string, ...child.val() } as Collection);
+                });
+            }
+            const others = allCollections.filter(c => c.id !== collection.id);
+            const assignedCode = allocateUniqueCollectionCode(others, code.trim() || collection.collectionCode || "");
             await update(ref(db, `collections/${collection.id}`), { 
                 name: name.trim(), 
-                collectionCode: code.trim(),
+                collectionCode: assignedCode,
                 description: desc.trim() 
             });
             await logActivity({

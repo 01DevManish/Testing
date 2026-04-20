@@ -8,6 +8,7 @@ import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
 import SmartImage from "../../components/SmartImage";
+import { useRouter } from "next/navigation";
 
 interface Activity {
   id: string;
@@ -55,6 +56,7 @@ interface DashboardTabProps {
 }
 
 export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: DashboardTabProps) {
+  const router = useRouter();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [packingLists, setPackingLists] = useState<PackingList[]>([]);
@@ -370,7 +372,13 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
           <div style={S.statStripe("#ef4444")} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 400, textTransform: "capitalize" }}>Critical Stock</div>
-            <div style={{ fontSize: 12, fontWeight: 400, color: "#ef4444", background: "#fee2e2", padding: "2px 8px", borderRadius: 12 }}>{allProducts.filter(p => p.stock <= p.minStock).length}</div>
+            <button
+              onClick={() => router.push("/dashboard/admin/critical-stock")}
+              title="View all critical stock"
+              style={{ fontSize: 12, fontWeight: 400, color: "#991b1b", background: "#fee2e2", padding: "2px 8px", borderRadius: 12, border: "1px solid #fecaca", cursor: "pointer" }}
+            >
+              {allProducts.filter(p => p.stock <= p.minStock).length}
+            </button>
           </div>
           <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
             {allProducts
