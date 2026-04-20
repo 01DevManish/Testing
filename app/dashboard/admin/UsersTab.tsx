@@ -20,8 +20,8 @@ interface UsersTabProps {
   setFilterRole: (v: "all" | UserRole) => void;
   showAddForm: boolean;
   setShowAddForm: (v: boolean) => void;
-  newEmployee: { name: string; email: string; password: string; role: UserRole; permissions: string[] };
-  setNewEmployee: (v: { name: string; email: string; password: string; role: UserRole; permissions: string[] }) => void;
+  newEmployee: { name: string; email: string; password: string; pin: string; role: UserRole; permissions: string[] };
+  setNewEmployee: (v: { name: string; email: string; password: string; pin: string; role: UserRole; permissions: string[] }) => void;
   addingEmployee: boolean;
   addError: string;
   setAddError: (v: string) => void;
@@ -237,10 +237,20 @@ export default function UsersTab({
               <button onClick={() => setAddError("")} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 12 }}>
             <div><label style={S.label}>Full Name</label><input style={S.input} value={newEmployee.name} onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })} /></div>
             <div><label style={S.label}>Email</label><input style={S.input} type="email" value={newEmployee.email} onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })} /></div>
             <div><label style={S.label}>Password</label><input style={S.input} type="text" value={newEmployee.password} onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })} /></div>
+            <div>
+              <label style={S.label}>PIN (4 Digits)</label>
+              <input
+                style={{ ...S.input, letterSpacing: "0.3em", textAlign: "center" }}
+                type="text"
+                maxLength={4}
+                value={newEmployee.pin}
+                onChange={e => setNewEmployee({ ...newEmployee, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+              />
+            </div>
           </div>
           <div style={{ marginTop: 18 }}>
             <label style={{ ...S.label, marginBottom: 12 }}>Permissions</label>
@@ -265,8 +275,8 @@ export default function UsersTab({
               ))}
             </div>
             <div style={{ flex: 1 }} />
-            <button onClick={handleAddEmployee} disabled={addingEmployee || !newEmployee.name || !newEmployee.email || !newEmployee.password}
-              style={{ ...S.btnPrimary, opacity: addingEmployee || !newEmployee.name || !newEmployee.email || !newEmployee.password ? 0.5 : 1 }}>
+            <button onClick={handleAddEmployee} disabled={addingEmployee || !newEmployee.name || !newEmployee.email || !newEmployee.password || newEmployee.pin.length !== 4}
+              style={{ ...S.btnPrimary, opacity: addingEmployee || !newEmployee.name || !newEmployee.email || !newEmployee.password || newEmployee.pin.length !== 4 ? 0.5 : 1 }}>
               {addingEmployee ? <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Add User"}
             </button>
           </div>

@@ -74,16 +74,35 @@ const NODE_DEFS: Array<{
   aliases: string[];
 }> = [
   { path: "inventory", cacheKey: CACHE_KEYS.PRODUCTS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["inventory", "products"] },
-  { path: "partyRates", cacheKey: CACHE_KEYS.PARTIES, realtime: true, aliases: ["partyRates", "party-rates"] },
+  { path: "partyRates", cacheKey: CACHE_KEYS.PARTIES, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["partyRates", "party-rates"] },
   { path: "users", cacheKey: CACHE_KEYS.USERS, realtime: true, aliases: ["users"] },
-  { path: "brands", cacheKey: CACHE_KEYS.BRANDS, realtime: true, aliases: ["brands"] },
-  { path: "categories", cacheKey: CACHE_KEYS.CATEGORIES, realtime: true, aliases: ["categories"] },
-  { path: "collections", cacheKey: CACHE_KEYS.COLLECTIONS, realtime: true, aliases: ["collections"] },
-  { path: "itemGroups", cacheKey: CACHE_KEYS.GROUPS, realtime: true, aliases: ["groups", "itemGroups"] },
+  { path: "brands", cacheKey: CACHE_KEYS.BRANDS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["brands"] },
+  { path: "categories", cacheKey: CACHE_KEYS.CATEGORIES, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["categories"] },
+  { path: "collections", cacheKey: CACHE_KEYS.COLLECTIONS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["collections"] },
+  { path: "itemGroups", cacheKey: CACHE_KEYS.GROUPS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["groups", "itemGroups"] },
   { path: "dispatches", cacheKey: CACHE_KEYS.ORDERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["dispatches", "orders"] },
-  { path: "parties", cacheKey: CACHE_KEYS.PARTIES_MASTER, realtime: true, aliases: ["parties"] },
-  { path: "transporters", cacheKey: CACHE_KEYS.TRANSPORTERS, realtime: true, aliases: ["transporters"] },
+  { path: "parties", cacheKey: CACHE_KEYS.PARTIES_MASTER, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["parties"] },
+  { path: "transporters", cacheKey: CACHE_KEYS.TRANSPORTERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["transporters"] },
 ];
+
+const DYNAMO_PRIMARY_PATHS = new Set<EntityPath>([
+  "inventory",
+  "partyRates",
+  "brands",
+  "categories",
+  "collections",
+  "itemGroups",
+  "dispatches",
+  "parties",
+  "transporters",
+]);
+
+const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
+  "inventory",
+  "partyRates",
+  "parties",
+  "collections",
+]);
 
 const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<string, unknown>> => {
   if (!val || typeof val !== "object") return [];
@@ -134,6 +153,12 @@ const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<s
 
 const castEntityList = <T,>(data: Array<Record<string, unknown>>): T[] =>
   data as unknown as T[];
+
+const countRowsWithImage = (rows: Array<Record<string, unknown>>): number =>
+  rows.reduce((count, row) => {
+    const imageUrl = typeof row.imageUrl === "string" ? row.imageUrl.trim() : "";
+    return imageUrl ? count + 1 : count;
+  }, 0);
 
 const sanitizeCachedUsers = (rows: unknown[]): UserRecord[] => {
   if (!Array.isArray(rows)) return [];
@@ -256,10 +281,65 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!def) return;
 
     try {
+      let dynamoRows: Array<Record<string, unknown>> | null = null;
+
+      if (DYNAMO_PRIMARY_PATHS.has(path)) {
+        try {
+          const res = await fetch(`/api/data/${path}`, { cache: "no-store" });
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json?.items)) {
+              dynamoRows = json.items as Array<Record<string, unknown>>;
+              if (dynamoRows.length > 0) {
+                applyEntityData(path, dynamoRows);
+                localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
+              }
+
+              // For selected paths, reconcile Dynamo with Firebase to prevent stale server snapshots.
+              if (!FIREBASE_RECONCILE_PATHS.has(path) && dynamoRows.length > 0) {
+                return;
+              }
+            }
+          }
+        } catch (dynamoErr) {
+          console.warn(`[DataContext] Dynamo primary fetch failed for ${path}, falling back to Firebase.`, dynamoErr);
+        }
+      }
+
       const snapshot = await get(ref(db, path));
       const data = snapshot.exists() ? normalizeSnapshotToList(path, snapshot.val()) : [];
-      applyEntityData(path, data);
-      localStorage.setItem(def.cacheKey, JSON.stringify(data));
+
+      let rowsToApply = data;
+      let shouldSyncDynamo = DYNAMO_PRIMARY_PATHS.has(path) && data.length > 0;
+
+      if (FIREBASE_RECONCILE_PATHS.has(path) && dynamoRows && dynamoRows.length > 0) {
+        const firebaseImageCount = countRowsWithImage(data);
+        const dynamoImageCount = countRowsWithImage(dynamoRows);
+        const shouldPreferFirebase = path === "inventory"
+          ? (data.length !== dynamoRows.length || firebaseImageCount > dynamoImageCount)
+          : data.length !== dynamoRows.length;
+
+        if (!shouldPreferFirebase) {
+          rowsToApply = dynamoRows;
+          shouldSyncDynamo = false;
+        } else {
+          console.info(
+            `[DataContext] Inventory reconciled with Firebase (firebase=${data.length}, dynamo=${dynamoRows.length}, firebaseImages=${firebaseImageCount}, dynamoImages=${dynamoImageCount}).`
+          );
+        }
+      }
+
+      applyEntityData(path, rowsToApply);
+      localStorage.setItem(def.cacheKey, JSON.stringify(rowsToApply));
+
+      // Keep DynamoDB warm/in-sync when fallback came from Firebase.
+      if (shouldSyncDynamo) {
+        fetch(`/api/data/${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "replace", items: rowsToApply }),
+        }).catch((syncErr) => console.warn(`[DataContext] Failed to sync ${path} to Dynamo.`, syncErr));
+      }
     } catch (error) {
       console.error(`[DataContext] Failed to fetch ${path}:`, error);
     }

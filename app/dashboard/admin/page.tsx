@@ -71,7 +71,7 @@ export default function AdminPage() {
   const [replacingAdmin, setReplacingAdmin] = useState(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "", role: "employee" as UserRole, permissions: [] as string[] });
+  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "", pin: "", role: "employee" as UserRole, permissions: [] as string[] });
   const [addingEmployee, setAddingEmployee] = useState(false);
   const [addError, setAddError] = useState("");
 
@@ -204,7 +204,7 @@ export default function AdminPage() {
     }
   };
 
-  const handlePasswordReset = async (newPassword: string) => {
+  const handlePasswordReset = async (newPassword: string, newPin?: string) => {
     if (!editingUser) return;
     try {
       const res = await fetch("/api/admin/update-password", {
@@ -213,11 +213,13 @@ export default function AdminPage() {
         body: JSON.stringify({
           uid: editingUser.uid,
           newPassword,
+          newPin,
           adminUid: user.uid
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update password");
+      await fetchAuthUsers();
     } catch (e: any) {
       console.error(e);
       throw e;
@@ -305,6 +307,10 @@ export default function AdminPage() {
 
   const handleAddEmployee = async () => {
     if (!newEmployee.name || !newEmployee.email || !newEmployee.password) return;
+    if (!/^\d{4}$/.test(newEmployee.pin)) {
+      setAddError("PIN must be exactly 4 digits.");
+      return;
+    }
     setAddingEmployee(true); setAddError("");
     try {
       const secondaryApp = getApps().find(a => a.name === "Secondary") || initializeApp(firebaseConfig, "Secondary");
@@ -316,7 +322,8 @@ export default function AdminPage() {
         name: newEmployee.name,
         role: newEmployee.role,
         permissions: newEmployee.permissions,
-        requiresPasswordChange: true
+        dispatchPin: newEmployee.pin,
+        requiresPasswordChange: false
       };
       // Fire both concurrently — don't wait for signOut before Firestore write
       await Promise.all([
@@ -327,7 +334,7 @@ export default function AdminPage() {
       if (nu.email !== "01devmanish@gmail.com") {
         setUsers([{ ...nu }, ...users]);
       }
-      setNewEmployee({ name: "", email: "", password: "", role: "employee", permissions: [] });
+      setNewEmployee({ name: "", email: "", password: "", pin: "", role: "employee", permissions: [] });
       setShowAddForm(false);
       alert(`User "${nu.name}" added successfully!`);
     } catch (err: unknown) {

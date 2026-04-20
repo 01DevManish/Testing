@@ -1,9 +1,13 @@
-import jsPDF from "jspdf";
+﻿import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Product } from "../../types";
 import { resolveS3Url } from "../Products/imageService";
 
-const getBase64Image = async (url: string, maxWidth = 600): Promise<{ data: string, width: number, height: number } | null> => {
+const getBase64Image = async (
+    url: string,
+    maxWidth = 600,
+    options?: { format?: "JPEG" | "PNG"; background?: string }
+): Promise<{ data: string, width: number, height: number } | null> => {
     try {
         const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
         const response = await fetch(proxyUrl);
@@ -29,9 +33,17 @@ const getBase64Image = async (url: string, maxWidth = 600): Promise<{ data: stri
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext("2d");
+                if (ctx && options?.background) {
+                    ctx.fillStyle = options.background;
+                    ctx.fillRect(0, 0, width, height);
+                }
                 ctx?.drawImage(img, 0, 0, width, height);
+                const format = options?.format || "JPEG";
+                const mimeType = format === "PNG" ? "image/png" : "image/jpeg";
                 resolve({ 
-                    data: canvas.toDataURL("image/jpeg", 0.7),
+                    data: format === "PNG"
+                        ? canvas.toDataURL(mimeType)
+                        : canvas.toDataURL(mimeType, 0.7),
                     width,
                     height
                 });
@@ -219,13 +231,36 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
     const tableData: any[][] = [];
     const images: Record<number, string> = {};
 
+    const normalize = (value: unknown) =>
+        String(value ?? "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, " ");
+
+    const findProductForRate = (rate: any) => {
+        const rateSku = normalize(rate?.sku);
+        if (rateSku) {
+            const bySku = products.find((p) => normalize(p.sku) === rateSku);
+            if (bySku) return bySku;
+        }
+
+        const rateName = normalize(rate?.productName);
+        if (!rateName) return undefined;
+
+        const byName = products.filter((p) => normalize(p.productName) === rateName);
+        if (byName.length === 1) return byName[0];
+
+        // If multiple products share the same name and SKU is missing, avoid wrong mapping.
+        return undefined;
+    };
+
     // Process images in parallel chunks
     const CHUNK_SIZE = 8;
     for (let i = 0; i < ratesToShare.length; i += CHUNK_SIZE) {
         const chunk = ratesToShare.slice(i, i + CHUNK_SIZE);
         await Promise.all(chunk.map(async (r, chunkIdx) => {
             const globalIdx = i + chunkIdx;
-            const product = products.find(p => p.productName === r.productName);
+            const product = findProductForRate(r);
             const imgUrl = product?.imageUrl || (product?.imageUrls && product?.imageUrls.length > 0 ? product.imageUrls[0] : null);
             if (imgUrl) {
                 const result = await getBase64Image(resolveS3Url(imgUrl));
@@ -235,8 +270,8 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
     }
 
     ratesToShare.forEach((r, i) => {
-        const product = products.find(p => p.productName === r.productName);
-        const sku = product?.sku || "N/A";
+        const product = findProductForRate(r);
+        const sku = String(r?.sku || product?.sku || "N/A").trim() || "N/A";
         const pkgCost = r.packagingCost || 0;
         
         const base = Number(r.rate || 0) + Number(pkgCost);
@@ -259,51 +294,69 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
     });
 
     const drawHeader = async (d: jsPDF) => {
-        // --- Logo (Centered Hero) ---
-        const COMPANY_LOGO = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
-        const logo = await getBase64Image(COMPANY_LOGO, 600);
+        // --- Logo (Top Center, no border) ---
+        const COMPANY_LOGO = typeof window !== "undefined"
+            ? `${window.location.origin}/logo.png`
+            : "https://euruslifestyle.in/logo.png";
+        const logo = await getBase64Image(COMPANY_LOGO, 600, { format: "PNG", background: "#ffffff" });
+        const logoTopY = 10;
+        let logoBottomY = logoTopY;
         if (logo) {
-            const logoH = 80;
+            const logoH = 84;
             const logoW = (logo.width / logo.height) * logoH;
-            d.addImage(logo.data, "JPEG", (pageWidth - logoW) / 2, 10, logoW, logoH);
+            d.addImage(logo.data, "PNG", (pageWidth - logoW) / 2, logoTopY, logoW, logoH);
+            logoBottomY = logoTopY + logoH;
         }
 
         // --- Header Contact Info ---
+        const contactLine1Y = logoBottomY + 10; // 10px gap after logo
+        const contactLine2Y = contactLine1Y + 13;
         d.setFont("helvetica", "bold");
         d.setFontSize(11);
         d.setTextColor(0, 0, 0);
-        d.text("Plot No 263, Sector 25 Part 2, HUDA Industrial Area, Panipat – 132103", pageWidth / 2, 110, { align: "center" });
+        d.text("Plot No 263, Sector 25 Part 2, HUDA Industrial Area, Panipat - 132103", pageWidth / 2, contactLine1Y, { align: "center" });
         d.setFontSize(10);
-        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, 125, { align: "center" });
+        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, contactLine2Y, { align: "center" });
 
-        const dateStr = new Date().toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' });
+        const generatedAt = new Date();
+        const dateStr = generatedAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+        const timeStr = generatedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         d.setFontSize(9);
         d.setFont("helvetica", "normal");
-        d.text(`Date: ${dateStr}`, pageWidth - 40, 25, { align: "right" });
+        d.text(`Date: ${dateStr} ${timeStr}`, pageWidth - 40, 25, { align: "right" });
 
         // Party Address Section
+        const addressHeadingY = contactLine2Y + 24;
+        const addressTextY = addressHeadingY + 15;
         d.setFontSize(10);
         d.setFont("helvetica", "bold");
-        d.text("BILL TO:", 40, 150);
-        d.text("SHIP TO:", pageWidth / 2 + 20, 150);
+        d.text("BILL TO:", 40, addressHeadingY);
+        d.text("SHIP TO:", pageWidth / 2 + 20, addressHeadingY);
 
         d.setFont("helvetica", "normal");
         const billTo = party.billTo || {};
         const billAddr = `${billTo.companyName || ""}\n${billTo.address || ""}\n${billTo.district || ""}, ${billTo.state || ""} - ${billTo.pincode || ""}\nContact: ${billTo.contactNo || ""}`;
-        d.text(billAddr, 40, 165, { maxWidth: 220 });
+        const billLines = d.splitTextToSize(billAddr, 220) as string[];
+        d.text(billLines, 40, addressTextY);
 
         const shipTo = party.sameAsBillTo ? billTo : (party.shipTo || {});
         const shipAddr = `${shipTo.companyName || ""}\n${shipTo.address || ""}\n${shipTo.district || ""}, ${shipTo.state || ""} - ${shipTo.pincode || ""}\nContact: ${shipTo.contactNo || ""}`;
-        d.text(shipAddr, pageWidth / 2 + 20, 165, { maxWidth: 220 });
+        const shipLines = d.splitTextToSize(shipAddr, 220) as string[];
+        d.text(shipLines, pageWidth / 2 + 20, addressTextY);
+
+        const lineHeight = 12;
+        const addressBlockBottom = addressTextY + (Math.max(billLines.length, shipLines.length) * lineHeight);
 
         // RATE LIST Title
         d.setFont("helvetica", "bold");
-        d.setFontSize(16);
-        d.text("RATE LIST", pageWidth / 2, 230, { align: "center" });
-        d.setFontSize(12);
-        d.text(`${party.partyName.toUpperCase()}`, pageWidth / 2, 245, { align: "center" });
+        d.setFontSize(13);
+        const rateListTitleY = addressBlockBottom + 24;
+        d.text("RATE LIST", pageWidth / 2, rateListTitleY, { align: "center" });
+        d.setFontSize(10);
+        const partyNameY = rateListTitleY + 14;
+        d.text(`${party.partyName.toUpperCase()}`, pageWidth / 2, partyNameY, { align: "center" });
 
-        return 260; // Start table here
+        return partyNameY + 14; // Start table here
     };
 
     const tableStartY = await drawHeader(doc);
@@ -382,3 +435,4 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
     }
     return doc.output("blob");
 };
+

@@ -18,4 +18,5 @@ const docClient = DynamoDBDocumentClient.from(client, {
 });
 
 export { docClient };
-export const TABLE_NAME = "eurus-logs";
+export const TABLE_NAME = process.env.DYNAMO_LOGS_TABLE || "eurus-logs";
+export const DATA_TABLE_NAME = process.env.DYNAMO_DATA_TABLE || "eurus-data";

@@ -24,8 +24,57 @@ export default function RateCatalogView({
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
 
+    const normalize = (value: unknown) =>
+        String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+    const getStockStatus = (stockValue: unknown) => {
+        const stock = Number(stockValue || 0);
+        if (stock <= 0) return { label: `Out of stock (${stock})`, color: "#7f1d1d", bg: "#fee2e2" };
+        if (stock < 10) return { label: `Low stock (${stock})`, color: "#78350f", bg: "#fef3c7" };
+        return { label: `In stock (${stock})`, color: "#14532d", bg: "#dcfce7" };
+    };
+
+    const findProductForRate = (rate: any) => {
+        const rateSku = normalize(rate?.sku);
+        if (rateSku) {
+            const bySku = products.find((p) => normalize(p.sku) === rateSku);
+            if (bySku) return bySku;
+        }
+        const rateName = normalize(rate?.productName);
+        if (!rateName) return undefined;
+        return products.find((p) => normalize(p.productName) === rateName);
+    };
+
     // Filter Logic
     const rates = party.rates || [];
+    const normalizedSkuSearch = productSearch.trim().toLowerCase();
+    const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const matchesSkuPrefix = (skuValue: string | undefined, query: string) => {
+        const sku = (skuValue || "").trim().toLowerCase();
+        const normalizedQuery = query.trim().toLowerCase();
+        if (!normalizedQuery) return true;
+        if (!sku) return false;
+
+        // Business rule:
+        // plain prefix like "FK"/"CLR" should match only "FK-123"/"CLR-123" series,
+        // not extended families like "FKFT-73" or "CLR-SB-401".
+        if (!normalizedQuery.includes("-")) {
+            const numericSeriesPattern = new RegExp(`^${escapeRegExp(normalizedQuery)}-\\d+$`);
+            return numericSeriesPattern.test(sku);
+        }
+
+        // If query already includes "-", treat it as an explicit sub-prefix.
+        return sku.startsWith(normalizedQuery);
+    };
+
+    const skuMatchedProducts = products
+        .filter((p) => {
+            const sku = (p.sku || "").trim().toLowerCase();
+            if (!sku) return false;
+            return matchesSkuPrefix(sku, normalizedSkuSearch);
+        })
+        .sort((a, b) => (a.sku || "").localeCompare(b.sku || ""));
+
     const filteredRates = rates.map((r, i) => ({ ...r, originalIdx: i })).filter(r => 
         r.productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (r.sku || "").toLowerCase().includes(searchTerm.toLowerCase())
@@ -75,8 +124,7 @@ export default function RateCatalogView({
         }
 
         const matched = products.filter(p => {
-            const sku = (p.sku || "").toLowerCase();
-            return sku.startsWith(pPrefix);
+            return matchesSkuPrefix(p.sku, pPrefix);
         });
 
         if (matched.length === 0) {
@@ -119,6 +167,16 @@ export default function RateCatalogView({
         setProductSearch("");
     };
 
+    const handleBulkDeleteSelected = () => {
+        if (selectedIndices.length === 0) {
+            alert("Please select at least one product rate to delete.");
+            return;
+        }
+        if (!confirm(`Delete ${selectedIndices.length} selected rate(s)?`)) return;
+        onUpdateRates(rates.filter((_, idx) => !selectedIndices.includes(idx)));
+        setSelectedIndices([]);
+    };
+
     const toggleSelect = (idx: number) => {
         setSelectedIndices(prev => 
             prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
@@ -131,16 +189,44 @@ export default function RateCatalogView({
                 title={`${party.partyName} Catalog`} 
                 sub="Manage specific product pricing and share customized catalogs"
             >
-                <BtnGhost onClick={onBack}>← Back to List</BtnGhost>
-                {isAdmin && (
-                    <BtnPrimary 
-                        onClick={() => onShare(party, selectedIndices.length > 0 ? rates.filter((_, i) => selectedIndices.includes(i)) : rates)}
-                        style={{ background: "#10b981" }}
-                        disabled={rates.length === 0}
-                    >
-                        Share PDF {selectedIndices.length > 0 ? `(${selectedIndices.length})` : ""}
-                    </BtnPrimary>
-                )}
+                <div style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 8,
+                    width: isMobile ? "100%" : "auto",
+                    overflowX: isMobile ? "auto" : "visible",
+                    whiteSpace: isMobile ? "nowrap" : "normal",
+                    paddingBottom: isMobile ? 2 : 0
+                }}>
+                    <BtnGhost onClick={onBack} style={{ width: "auto", justifyContent: "center", flexShrink: 0 }}>
+                        Back to List
+                    </BtnGhost>
+                    {isAdmin && (
+                        <BtnSecondary
+                            onClick={handleBulkDeleteSelected}
+                            disabled={selectedIndices.length === 0}
+                            style={{
+                                width: "auto",
+                                justifyContent: "center",
+                                background: "#fff1f2",
+                                borderColor: "#fecdd3",
+                                color: "#be123c",
+                                flexShrink: 0
+                            }}
+                        >
+                            Delete Selected {selectedIndices.length > 0 ? `(${selectedIndices.length})` : ""}
+                        </BtnSecondary>
+                    )}
+                    {isAdmin && (
+                        <BtnPrimary 
+                            onClick={() => onShare(party, selectedIndices.length > 0 ? rates.filter((_, i) => selectedIndices.includes(i)) : rates)}
+                            style={{ background: "#10b981", width: "auto", justifyContent: "center", flexShrink: 0 }}
+                            disabled={rates.length === 0}
+                        >
+                            Share PDF {selectedIndices.length > 0 ? `(${selectedIndices.length})` : ""}
+                        </BtnPrimary>
+                    )}
+                </div>
             </PageHeader>
 
             {/* Assignment Form */}
@@ -155,7 +241,7 @@ export default function RateCatalogView({
 
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, alignItems: "flex-end" }}>
                         <div style={{ gridColumn: isMobile ? "span 1" : "span 1", position: "relative" }}>
-                            <FormField label="Product / SKU Search">
+                            <FormField label="SKU Search">
                                 <div style={{ position: "relative" }}>
                                     <Input 
                                         value={selectedProduct ? (selectedProduct.productName || "") : productSearch}
@@ -165,12 +251,9 @@ export default function RateCatalogView({
                                     />
                                     {selectedProduct && <button onClick={() => setSelectedProduct(null)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "#f1f5f9", borderRadius: "50%", width: 22, height: 22, fontSize: 10, cursor: "pointer" }}>✕</button>}
                                 </div>
-                                {productSearch && !selectedProduct && (
+                                {Boolean(normalizedSkuSearch) && !selectedProduct && (
                                     <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 100, maxHeight: 180, overflowY: "auto" }}>
-                                        {products.filter(p => {
-                                            const s = productSearch.toLowerCase();
-                                            return (p.productName || "").toLowerCase().includes(s) || (p.sku || "").toLowerCase().includes(s);
-                                        }).slice(0, 10).map(p => (
+                                        {skuMatchedProducts.map(p => (
                                             <div key={p.id} onClick={() => {
                                                 setSelectedProduct(p);
                                                 (document.getElementById("new-rate-val") as HTMLInputElement).value = (p.wholesalePrice || p.price || 0).toString();
@@ -178,11 +261,52 @@ export default function RateCatalogView({
                                             }} style={{ padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                                 <div style={{ fontSize: 13, fontWeight: 500 }}>{p.productName}</div>
                                                 <div style={{ fontSize: 11, color: "#94a3b8" }}>SKU: {p.sku} | Price: ₹{p.wholesalePrice || p.price || 0}</div>
+                                                <div style={{ marginTop: 4 }}>
+                                                    {(() => {
+                                                        const stockStatus = getStockStatus(p.stock);
+                                                        return (
+                                                            <span style={{
+                                                                display: "inline-block",
+                                                                fontSize: 10,
+                                                                fontWeight: 600,
+                                                                color: stockStatus.color,
+                                                                background: stockStatus.bg,
+                                                                padding: "2px 8px",
+                                                                borderRadius: 999
+                                                            }}>
+                                                                {stockStatus.label}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </div>
                                             </div>
                                         ))}
+                                        {skuMatchedProducts.length === 0 && (
+                                            <div style={{ padding: "10px 12px", fontSize: 12, color: "#94a3b8" }}>
+                                                No inventory item found for this SKU prefix.
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </FormField>
+                            {selectedProduct && (
+                                <div style={{ marginTop: 8, fontSize: 12 }}>
+                                    {(() => {
+                                        const stockStatus = getStockStatus(selectedProduct.stock);
+                                        return (
+                                            <span style={{
+                                                color: stockStatus.color,
+                                                background: stockStatus.bg,
+                                                padding: "3px 10px",
+                                                borderRadius: 999,
+                                                fontWeight: 600
+                                            }}>
+                                                {stockStatus.label}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+                            )}
                         </div>
 
                         <FormField label="Assign Rate (₹)">
@@ -298,6 +422,8 @@ export default function RateCatalogView({
                         </thead>
                         <tbody>
                             {filteredRates.map((r) => {
+                                const linkedProduct = findProductForRate(r);
+                                const stockStatus = getStockStatus(linkedProduct?.stock);
                                 const pkgPrice = Number(r.packagingCost || 0);
                                 const base = Number(r.rate || 0) + pkgPrice;
                                 const disc = (r.discountType || "amount") === "percentage" ? (base * (r.discount || 0) / 100) : Number(r.discount || 0);
@@ -309,7 +435,21 @@ export default function RateCatalogView({
                                         <td style={{ padding: "12px 20px" }}>
                                             <input type="checkbox" checked={selectedIndices.includes(r.originalIdx)} onChange={() => toggleSelect(r.originalIdx)} />
                                         </td>
-                                        <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{r.productName}</td>
+                                        <td style={{ padding: "12px 20px", fontSize: 13, color: "#1e293b", fontWeight: 500 }}>
+                                            <div>{r.productName}</div>
+                                            <div style={{
+                                                marginTop: 4,
+                                                display: "inline-block",
+                                                fontSize: 10,
+                                                fontWeight: 600,
+                                                color: stockStatus.color,
+                                                background: stockStatus.bg,
+                                                padding: "2px 8px",
+                                                borderRadius: 999
+                                            }}>
+                                                {stockStatus.label}
+                                            </div>
+                                        </td>
                                         <td style={{ padding: "12px 20px", fontSize: 12, color: "#94a3b8" }}>{r.sku || "—"}</td>
                                         <td style={{ padding: "12px 20px", fontSize: 12, color: "#64748b" }}>
                                             <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>₹{pkgPrice.toFixed(2)}</div>

@@ -10,6 +10,11 @@ const globalWithFirebase = global as typeof globalThis & {
   firebaseAdminApp: admin.app.App | undefined;
 };
 
+const getFirstAdminApp = (): admin.app.App | undefined => {
+  const existing = admin.apps[0];
+  return existing ?? undefined;
+};
+
 const initAdminApp = (): admin.app.App | undefined => {
   if (globalWithFirebase.firebaseAdminApp) return globalWithFirebase.firebaseAdminApp;
 
@@ -84,9 +89,8 @@ E8xR5kgY4Rqeesghs3arZnFY
       console.error("[FirebaseAdmin] Initialization Error:", message);
     }
     // If app already exists in admin.apps, reuse it.
-    if (admin.apps.length > 0) {
-      globalWithFirebase.firebaseAdminApp = admin.apps[0];
-    }
+    const existingApp = getFirstAdminApp();
+    if (existingApp) globalWithFirebase.firebaseAdminApp = existingApp;
   }
   return globalWithFirebase.firebaseAdminApp;
 };
@@ -96,7 +100,7 @@ E8xR5kgY4Rqeesghs3arZnFY
  * Throws explicit error if Admin SDK is not initialized.
  */
 function getAdminAppOrThrow() {
-  const app = initAdminApp() || (admin.apps.length > 0 ? admin.apps[0] : undefined);
+  const app = initAdminApp() || getFirstAdminApp();
   if (!app) {
     throw new Error(
       "Firebase Admin SDK is not initialized. Configure FIREBASE_PRIVATE_KEY/FIREBASE_CLIENT_EMAIL or firebase-admin-key.json."
@@ -105,7 +109,7 @@ function getAdminAppOrThrow() {
   return app;
 }
 
-const createLazyService = <T>(factory: () => T): T => {
+const createLazyService = <T extends object>(factory: () => T): T => {
   return new Proxy({} as T, {
     get(_target, prop) {
       const service = factory() as Record<PropertyKey, unknown>;

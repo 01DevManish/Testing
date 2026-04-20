@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { PartyRate } from "./types";
 import { Product } from "../inventory/types";
-import { ref, set, push, remove, update } from "firebase/database";
+import { ref, set, push, remove, update, get } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
@@ -63,6 +63,21 @@ export default function PartyRateModule({
     // Share State
     const [sharing, setSharing] = useState(false);
     const [shareData, setShareData] = useState<{ blob: Blob, filename: string, party: PartyRate } | null>(null);
+
+    const normalize = (value: unknown) =>
+        String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+    const findInventoryProduct = (rate: any, inventoryProducts: Product[]) => {
+        const rateSku = normalize(rate?.sku);
+        if (rateSku) {
+            const bySku = inventoryProducts.find((p) => normalize(p.sku) === rateSku);
+            if (bySku) return bySku;
+        }
+        const rateName = normalize(rate?.productName);
+        if (!rateName) return undefined;
+        const byName = inventoryProducts.filter((p) => normalize(p.productName) === rateName);
+        return byName.length === 1 ? byName[0] : undefined;
+    };
 
     // ── Profile Handlers ───────────────────────────────────────────
     
@@ -191,6 +206,12 @@ export default function PartyRateModule({
         if (!canDeleteParty || !confirm(`Permanently delete all rate data for "${name}"?`)) return;
         try {
             await remove(ref(db, `partyRates/${id}`));
+            const remaining = partyRates.filter((item) => item.id !== id);
+            await fetch("/api/data/partyRates", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode: "replace", items: remaining }),
+            });
             await logActivity({
                 type: "system",
                 action: "delete",
@@ -228,7 +249,37 @@ export default function PartyRateModule({
     const handleShare = async (party: PartyRate, ratesToShare: any[]) => {
         try {
             setSharing(true);
-            const blob = await generatePartyRatePdf(party, ratesToShare, products, false);
+            // Use live inventory snapshot so stock status is always real-time at share time.
+            let inventoryProducts: Product[] = products;
+            try {
+                const invSnap = await get(ref(db, "inventory"));
+                if (invSnap.exists()) {
+                    const live = invSnap.val() || {};
+                    inventoryProducts = Object.entries(live).map(([id, record]) => ({
+                        ...(record as Product),
+                        id,
+                    }));
+                }
+            } catch (e) {
+                console.warn("Failed to fetch live inventory for PDF share. Falling back to cached products.", e);
+            }
+
+            const inStockRates = ratesToShare.filter((rate) => {
+                const linked = findInventoryProduct(rate, inventoryProducts);
+                if (!linked) return true; // Keep if not uniquely mappable.
+                return Number(linked.stock || 0) > 0;
+            });
+
+            if (inStockRates.length === 0) {
+                alert("All selected products are out of stock. PDF was not generated.");
+                return;
+            }
+
+            if (inStockRates.length < ratesToShare.length) {
+                alert(`${ratesToShare.length - inStockRates.length} out-of-stock product(s) were excluded from PDF.`);
+            }
+
+            const blob = await generatePartyRatePdf(party, inStockRates, inventoryProducts, false);
             if (!blob) return;
 
             const filename = `Rates_${party.partyName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
@@ -258,17 +309,43 @@ export default function PartyRateModule({
 
     // ── Rendering ──────────────────────────────────────────────────
 
+    const shareCatalogModal = (
+        <ShareCatalogModal
+            show={!!shareData}
+            onClose={() => setShareData(null)}
+            partyName={shareData?.party.partyName || ""}
+            sharing={sharing}
+            onWhatsApp={() => {
+                const text = encodeURIComponent(`Eurus Lifestyle - Rate List for ${shareData?.party.partyName}`);
+                window.open(`https://wa.me/?text=${text}`, "_blank");
+            }}
+            onDownload={() => {
+                if (!shareData) return;
+                const url = URL.createObjectURL(shareData.blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = shareData.filename;
+                a.click();
+                URL.revokeObjectURL(url);
+                setShareData(null);
+            }}
+        />
+    );
+
     if (viewingCatalog) {
         return (
-            <RateCatalogView 
-                party={viewingCatalog}
-                products={products}
-                onBack={() => setViewingCatalog(null)}
-                onUpdateRates={handleUpdateRates}
-                onShare={handleShare}
-                isAdmin={canEdit}
-                isMobile={isMobile}
-            />
+            <>
+                <RateCatalogView 
+                    party={viewingCatalog}
+                    products={products}
+                    onBack={() => setViewingCatalog(null)}
+                    onUpdateRates={handleUpdateRates}
+                    onShare={handleShare}
+                    isAdmin={canEdit}
+                    isMobile={isMobile}
+                />
+                {shareCatalogModal}
+            </>
         );
     }
 
@@ -303,26 +380,7 @@ export default function PartyRateModule({
                 onVerifyGst={handleVerifyGst}
             />
 
-            <ShareCatalogModal 
-                show={!!shareData}
-                onClose={() => setShareData(null)}
-                partyName={shareData?.party.partyName || ""}
-                sharing={sharing}
-                onWhatsApp={() => {
-                    const text = encodeURIComponent(`Eurus Lifestyle - Rate List for ${shareData?.party.partyName}`);
-                    window.open(`https://wa.me/?text=${text}`, '_blank');
-                }}
-                onDownload={() => {
-                    if (!shareData) return;
-                    const url = URL.createObjectURL(shareData.blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = shareData.filename;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    setShareData(null);
-                }}
-            />
+            {shareCatalogModal}
         </>
     );
 }

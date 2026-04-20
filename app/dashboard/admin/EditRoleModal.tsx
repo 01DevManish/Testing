@@ -17,7 +17,7 @@ interface EditRoleModalProps {
   editPin: string;
   setEditPin: (p: string) => void;
   handleRoleUpdate: () => void;
-  handlePasswordReset: (newPass: string) => Promise<void>;
+  handlePasswordReset: (newPass: string, newPin?: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -250,11 +250,34 @@ export default function EditRoleModal({
 
   const onReset = async () => {
     if (!newPass.trim() || newPass.length < 6) return alert("Password must be 6+ characters.");
+    if (editPin && editPin.length !== 4) return alert("PIN must be exactly 4 digits.");
     setResetting(true);
     try {
-      await handlePasswordReset(newPass);
+      await handlePasswordReset(newPass, editPin || undefined);
       setNewPass("");
-      alert("Password updated! The user will be forced to change it on their next login.");
+      alert("Password updated successfully. User can login with this password on next login.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to update password.";
+      alert(msg);
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const onSaveAll = async () => {
+    if (editPin && editPin.length !== 4) return alert("PIN must be exactly 4 digits.");
+    if (newPass.trim() && newPass.length < 6) return alert("Password must be 6+ characters.");
+
+    try {
+      if (newPass.trim()) {
+        setResetting(true);
+        await handlePasswordReset(newPass, editPin || undefined);
+        setNewPass("");
+      }
+      await handleRoleUpdate();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to save user changes.";
+      alert(msg);
     } finally {
       setResetting(false);
     }
@@ -324,9 +347,9 @@ export default function EditRoleModal({
           </button>
         </div>
 
-        <button onClick={handleRoleUpdate} disabled={savingRole}
-          style={{ ...S.btnPrimary, width: "100%", justifyContent: "center", padding: "13px 20px", fontSize: 14, opacity: savingRole ? 0.5 : 1 }}>
-          {savingRole ? <span style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Update Role"}
+        <button onClick={onSaveAll} disabled={savingRole || resetting}
+          style={{ ...S.btnPrimary, width: "100%", justifyContent: "center", padding: "13px 20px", fontSize: 14, opacity: (savingRole || resetting) ? 0.5 : 1 }}>
+          {(savingRole || resetting) ? <span style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Save User Changes"}
         </button>
       </div>
     </div>
