@@ -302,7 +302,7 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
         const logoTopY = 10;
         let logoBottomY = logoTopY;
         if (logo) {
-            const logoH = 84;
+            const logoH = 98;
             const logoW = (logo.width / logo.height) * logoH;
             d.addImage(logo.data, "PNG", (pageWidth - logoW) / 2, logoTopY, logoW, logoH);
             logoBottomY = logoTopY + logoH;
@@ -375,7 +375,9 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
             lineWidth: 0.5,
             lineColor: [40, 40, 40],
             halign: "center",
-            valign: "middle"
+            valign: "middle",
+            minCellHeight: 20,
+            cellPadding: 4
         },
         bodyStyles: { 
             fontSize: 8, 
@@ -386,14 +388,14 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
             minCellHeight: 40
         },
         columnStyles: {
-            0: { cellWidth: 25, halign: "center" },
+            0: { cellWidth: 32, halign: "center" },
             1: { cellWidth: 50, halign: "center" },
             2: { cellWidth: "auto" },
             3: { cellWidth: 40 },
             4: { cellWidth: 40, halign: "right" },
             5: { cellWidth: 40, halign: "right" },
             6: { cellWidth: 40, halign: "right" },
-            7: { cellWidth: 25, halign: "right" },
+            7: { cellWidth: 32, halign: "right" },
             8: { cellWidth: 50, halign: "right", fontStyle: "bold" }
         },
         didDrawCell: (data) => {
