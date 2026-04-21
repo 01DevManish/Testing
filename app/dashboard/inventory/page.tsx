@@ -299,6 +299,8 @@ export default function InventoryPage() {
 
       const finalProducts = products.map(p => p.id === editProduct.id ? { ...p, ...updated } : p);
       setProducts(finalProducts);
+      // Inventory node is polled (not realtime), so refresh after edit to avoid stale cache fallback.
+      refreshData("inventory");
       setEditProduct(null); setEditForm(null);
     } catch (err: unknown) {
       console.error("Update Error:", err);

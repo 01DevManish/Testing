@@ -31,7 +31,7 @@ export const transformImageUrl = (url: string): string => {
 };
 
 const REGION = process.env.NEXT_PUBLIC_AWS_S3_REGION || "ap-south-1";
-const BUCKET = process.env.NEXT_PUBLIC_AWS_S3_BUCKET || "epanelimages";
+const BUCKET = process.env.NEXT_PUBLIC_AWS_S3_BUCKET || process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME || "eurusimages";
 const CLOUDFRONT_DOMAIN = (process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN || "").trim();
 
 const normalizeDomain = (value: string): string =>

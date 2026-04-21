@@ -90,7 +90,6 @@ export default function EmployeeSidebar({
       label: "Team & Tasks",
       items: [
         { key: "tasks", label: "My Tasks", icon: ICONS.tasks, count: taskStats?.pending },
-        { key: "messages", label: "Team Messaging", icon: ICONS.messages, count: unreadCount },
       ]
     },
     {
@@ -98,6 +97,12 @@ export default function EmployeeSidebar({
       items: [
         { key: "party-rates", label: "Party Wise Rates", icon: ICONS.party, permission: "party_rate_view" },
         { key: "catalog", label: "Catalog Sharing", icon: ICONS.catalog },
+      ]
+    },
+    {
+      label: "Communication",
+      items: [
+        { key: "messages", label: "Team Messaging", icon: ICONS.messages, count: unreadCount },
       ]
     }
   ];

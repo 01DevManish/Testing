@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DeleteCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DeleteCommand, PutCommand, QueryCommand, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { DATA_TABLE_NAME, docClient } from "../../../lib/dynamodb";
 import { dataPartitionKey, dataSortKey, isDataEntity } from "../../../lib/dataEntities";
 
@@ -112,11 +112,17 @@ export async function POST(
 
     if (mode === "replace") {
       const existingKeys = await fetchExistingKeys(partition);
-      for (const sk of existingKeys) {
+      for (let i = 0; i < existingKeys.length; i += 25) {
+        const chunk = existingKeys.slice(i, i + 25);
         await docClient.send(
-          new DeleteCommand({
-            TableName: DATA_TABLE_NAME,
-            Key: { partition, timestamp_id: sk },
+          new BatchWriteCommand({
+            RequestItems: {
+              [DATA_TABLE_NAME]: chunk.map((sk) => ({
+                DeleteRequest: {
+                  Key: { partition, timestamp_id: sk },
+                },
+              })),
+            },
           })
         );
       }
@@ -124,24 +130,28 @@ export async function POST(
     }
 
     let upserted = 0;
-    for (const row of items) {
-      const idRaw = row?.id;
-      const id = typeof idRaw === "string" && idRaw.trim() ? idRaw.trim() : "";
-      if (!id) continue;
-
+    const itemsToPut = items.filter(r => typeof r?.id === "string" && r.id.trim());
+    
+    for (let i = 0; i < itemsToPut.length; i += 25) {
+      const chunk = itemsToPut.slice(i, i + 25);
       await docClient.send(
-        new PutCommand({
-          TableName: DATA_TABLE_NAME,
-          Item: {
-            partition,
-            timestamp_id: dataSortKey(id),
-            entityType: `dataset_${entity}`,
-            payload: row,
-            updatedAt: Date.now(),
+        new BatchWriteCommand({
+          RequestItems: {
+            [DATA_TABLE_NAME]: chunk.map((row) => ({
+              PutRequest: {
+                Item: {
+                  partition,
+                  timestamp_id: dataSortKey((row.id as string).trim()),
+                  entityType: `dataset_${entity}`,
+                  payload: row,
+                  updatedAt: Date.now(),
+                },
+              },
+            })),
           },
         })
       );
-      upserted++;
+      upserted += chunk.length;
     }
 
     return NextResponse.json({ success: true, upserted, cleared });

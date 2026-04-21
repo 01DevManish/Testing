@@ -23,6 +23,7 @@ interface TasksTabProps {
   handleDeleteTask: (id: string) => void;
   handleTaskStatus: (id: string, status: Task["status"]) => void;
   handleUpdateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  handleTaskCompletionDecision: (id: string, decision: "accept" | "reject") => Promise<void>;
   assignableUsers: UserRecord[];
   loadTasks: () => void;
 }
@@ -31,7 +32,7 @@ export default function TasksTab({
   S, isMobile, isTablet, tasks, filteredTasks, fetchingTasks,
   taskFilter, setTaskFilter, showTaskForm, setShowTaskForm,
   taskForm, setTaskForm, savingTask, handleCreateTask, handleDeleteTask,
-  handleTaskStatus, handleUpdateTask, assignableUsers, loadTasks,
+  handleTaskStatus, handleUpdateTask, handleTaskCompletionDecision, assignableUsers, loadTasks,
 }: TasksTabProps) {
   const [uploading, setUploading] = React.useState(false);
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([]);
@@ -115,15 +116,18 @@ export default function TasksTab({
       };
       await handleUpdateTask(editTask.id, updates);
       setEditTask(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      alert(e?.message || "Failed to update task.");
+      const message = e instanceof Error ? e.message : "Failed to update task.";
+      alert(message);
     } finally {
       setSavingEdit(false);
     }
   };
 
-  const TaskCard = ({ t }: { t: Task }) => (
+  const TaskCard = ({ t }: { t: Task }) => {
+    const completionRequested = Boolean(t.completionRequested || t.completionApprovalStatus === "requested");
+    return (
     <div style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
         <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 14 }}>{t.title}</div>
@@ -145,19 +149,28 @@ export default function TasksTab({
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <div style={{ width: 26, height: 26, borderRadius: 7, background: roleBg[t.assignedToRole] || roleBg.employee, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 400, fontSize: 11, color: "#fff" }}>{t.assignedToName?.[0]?.toUpperCase() || "U"}</div>
         <span style={{ fontSize: 13, color: "#475569", fontWeight: 400 }}>{t.assignedToName}</span>
-        <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>{statusConfig[t.status]?.label}</span>
+        <span style={S.badge(completionRequested ? "#0ea5e9" : (statusConfig[t.status]?.color || "#94a3b8"), completionRequested ? "rgba(14,165,233,0.12)" : (statusConfig[t.status]?.bg || "transparent"))}>
+          {completionRequested ? "Completion Requested" : statusConfig[t.status]?.label}
+        </span>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <select value={t.status} onChange={e => handleTaskStatus(t.id, e.target.value as Task["status"])}
           style={{ flex: 1, padding: "7px 10px", fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontFamily: "inherit", cursor: "pointer", outline: "none" }}>
           <option value="pending">Pending</option><option value="in-progress">In Progress</option><option value="completed">Completed</option>
         </select>
+        {completionRequested ? (
+          <>
+            <button style={{ ...S.btnIcon, color: "#10b981" }} onClick={() => handleTaskCompletionDecision(t.id, "accept")}>Accept</button>
+            <button style={{ ...S.btnIcon, color: "#ef4444" }} onClick={() => handleTaskCompletionDecision(t.id, "reject")}>Reject</button>
+          </>
+        ) : null}
         <button style={{ ...S.btnIcon, color: "#ef4444" }} onClick={() => handleDeleteTask(t.id)}>Del</button>
         <button style={S.btnIcon} onClick={() => setViewTask(t)}>View</button>
         <button style={S.btnIcon} onClick={() => openEditTask(t)}>Edit</button>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -336,9 +349,10 @@ export default function TasksTab({
 
                   handleCreateTask(attachments);
                   setSelectedFiles([]);
-                } catch (e: any) {
+                } catch (e: unknown) {
                   console.error("Upload Error:", e);
-                  alert(`Upload failed: ${e.message || "Check connection"}`);
+                  const message = e instanceof Error ? e.message : "Check connection";
+                  alert(`Upload failed: ${message}`);
                 } finally {
                   setUploading(false);
                 }
@@ -378,13 +392,19 @@ export default function TasksTab({
                 </tr>
               </thead>
               <tbody>
-                {filteredTasks.map(t => (
+                {filteredTasks.map(t => {
+                  const completionRequested = Boolean(t.completionRequested || t.completionApprovalStatus === "requested");
+                  return (
                   <tr key={t.id} className="tr-hover">
                     <td style={S.td}>
                       <div style={{ fontWeight: 400, color: "#1e293b", marginBottom: 2, fontSize: 13 }}>{t.title}</div>
                       {t.description && <div style={{ fontSize: 11, color: "#94a3b8", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</div>}
                       {t.attachments && t.attachments.length > 0 && <div style={{ fontSize: 10, color: "#6366f1", marginTop: 4 }}>📎 {t.attachments.length} files attached</div>}
-                      {isTablet && <span style={{ ...S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent"), marginTop: 4, display: "inline-flex" }}>{statusConfig[t.status]?.label}</span>}
+                      {isTablet && (
+                        <span style={{ ...S.badge(completionRequested ? "#0ea5e9" : (statusConfig[t.status]?.color || "#94a3b8"), completionRequested ? "rgba(14,165,233,0.12)" : (statusConfig[t.status]?.bg || "transparent")), marginTop: 4, display: "inline-flex" }}>
+                          {completionRequested ? "Completion Requested" : statusConfig[t.status]?.label}
+                        </span>
+                      )}
                     </td>
                     <td style={S.td}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -397,7 +417,11 @@ export default function TasksTab({
                     </td>
                     <td style={S.td}><span style={S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`)}>{t.priority}</span></td>
                     {!isTablet && (
-                      <td style={S.td}><span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>{statusConfig[t.status]?.label}</span></td>
+                      <td style={S.td}>
+                        <span style={S.badge(completionRequested ? "#0ea5e9" : (statusConfig[t.status]?.color || "#94a3b8"), completionRequested ? "rgba(14,165,233,0.12)" : (statusConfig[t.status]?.bg || "transparent"))}>
+                          {completionRequested ? "Completion Requested" : statusConfig[t.status]?.label}
+                        </span>
+                      </td>
                     )}
                     <td style={{ ...S.td, textAlign: "right" }}>
                       <div style={{ display: "flex", gap: 5, justifyContent: "flex-end", alignItems: "center" }}>
@@ -405,13 +429,20 @@ export default function TasksTab({
                           style={{ padding: "5px 8px", fontSize: 11, borderRadius: 7, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontFamily: "inherit", cursor: "pointer", outline: "none", maxWidth: isTablet ? 90 : 120 }}>
                           <option value="pending">Pending</option><option value="in-progress">In Progress</option><option value="completed">Completed</option>
                         </select>
+                        {completionRequested ? (
+                          <>
+                            <button style={{ ...S.btnIcon, color: "#10b981" }} onClick={() => handleTaskCompletionDecision(t.id, "accept")}>Accept</button>
+                            <button style={{ ...S.btnIcon, color: "#ef4444" }} onClick={() => handleTaskCompletionDecision(t.id, "reject")}>Reject</button>
+                          </>
+                        ) : null}
                         <button style={{ ...S.btnIcon, color: "#ef4444" }} onClick={() => handleDeleteTask(t.id)}>Del</button>
                         <button style={S.btnIcon} onClick={() => setViewTask(t)}>View</button>
                         <button style={S.btnIcon} onClick={() => openEditTask(t)}>Edit</button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

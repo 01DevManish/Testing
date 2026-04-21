@@ -2,6 +2,158 @@ import { Order, OrderStatus, Party, Transporter, ManagedBox } from "./types";
 import { ref, get, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
+import { getBarcodeMappedFields, normalizeSkuKey } from "../inventory/utils/barcodeUtils";
+import type { Collection } from "../inventory/types";
+
+type InventoryDispatchProduct = {
+  id: string;
+  productName: string;
+  price: number;
+  stock: number;
+  sku?: string;
+  barcode?: string;
+  barcodeSku?: string;
+  styleId?: string;
+  unit?: string;
+  collection?: string;
+  brand?: string;
+  brandId?: string;
+  category?: string;
+};
+
+const INVENTORY_CACHE_TTL_MS = 45 * 1000;
+const BARCODE_SYNC_INTERVAL_MS = 10 * 60 * 1000;
+
+let inventoryCache: { ts: number; data: InventoryDispatchProduct[] } | null = null;
+let inventoryFetchPromise: Promise<InventoryDispatchProduct[]> | null = null;
+let lastBarcodeSyncAt = 0;
+
+const cloneInventory = (rows: InventoryDispatchProduct[]): InventoryDispatchProduct[] =>
+  rows.map((row) => ({ ...row }));
+
+const mapInventoryRow = (id: string, data: Record<string, any>): InventoryDispatchProduct => ({
+  id,
+  productName: data.productName || "Unknown",
+  price: Number(data.price) || 0,
+  stock: Number(data.stock) || 0,
+  sku: data.sku || "N/A",
+  barcode: String(data.barcode || "").trim(),
+  barcodeSku: normalizeSkuKey(data.barcodeSku || data.sku),
+  styleId: data.styleId || "",
+  unit: data.unit || "PCS",
+  collection: data.collection || "",
+  brand: data.brand || "",
+  brandId: data.brandId || "",
+  category: data.category || "",
+});
+
+const loadCollectionsForBarcode = async (): Promise<Collection[]> => {
+  try {
+    const res = await fetch("/api/data/collections", { cache: "no-store" });
+    if (res.ok) {
+      const json = await res.json();
+      if (Array.isArray(json?.items) && json.items.length > 0) {
+        return json.items.map((item: any) => ({
+          id: item.id || "",
+          name: item.name || "",
+          collectionCode: item.collectionCode || "",
+          description: item.description || "",
+          productIds: Array.isArray(item.productIds) ? item.productIds : [],
+          createdAt: Number(item.createdAt) || 0,
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn("[RetailDispatch] Failed to load collections from Dynamo API.", err);
+  }
+
+  const snap = await get(ref(db, "collections"));
+  const collections: Collection[] = [];
+  if (snap.exists()) {
+    snap.forEach((child) => {
+      const data = child.val() || {};
+      collections.push({
+        id: child.key as string,
+        name: data.name || "",
+        collectionCode: data.collectionCode || "",
+        description: data.description || "",
+        productIds: Array.isArray(data.productIds) ? data.productIds : [],
+        createdAt: Number(data.createdAt) || 0,
+      });
+    });
+  }
+  return collections;
+};
+
+const maybeSyncBarcodes = async (rows: InventoryDispatchProduct[]): Promise<InventoryDispatchProduct[]> => {
+  const now = Date.now();
+  if (now - lastBarcodeSyncAt < BARCODE_SYNC_INTERVAL_MS) {
+    return rows;
+  }
+
+  const collections = await loadCollectionsForBarcode();
+  const updates: Record<string, string> = {};
+  const nextRows = rows.map((row) => {
+    const expected = getBarcodeMappedFields(
+      {
+        id: row.id,
+        sku: row.sku || "",
+        styleId: row.styleId || "",
+        collection: row.collection || "",
+      },
+      collections
+    );
+
+    const currentBarcode = String(row.barcode || "").trim();
+    const currentBarcodeSku = normalizeSkuKey(row.barcodeSku || row.sku);
+    const needsRefresh = !currentBarcode || currentBarcode !== expected.barcode || currentBarcodeSku !== expected.barcodeSku;
+
+    if (needsRefresh) {
+      updates[`inventory/${row.id}/barcode`] = expected.barcode;
+      updates[`inventory/${row.id}/barcodeSku`] = expected.barcodeSku;
+      return { ...row, barcode: expected.barcode, barcodeSku: expected.barcodeSku };
+    }
+
+    return row;
+  });
+
+  if (Object.keys(updates).length > 0) {
+    try {
+      await update(ref(db), updates);
+    } catch (err) {
+      console.warn("[RetailDispatch] Barcode sync write failed.", err);
+    }
+  }
+
+  lastBarcodeSyncAt = now;
+  return nextRows;
+};
+
+const fetchInventoryFromDynamoApi = async (): Promise<InventoryDispatchProduct[]> => {
+  const res = await fetch("/api/data/inventory", { cache: "no-store" });
+  if (!res.ok) throw new Error(`Inventory API failed: ${res.status}`);
+  const json = await res.json();
+  if (!Array.isArray(json?.items)) return [];
+  return json.items
+    .map((item: Record<string, any>) => {
+      const id = typeof item.id === "string" ? item.id : "";
+      if (!id) return null;
+      return mapInventoryRow(id, item);
+    })
+    .filter((row: InventoryDispatchProduct | null): row is InventoryDispatchProduct => Boolean(row));
+};
+
+const fetchInventoryFromFirebase = async (): Promise<InventoryDispatchProduct[]> => {
+  const snap = await get(ref(db, "inventory"));
+  const rows: InventoryDispatchProduct[] = [];
+  if (snap.exists()) {
+    snap.forEach((child) => {
+      const data = child.val() || {};
+      rows.push(mapInventoryRow(child.key as string, data));
+    });
+  }
+  return rows;
+};
 
 // â”€â”€ Firebase API for Dispatch â”€â”€
 
@@ -51,31 +203,51 @@ export const firestoreApi = {
     return { id: newRef.key as string, ...t };
   },
 
-  // Inventory - Fetch real items from inventory node
-  getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number; sku?: string; barcode?: string; unit?: string; collection?: string; brand?: string; brandId?: string; category?: string }[]> => {
-    try {
-      const snap = await get(ref(db, "inventory"));
-      const list: { id: string; productName: string; price: number; stock: number; sku?: string; barcode?: string; unit?: string; collection?: string; brand?: string; brandId?: string; category?: string }[] = [];
-      if (snap.exists()) {
-        snap.forEach(d => {
-          const data = d.val();
-          list.push({ 
-            id: d.key as string, 
-            productName: data.productName || "Unknown", 
-            price: data.price || 0, 
-            stock: data.stock || 0,
-            sku: data.sku || "N/A",
-            barcode: data.barcode || "",
-            unit: data.unit || "PCS",
-            collection: data.collection || "",
-            brand: data.brand || "",
-            brandId: data.brandId || "",
-            category: data.category || ""
-          });
-        });
+  // Inventory - Dynamo-first + short-lived in-memory cache (reduces Firebase reads heavily)
+  getInventoryProducts: async (opts?: { forceFresh?: boolean }): Promise<InventoryDispatchProduct[]> => {
+    const forceFresh = Boolean(opts?.forceFresh);
+    const now = Date.now();
+
+    if (!forceFresh && inventoryCache && (now - inventoryCache.ts) < INVENTORY_CACHE_TTL_MS) {
+      return cloneInventory(inventoryCache.data);
+    }
+
+    if (!forceFresh && inventoryFetchPromise) {
+      return inventoryFetchPromise;
+    }
+
+    const fetcher = (async (): Promise<InventoryDispatchProduct[]> => {
+      try {
+        let rows: InventoryDispatchProduct[] = [];
+
+        try {
+          rows = await fetchInventoryFromDynamoApi();
+        } catch (apiErr) {
+          console.warn("[RetailDispatch] Inventory API unavailable, falling back to Firebase.", apiErr);
+        }
+
+        if (rows.length === 0) {
+          rows = await fetchInventoryFromFirebase();
+        }
+
+        const syncedRows = await maybeSyncBarcodes(rows);
+        inventoryCache = { ts: Date.now(), data: syncedRows };
+        return cloneInventory(syncedRows);
+      } catch (e) {
+        console.error(e);
+        return [];
+      } finally {
+        inventoryFetchPromise = null;
       }
-      return list;
-    } catch (e) { console.error(e); return []; }
+    })();
+
+    if (!forceFresh) inventoryFetchPromise = fetcher;
+    return fetcher;
+  },
+
+  invalidateInventoryCache: () => {
+    inventoryCache = null;
+    inventoryFetchPromise = null;
   },
 
   // Atomic Stock Deduction & Status Update
@@ -103,6 +275,7 @@ export const firestoreApi = {
           status: newStatus,
           updatedAt: Date.now() 
         });
+        firestoreApi.invalidateInventoryCache();
         
         console.log(`Deducted ${quantityToDeduct} from ${productId}. New stock: ${newStock}, Status: ${newStatus}`);
         return true;

@@ -37,6 +37,12 @@ interface Props {
 export default function ProductList({
     products, categories, collections, user, loading, isAdminOrManager, canCreate, canEdit, canDelete, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
 }: Props) {
+    const normalizeText = (value: unknown) =>
+        String(value ?? "")
+            .toLowerCase()
+            .replace(/\s+/g, " ")
+            .trim();
+
     const getStockStatus = (stock?: number): "out-of-stock" | "low-stock" | "in-stock" => {
         const safeStock = Number(stock) || 0;
         if (safeStock === 0) return "out-of-stock";
@@ -47,7 +53,7 @@ export default function ProductList({
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
     const [filterCol, setFilterCol] = useState("all");
-    const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "out-of-stock" | "low-stock" | "in-stock">("in-stock");
+    const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "out-of-stock" | "low-stock" | "in-stock">("all");
 
     const [sortKey, setSortKey] = useState<SortKey>("createdAt");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -61,17 +67,38 @@ export default function ProductList({
         else { setSortKey(key); setSortDir("asc"); }
     };
 
+    const searchableProducts = useMemo(
+        () =>
+            products.map((p) => ({
+                product: p,
+                searchableText: normalizeText(
+                    [
+                        p.productName,
+                        p.sku,
+                        p.barcode,
+                        p.styleId,
+                        p.brand,
+                        p.category,
+                        p.collection,
+                        p.hsnCode,
+                    ]
+                        .filter(Boolean)
+                        .join(" ")
+                ),
+            })),
+        [products]
+    );
+
     const filtered = useMemo(() => {
         let list = [...products];
-        if (searchTerm) {
-            const q = searchTerm.toLowerCase();
-            list = list.filter(p => 
-                p.productName?.toLowerCase().includes(q) || 
-                p.sku?.toLowerCase().includes(q) || 
-                p.brand?.toLowerCase().includes(q) ||
-                p.category?.toLowerCase().includes(q) ||
-                p.collection?.toLowerCase().includes(q)
-            );
+        const q = normalizeText(searchTerm);
+        if (q) {
+            const terms = q.split(" ").filter(Boolean);
+            list = searchableProducts
+                .filter(({ searchableText }) =>
+                    terms.every((term) => searchableText.includes(term))
+                )
+                .map(({ product }) => product);
         }
         if (filterCat !== "all") list = list.filter(p => p.category === filterCat);
         if (filterCol !== "all") list = list.filter(p => p.collection === filterCol);
@@ -96,7 +123,7 @@ export default function ProductList({
             return 0;
         });
         return list;
-    }, [products, searchTerm, filterCat, filterCol, filterStatus, sortKey, sortDir]);
+    }, [products, searchableProducts, searchTerm, filterCat, filterCol, filterStatus, sortKey, sortDir]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -333,7 +360,7 @@ export default function ProductList({
                             type="text" 
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            placeholder="Search Product / SKU"
+                            placeholder="Search Product / SKU / Barcode / Style ID"
                             style={{ 
                                 background: "transparent", border: "none", outline: "none", 
                                 color: "#1e293b", fontSize: isMobile ? 12 : 13, width: "100%", fontFamily: FONT,

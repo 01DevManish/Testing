@@ -6,6 +6,7 @@ import { ref, onValue, off, get, DataSnapshot } from "firebase/database";
 import { Product, Category, Collection, ItemGroup } from "../dashboard/inventory/types";
 import { PartyRate, UserRecord, Brand } from "../dashboard/admin/types";
 import { Order, Party, Transporter } from "../dashboard/ecom-dispatch/types";
+import { PackingList } from "../dashboard/retail-dispatch/types";
 
 interface DataContextType {
   products: Product[];
@@ -28,6 +29,8 @@ interface DataContextType {
   setParties: React.Dispatch<React.SetStateAction<Party[]>>;
   transporters: Transporter[];
   setTransporters: React.Dispatch<React.SetStateAction<Transporter[]>>;
+  packingLists: PackingList[];
+  setPackingLists: React.Dispatch<React.SetStateAction<PackingList[]>>;
   loading: boolean;
   refreshData: (entity?: string) => void;
 }
@@ -44,6 +47,7 @@ const CACHE_KEYS = {
   COLLECTIONS: "eurus_cache_collections",
   GROUPS: "eurus_cache_groups",
   ORDERS: "eurus_cache_orders",
+  PACKING_LISTS: "eurus_cache_packing_lists",
   PARTIES_MASTER: "eurus_cache_parties_master",
   TRANSPORTERS: "eurus_cache_transporters",
 };
@@ -61,6 +65,7 @@ type EntityPath =
   | "collections"
   | "itemGroups"
   | "dispatches"
+  | "packingLists"
   | "parties"
   | "transporters";
 
@@ -81,6 +86,7 @@ const NODE_DEFS: Array<{
   { path: "collections", cacheKey: CACHE_KEYS.COLLECTIONS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["collections"] },
   { path: "itemGroups", cacheKey: CACHE_KEYS.GROUPS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["groups", "itemGroups"] },
   { path: "dispatches", cacheKey: CACHE_KEYS.ORDERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["dispatches", "orders"] },
+  { path: "packingLists", cacheKey: CACHE_KEYS.PACKING_LISTS, realtime: true, aliases: ["packingLists", "packing-lists"] },
   { path: "parties", cacheKey: CACHE_KEYS.PARTIES_MASTER, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["parties"] },
   { path: "transporters", cacheKey: CACHE_KEYS.TRANSPORTERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["transporters"] },
 ];
@@ -154,6 +160,13 @@ const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<s
 const castEntityList = <T,>(data: Array<Record<string, unknown>>): T[] =>
   data as unknown as T[];
 
+const getMaxUpdatedAt = (rows: Array<Record<string, unknown>>): number => {
+  return rows.reduce((max, row) => {
+    const ts = typeof row.updatedAt === "number" ? row.updatedAt : 0;
+    return ts > max ? ts : max;
+  }, 0);
+};
+
 const countRowsWithImage = (rows: Array<Record<string, unknown>>): number =>
   rows.reduce((count, row) => {
     const imageUrl = typeof row.imageUrl === "string" ? row.imageUrl.trim() : "";
@@ -196,6 +209,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [packingLists, setPackingLists] = useState<PackingList[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
   const [transporters, setTransporters] = useState<Transporter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,6 +249,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loadFromCache(CACHE_KEYS.COLLECTIONS, setCollections);
     loadFromCache(CACHE_KEYS.GROUPS, setGroups);
     loadFromCache(CACHE_KEYS.ORDERS, setOrders);
+    loadFromCache(CACHE_KEYS.PACKING_LISTS, setPackingLists);
     loadFromCache(CACHE_KEYS.PARTIES_MASTER, setParties);
     loadFromCache(CACHE_KEYS.TRANSPORTERS, setTransporters);
   }, []);
@@ -264,6 +279,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         break;
       case "dispatches":
         setOrders(castEntityList<Order>(data));
+        break;
+      case "packingLists":
+        setPackingLists(castEntityList<PackingList>(data));
         break;
       case "parties":
         setParties(castEntityList<Party>(data));
@@ -315,16 +333,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (FIREBASE_RECONCILE_PATHS.has(path) && dynamoRows && dynamoRows.length > 0) {
         const firebaseImageCount = countRowsWithImage(data);
         const dynamoImageCount = countRowsWithImage(dynamoRows);
+        
+        const fbMaxTs = getMaxUpdatedAt(data);
+        const dynMaxTs = getMaxUpdatedAt(dynamoRows);
+        
         const shouldPreferFirebase = path === "inventory"
-          ? (data.length !== dynamoRows.length || firebaseImageCount > dynamoImageCount)
-          : data.length !== dynamoRows.length;
+          ? (data.length !== dynamoRows.length || firebaseImageCount > dynamoImageCount || fbMaxTs > dynMaxTs + 2000)
+          : (data.length !== dynamoRows.length || fbMaxTs > dynMaxTs + 2000);
 
         if (!shouldPreferFirebase) {
           rowsToApply = dynamoRows;
           shouldSyncDynamo = false;
         } else {
           console.info(
-            `[DataContext] Inventory reconciled with Firebase (firebase=${data.length}, dynamo=${dynamoRows.length}, firebaseImages=${firebaseImageCount}, dynamoImages=${dynamoImageCount}).`
+            `[DataContext] ${path} reconciled with Firebase (fbTs=${fbMaxTs}, dynTs=${dynMaxTs}, fbLength=${data.length}, dynLength=${dynamoRows.length}).`
           );
         }
       }
@@ -350,7 +372,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const activeListeners: Array<{ refPath: EntityPath; listener: (snapshot: DataSnapshot) => void }> = [];
     const pollers: number[] = [];
 
-    Promise.all(NODE_DEFS.map((node) => fetchEntity(node.path))).finally(() => setLoading(false));
+    Promise.all(
+      NODE_DEFS
+        .filter((node) => !node.realtime)
+        .map((node) => fetchEntity(node.path))
+    ).finally(() => setLoading(false));
 
     NODE_DEFS.forEach((node) => {
       if (node.realtime) {
@@ -417,6 +443,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setGroups,
       orders,
       setOrders,
+      packingLists,
+      setPackingLists,
       parties,
       setParties,
       transporters,

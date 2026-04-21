@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { update, ref, get, push, set, serverTimestamp } from "firebase/database";
+import { update, ref, get, push, set } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
+import { useData } from "../../../../context/DataContext";
 import { logActivity } from "../../../../lib/activityLogger";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "../ui";
 import { firestoreApi } from "../../data";
@@ -30,9 +31,27 @@ interface CreatePackingListProps {
 const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", "Own Vehicle", "Other"];
 const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 const HIDDEN_ADMIN_NAME = "dev manish";
+const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+const toStockNumber = (value: unknown): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+};
+const mapInventoryForDispatch = (rows: any[]) =>
+  rows.map((item) => ({
+    id: item.id,
+    productName: item.productName || "",
+    sku: item.sku || "",
+    stock: Number(item.stock) || 0,
+    unit: item.unit || "PCS",
+    barcode: item.barcode || "",
+    category: item.category || "",
+    collection: item.collection || "",
+    brand: item.brand || "",
+  }));
 
 export default function CreatePackingList({ onClose, onCreated, editingList }: CreatePackingListProps) {
   const { user, userData, fetchAllUsers } = useAuth();
+  const { products: cachedProducts, refreshData } = useData();
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   const [parties, setParties] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -46,7 +65,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
   // Form State
   const [selectedParty, setSelectedParty] = useState<any>(null);
-  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
+  const [selectedItems, setSelectedItems] = useState<Record<number, number>>({});
   const [transporter, setTransporter] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
   const [partySearch, setPartySearch] = useState("");
@@ -94,9 +113,10 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         const users = await fetchAllUsers();
         setAllUsers(users);
 
-        // Load Inventory for SKU Fallback
+        // Trigger shared inventory refresh (Dynamo-first in DataContext).
+        refreshData("inventory");
         const inv = await firestoreApi.getInventoryProducts();
-        setInventory(inv);
+        setInventory(mapInventoryForDispatch(inv as any[]));
 
         // Load Transporters
         const trans = await firestoreApi.getTransporters();
@@ -107,9 +127,9 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
            const pMatch = partiesData.find(p => p.id === editingList.partyId);
            if (pMatch) setSelectedParty(pMatch);
            
-           const itemsMap: Record<string, number> = {};
-           (editingList.items || []).forEach((it: any) => {
-              itemsMap[it.productName] = it.quantity;
+           const itemsMap: Record<number, number> = {};
+           (editingList.items || []).forEach((it: any, idx: number) => {
+              itemsMap[idx] = it.quantity;
            });
            setSelectedItems(itemsMap);
            setTransporter(editingList.transporter || "");
@@ -122,7 +142,37 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       }
     };
     loadData();
-  }, [fetchAllUsers, editingList]);
+  }, [fetchAllUsers, editingList, refreshData]);
+
+  useEffect(() => {
+    if (Array.isArray(cachedProducts) && cachedProducts.length > 0) {
+      setInventory(mapInventoryForDispatch(cachedProducts as any[]));
+    }
+  }, [cachedProducts]);
+
+  useEffect(() => {
+    if (!selectedParty) return;
+    setSelectedItems((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      (selectedParty.rates || []).forEach((r: any, idx: number) => {
+        const rateSkuKey = normalizeSku(r.sku);
+        const invMatch =
+          inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
+          inventory.find(p => p.productName?.trim()?.toLowerCase() === (r.productName || "").trim().toLowerCase());
+        const availableStock = toStockNumber(invMatch?.stock);
+        const currentQty = Number(prev[idx]) || 0;
+        const clampedQty = Math.max(0, Math.min(currentQty, availableStock));
+        if (clampedQty !== currentQty) {
+          next[idx] = clampedQty;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [inventory, selectedParty]);
 
   const handleCreate = async () => {
     if (!selectedParty || !assignedUserId || !transporter) {
@@ -130,13 +180,34 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       return;
     }
 
+    const latestInventory = await firestoreApi.getInventoryProducts({ forceFresh: true });
+    setInventory(mapInventoryForDispatch(latestInventory as any[]));
+
+    const stockValidationErrors: string[] = [];
+
     const items = (selectedParty.rates || [])
-      .filter((r: any) => selectedItems[r.productName] > 0)
-      .map((r: any) => {
+      .map((r: any, idx: number) => ({ r, idx }))
+      .filter(({ idx }: { idx: number }) => (selectedItems[idx] || 0) > 0)
+      .map(({ r, idx }: { r: any; idx: number }) => {
         const targetName = r.productName?.trim()?.toLowerCase();
-        const invMatch = inventory.find(p => p.productName?.trim()?.toLowerCase() === targetName);
+        const rateSkuKey = normalizeSku(r.sku);
+        const invMatch =
+          latestInventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
+          latestInventory.find(p => p.productName?.trim()?.toLowerCase() === targetName);
+        const requestedQty = Number(selectedItems[idx]) || 0;
+        const availableStock = toStockNumber(invMatch?.stock);
+        const displayName = r.productName || invMatch?.productName || `Item #${idx + 1}`;
+
+        if (!invMatch) {
+          stockValidationErrors.push(`${displayName}: not found in inventory`);
+        } else if (availableStock <= 0) {
+          stockValidationErrors.push(`${displayName}: out of stock`);
+        } else if (requestedQty > availableStock) {
+          stockValidationErrors.push(`${displayName}: requested ${requestedQty}, available ${availableStock}`);
+        }
+
         return {
-          productId: r.productName,
+          productId: invMatch?.id || r.productName,
           productName: r.productName,
           sku: r.sku || invMatch?.sku || "N/A",
           barcode: invMatch?.barcode || "",
@@ -144,7 +215,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
           collectionName: invMatch?.collection || "",
           brandName: invMatch?.brand || "Eurus",
           packagingType: r.packagingType || "Box",
-          quantity: selectedItems[r.productName],
+          quantity: requestedQty,
           rate: r.rate
         };
       });
@@ -153,6 +224,11 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
     if (items.length === 0) {
       alert("Please select at least one product with a quantity greater than zero.");
+      return;
+    }
+
+    if (stockValidationErrors.length > 0) {
+      alert(`Cannot create packing list due to live stock mismatch:\n\n${stockValidationErrors.join("\n")}`);
       return;
     }
 
@@ -403,12 +479,22 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
               {isMobile ? (
               <div style={{ display: "grid", gap: 8, padding: 10 }}>
                   {(selectedParty.rates || []).map((r: any, idx: number) => {
-                    const invMatch = inventory.find(p => p.productName === r.productName);
+                    const rateSkuKey = normalizeSku(r.sku);
+                    const invMatch =
+                      inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
+                      inventory.find(p => p.productName === r.productName);
+                    const availableStock = toStockNumber(invMatch?.stock);
+                    const isOutOfStock = availableStock <= 0;
                     return (
                       <div key={idx} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff", display: "grid", gap: 8 }}>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{r.productName}</div>
-                          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>SKU: {r.sku || invMatch?.sku || "-"}</div>
+                          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                            SKU: {r.sku || invMatch?.sku || "-"} | Stock: {availableStock} {invMatch?.unit || "PCS"}
+                          </div>
+                          {isOutOfStock && (
+                            <div style={{ fontSize: 10, color: "#dc2626", fontWeight: 600, marginTop: 4 }}>Out of stock</div>
+                          )}
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                           <div>
@@ -418,13 +504,17 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                           <input 
                             type="number" 
                             min="0"
+                            max={availableStock}
+                            disabled={isOutOfStock}
                             placeholder="0"
-                            value={selectedItems[r.productName] || ""}
+                            value={selectedItems[idx] ?? ""}
                             onChange={(e) => {
-                              const val = parseInt(e.target.value) || 0;
-                              setSelectedItems({ ...selectedItems, [r.productName]: val });
+                              const raw = parseInt(e.target.value, 10);
+                              const val = Number.isFinite(raw) ? raw : 0;
+                              const clamped = Math.max(0, Math.min(val, availableStock));
+                              setSelectedItems(prev => ({ ...prev, [idx]: clamped }));
                             }}
-                            style={{ width: 78, padding: "9px 8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 12, outline: "none", color: selectedItems[r.productName] > 0 ? "#6366f1" : "#1e293b", fontWeight: selectedItems[r.productName] > 0 ? 600 : 400 }}
+                            style={{ width: 78, padding: "9px 8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 12, outline: "none", color: (selectedItems[idx] || 0) > 0 ? "#6366f1" : "#1e293b", fontWeight: (selectedItems[idx] || 0) > 0 ? 600 : 400, background: isOutOfStock ? "#f8fafc" : "#fff", cursor: isOutOfStock ? "not-allowed" : "text" }}
                           />
                         </div>
                       </div>
@@ -449,23 +539,37 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                     </thead>
                     <tbody>
                       {(selectedParty.rates || []).map((r: any, idx: number) => {
-                        const invMatch = inventory.find(p => p.productName === r.productName);
+                        const rateSkuKey = normalizeSku(r.sku);
+                        const invMatch =
+                          inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
+                          inventory.find(p => p.productName === r.productName);
+                        const availableStock = toStockNumber(invMatch?.stock);
+                        const isOutOfStock = availableStock <= 0;
                         return (
                           <tr key={idx} style={{ borderBottom: "1px solid #f8fafc" }}>
                             <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{r.productName}</td>
-                            <td style={{ padding: "14px 24px", fontSize: 13, color: "#64748b" }}>{r.sku || invMatch?.sku || "-"}</td>
+                            <td style={{ padding: "14px 24px", fontSize: 13, color: "#64748b" }}>
+                              <div>{r.sku || invMatch?.sku || "-"}</div>
+                              <div style={{ fontSize: 11, marginTop: 2, color: isOutOfStock ? "#dc2626" : "#64748b" }}>
+                                Stock: {availableStock} {invMatch?.unit || "PCS"}
+                              </div>
+                            </td>
                             <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", textAlign: "right", fontWeight: 600 }}>Rs. {r.rate}</td>
                             <td style={{ padding: "14px 24px", textAlign: "center" }}>
                               <input 
                                 type="number" 
                                 min="0"
+                                max={availableStock}
+                                disabled={isOutOfStock}
                                 placeholder="0"
-                                value={selectedItems[r.productName] || ""}
+                                value={selectedItems[idx] ?? ""}
                                 onChange={(e) => {
-                                  const val = parseInt(e.target.value) || 0;
-                                  setSelectedItems({ ...selectedItems, [r.productName]: val });
+                                  const raw = parseInt(e.target.value, 10);
+                                  const val = Number.isFinite(raw) ? raw : 0;
+                                  const clamped = Math.max(0, Math.min(val, availableStock));
+                                  setSelectedItems(prev => ({ ...prev, [idx]: clamped }));
                                 }}
-                                style={{ width: "80px", padding: "8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 14, outline: "none", color: selectedItems[r.productName] > 0 ? "#6366f1" : "#1e293b", fontWeight: selectedItems[r.productName] > 0 ? 600 : 400 }}
+                                style={{ width: "80px", padding: "8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 14, outline: "none", color: (selectedItems[idx] || 0) > 0 ? "#6366f1" : "#1e293b", fontWeight: (selectedItems[idx] || 0) > 0 ? 600 : 400, background: isOutOfStock ? "#f8fafc" : "#fff", cursor: isOutOfStock ? "not-allowed" : "text" }}
                               />
                             </td>
                           </tr>
@@ -585,7 +689,3 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     </div>
   );
 }
-
-
-
-

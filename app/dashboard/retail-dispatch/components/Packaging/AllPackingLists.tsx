@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ref, get, onValue } from "firebase/database";
+import { ref, get } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { PageHeader, Card } from "../ui";
 import { generatePackingListPdf } from "../../PackingListPdf";
+import { useData } from "../../../../context/DataContext";
+import { firestoreApi } from "../../data";
 
 export default function AllPackingLists({
   onEdit,
@@ -17,9 +19,8 @@ export default function AllPackingLists({
   onDelete?: (id: string) => void;
   canDelete?: boolean;
 }) {
+  const { packingLists, loading: dataLoading } = useData();
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
-  const [lists, setLists] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -51,16 +52,13 @@ export default function AllPackingLists({
         }
       }
 
-      const inventorySnap = await get(ref(db, "inventory"));
       const inventoryMap: Record<string, string> = {};
-      if (inventorySnap.exists()) {
-        inventorySnap.forEach((snap) => {
-          const inv = snap.val();
-          if (inv.sku && inv.barcode) {
-            inventoryMap[String(inv.sku).trim().toLowerCase()] = inv.barcode;
-          }
-        });
-      }
+      const inventory = await firestoreApi.getInventoryProducts();
+      inventory.forEach((inv) => {
+        if (inv.sku && inv.barcode) {
+          inventoryMap[String(inv.sku).trim().toLowerCase()] = inv.barcode;
+        }
+      });
 
       const mappedItems = (list.items || []).map((item: any) => {
         const skuKey = String(item.sku || "").trim().toLowerCase();
@@ -91,19 +89,7 @@ export default function AllPackingLists({
     setDownloadingAll(false);
   };
 
-  useEffect(() => {
-    const listsRef = ref(db, "packingLists");
-    const unsubscribe = onValue(listsRef, (snapshot) => {
-      const data: any[] = [];
-      snapshot.forEach((child) => {
-        data.push({ id: child.key, ...child.val() });
-      });
-      setLists(data.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const lists = (packingLists || []).slice().sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
 
   const filteredLists = lists.filter((list) => {
     const matchesSearch =
@@ -134,7 +120,7 @@ export default function AllPackingLists({
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading packing lists...</div>;
+  if (dataLoading && lists.length === 0) return <div className="p-8 text-center text-slate-500">Loading packing lists...</div>;
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }}>

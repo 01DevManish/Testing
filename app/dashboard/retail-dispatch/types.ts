@@ -129,6 +129,10 @@ export interface PackingList {
   pdfUrl?: string; // Legacy mixed field (kept for backward compatibility)
   createdAt: number;
   createdBy: string;
+  stockDeducted?: boolean;
+  dispatchBarcode?: string;
+  boxBarcodes?: Record<string, string>;
+  cancelledAt?: number;
 }
 
 export const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";

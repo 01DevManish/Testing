@@ -2,12 +2,10 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ref, onValue } from "firebase/database";
-import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { api } from "./data";
-import { Order, OrderStatus, ActiveView, PackingList } from "./types";
+import { Order, OrderStatus, ActiveView } from "./types";
 import OrderList from "./components/Items/OrderList";
 import Scanner from "./components/Box/Scanner";
 import OrderDetailsModal from "./components/Items/OrderDetailsModal";
@@ -63,6 +61,7 @@ export default function AdvancedDispatchDashboard() {
 
   const {
     orders: allOrders, setOrders,
+    packingLists, setPackingLists,
     products,
     users,
     categories, collections, brands,
@@ -80,18 +79,7 @@ export default function AdvancedDispatchDashboard() {
   const [scannedUnknownId, setScannedUnknownId] = useState("");
   const [editingPackingList, setEditingPackingList] = useState<any>(null);
   const [viewingPackingList, setViewingPackingList] = useState<any>(null);
-  const [packingLists, setPackingLists] = useState<PackingList[]>([]);
   const [statsDate, setStatsDate] = useState(new Date().toISOString().split('T')[0]);
-
-  useEffect(() => {
-    const listsRef = ref(db, "packingLists");
-    const unsubscribe = onValue(listsRef, (snapshot) => {
-      const data: PackingList[] = [];
-      snapshot.forEach((child) => { data.push({ id: child.key || "", ...child.val() } as PackingList); });
-      setPackingLists(data);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (isDesktop) setSidebarOpen(false);

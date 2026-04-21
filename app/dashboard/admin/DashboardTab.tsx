@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { UserRecord, Task, LoggedActivity } from "./types";
 import type { AdminStyles } from "./styles";
-import { get, ref, query, limitToLast, onValue, off, remove } from "firebase/database";
+import { ref, query, limitToLast, onValue, off, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
+import { useData } from "../../context/DataContext";
 import SmartImage from "../../components/SmartImage";
 import { useRouter } from "next/navigation";
 
@@ -58,10 +59,9 @@ interface DashboardTabProps {
 export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: DashboardTabProps) {
   const router = useRouter();
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [packingLists, setPackingLists] = useState<PackingList[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
   const { user, userData } = useAuth();
+  const { products, packingLists, loading: dataLoading } = useData();
 
   // New states for activity feeds
   const [dispatchSearch, setDispatchSearch] = useState("");
@@ -98,42 +98,19 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
         });
         setActivities(acts.sort((a, b) => b.timestamp - a.timestamp));
       }
-      setLoading(false);
-    });
-
-    // 2. Fetch Inventory (Live for stock status)
-    const invRef = ref(db, "inventory");
-    const unsubInv = onValue(invRef, (snap) => {
-      if (snap.exists()) {
-        const invList: Product[] = [];
-        snap.forEach(d => {
-          invList.push({ id: d.key!, ...d.val() });
-        });
-        setAllProducts(invList);
-      }
-    });
-
-    // 3. Fetch Packing Lists (Retail Dispatches)
-    const listsRef = ref(db, "packingLists");
-    const unsubLists = onValue(listsRef, (snap) => {
-      if (snap.exists()) {
-        const data: PackingList[] = [];
-        snap.forEach((child) => {
-          const val = child.val();
-          if (val.status === "Completed" || val.status === "Packed") {
-            data.push({ id: child.key!, ...val });
-          }
-        });
-        setPackingLists(data);
-      }
+      setActivityLoading(false);
     });
 
     return () => {
       off(actRef, "value", unsubActivities);
-      off(invRef, "value", unsubInv);
-      off(listsRef, "value", unsubLists);
     };
   }, []);
+
+  const allProducts = useMemo(() => products as Product[], [products]);
+  const completedPackingLists = useMemo(
+    () => (packingLists as PackingList[]).filter((item) => item.status === "Completed" || item.status === "Packed"),
+    [packingLists]
+  );
 
   const deleteActivity = async (a: Activity) => {
     const orderId = a.metadata?.orderId;
@@ -197,7 +174,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
     const yesterday = new Date(today).setDate(new Date(today).getDate() - 1);
 
     // 1. Convert Retail Packing Lists to Activity Format
-    const retailItems: Activity[] = packingLists.map(l => ({
+    const retailItems: Activity[] = completedPackingLists.map(l => ({
       id: l.id,
       type: "dispatch",
       title: "Retail Dispatch Finalized",
@@ -254,6 +231,16 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
     return new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   };
 
+  const getLiveInventoryLevel = (stockValue: number) => {
+    if (stockValue === 0) {
+      return { label: "Out of Stock", color: "#ef4444", bg: "rgba(239, 68, 68, 0.06)" };
+    }
+    if (stockValue < 10) {
+      return { label: "Low", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" };
+    }
+    return { label: "In Stock", color: "#10b981", bg: "transparent" };
+  };
+
   const ActivityGroup = ({ group, activities }: { group: string; activities: Activity[] }) => (
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 10, fontWeight: 400, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
@@ -295,7 +282,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
     };
   }, [users]);
 
-  if (loading) return (
+  if (activityLoading || dataLoading) return (
     <div style={{ padding: 100, textAlign: "center", color: "#94a3b8" }}>
       <div style={{ fontSize: 40, marginBottom: 16 }}>🔄</div>
       <div style={{ fontWeight: 400 }}>Loading Management Data...</div>
@@ -492,8 +479,11 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
             {allProducts
               .filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase()))
               .slice((inventoryPage - 1) * 5, inventoryPage * 5)
-              .map(p => (
-                <div key={p.id} style={{ ...S.activityItem, padding: "10px", borderBottom: "1px solid #f8fafc", borderRadius: 10, marginBottom: 4, background: p.stock <= p.minStock ? "rgba(239, 68, 68, 0.03)" : "transparent", display: "flex", alignItems: "center", gap: 12 }}>
+              .map(p => {
+                const stockValue = Number(p.stock || 0);
+                const stockLevel = getLiveInventoryLevel(stockValue);
+                return (
+                <div key={p.id} style={{ ...S.activityItem, padding: "10px", borderBottom: "1px solid #f8fafc", borderRadius: 10, marginBottom: 4, background: stockLevel.bg, display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f8fafc", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
                     <SmartImage
                       src={p.imageUrl || "/placeholder-prod.png"}
@@ -505,8 +495,8 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", minWidth: 0, gap: 10 }}>
                       <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.productName}</div>
-                      <div style={{ fontSize: 13, fontWeight: 400, color: p.stock <= p.minStock ? "#ef4444" : "#10b981", flexShrink: 0 }}>
-                        {p.stock} <span style={{ fontSize: 10, color: "#94a3b8" }}>{p.unit}</span>
+                      <div style={{ fontSize: 13, fontWeight: 400, color: stockLevel.color, flexShrink: 0 }}>
+                        {stockValue} <span style={{ fontSize: 10, color: "#94a3b8" }}>{p.unit}</span>
                       </div>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
@@ -518,13 +508,11 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                           </div>
                         )}
                       </div>
-                      {p.stock <= p.minStock && (
-                        <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 400 }}>Low Stock</div>
-                      )}
+                      <div style={{ fontSize: 10, color: stockLevel.color, fontWeight: 400 }}>{stockLevel.label}</div>
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             {allProducts.filter(p => !inventorySearch || p.productName.toLowerCase().includes(inventorySearch.toLowerCase()) || p.sku.toLowerCase().includes(inventorySearch.toLowerCase())).length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8", fontSize: 13 }}>No inventory found.</div>
             )}

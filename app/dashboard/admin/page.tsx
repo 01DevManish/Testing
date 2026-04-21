@@ -365,6 +365,8 @@ export default function AdminPage() {
           assignedToRole: au?.role || "employee",
           priority: taskForm.priority,
           status: "pending",
+          completionRequested: false,
+          completionApprovalStatus: "none",
           createdAt: now,
           expiresAt: expiresAt,
           createdBy: user?.uid || "",
@@ -448,6 +450,57 @@ export default function AdminPage() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleTaskCompletionDecision = async (id: string, decision: "accept" | "reject") => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    const now = Date.now();
+    const fallbackStatus: Task["status"] = task.lastWorkingStatus === "pending" ? "pending" : "in-progress";
+    const isAccept = decision === "accept";
+
+    const payload: Record<string, unknown> = {
+      completionRequested: false,
+      completionApprovalStatus: isAccept ? "approved" : "rejected",
+      completionReviewedAt: now,
+      completionReviewedBy: user?.uid || "",
+      completionRequestedAt: null,
+      completionRequestedBy: null,
+      status: isAccept ? "completed" : fallbackStatus,
+      completedAt: isAccept ? now : null,
+    };
+
+    await update(ref(db, `tasks/${id}`), payload);
+
+    setTasks((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              completionRequested: false,
+              completionApprovalStatus: isAccept ? "approved" : "rejected",
+              completionReviewedAt: now,
+              completionReviewedBy: user?.uid || "",
+              completionRequestedAt: undefined,
+              completionRequestedBy: undefined,
+              status: isAccept ? "completed" : fallbackStatus,
+              completedAt: isAccept ? now : undefined,
+            }
+          : item
+      )
+    );
+
+    await sendNotification([task.assignedTo], {
+      title: isAccept ? "Task Completion Approved" : "Task Completion Rejected",
+      message: isAccept
+        ? `Your completion request for "${task.title}" was approved by ${currentName}.`
+        : `Your completion request for "${task.title}" was rejected by ${currentName}.`,
+      type: "task",
+      actorId: user?.uid,
+      actorName: currentName,
+      link: "/dashboard",
+    });
   };
 
   const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
@@ -598,6 +651,7 @@ export default function AdminPage() {
                 handleDeleteTask={handleDeleteTask}
                 handleTaskStatus={handleTaskStatus}
                 handleUpdateTask={handleUpdateTask}
+                handleTaskCompletionDecision={handleTaskCompletionDecision}
                 assignableUsers={users.filter(u => u.role === "admin" || u.role === "manager" || u.role === "employee")}
                 loadTasks={loadTasks}
               />

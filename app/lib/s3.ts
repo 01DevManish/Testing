@@ -18,11 +18,14 @@ const s3Client = new S3Client({
  * @param contentType - MIME type of the file
  */
 export async function uploadFile(buffer: Buffer | Uint8Array, fileName: string, contentType: string) {
+  const isImage = typeof contentType === "string" && contentType.startsWith("image/");
+
   const command = new PutObjectCommand({
     Bucket: bucketName,
     Key: fileName,
     Body: buffer,
     ContentType: contentType,
+    CacheControl: isImage ? "public, max-age=31536000, immutable" : "public, max-age=86400",
   });
 
   await s3Client.send(command);

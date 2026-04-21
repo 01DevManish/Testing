@@ -3,11 +3,11 @@
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { ref, get, update, query, orderByChild, equalTo, onValue } from "firebase/database";
+import { ref, get, update, onValue } from "firebase/database";
 import { db } from "../../lib/firebase";
+import { sendNotification } from "../../lib/notificationHelper";
 import PartyRateModule from "../party-rate";
 import { PartyRate } from "../admin/types";
-import { Product } from "../inventory/types";
 import { getStyles } from "../admin/styles";
 import { useData } from "../../context/DataContext";
 import MessagingTab from "../../components/MessagingTab";
@@ -23,11 +23,15 @@ interface Task {
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
   completedAt?: number; createdAt: number;
+  completionRequested?: boolean;
+  completionRequestedAt?: number;
+  completionRequestedBy?: string;
+  completionApprovalStatus?: "none" | "requested" | "approved" | "rejected";
+  lastWorkingStatus?: "pending" | "in-progress";
   createdBy?: string; createdByName?: string;
   attachments?: { name: string; url: string }[];
 }
 
-const roleBg: Record<string, string> = { admin: "linear-gradient(135deg,#ef4444,#f97316)", manager: "linear-gradient(135deg,#f59e0b,#fbbf24)", employee: "linear-gradient(135deg,#10b981,#34d399)", user: "linear-gradient(135deg,#3b82f6,#60a5fa)" };
 const priorityColors: Record<string, string> = { low: "#10b981", medium: "#f59e0b", high: "#ef4444" };
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: "Pending", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
@@ -63,7 +67,6 @@ export default function EmployeePage() {
   const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
   const { products, categories, collections, brands, loading: fetchingGlobal } = useData();
   const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
@@ -126,21 +129,9 @@ export default function EmployeePage() {
       setFetchingTasks(false);
     });
 
-    const chatsRef = ref(db, `user_chats/${user.uid}`);
-    const unsubscribeChats = onValue(chatsRef, (snapshot) => {
-      let total = 0;
-      if (snapshot.exists()) {
-        snapshot.forEach((child) => {
-          total += (child.val().unreadCount || 0);
-        });
-      }
-      setUnreadCount(total);
-    });
-
     loadPartyRates();
     return () => {
       unsubscribe();
-      unsubscribeChats();
     };
   }, [user, loadPartyRates]);
 
@@ -151,16 +142,85 @@ export default function EmployeePage() {
   const handleLogout = async () => { await logout(); router.replace("/"); };
 
   const handleTaskStatus = async (id: string, status: Task["status"]) => {
-    const upd: Record<string, unknown> = { status }; if (status === "completed") upd.completedAt = Date.now();
-    try { await update(ref(db, `tasks/${id}`), upd); setTasks(tasks.map(t => t.id === id ? { ...t, status, ...(status === "completed" ? { completedAt: Date.now() } : {}) } : t)); } catch (e) { console.error(e); }
+    const task = tasks.find((item) => item.id === id);
+    if (!task || !user) return;
+
+    try {
+      if (status === "completed") {
+        const now = Date.now();
+        const baseStatus: "pending" | "in-progress" =
+          task.status === "in-progress" ? "in-progress" : "pending";
+
+        await update(ref(db, `tasks/${id}`), {
+          completionRequested: true,
+          completionRequestedAt: now,
+          completionRequestedBy: user.uid,
+          completionApprovalStatus: "requested",
+          lastWorkingStatus: baseStatus,
+          completedAt: null,
+        });
+
+        setTasks((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  completionRequested: true,
+                  completionRequestedAt: now,
+                  completionRequestedBy: user.uid,
+                  completionApprovalStatus: "requested",
+                  lastWorkingStatus: baseStatus,
+                  completedAt: undefined,
+                }
+              : item
+          )
+        );
+
+        const adminUids = users.filter((u) => u.role === "admin").map((u) => u.uid);
+        await sendNotification(adminUids, {
+          title: "Task Completion Request",
+          message: `${userData?.name || "Employee"} requested completion approval for "${task.title}".`,
+          type: "task",
+          actorId: user.uid,
+          actorName: userData?.name || "Employee",
+          link: "/dashboard/admin",
+        });
+        return;
+      }
+
+      await update(ref(db, `tasks/${id}`), {
+        status,
+        completionRequested: false,
+        completionApprovalStatus: "none",
+        completionRequestedAt: null,
+        completionRequestedBy: null,
+        completedAt: null,
+      });
+
+      setTasks((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status,
+                completionRequested: false,
+                completionApprovalStatus: "none",
+                completionRequestedAt: undefined,
+                completionRequestedBy: undefined,
+                completedAt: undefined,
+              }
+            : item
+        )
+      );
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const filteredTasks = taskFilter === "all" ? tasks : tasks.filter(t => t.status === taskFilter);
   const taskStats = { total: tasks.length, pending: tasks.filter(t => t.status === "pending").length, inProgress: tasks.filter(t => t.status === "in-progress").length, completed: tasks.filter(t => t.status === "completed").length };
   const greetHour = new Date().getHours();
   const greeting = greetHour < 12 ? "Good Morning" : greetHour < 17 ? "Good Afternoon" : "Good Evening";
-
-  const SIDEBAR_WIDTH = 260;
 
   const S = getStyles(isMobile, isTablet, isDesktop, sidebarOpen, isCollapsed);
 
@@ -231,7 +291,7 @@ export default function EmployeePage() {
                   </button>
                 ))}
                 {isMobile && (
-                  <select value={taskFilter} onChange={(e) => setTaskFilter(e.target.value as any)} style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, background: "#fff" }}>
+                  <select value={taskFilter} onChange={(e) => setTaskFilter(e.target.value as "all" | "pending" | "in-progress" | "completed")} style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, background: "#fff" }}>
                     <option value="all">All Status</option>
                     <option value="pending">Pending</option>
                     <option value="in-progress">In Progress</option>
@@ -256,11 +316,15 @@ export default function EmployeePage() {
                 <div style={{ overflowX: "auto" }}>
                   {isMobile ? (
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                      {filteredTasks.map((t) => (
+                      {filteredTasks.map((t) => {
+                        const completionRequested = Boolean(t.completionRequested || t.completionApprovalStatus === "requested");
+                        return (
                         <div key={t.id} style={{ padding: "16px", borderBottom: "1px solid #f1f5f9" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                             <span style={{ ...S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`), textTransform: "capitalize" }}>{t.priority}</span>
-                            <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>{statusConfig[t.status]?.label}</span>
+                            <span style={S.badge(completionRequested ? "#0ea5e9" : (statusConfig[t.status]?.color || "#94a3b8"), completionRequested ? "rgba(14,165,233,0.12)" : (statusConfig[t.status]?.bg || "transparent"))}>
+                              {completionRequested ? "Completion Requested" : statusConfig[t.status]?.label}
+                            </span>
                           </div>
                           <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 15, marginBottom: 4 }}>{t.title}</div>
                           {t.description && <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, marginBottom: 12 }}>{t.description}</div>}
@@ -278,16 +342,19 @@ export default function EmployeePage() {
                             style={{ width: "100%", padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, fontWeight: 400, background: "#f8fafc" }}>
                             <option value="pending">Mark Pending</option>
                             <option value="in-progress">Start Progress</option>
-                            <option value="completed">Mark Completed</option>
+                            <option value="completed">Request Completed</option>
                           </select>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
                       <thead><tr><th style={S.th}>Task Description</th><th style={S.th}>Priority</th><th style={S.th}>Status</th><th style={{ ...S.th, textAlign: "right" }}>Update Progress</th></tr></thead>
                       <tbody>
-                        {filteredTasks.map((t) => (
+                        {filteredTasks.map((t) => {
+                          const completionRequested = Boolean(t.completionRequested || t.completionApprovalStatus === "requested");
+                          return (
                           <tr key={t.id} style={{ transition: "background 0.15s" }}>
                             <td style={S.td}>
                               <div style={{ fontWeight: 400, color: "#1e293b", marginBottom: 2 }}>{t.title}</div>
@@ -305,8 +372,8 @@ export default function EmployeePage() {
                             </td>
                             <td style={S.td}><span style={{ ...S.badge(priorityColors[t.priority], `${priorityColors[t.priority]}12`), textTransform: "capitalize" }}>{t.priority}</span></td>
                             <td style={S.td}>
-                              <span style={S.badge(statusConfig[t.status]?.color || "#94a3b8", statusConfig[t.status]?.bg || "transparent")}>
-                                {statusConfig[t.status]?.label}
+                              <span style={S.badge(completionRequested ? "#0ea5e9" : (statusConfig[t.status]?.color || "#94a3b8"), completionRequested ? "rgba(14,165,233,0.12)" : (statusConfig[t.status]?.bg || "transparent"))}>
+                                {completionRequested ? "Completion Requested" : statusConfig[t.status]?.label}
                               </span>
                             </td>
                             <td style={{ ...S.td, textAlign: "right" }}>
@@ -314,11 +381,12 @@ export default function EmployeePage() {
                                 style={{ padding: "8px 12px", fontSize: 13, fontWeight: 400, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", cursor: "pointer" }}>
                                 <option value="pending">Mark Pending</option>
                                 <option value="in-progress">Start Progress</option>
-                                <option value="completed">Mark Completed</option>
+                                <option value="completed">Request Completed</option>
                               </select>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}

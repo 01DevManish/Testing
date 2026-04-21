@@ -1,9 +1,10 @@
 import { normalizeStorageImageUrl } from "../../../../lib/urlUtils";
 
 const REGION = process.env.NEXT_PUBLIC_AWS_S3_REGION || "ap-south-1";
-const BUCKET = process.env.NEXT_PUBLIC_AWS_S3_BUCKET || "epanelimages";
+const BUCKET = process.env.NEXT_PUBLIC_AWS_S3_BUCKET || process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME || "eurusimages";
 const ARCHIVE_PREFIX = process.env.NEXT_PUBLIC_S3_ARCHIVE_PREFIX || "Cloudinary_Archive_2026-04-10_10_27_479_Originals/";
 const CLOUDFRONT_DOMAIN = process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN; // e.g., https://d123.cloudfront.net
+const normalizedCloudfrontHost = (CLOUDFRONT_DOMAIN || "").replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
 
 /**
  * Resolves any image URL to its S3 counterpart.
@@ -28,9 +29,6 @@ if (typeof window !== "undefined") {
 
 export const resolveS3Url = (url: string): string => {
     if (!url) return "";
-    
-    // If it's already an S3 URL, return as is
-    if (url.includes("amazonaws.com")) return url;
 
     // If it's a Cloudinary URL, map to our S3 Archive
     if (url.includes("cloudinary.com")) {
@@ -186,23 +184,35 @@ export const uploadImage = async (base64OrUrl: string, sku?: string): Promise<st
 export const extractImageKey = (url: string): string | null => {
     if (!url) return null;
     try {
+        const trimmed = url.trim();
+
+        // If a direct storage key is passed, use as-is.
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            return trimmed.replace(/^\/+/, "").split("?")[0] || null;
+        }
+
+        const parsed = new URL(trimmed);
+        const host = parsed.host.toLowerCase();
+        const rawPath = parsed.pathname.replace(/^\/+/, "");
+        const cleanPath = decodeURIComponent(rawPath);
+
         // Handle Cloudinary URLs (Legacy)
-        if (url.includes("cloudinary.com")) {
-            const parts = url.split("/");
+        if (host.includes("cloudinary.com")) {
+            const parts = parsed.pathname.split("/");
             const lastPart = parts[parts.length - 1];
             return lastPart.split(".")[0];
         }
         
         // Handle AWS S3 URLs
-        if (url.includes("amazonaws.com")) {
-            // S3 pattern: https://[bucket].s3.[region].amazonaws.com/[key]
-            const domainParts = url.split(".amazonaws.com/");
-            if (domainParts.length > 1) {
-                const keyWithParams = domainParts[1];
-                // Remove any query params
-                return keyWithParams.split("?")[0];
-            }
+        if (host.includes("amazonaws.com")) {
+            return cleanPath || null;
         }
+
+        // Handle CloudFront URLs mapped to the same S3 key path
+        if (normalizedCloudfrontHost && host === normalizedCloudfrontHost) {
+            return cleanPath || null;
+        }
+
         return null;
     } catch (err) {
         console.error("Error extracting ID from URL:", err);
@@ -215,13 +225,13 @@ export const extractImageKey = (url: string): string | null => {
  */
 export const deleteImage = async (imageUrl: string): Promise<boolean> => {
     const key = extractImageKey(imageUrl);
-    if (!key) return false;
+    if (!key && !imageUrl) return false;
 
     try {
         const res = await fetch("/api/delete-image", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ key })
+            body: JSON.stringify({ key, imageUrl })
         });
         const data = await res.json();
         return data.result === "ok" || data.result === "deleted";

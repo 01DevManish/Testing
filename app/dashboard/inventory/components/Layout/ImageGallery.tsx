@@ -18,12 +18,17 @@ export default function ImageGallery({ images, onImagesChange, maxImages = 10 }:
 
         const remainingSlots = maxImages - images.length;
         const filesToProcess = files.slice(0, remainingSlots);
+        let nextImages = [...images];
 
         filesToProcess.forEach(file => {
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const result = ev.target?.result as string;
-                onImagesChange([...images, result]);
+                if (!result) return;
+                // Keep an incremental local array to avoid stale-closure overwrites
+                // when multiple files finish reading in different order.
+                nextImages = [...nextImages, result];
+                onImagesChange(nextImages);
             };
             reader.readAsDataURL(file);
         });

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { ref, get, update } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
+import { useData } from "../../../../context/DataContext";
 import { logActivity } from "../../../../lib/activityLogger";
 import { generateBoxBarcode, generateDispatchBarcode } from "../../../../lib/barcodeUtils";
 import { PageHeader, BtnPrimary, BtnGhost, Card } from "../ui";
@@ -34,8 +35,12 @@ const normalizeScannerImageUrl = (raw?: string): string => {
   return `https://epanelimages.s3.ap-south-1.amazonaws.com/${value.replace(/^\/+/, "")}`;
 };
 
+const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+const normalizeCode = (value?: string): string => (value || "").trim().toUpperCase();
+
 export default function CreateDispatchList({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { user, userData } = useAuth();
+  const { refreshData } = useData();
   const [packingLists, setPackingLists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,7 +122,8 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
 
     const expanded: ScannableItem[] = [];
     list.items.forEach((item: any) => {
-      const invProd = inventory.find(p => p.id === item.productId || p.sku === item.sku);
+      const itemSkuKey = normalizeSku(item.sku);
+      const invProd = inventory.find(p => p.id === item.productId || normalizeSku(p.sku) === itemSkuKey);
       const barcode = invProd?.barcode || "";
       const firstGalleryImage = Array.isArray(invProd?.imageUrls)
         ? (invProd.imageUrls.find((img: unknown) => typeof img === "string" && img.trim()) || "")
@@ -209,13 +215,15 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     
     // 2. Helper to check if a code matches an item
     const isMatching = (item: any, scanCode: string) => {
-      // Prioritize Barcode if available
-      if (item.barcode) {
-        return scanCode === item.barcode;
-      }
-      
-      // Fallback to EXACT SKU matching (no substring matching for accuracy)
-      return scanCode.toUpperCase() === (item.sku || "").toUpperCase();
+      const normalizedScan = normalizeCode(scanCode);
+      const normalizedBarcode = normalizeCode(item?.barcode);
+      const normalizedSku = normalizeCode(item?.sku);
+      if (!normalizedScan) return false;
+
+      // Accept either mapped barcode or exact SKU (scanner might send either code type).
+      if (normalizedBarcode && normalizedScan === normalizedBarcode) return true;
+      if (normalizedSku && normalizedScan === normalizedSku) return true;
+      return false;
     };
 
     // 3. Check if we have a match at all
@@ -269,7 +277,11 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       const targetSkuDigits = (item.sku || "").replace(/\D/g, "");
       const targetSkuPart = targetSkuDigits.substring(targetSkuDigits.length - 3).padStart(3, "0");
 
-      if (scannedSkuPart === targetSkuPart || value.trim() === item.barcode || value.trim().toUpperCase() === item.sku.toUpperCase()) {
+      if (
+        scannedSkuPart === targetSkuPart ||
+        normalizeCode(value) === normalizeCode(item.barcode) ||
+        normalizeCode(value) === normalizeCode(item.sku)
+      ) {
         if (!item.boxName) return;
         newItems[idx].isPacked = true;
         setScannableItems(newItems);
@@ -325,6 +337,55 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         return acc;
       }, []);
 
+      const deductionMap = new Map<string, { qty: number; productId?: string; sku?: string; productName?: string }>();
+      for (const item of scannableItems) {
+        const skuKey = normalizeSku(item.sku);
+        const dedupeKey = item.productId
+          ? `id:${item.productId}`
+          : (skuKey && skuKey !== "n/a" ? `sku:${skuKey}` : "");
+
+        if (!dedupeKey) {
+          console.warn("Item skipped for stock deduction because it lacks both productId and valid SKU:", item);
+          continue;
+        }
+
+        if (!deductionMap.has(dedupeKey)) {
+          deductionMap.set(dedupeKey, {
+            qty: 1,
+            productId: item.productId,
+            sku: item.sku,
+            productName: item.productName
+          });
+        } else {
+          deductionMap.get(dedupeKey)!.qty += 1;
+        }
+      }
+
+      // Live inventory check right before finalization to block out-of-stock dispatches.
+      const latestInventory = await firestoreApi.getInventoryProducts({ forceFresh: true });
+      const stockIssues: string[] = [];
+
+      for (const { qty, productId, sku, productName } of deductionMap.values()) {
+        const skuKey = normalizeSku(sku);
+        const invProd =
+          latestInventory.find((p: any) => productId && p.id === productId) ||
+          latestInventory.find((p: any) => skuKey && skuKey !== "n/a" && normalizeSku(p.sku) === skuKey);
+
+        const currentStock = Number(invProd?.stock) || 0;
+        if (!invProd?.id) {
+          stockIssues.push(`${productName || sku || "Item"}: not found in inventory`);
+        } else if (currentStock <= 0) {
+          stockIssues.push(`${productName || invProd.productName || sku || "Item"}: out of stock`);
+        } else if (qty > currentStock) {
+          stockIssues.push(`${productName || invProd.productName || sku || "Item"}: required ${qty}, available ${currentStock}`);
+        }
+      }
+
+      if (stockIssues.length > 0) {
+        alert(`Cannot finalize dispatch due to live stock mismatch:\n\n${stockIssues.join("\n")}`);
+        return;
+      }
+
       await update(listRef, {
         status: "Packed",
         invoiceNo,
@@ -335,8 +396,24 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         bails: totalBoxes,
         items: updatedRecordItems, 
         dispatchedAt: Date.now(),
-        dispatchedBy: userData?.name || user?.name || "System"
+        dispatchedBy: userData?.name || user?.name || "System",
+        stockDeducted: true
       });
+
+      for (const { qty, productId, sku, productName } of deductionMap.values()) {
+        const skuKey = normalizeSku(sku);
+        const invProd =
+          latestInventory.find((p: any) => productId && p.id === productId) ||
+          latestInventory.find((p: any) => skuKey && skuKey !== "n/a" && normalizeSku(p.sku) === skuKey);
+
+        if (invProd?.id) {
+          await firestoreApi.deductStock(invProd.id, qty);
+        } else {
+          console.warn("Could not find inventory product to deduct stock:", { productId, sku, productName, qty });
+        }
+      }
+      
+      refreshData("inventory");
 
       await logActivity({
         type: "dispatch",
@@ -366,8 +443,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       setSaving(false);
     }
   };
-
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading packing lists...</div>;
+if (loading) return <div className="p-8 text-center text-slate-500">Loading packing lists...</div>;
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }}>
@@ -393,7 +469,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
                    <div className="flex items-center justify-between gap-3">
                      <div className="text-sm font-bold text-slate-800">#{list.id.slice(-6)}</div>
                      <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
-                       {list.items?.length || 0} Items
+                       {list.items?.reduce((acc: number, val: any) => acc + (Number(val.quantity) || 1), 0) || 0} Items
                      </div>
                    </div>
                    <div className="mt-2 text-sm font-semibold text-slate-700">{list.partyName}</div>

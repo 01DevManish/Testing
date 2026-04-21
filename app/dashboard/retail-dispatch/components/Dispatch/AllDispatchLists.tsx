@@ -1,23 +1,30 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { get, onValue, ref, update } from "firebase/database";
+import { get, ref, remove, update } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { PackingList } from "../../types";
+import { firestoreApi } from "../../data";
+import { useAuth } from "../../../../context/AuthContext";
+import { useData } from "../../../../context/DataContext";
 import { generateDispatchListPdf } from "../../DispatchListPdf";
 import { generatePackingListPdf } from "../../PackingListPdf";
 
+const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+
 export default function AllDispatchLists() {
+  const { userData } = useAuth();
+  const { refreshData, packingLists: allPackingLists, loading: dataLoading } = useData();
+  const isAdmin = userData?.role === "admin";
   const PAGE_SIZE = 3;
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
-  const [lists, setLists] = useState<PackingList[]>([]);
-  const [loading, setLoading] = useState(true);
   const [tempLr, setTempLr] = useState<Record<string, string>>({});
   const [updating, setUpdating] = useState<string | null>(null);
   const [editingLrId, setEditingLrId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "packed" | "completed">("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
   const isMobile = viewportWidth < 640;
 
@@ -27,23 +34,13 @@ export default function AllDispatchLists() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  useEffect(() => {
-    const listsRef = ref(db, "packingLists");
-    const unsubscribe = onValue(listsRef, (snapshot) => {
-      const data: PackingList[] = [];
-      snapshot.forEach((child) => {
-        const value = child.val();
-        if (value.status === "Completed" || value.status === "Packed") {
-          data.push({ id: child.key, ...value });
-        }
-      });
-      data.sort((a, b) => (Number(b.dispatchedAt) || 0) - (Number(a.dispatchedAt) || 0));
-      setLists(data);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const lists = useMemo(() => {
+    const rows = (allPackingLists || [])
+      .filter((list) => list.status === "Completed" || list.status === "Packed")
+      .slice()
+      .sort((a, b) => (Number(b.dispatchedAt) || 0) - (Number(a.dispatchedAt) || 0));
+    return rows as PackingList[];
+  }, [allPackingLists]);
 
   const handleFinalize = async (id: string) => {
     const lrVal = tempLr[id];
@@ -69,6 +66,84 @@ export default function AllDispatchLists() {
       alert("Failed to update LR Number");
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const handleCancelDispatch = async (list: PackingList) => {
+    if (!list.id) return;
+    const confirm1 = window.confirm(
+      `Are you sure you want to cancel Dispatch "${list.dispatchId || list.id.slice(-6)}"?\n\nThis action will:\n• Reset the dispatch status to Pending\n• Restore deducted stock quantities to inventory`
+    );
+    if (!confirm1) return;
+
+    setCancelling(list.id);
+    try {
+      // 1. Restore stock to inventory
+      if (list.stockDeducted && list.items && list.items.length > 0) {
+        const inventory = await firestoreApi.getInventoryProducts({ forceFresh: true });
+        const deductionMap = new Map<string, { qty: number; productId?: string; sku?: string; productName?: string }>();
+        
+        for (const item of list.items as any[]) {
+          const sku = typeof item?.sku === "string" ? item.sku : "";
+          const skuKey = normalizeSku(sku);
+          const productId = typeof item?.productId === "string" ? item.productId : undefined;
+          const dedupeKey = productId
+            ? `id:${productId}`
+            : (skuKey && skuKey !== "n/a" ? `sku:${skuKey}` : "");
+
+          if (!dedupeKey) {
+            console.warn("Item skipped for stock restoration because it lacks both productId and valid SKU:", item);
+            continue;
+          }
+
+          if (!deductionMap.has(dedupeKey)) {
+            deductionMap.set(dedupeKey, {
+              qty: 0,
+              productId,
+              sku,
+              productName: typeof item?.productName === "string" ? item.productName : undefined
+            });
+          }
+          deductionMap.get(dedupeKey)!.qty += (Number(item.quantity) || 1);
+        }
+
+        for (const { qty, productId, sku, productName } of deductionMap.values()) {
+          const skuKey = normalizeSku(sku);
+          const invProd =
+            inventory.find((p: any) => productId && p.id === productId) ||
+            inventory.find((p: any) => skuKey && skuKey !== "n/a" && normalizeSku(p.sku) === skuKey);
+
+          if (invProd?.id) {
+             // Pass negative quantity to restore stock
+             await firestoreApi.deductStock(invProd.id, -qty);
+          } else {
+             console.warn("Could not find inventory product to restore stock:", { productId, sku, productName, qty });
+          }
+        }
+      }
+
+      // 2. Reset PackingList status — back to "In Progress"
+      await update(ref(db, `packingLists/${list.id}`), {
+        status: "In Progress",
+        stockDeducted: false,
+        dispatchId: null,
+        dispatchBarcode: null,
+        invoiceNo: null,
+        lrNo: null,
+        dispatchedAt: null,
+        dispatchedBy: null,
+        bails: null,
+        boxBarcodes: null,
+        cancelledAt: Date.now(),
+      });
+
+      alert("Dispatch cancelled successfully and stock restored! ✅");
+      refreshData("inventory");
+    } catch (err) {
+      console.error("Cancel dispatch failed:", err);
+      alert("Error cancelling dispatch. Please check the console.");
+    } finally {
+      setCancelling(null);
     }
   };
 
@@ -181,7 +256,7 @@ export default function AllDispatchLists() {
     return { label: "Pending LR", color: "#3730a3", bg: "#eef2ff", border: "#c7d2fe" };
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading history...</div>;
+  if (dataLoading && lists.length === 0) return <div className="p-8 text-center text-slate-500">Loading history...</div>;
 
   return (
     <div style={{ width: "100%" }}>
@@ -324,7 +399,7 @@ export default function AllDispatchLists() {
                           placeholder="Enter LR No."
                           value={tempLr[list.id || ""] || ""}
                           onChange={(e) => setTempLr((prev) => ({ ...prev, [list.id || ""]: e.target.value }))}
-                            style={{ width: "100%", padding: "10px 11px", border: "1.5px solid #dbe4f0", borderRadius: 10, fontSize: 11, outline: "none", background: "#fff" }}
+                          style={{ width: "100%", padding: "10px 11px", border: "1.5px solid #dbe4f0", borderRadius: 10, fontSize: 11, outline: "none", background: "#fff" }}
                         />
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
                           <button
@@ -343,44 +418,62 @@ export default function AllDispatchLists() {
                         </div>
                       </>
                     ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "repeat(4, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: 6 }}>
                         <button
                           onClick={() => list.id && setEditingLrId(list.id)}
-                          style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
+                          style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
                         >
                           Set LR
                         </button>
                         <button
                           onClick={() => handleDownload(list, "dispatch")}
-                          style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
+                          style={{ background: "#4f46e5", border: "none", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
                         >
                           Disp
                         </button>
                         <button
                           onClick={() => handleDownload(list, "packing")}
-                          style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
+                          style={{ background: "#4f46e5", border: "none", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
                         >
                           Pack
                         </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleCancelDispatch(list)}
+                            disabled={cancelling === list.id}
+                            style={{ background: cancelling === list.id ? "#fee2e2" : "#fff", color: "#dc2626", border: "1.5px solid #fca5a5", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", cursor: cancelling === list.id ? "not-allowed" : "pointer" }}
+                          >
+                            {cancelling === list.id ? "..." : "Cancel"}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
 
                 {list.status !== "Packed" && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 6 }}>
                     <button
                       onClick={() => handleDownload(list, "dispatch")}
-                      style={{ background: "#4f46e5", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       Disp
                     </button>
                     <button
                       onClick={() => handleDownload(list, "packing")}
-                      style={{ background: "#4f46e5", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       Pack
                     </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleCancelDispatch(list)}
+                        disabled={cancelling === list.id}
+                        style={{ background: cancelling === list.id ? "#fee2e2" : "#fff", color: "#dc2626", border: "1.5px solid #fca5a5", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", cursor: cancelling === list.id ? "not-allowed" : "pointer" }}
+                      >
+                        {cancelling === list.id ? "..." : "Cancel"}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -526,6 +619,16 @@ export default function AllDispatchLists() {
                           >
                             Pack
                           </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleCancelDispatch(list)}
+                              disabled={cancelling === list.id}
+                              title="Cancel Dispatch & Restore Stock"
+                              style={{ background: cancelling === list.id ? "#fee2e2" : "#fff", color: "#dc2626", border: "1.5px solid #fca5a5", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: cancelling === list.id ? "not-allowed" : "pointer", whiteSpace: "nowrap", opacity: cancelling === list.id ? 0.7 : 1 }}
+                            >
+                              {cancelling === list.id ? "Cancelling..." : "Cancel"}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

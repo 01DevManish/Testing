@@ -25,6 +25,13 @@ export interface Task {
   createdAt: number;
   expiresAt?: number;
   completedAt?: number;
+  completionRequested?: boolean;
+  completionRequestedAt?: number;
+  completionRequestedBy?: string;
+  completionApprovalStatus?: "none" | "requested" | "approved" | "rejected";
+  completionReviewedAt?: number;
+  completionReviewedBy?: string;
+  lastWorkingStatus?: "pending" | "in-progress";
   createdBy: string;
   createdByName: string;
   attachments?: { name: string; url: string }[];

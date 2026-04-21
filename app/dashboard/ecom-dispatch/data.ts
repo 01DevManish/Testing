@@ -3,6 +3,56 @@ import { ref, get, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 
+type InventoryDispatchProduct = {
+  id: string;
+  productName: string;
+  price: number;
+  stock: number;
+  sku?: string;
+  unit?: string;
+};
+
+const INVENTORY_CACHE_TTL_MS = 45 * 1000;
+let inventoryCache: { ts: number; data: InventoryDispatchProduct[] } | null = null;
+let inventoryFetchPromise: Promise<InventoryDispatchProduct[]> | null = null;
+
+const cloneInventory = (rows: InventoryDispatchProduct[]): InventoryDispatchProduct[] =>
+  rows.map((row) => ({ ...row }));
+
+const mapInventoryRow = (id: string, data: Record<string, any>): InventoryDispatchProduct => ({
+  id,
+  productName: data.productName || "Unknown",
+  price: Number(data.price) || 0,
+  stock: Number(data.stock) || 0,
+  sku: data.sku || "N/A",
+  unit: data.unit || "PCS",
+});
+
+const fetchInventoryFromDynamoApi = async (): Promise<InventoryDispatchProduct[]> => {
+  const res = await fetch("/api/data/inventory", { cache: "no-store" });
+  if (!res.ok) throw new Error(`Inventory API failed: ${res.status}`);
+  const json = await res.json();
+  if (!Array.isArray(json?.items)) return [];
+  return json.items
+    .map((item: Record<string, any>) => {
+      const id = typeof item.id === "string" ? item.id : "";
+      if (!id) return null;
+      return mapInventoryRow(id, item);
+    })
+    .filter((row: InventoryDispatchProduct | null): row is InventoryDispatchProduct => Boolean(row));
+};
+
+const fetchInventoryFromFirebase = async (): Promise<InventoryDispatchProduct[]> => {
+  const snap = await get(ref(db, "inventory"));
+  const rows: InventoryDispatchProduct[] = [];
+  if (snap.exists()) {
+    snap.forEach((d) => {
+      rows.push(mapInventoryRow(d.key as string, d.val() || {}));
+    });
+  }
+  return rows;
+};
+
 // ── Firebase API for Dispatch ──
 
 export const firestoreApi = {
@@ -51,26 +101,43 @@ export const firestoreApi = {
     return { id: newRef.key as string, ...t };
   },
 
-  // Inventory - Fetch real items from inventory node
-  getInventoryProducts: async (): Promise<{ id: string; productName: string; price: number; stock: number; sku?: string; unit?: string }[]> => {
-    try {
-      const snap = await get(ref(db, "inventory"));
-      const list: { id: string; productName: string; price: number; stock: number; sku?: string; unit?: string }[] = [];
-      if (snap.exists()) {
-        snap.forEach(d => {
-          const data = d.val();
-          list.push({ 
-            id: d.key as string, 
-            productName: data.productName || "Unknown", 
-            price: data.price || 0, 
-            stock: data.stock || 0,
-            sku: data.sku || "N/A",
-            unit: data.unit || "PCS"
-          });
-        });
+  // Inventory - Dynamo-first + short cache
+  getInventoryProducts: async (opts?: { forceFresh?: boolean }): Promise<InventoryDispatchProduct[]> => {
+    const forceFresh = Boolean(opts?.forceFresh);
+    const now = Date.now();
+    if (!forceFresh && inventoryCache && (now - inventoryCache.ts) < INVENTORY_CACHE_TTL_MS) {
+      return cloneInventory(inventoryCache.data);
+    }
+    if (!forceFresh && inventoryFetchPromise) {
+      return inventoryFetchPromise;
+    }
+
+    const fetcher = (async (): Promise<InventoryDispatchProduct[]> => {
+      try {
+        let rows: InventoryDispatchProduct[] = [];
+        try {
+          rows = await fetchInventoryFromDynamoApi();
+        } catch (apiErr) {
+          console.warn("[EcomDispatch] Inventory API unavailable, falling back to Firebase.", apiErr);
+        }
+        if (rows.length === 0) rows = await fetchInventoryFromFirebase();
+        inventoryCache = { ts: Date.now(), data: rows };
+        return cloneInventory(rows);
+      } catch (e) {
+        console.error(e);
+        return [];
+      } finally {
+        inventoryFetchPromise = null;
       }
-      return list;
-    } catch (e) { console.error(e); return []; }
+    })();
+
+    if (!forceFresh) inventoryFetchPromise = fetcher;
+    return fetcher;
+  },
+
+  invalidateInventoryCache: () => {
+    inventoryCache = null;
+    inventoryFetchPromise = null;
   },
 
   // Atomic Stock Deduction & Status Update
@@ -100,6 +167,7 @@ export const firestoreApi = {
           status: newStatus,
           updatedAt: Date.now() 
         });
+        firestoreApi.invalidateInventoryCache();
         
         console.log(`Deducted ${quantityToDeduct} from ${productId}. New stock: ${newStock}, Status: ${newStatus}`);
         return true;

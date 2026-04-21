@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { api, firestoreApi } from "../../data";
 import { useAuth } from "../../../../context/AuthContext";
+import { useData } from "../../../../context/DataContext";
 import { ref, update } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -64,6 +65,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
     dispatchType?: "retail" | "ecom";
 }) {
     const { user, userData } = useAuth();
+    const { refreshData } = useData();
     const [step, setStep] = useState(1);
     const [form, setForm] = useState<DispatchForm>({
         party: null, 
@@ -220,8 +222,26 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
 
         setIsSaving(true);
         try {
-            // Deduct Stock
+            // Live stock guard before deduction to block out-of-stock dispatches.
             if (!form.isNewProduct && form.product) {
+                const latestInventory = await firestoreApi.getInventoryProducts({ forceFresh: true });
+                const liveProduct = latestInventory.find((p) => p.id === form.product!.id);
+                const liveStock = Number(liveProduct?.stock) || 0;
+                if (!liveProduct) {
+                    setPinError("Selected product no longer exists in inventory.");
+                    setIsSaving(false);
+                    return;
+                }
+                if (liveStock <= 0) {
+                    setPinError("Cannot dispatch: product is out of stock.");
+                    setIsSaving(false);
+                    return;
+                }
+                if (form.quantity > liveStock) {
+                    setPinError(`Cannot dispatch: requested ${form.quantity}, available ${liveStock}.`);
+                    setIsSaving(false);
+                    return;
+                }
                 await firestoreApi.deductStock(form.product.id, form.quantity);
             }
 
@@ -268,6 +288,9 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                 dispatchType: dispatchType,
                 stockDeducted: !form.isNewProduct && !!form.product
             });
+
+            // Keep inventory views (including stock adjustment) in sync right after dispatch creation.
+            refreshData("inventory");
 
             // Log activity
             await logActivity({
@@ -590,12 +613,22 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                                             <input value={productSearch} placeholder="Search Product" onChange={e => setProductSearch(e.target.value)} style={inputStyle} />
                                             <div style={{ ...listBox, marginTop: 8 }}>
                                                 {filteredProducts.map(p => (
-                                                    <div key={p.id} onClick={() => setForm(f => ({ ...f, product: p }))}
-                                                        style={{ ...listItem, background: form.product?.id === p.id ? "#f0fdf4" : "#fff", borderColor: form.product?.id === p.id ? "#22c55e" : "#e2e8f0" }}>
+                                                    <div
+                                                        key={p.id}
+                                                        onClick={() => { if (p.stock > 0) setForm(f => ({ ...f, product: p })); }}
+                                                        style={{
+                                                            ...listItem,
+                                                            background: form.product?.id === p.id ? "#f0fdf4" : "#fff",
+                                                            borderColor: form.product?.id === p.id ? "#22c55e" : "#e2e8f0",
+                                                            opacity: p.stock <= 0 ? 0.6 : 1,
+                                                            cursor: p.stock <= 0 ? "not-allowed" : "pointer"
+                                                        }}
+                                                    >
                                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                                             <div>
                                                                 <div style={{ fontWeight: 400, color: "#0f172a", fontSize: 14 }}>{p.name}</div>
                                                                 <div style={{ fontSize: 12, color: "#64748b" }}>SKU: {p.sku} &nbsp;·&nbsp; <b className="text-emerald-600">Stock: {p.stock} {p.unit}</b></div>
+                                                                {p.stock <= 0 && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 3 }}>Out of stock</div>}
                                                             </div>
                                                             {form.product?.id === p.id && <span style={{ color: "#22c55e", fontWeight: 400, fontSize: 18 }}>✓</span>}
                                                         </div>
