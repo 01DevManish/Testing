@@ -31,6 +31,45 @@ const toText = (value: unknown): string => {
   return String(value).trim();
 };
 
+const compactAddressForPdf = (value: unknown, maxTextWidth: number, doc: jsPDF): string => {
+  const text = toText(value);
+  if (!text) return "";
+
+  // If full address fits, keep it unchanged.
+  if (doc.getTextWidth(text) <= maxTextWidth) return text;
+
+  // Build segment-by-segment and keep only up to the last comma that still fits.
+  const parts = text
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (!parts.length) return "";
+
+  let fitted = "";
+  for (const part of parts) {
+    const next = fitted ? `${fitted}, ${part}` : part;
+    if (doc.getTextWidth(next) <= maxTextWidth) {
+      fitted = next;
+    } else {
+      break;
+    }
+  }
+
+  // Fallback: if even first comma-part doesn't fit, clip by characters.
+  if (!fitted) {
+    let out = "";
+    for (const ch of parts[0]) {
+      const next = out + ch;
+      if (doc.getTextWidth(next) <= maxTextWidth) out = next;
+      else break;
+    }
+    return out.trim();
+  }
+
+  return fitted;
+};
+
 const resolveItemCategoriesFromInventory = async (items: PackingPdfItem[]): Promise<PackingPdfItem[]> => {
   if (!items.length) return items;
 
@@ -186,7 +225,13 @@ export const generatePackingListPdf = async (
   };
 
   drawField("Party Name:", list.partyName || "", 40, infoY, 300);
-  drawField("Address:", list.partyAddress || "", 40, infoY + infoLineH, 300);
+  const addressLabel = "Address:";
+  const addressValue = compactAddressForPdf(
+    list.partyAddress,
+    300 - doc.getTextWidth(addressLabel) - 5,
+    doc
+  );
+  drawField(addressLabel, addressValue, 40, infoY + infoLineH, 300);
   drawField("Transport:", list.transporter || "", 40, infoY + infoLineH * 2, 300);
 
   const dateStr = new Date(list.createdAt || Date.now()).toLocaleDateString("en-IN");

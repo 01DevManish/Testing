@@ -44,6 +44,7 @@ const PermissionPreview = ({ u, S }: { u: UserRecord; S: AdminStyles }) => {
     { label: "Retail", icon: "🚚", count: perms.filter(p => p.startsWith("retail_")).length },
     { label: "Ecom", icon: "🛒", count: perms.filter(p => p.startsWith("ecom_")).length },
     { label: "Rates", icon: "💰", count: perms.filter(p => p.startsWith("party_rate") || p === "party-rates").length },
+    { label: "ERM", icon: "ERM", count: perms.filter(p => p.startsWith("erm_") || p.startsWith("crm_") || p === "erm" || p === "crm").length },
     { label: "Core", icon: "⚙️", count: perms.filter(p => ["settings", "reports"].includes(p)).length },
   ];
 

@@ -288,6 +288,45 @@ export const generateTemplateDispatchPdf = async (
                 color: rgb(0, 0, 0), // Pure Black for best print results
             });
         };
+        const fromTopToY = (fromTop: number) => height - fromTop;
+
+        // Keep original template look, but apply two requested structural tweaks:
+        // 1) Remove "Remark" column visually.
+        // 2) Increase SKU ID column width by shifting its right divider.
+        const tableTopFromTop = 265;
+        const tableBottomFromTop = 668;
+
+        // Remove old SKU divider at x=305 and redraw new divider at x=330.
+        page.drawRectangle({
+            x: 304,
+            y: fromTopToY(tableBottomFromTop),
+            width: 2.2,
+            height: tableBottomFromTop - tableTopFromTop,
+            color: rgb(1, 1, 1),
+        });
+        page.drawLine({
+            start: { x: 330, y: fromTopToY(tableTopFromTop) },
+            end: { x: 330, y: fromTopToY(tableBottomFromTop) },
+            thickness: 0.7,
+            color: rgb(0, 0, 0),
+        });
+
+        // Remove "Remark" column divider (x=520) to merge it with Box/Bail column.
+        page.drawRectangle({
+            x: 519,
+            y: fromTopToY(tableBottomFromTop),
+            width: 2.2,
+            height: tableBottomFromTop - tableTopFromTop,
+            color: rgb(1, 1, 1),
+        });
+        // Remove header label "Remark" so option is visually gone.
+        page.drawRectangle({
+            x: 521,
+            y: fromTopToY(286),
+            width: 56,
+            height: 14,
+            color: rgb(1, 1, 1),
+        });
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // LEFT BOX â€” Bill To / Ship To
@@ -370,6 +409,9 @@ export const generateTemplateDispatchPdf = async (
         // 7. Transporter Name
         draw(truncate(list.transporter || "-", 20), valX, rY + rG * 6, 10);
 
+        // 8. LR No
+        draw(list.lrNo || "-", valX, rY + rG * 7, 10);
+
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // TABLE Section
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -386,8 +428,8 @@ export const generateTemplateDispatchPdf = async (
             draw(`${idx + 1}.`, 35, rowY, 10);
             draw(truncate(item.category || "", 18), 70, rowY, 10);
             draw(truncate(item.collectionName || "", 16), 166, rowY, 10);
-            draw(truncate(item.sku || "N/A", 12), 252, rowY, 10);
-            draw(truncate(item.packagingType || item.packingType || list.packagingType || list.packingType || "Box", 12), 305, rowY, 10);
+            draw(truncate(item.sku || "N/A", 18), 252, rowY, 10);
+            draw(truncate(item.packagingType || item.packingType || list.packagingType || list.packingType || "Box", 10), 333, rowY, 10);
             draw(String(item.quantity || 1), 395, rowY, 10, true);
             draw(truncate(item.boxName || "-", 15), 445, rowY, 10);
         });

@@ -99,49 +99,40 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
 
     // 2. Header
     const drawHeader = async (d: jsPDF) => {
-        const COMPANY_LOGO = "https://epanelimages.s3.ap-south-1.amazonaws.com/Cloudinary_Archive_2026-04-10_10_27_479_Originals/logo.png";
-        const logo = await getBase64Image(COMPANY_LOGO, 200);
+        const COMPANY_LOGO = typeof window !== "undefined"
+            ? `${window.location.origin}/dispatch-list-logo-tight.png?v=1`
+            : "https://euruslifestyle.in/dispatch-list-logo-tight.png";
+        const logo = await getBase64Image(COMPANY_LOGO, 600, { format: "PNG", background: "#ffffff" });
 
         if (logo) {
-            const logoH = 22;
+            const logoH = 18;
             const logoW = (logo.width / logo.height) * logoH;
-            
-            // Premium White Box for Logo
-            d.setFillColor(255, 255, 255);
-            d.setDrawColor(241, 245, 249); // Slate 100
-            d.setLineWidth(0.1);
-            // Draw a generous white card for the logo
-            const boxW = logoW + 8;
-            const boxH = logoH + 8;
-            d.roundedRect(14, 8, boxW, boxH, 2, 2, 'FD');
-            
-            // Center logo in the box
-            d.addImage(logo.data, "PNG", 14 + 4, 8 + 4, logoW, logoH);
+            d.addImage(logo.data, "PNG", (pageWidth - logoW) / 2, 2, logoW, logoH);
         }
 
         
         d.setFont("helvetica", "bold");
         d.setFontSize(9.5);
         d.setTextColor(0, 0, 0);
-        d.text("Plot No. 263, Sector 25 Part 2, HUDA Industrial Area, Panipat, Haryana - 132103", pageWidth / 2, 28, { align: "center" });
+        d.text("Plot No. 263, Sector 25 Part 2, HUDA Industrial Area, Panipat, Haryana - 132103", pageWidth / 2, 34, { align: "center" });
         d.setFontSize(8.5);
-        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, 34, { align: "center" });
+        d.text("Contact No: 9779143994 | Email ID: sales@euruslifestyle.in", pageWidth / 2, 40, { align: "center" });
 
         d.setFont("helvetica", "bold");
         d.setFontSize(16);
         d.setTextColor(0, 0, 0);
         // Using the dynamically determined collection name
-        d.text(finalCollectionName.toUpperCase(), pageWidth / 2, 42, { align: "center" });
+        d.text(finalCollectionName.toUpperCase(), pageWidth / 2, 48, { align: "center" });
 
         d.setFont("helvetica", "normal");
         d.setFontSize(9);
         d.setTextColor(100, 116, 139);
         const dateStr = new Date().toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' });
-        d.text(`Ref: EL-${new Date().getTime().toString().slice(-6)} | Date: ${dateStr}`, pageWidth / 2, 48, { align: "center" });
+        d.text(`Ref: EL-${new Date().getTime().toString().slice(-6)} | Date: ${dateStr}`, pageWidth / 2, 54, { align: "center" });
         
         d.setDrawColor(226, 232, 240);
         d.setLineWidth(0.5);
-        d.line(14, 54, pageWidth - 14, 54);
+        d.line(14, 60, pageWidth - 14, 60);
     };
 
     await drawHeader(doc);
@@ -150,7 +141,7 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
     autoTable(doc, {
         head: [["Sr.No.", "Product Image", "Product Detail", "Wholesale Price"]],
         body: tableData,
-        startY: 58,
+        startY: 64,
         theme: "plain",
         headStyles: { 
             fillColor: [248, 250, 252], 
@@ -175,7 +166,7 @@ export const generateCatalogPdf = async (products: Product[], collectionName: st
             0: { cellWidth: 22, halign: "center" }, // Increased width to prevent wrapping
             1: { cellWidth: 42 },
             2: { cellWidth: "auto" },
-            3: { cellWidth: 32, halign: "right", fontStyle: "bold" }
+            3: { cellWidth: 32, halign: "center", fontStyle: "bold" }
         },
         didDrawCell: (data) => {
             if (data.column.index === 1 && data.cell.section === "body") {
@@ -296,20 +287,20 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
     const drawHeader = async (d: jsPDF) => {
         // --- Logo (Top Center, no border) ---
         const COMPANY_LOGO = typeof window !== "undefined"
-            ? `${window.location.origin}/logo.png`
-            : "https://euruslifestyle.in/logo.png";
+            ? `${window.location.origin}/dispatch-list-logo-tight.png?v=1`
+            : "https://euruslifestyle.in/dispatch-list-logo-tight.png";
         const logo = await getBase64Image(COMPANY_LOGO, 600, { format: "PNG", background: "#ffffff" });
-        const logoTopY = 10;
+        const logoTopY = 6;
         let logoBottomY = logoTopY;
         if (logo) {
-            const logoH = 98;
+            const logoH = 46;
             const logoW = (logo.width / logo.height) * logoH;
             d.addImage(logo.data, "PNG", (pageWidth - logoW) / 2, logoTopY, logoW, logoH);
             logoBottomY = logoTopY + logoH;
         }
 
         // --- Header Contact Info ---
-        const contactLine1Y = logoBottomY + 10; // 10px gap after logo
+        const contactLine1Y = logoBottomY + 12; // ensure logo/text never feels collapsed
         const contactLine2Y = contactLine1Y + 13;
         d.setFont("helvetica", "bold");
         d.setFontSize(11);
@@ -352,11 +343,8 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
         d.setFontSize(13);
         const rateListTitleY = addressBlockBottom + 24;
         d.text("RATE LIST", pageWidth / 2, rateListTitleY, { align: "center" });
-        d.setFontSize(10);
-        const partyNameY = rateListTitleY + 14;
-        d.text(`${party.partyName.toUpperCase()}`, pageWidth / 2, partyNameY, { align: "center" });
 
-        return partyNameY + 14; // Start table here
+        return rateListTitleY + 14; // Start table here
     };
 
     const tableStartY = await drawHeader(doc);
@@ -388,7 +376,7 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
             minCellHeight: 40
         },
         columnStyles: {
-            0: { cellWidth: 32, halign: "center" },
+            0: { cellWidth: 40, halign: "center" },
             1: { cellWidth: 50, halign: "center" },
             2: { cellWidth: "auto" },
             3: { cellWidth: 40 },
