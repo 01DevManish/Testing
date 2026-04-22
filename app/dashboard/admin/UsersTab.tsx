@@ -21,7 +21,7 @@ interface UsersTabProps {
   showAddForm: boolean;
   setShowAddForm: (v: boolean) => void;
   newEmployee: { name: string; email: string; password: string; pin: string; role: UserRole; permissions: string[] };
-  setNewEmployee: (v: { name: string; email: string; password: string; pin: string; role: UserRole; permissions: string[] }) => void;
+  setNewEmployee: React.Dispatch<React.SetStateAction<{ name: string; email: string; password: string; pin: string; role: UserRole; permissions: string[] }>>;
   addingEmployee: boolean;
   addError: string;
   setAddError: (v: string) => void;
@@ -257,7 +257,7 @@ export default function UsersTab({
             <label style={{ ...S.label, marginBottom: 12 }}>Permissions</label>
             <PermissionSelector
               permissions={newEmployee.permissions || []}
-              setPermissions={(perms) => setNewEmployee({ ...newEmployee, permissions: perms })}
+              setPermissions={(perms) => setNewEmployee(prev => ({ ...prev, permissions: typeof perms === "function" ? perms(prev.permissions || []) : perms }))}
               isMobile={isMobile}
             />
           </div>
@@ -266,9 +266,11 @@ export default function UsersTab({
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {(["employee", "manager", "admin"] as UserRole[]).map(r => (
                 <button key={r} onClick={() => {
-                  let perms = newEmployee.permissions || [];
-                  if (r === "admin") perms = getAllGranularPermissions();
-                  setNewEmployee({ ...newEmployee, role: r, permissions: perms });
+                  setNewEmployee(prev => {
+                    let perms = prev.permissions || [];
+                    if (r === "admin") perms = getAllGranularPermissions();
+                    return { ...prev, role: r, permissions: perms };
+                  });
                 }}
                   style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 400, fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize", border: `1.5px solid ${newEmployee.role === r ? roleColors[r] : "#e2e8f0"}`, background: newEmployee.role === r ? `${roleColors[r]}15` : "transparent", color: newEmployee.role === r ? roleColors[r] : "#94a3b8" }}>
                   {r}

@@ -12,7 +12,7 @@ interface EditRoleModalProps {
   editRole: UserRole;
   setEditRole: (r: UserRole) => void;
   editPermissions: string[];
-  setEditPermissions: (p: string[]) => void;
+  setEditPermissions: React.Dispatch<React.SetStateAction<string[]>>;
   savingRole: boolean;
   editPin: string;
   setEditPin: (p: string) => void;
@@ -28,15 +28,18 @@ export function PermissionSelector({
   isMobile = false,
 }: {
   permissions: string[];
-  setPermissions: (p: string[]) => void;
+  setPermissions: React.Dispatch<React.SetStateAction<string[]>>;
   isMobile?: boolean;
 }) {
   const [expandedGroup, setExpandedGroup] = React.useState<string | null>(null);
   const [expandedSub, setExpandedSub] = React.useState<string | null>(null);
 
   const togglePerm = (key: string, checked: boolean) => {
-    if (checked) setPermissions([...new Set([...permissions, key])]);
-    else setPermissions(permissions.filter(p => p !== key));
+    if (checked) {
+      setPermissions(prev => [...new Set([...prev, key])]);
+      return;
+    }
+    setPermissions(prev => prev.filter(p => p !== key));
   };
 
   const getGroupPerms = (group: typeof PERMISSION_GROUPS[number]) => {
@@ -82,8 +85,11 @@ export function PermissionSelector({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (allSelected) setPermissions(permissions.filter(p => !groupPerms.includes(p)));
-                    else setPermissions([...new Set([...permissions, ...groupPerms])]);
+                    if (allSelected) {
+                      setPermissions(prev => prev.filter(p => !groupPerms.includes(p)));
+                      return;
+                    }
+                    setPermissions(prev => [...new Set([...prev, ...groupPerms])]);
                   }}
                   style={{
                     background: allSelected ? "#6366f1" : "#e2e8f0",
@@ -141,8 +147,11 @@ export function PermissionSelector({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (subAllSelected) setPermissions(permissions.filter(p => !subPerms.includes(p)));
-                              else setPermissions([...new Set([...permissions, ...subPerms])]);
+                              if (subAllSelected) {
+                                setPermissions(prev => prev.filter(p => !subPerms.includes(p)));
+                                return;
+                              }
+                              setPermissions(prev => [...new Set([...prev, ...subPerms])]);
                             }}
                             style={{
                               background: "none", border: "none", fontSize: 10,
