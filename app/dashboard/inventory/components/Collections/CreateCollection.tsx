@@ -7,6 +7,7 @@ import { FONT, Collection } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader } from "../../ui";
 import { allocateUniqueCollectionCode } from "../../utils/barcodeUtils";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function CreateCollection({ user, onCreated }: { user: { uid: string; name: string }, onCreated?: (c: Collection) => void }) {
     const [name, setName] = useState("");
@@ -36,6 +37,7 @@ export default function CreateCollection({ user, onCreated }: { user: { uid: str
             };
             const newRef = push(ref(db, "collections"));
             await set(newRef, d);
+            await touchDataSignal("collections");
 
             await logActivity({
                 type: "inventory",

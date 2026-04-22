@@ -1,7 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { get, ref } from "firebase/database";
-import { db } from "../../lib/firebase";
+import { firestoreApi } from "./data";
 
 interface PackingPdfItem {
   category?: string;
@@ -74,14 +73,13 @@ const resolveItemCategoriesFromInventory = async (items: PackingPdfItem[]): Prom
   if (!items.length) return items;
 
   try {
-    const invSnap = await get(ref(db, "inventory"));
-    if (!invSnap.exists()) return items;
+    const inventoryRows = await firestoreApi.getInventoryProducts();
+    if (!inventoryRows.length) return items;
 
     const bySku: Record<string, string> = {};
     const byName: Record<string, string> = {};
 
-    invSnap.forEach((child) => {
-      const inv = child.val() as Record<string, unknown>;
+    inventoryRows.forEach((inv) => {
       const sku = toText(inv.sku).toLowerCase();
       const name = toText(inv.productName).toLowerCase();
       const category = toText(inv.category);

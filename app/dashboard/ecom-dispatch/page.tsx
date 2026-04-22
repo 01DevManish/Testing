@@ -135,6 +135,12 @@ export default function AdvancedDispatchDashboard() {
   const hasAccess = canView;
 
   useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/");
+    }
+  }, [loading, user, router]);
+
+  useEffect(() => {
     if (!loading && user && !hasAccess) {
       const timer = setTimeout(() => router.replace("/dashboard"), 2000);
       return () => clearTimeout(timer);
@@ -142,6 +148,7 @@ export default function AdvancedDispatchDashboard() {
   }, [loading, user, hasAccess, router]);
 
   if (loading) return null;
+  if (!user) return null;
   if (!loading && user && !hasAccess) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "inherit" }}>
@@ -224,7 +231,10 @@ export default function AdvancedDispatchDashboard() {
           }}
           currentName={currentName}
           currentRole={currentRole}
-          onLogout={() => { logout(); router.replace("/"); }}
+          onLogout={async () => {
+            await logout();
+            router.replace("/");
+          }}
           userRoleColor={roleColors[currentRole] || "#6366f1"}
           onDashboardBack={() => router.push(userData?.role === "admin" ? "/dashboard/admin" : "/dashboard")}
           isCollapsed={isCollapsed}

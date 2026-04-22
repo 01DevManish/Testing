@@ -6,6 +6,7 @@ import { db } from "../../../../lib/firebase";
 import { Category } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, Card } from "../../ui";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function EditCategoryModal({ category, user, onClose }: {
     category: Category;
@@ -21,6 +22,7 @@ export default function EditCategoryModal({ category, user, onClose }: {
         setSaving(true);
         try {
             await update(ref(db, `categories/${category.id}`), { name: name.trim(), description: desc.trim() });
+            await touchDataSignal("categories");
             await logActivity({
                 type: "inventory",
                 action: "update",

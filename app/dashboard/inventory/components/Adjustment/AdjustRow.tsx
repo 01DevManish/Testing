@@ -6,6 +6,7 @@ import { db } from "../../../../lib/firebase";
 import { FONT, Product } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import SmartImage from "../../../../components/SmartImage";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: {
     p: Product,
@@ -41,6 +42,7 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 updatedBy: user.uid,
                 updatedByName: user.name
             });
+            await touchDataSignal("inventory");
 
             await logActivity({
                 type: "inventory",

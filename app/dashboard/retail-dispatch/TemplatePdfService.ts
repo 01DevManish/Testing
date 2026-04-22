@@ -2,6 +2,8 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { ref, get, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { renderBarcodeToBase64, generateDispatchBarcode } from "../../lib/barcodeUtils";
+import { firestoreApi } from "./data";
+import { touchDataSignal } from "../../lib/dataSignals";
 
 /**
  * Generate a Dispatch List PDF by filling data into the user's custom template.
@@ -39,21 +41,21 @@ const uploadPdfToS3 = async (pdfBlob: Blob, fileName: string): Promise<string | 
 // Resolve category & collection from inventory for items missing those fields
 const resolveItemFields = async (items: any[]): Promise<any[]> => {
     try {
-        const snap = await get(ref(db, "inventory"));
-        if (!snap.exists()) return items;
-
         const invMap: Record<string, any> = {};
         const invSkuMap: Record<string, any> = {};
-        snap.forEach(d => {
-            const data = d.val();
-            const name = (data.productName || "").trim().toLowerCase();
-            const sku = (data.sku || "").trim().toUpperCase();
+        const inventoryRows = await firestoreApi.getInventoryProducts();
+        if (!inventoryRows.length) return items;
+
+        inventoryRows.forEach((data) => {
+            const id = String(data.id || "");
+            const name = String(data.productName || "").trim().toLowerCase();
+            const sku = String(data.sku || "").trim().toUpperCase();
             invMap[name] = {
                 category: data.category || "",
                 collection: data.collection || "",
                 brand: data.brand || "",
                 imageUrl: data.imageUrl || "",
-                productId: d.key || "",
+                productId: id,
             };
             if (sku) {
                 invSkuMap[sku] = {
@@ -61,7 +63,7 @@ const resolveItemFields = async (items: any[]): Promise<any[]> => {
                     collection: data.collection || "",
                     brand: data.brand || "",
                     imageUrl: data.imageUrl || "",
-                    productId: d.key || "",
+                    productId: id,
                 };
             }
         });
@@ -450,9 +452,8 @@ export const generateTemplateDispatchPdf = async (
             draw(list.assignedToName, 102, fY, 13, true);
         }
 
-        // Add System URL to bottom left for record reference
-        const systemUrl = typeof window !== 'undefined' ? window.location.origin + "/dashboard/retail-dispatch" : "https://euruslifestyle.in/dashboard/retail-dispatch";
-        draw(`Generated from: ${systemUrl}`, 35, 815, 7.5);
+        // Keep a non-clickable source note in PDF footer.
+        draw("Generated from: https://epanel​.euruslifestyle​.in/dashboard/retail-dispatch", 35, 815, 7.5);
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // SAVE & OUTPUT
@@ -472,6 +473,15 @@ export const generateTemplateDispatchPdf = async (
             if (uploadedUrl && list.id) {
                 try {
                     await update(ref(db, `packingLists/${list.id}`), { dispatchPdfUrl: uploadedUrl });
+                    await touchDataSignal("packingLists");
+                    fetch("/api/data/packingLists", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            mode: "upsert",
+                            items: [{ ...list, id: list.id, dispatchPdfUrl: uploadedUrl, updatedAt: Date.now() }],
+                        }),
+                    }).catch(() => {});
                 } catch {
                     // non-blocking db sync failure
                 }

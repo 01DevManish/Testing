@@ -11,6 +11,7 @@ import { SuccessBanner, BtnPrimary, BtnGhost, Card, PageHeader } from "../../ui"
 import { logActivity } from "../../../../lib/activityLogger";
 import { transformImageUrl, normalizeStorageImageUrl, isSameImageIdentity } from "../../../../lib/urlUtils";
 import { getBarcodeMappedFields } from "../../utils/barcodeUtils";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 interface BulkUploadProps {
     categories: Category[];
@@ -426,6 +427,10 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
                     userRole: user.role,
                     metadata: { created: successCount, updated: updateCount }
                 });
+            }
+
+            if (successCount > 0 || updateCount > 0) {
+                await touchDataSignal("inventory");
             }
 
             setResults({ success: successCount, updated: updateCount, errors });

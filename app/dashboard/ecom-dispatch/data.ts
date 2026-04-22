@@ -2,6 +2,7 @@ import { Order, OrderStatus, Party, Transporter } from "./types";
 import { ref, get, push, set, update, remove } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
+import { touchDataSignal } from "../../lib/dataSignals";
 
 type InventoryDispatchProduct = {
   id: string;
@@ -71,12 +72,14 @@ export const firestoreApi = {
   createParty: async (party: Omit<Party, "id">): Promise<Party> => {
     const newRef = push(ref(db, "parties"));
     await set(newRef, { ...party, createdAt: new Date().toISOString() });
+    await touchDataSignal("parties");
     return { id: newRef.key as string, ...party };
   },
 
   deleteParty: async (id: string): Promise<void> => {
     try {
       await remove(ref(db, `parties/${id}`));
+      await touchDataSignal("parties");
     } catch (e) {
       console.error("Failed to delete party:", e);
       throw e;
@@ -98,6 +101,7 @@ export const firestoreApi = {
   createTransporter: async (t: Omit<Transporter, "id">): Promise<Transporter> => {
     const newRef = push(ref(db, "transporters"));
     await set(newRef, { ...t, createdAt: new Date().toISOString() });
+    await touchDataSignal("transporters");
     return { id: newRef.key as string, ...t };
   },
 
@@ -167,6 +171,7 @@ export const firestoreApi = {
           status: newStatus,
           updatedAt: Date.now() 
         });
+        await touchDataSignal("inventory");
         firestoreApi.invalidateInventoryCache();
         
         console.log(`Deducted ${quantityToDeduct} from ${productId}. New stock: ${newStock}, Status: ${newStatus}`);
@@ -230,6 +235,7 @@ export const api = {
       }
 
       await set(orderRef, updatedOrder);
+      await touchDataSignal("dispatches");
 
       // Log activity
       await logActivity({
@@ -260,6 +266,7 @@ export const api = {
       const updatedProducts = existing.products?.map((p: any) => p.id === productId ? { ...p, packed } : p) || [];
       
       await update(orderRef, { products: updatedProducts });
+      await touchDataSignal("dispatches");
       return { id: orderId, ...existing, products: updatedProducts } as Order;
     } catch (e) {
       console.error(e);
@@ -285,6 +292,7 @@ export const api = {
       };
       
       await set(orderRef, order);
+      await touchDataSignal("dispatches");
 
       // Log activity
       await logActivity({
@@ -308,6 +316,7 @@ export const api = {
   deleteOrder: async (orderId: string, actor?: { uid: string; name: string; role: string }): Promise<void> => {
     try {
       await remove(ref(db, `dispatches/${orderId}`));
+      await touchDataSignal("dispatches");
 
       // Log activity
       await logActivity({

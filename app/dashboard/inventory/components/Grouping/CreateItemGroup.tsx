@@ -6,6 +6,7 @@ import { db } from "../../../../lib/firebase";
 import { FONT, Product, ItemGroup } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader } from "../../ui";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function CreateItemGroup({ products, user, onCreated, isMobile }: {
     products: Product[];
@@ -38,6 +39,7 @@ export default function CreateItemGroup({ products, user, onCreated, isMobile }:
             const d = { name: name.trim(), description: desc.trim(), productIds: Array.from(selected), createdAt: Date.now() };
             const newRef = push(ref(db, "itemGroups"));
             await set(newRef, d);
+            await touchDataSignal("itemGroups");
 
             await logActivity({
                 type: "inventory",

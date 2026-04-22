@@ -9,6 +9,7 @@ import { useAuth } from "../../../../context/AuthContext";
 import { useData } from "../../../../context/DataContext";
 import { generateDispatchListPdf } from "../../DispatchListPdf";
 import { generatePackingListPdf } from "../../PackingListPdf";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
 
@@ -55,6 +56,7 @@ export default function AllDispatchLists() {
         lrNo: lrVal.trim(),
         status: "Completed",
       });
+      await touchDataSignal("packingLists");
       setTempLr((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -136,6 +138,7 @@ export default function AllDispatchLists() {
         boxBarcodes: null,
         cancelledAt: Date.now(),
       });
+      await touchDataSignal("packingLists");
 
       alert("Dispatch cancelled successfully and stock restored! ✅");
       refreshData("inventory");

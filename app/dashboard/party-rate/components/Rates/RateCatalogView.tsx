@@ -290,16 +290,18 @@ export default function RateCatalogView({
                                 )}
                             </FormField>
                             {selectedProduct && (
-                                <div style={{ marginTop: 8, fontSize: 12 }}>
+                                <div style={{ position: "absolute", top: 0, right: 0, fontSize: 12, pointerEvents: "none" }}>
                                     {(() => {
                                         const stockStatus = getStockStatus(selectedProduct.stock);
                                         return (
                                             <span style={{
+                                                display: "inline-block",
                                                 color: stockStatus.color,
                                                 background: stockStatus.bg,
                                                 padding: "3px 10px",
                                                 borderRadius: 999,
-                                                fontWeight: 600
+                                                fontWeight: 600,
+                                                whiteSpace: "nowrap"
                                             }}>
                                                 {stockStatus.label}
                                             </span>

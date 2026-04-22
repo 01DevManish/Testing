@@ -30,6 +30,7 @@ import { uploadImage } from "./components/Products/imageService";
 import { transformImageUrl } from "../../lib/urlUtils";
 import MobileTopBar from "../../components/MobileTopBar";
 import { getBarcodeMappedFields, needsBarcodeRefresh } from "./utils/barcodeUtils";
+import { touchDataSignal } from "../../lib/dataSignals";
 
 // ── Types ─────────────────────────────────────────────────────
 import { ActiveView, Product } from "./types";
@@ -166,7 +167,9 @@ export default function InventoryPage() {
           )
         )
       )
-    ).catch((err) => console.error("Barcode backfill failed:", err));
+    )
+      .then(() => touchDataSignal("inventory"))
+      .catch((err) => console.error("Barcode backfill failed:", err));
   }, [products, collections, fetching]);
 
   // ── Granular Sub-Module Permissions ──────────────────────────
@@ -284,6 +287,7 @@ export default function InventoryPage() {
       Object.assign(updated, barcodeFields);
       if (!user) throw new Error("User not authenticated");
       await update(ref(db, `inventory/${editProduct.id}`), updated);
+      await touchDataSignal("inventory");
 
       // Log activity
       await logActivity({

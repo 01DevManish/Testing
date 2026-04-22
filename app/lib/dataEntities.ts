@@ -6,6 +6,7 @@ export const DATA_ENTITIES = [
   "collections",
   "itemGroups",
   "dispatches",
+  "packingLists",
   "parties",
   "transporters",
 ] as const;

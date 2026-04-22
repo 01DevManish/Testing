@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import type { UserRole } from "../../context/AuthContext";
 import { UserRecord, roleColors, roleBg } from "./types";
 import StatsGrid from "./StatsGrid";
 import type { AdminStyles } from "./styles";
 import { PermissionSelector } from "./EditRoleModal";
 import { getAllGranularPermissions } from "../../lib/permissions";
+
+const OFFICIAL_EMAIL_DOMAIN = "euruslifestyle.in";
 
 interface UsersTabProps {
   S: AdminStyles;
@@ -80,6 +82,16 @@ export default function UsersTab({
   addingEmployee, addError, setAddError, handleAddEmployee,
   handleDeleteUser, onEditUser,
 }: UsersTabProps) {
+  const [showPassword, setShowPassword] = useState(false);
+  const emailValue = String(newEmployee.email || "").trim().toLowerCase();
+  const emailPrefix = emailValue.replace(/@.*$/, "");
+  const canAddUser =
+    !addingEmployee &&
+    newEmployee.name.trim().length > 0 &&
+    newEmployee.password.trim().length > 0 &&
+    emailPrefix.length > 0 &&
+    newEmployee.pin.length === 4;
+
   const visibleUsers = filteredUsers;
   const stats = {
     total: visibleUsers.length,
@@ -240,8 +252,75 @@ export default function UsersTab({
           )}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 12 }}>
             <div><label style={S.label}>Full Name</label><input style={S.input} value={newEmployee.name} onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })} /></div>
-            <div><label style={S.label}>Email</label><input style={S.input} type="email" value={newEmployee.email} onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })} /></div>
-            <div><label style={S.label}>Password</label><input style={S.input} type="text" value={newEmployee.password} onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })} /></div>
+            <div>
+              <label style={S.label}>Official Email</label>
+              <div style={{ ...S.input, display: "flex", alignItems: "center", gap: 8, padding: "0 12px" }}>
+                <input
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    outline: "none",
+                    background: "transparent",
+                    fontSize: 14,
+                    color: "#1e293b",
+                    fontFamily: "inherit",
+                    padding: "11px 0",
+                  }}
+                  type="text"
+                  placeholder="username"
+                  value={newEmployee.email}
+                  onChange={e => {
+                    const usernameOnly = e.target.value.toLowerCase().replace(/\s+/g, "").replace(/@.*$/, "");
+                    setNewEmployee({ ...newEmployee, email: usernameOnly });
+                  }}
+                />
+                <span style={{ fontSize: 14, color: "#64748b", whiteSpace: "nowrap" }}>@{OFFICIAL_EMAIL_DOMAIN}</span>
+              </div>
+            </div>
+            <div>
+              <label style={S.label}>Password</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  style={{ ...S.input, paddingRight: 42 }}
+                  type={showPassword ? "text" : "password"}
+                  value={newEmployee.password}
+                  onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  title={showPassword ? "Hide Password" : "Show Password"}
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 2,
+                  }}
+                >
+                  {showPassword ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.92-2.19 2.47-4.08 4.46-5.41"></path>
+                      <path d="M10.58 10.58a2 2 0 1 0 2.83 2.83"></path>
+                      <path d="M1 1l22 22"></path>
+                      <path d="M9.88 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8-1 2.38-2.8 4.44-5.06 5.94"></path>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
             <div>
               <label style={S.label}>PIN (4 Digits)</label>
               <input
@@ -278,8 +357,8 @@ export default function UsersTab({
               ))}
             </div>
             <div style={{ flex: 1 }} />
-            <button onClick={handleAddEmployee} disabled={addingEmployee || !newEmployee.name || !newEmployee.email || !newEmployee.password || newEmployee.pin.length !== 4}
-              style={{ ...S.btnPrimary, opacity: addingEmployee || !newEmployee.name || !newEmployee.email || !newEmployee.password || newEmployee.pin.length !== 4 ? 0.5 : 1 }}>
+            <button onClick={handleAddEmployee} disabled={!canAddUser}
+              style={{ ...S.btnPrimary, opacity: canAddUser ? 1 : 0.5 }}>
               {addingEmployee ? <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin-slow 0.7s linear infinite", display: "inline-block" }} /> : "Add User"}
             </button>
           </div>

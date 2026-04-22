@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { db } from "../lib/firebase";
 import { ref, onValue, off, get, DataSnapshot } from "firebase/database";
 import { Product, Category, Collection, ItemGroup } from "../dashboard/inventory/types";
@@ -69,7 +69,8 @@ type EntityPath =
   | "parties"
   | "transporters";
 
-const HEAVY_NODE_POLL_MS = 2 * 60 * 1000; // 2 minutes
+const HEAVY_NODE_POLL_MS = 10 * 60 * 1000; // fallback safety poll (10 min)
+const DATA_SIGNAL_ROOT = "syncSignals";
 
 const NODE_DEFS: Array<{
   path: EntityPath;
@@ -86,7 +87,7 @@ const NODE_DEFS: Array<{
   { path: "collections", cacheKey: CACHE_KEYS.COLLECTIONS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["collections"] },
   { path: "itemGroups", cacheKey: CACHE_KEYS.GROUPS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["groups", "itemGroups"] },
   { path: "dispatches", cacheKey: CACHE_KEYS.ORDERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["dispatches", "orders"] },
-  { path: "packingLists", cacheKey: CACHE_KEYS.PACKING_LISTS, realtime: true, aliases: ["packingLists", "packing-lists"] },
+  { path: "packingLists", cacheKey: CACHE_KEYS.PACKING_LISTS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["packingLists", "packing-lists"] },
   { path: "parties", cacheKey: CACHE_KEYS.PARTIES_MASTER, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["parties"] },
   { path: "transporters", cacheKey: CACHE_KEYS.TRANSPORTERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["transporters"] },
 ];
@@ -99,6 +100,7 @@ const DYNAMO_PRIMARY_PATHS = new Set<EntityPath>([
   "collections",
   "itemGroups",
   "dispatches",
+  "packingLists",
   "parties",
   "transporters",
 ]);
@@ -108,6 +110,7 @@ const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
   "partyRates",
   "parties",
   "collections",
+  "packingLists",
 ]);
 
 const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<string, unknown>> => {
@@ -213,6 +216,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [parties, setParties] = useState<Party[]>([]);
   const [transporters, setTransporters] = useState<Transporter[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastSignalRef = useRef<Record<string, string>>({});
 
   // 1. Initial Load from LocalStorage (Instant 0ms feel)
   useEffect(() => {
@@ -367,9 +371,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [applyEntityData]);
 
-  // 2. Hybrid Sync: lightweight nodes in realtime, heavy nodes in polling mode.
+  // 2. Hybrid Sync:
+  // - lightweight nodes stay realtime as-is
+  // - heavy nodes use tiny realtime signals + Dynamo fetch
+  // - very slow fallback poll keeps data safe if a signal is ever missed
   useEffect(() => {
     const activeListeners: Array<{ refPath: EntityPath; listener: (snapshot: DataSnapshot) => void }> = [];
+    const signalListeners: Array<{ refPath: string; listener: (snapshot: DataSnapshot) => void }> = [];
     const pollers: number[] = [];
 
     Promise.all(
@@ -390,6 +398,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
         activeListeners.push({ refPath: node.path, listener });
       }
 
+      if (!node.realtime) {
+        const signalPath = `${DATA_SIGNAL_ROOT}/${node.path}`;
+        const signalRef = ref(db, signalPath);
+        const signalListener = onValue(signalRef, (snapshot) => {
+          const signalValueRaw = snapshot.val();
+          const signalValue = signalValueRaw == null ? "" : String(signalValueRaw);
+          const lastValue = lastSignalRef.current[node.path] || "";
+          if (signalValue && signalValue !== lastValue) {
+            lastSignalRef.current[node.path] = signalValue;
+            fetchEntity(node.path);
+          }
+        });
+        signalListeners.push({ refPath: signalPath, listener: signalListener });
+      }
+
       if (!node.realtime && node.pollMs) {
         const id = window.setInterval(() => {
           fetchEntity(node.path);
@@ -400,6 +423,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     return () => {
       activeListeners.forEach(({ refPath, listener }) => off(ref(db, refPath), "value", listener));
+      signalListeners.forEach(({ refPath, listener }) => off(ref(db, refPath), "value", listener));
       pollers.forEach((id) => window.clearInterval(id));
     };
   }, [applyEntityData, fetchEntity]);

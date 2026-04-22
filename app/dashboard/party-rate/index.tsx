@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { PartyRate } from "./types";
 import { Product } from "../inventory/types";
-import { ref, set, push, remove, update, get } from "firebase/database";
+import { ref, push, remove, update } from "firebase/database";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermission } from "../../lib/permissions";
 import { generatePartyRatePdf } from "../inventory/components/Catalog/PdfGenerator";
+import { firestoreApi } from "../retail-dispatch/data";
+import { touchDataSignal } from "../../lib/dataSignals";
 
 // Sub-components
 import PartyList from "./components/Management/PartyList";
@@ -181,6 +183,7 @@ export default function PartyRateModule({
             } else {
                 await push(ref(db, "partyRates"), data);
             }
+            await touchDataSignal("partyRates");
 
             await logActivity({
                 type: "system",
@@ -206,6 +209,7 @@ export default function PartyRateModule({
         if (!canDeleteParty || !confirm(`Permanently delete all rate data for "${name}"?`)) return;
         try {
             await remove(ref(db, `partyRates/${id}`));
+            await touchDataSignal("partyRates");
             const remaining = partyRates.filter((item) => item.id !== id);
             await fetch("/api/data/partyRates", {
                 method: "POST",
@@ -238,6 +242,7 @@ export default function PartyRateModule({
                 rates: updatedRates,
                 updatedAt: Date.now()
             });
+            await touchDataSignal("partyRates");
             loadData();
             setViewingCatalog({ ...viewingCatalog, rates: updatedRates });
         } catch (e) {
@@ -252,13 +257,9 @@ export default function PartyRateModule({
             // Use live inventory snapshot so stock status is always real-time at share time.
             let inventoryProducts: Product[] = products;
             try {
-                const invSnap = await get(ref(db, "inventory"));
-                if (invSnap.exists()) {
-                    const live = invSnap.val() || {};
-                    inventoryProducts = Object.entries(live).map(([id, record]) => ({
-                        ...(record as Product),
-                        id,
-                    }));
+                const liveRows = await firestoreApi.getInventoryProducts({ forceFresh: true });
+                if (liveRows.length > 0) {
+                    inventoryProducts = liveRows as unknown as Product[];
                 }
             } catch (e) {
                 console.warn("Failed to fetch live inventory for PDF share. Falling back to cached products.", e);

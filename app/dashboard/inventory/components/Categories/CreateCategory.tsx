@@ -6,6 +6,7 @@ import { db } from "../../../../lib/firebase";
 import { FONT, Category } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, SuccessBanner, Card, PageHeader } from "../../ui";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function CreateCategory({ user, onCreated }: { user: { uid: string; name: string }, onCreated?: (c: Category) => void }) {
     const [name, setName] = useState("");
@@ -21,6 +22,7 @@ export default function CreateCategory({ user, onCreated }: { user: { uid: strin
             const d = { name: name.trim(), description: desc.trim(), createdAt: Date.now() };
             const newRef = push(ref(db, "categories"));
             await set(newRef, d);
+            await touchDataSignal("categories");
 
             await logActivity({
                 type: "inventory",

@@ -7,6 +7,7 @@ import { Collection } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, Card } from "../../ui";
 import { allocateUniqueCollectionCode } from "../../utils/barcodeUtils";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function EditCollectionModal({ collection, user, onClose }: {
     collection: Collection;
@@ -36,6 +37,7 @@ export default function EditCollectionModal({ collection, user, onClose }: {
                 collectionCode: assignedCode,
                 description: desc.trim() 
             });
+            await touchDataSignal("collections");
             await logActivity({
                 type: "inventory",
                 action: "update",

@@ -6,6 +6,7 @@ import { db } from "../../../../lib/firebase";
 import { FONT, Product, ItemGroup } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Input, Textarea, FormField, BtnPrimary, BtnGhost, Card } from "../../ui";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function EditItemGroupModal({ group, user, allProducts, onClose, isMobile }: { 
     group: ItemGroup; 
@@ -34,6 +35,7 @@ export default function EditItemGroupModal({ group, user, allProducts, onClose, 
         setSaving(true);
         try {
             await update(ref(db, `itemGroups/${group.id}`), { name: name.trim(), description: desc.trim(), productIds: Array.from(selected) });
+            await touchDataSignal("itemGroups");
             await logActivity({
                 type: "inventory",
                 action: "update",

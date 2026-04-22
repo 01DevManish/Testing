@@ -24,6 +24,7 @@ function LoginContent() {
         server_not_configured: "Server not configured for Zoho login.",
         token_failed: "Failed to get Zoho access token.",
         profile_fetch_failed: "Failed to fetch Zoho profile.",
+        email_domain_not_allowed: "Access denied. Use your official @euruslifestyle.in email.",
         auth_failed: "Authentication failed. Please try again.",
       };
       clearError();
@@ -40,7 +41,7 @@ function LoginContent() {
       }
       if (user.role === "admin") router.push("/dashboard/admin");
       else if (user.role === "employee" || user.role === "manager") router.push("/dashboard");
-      else router.push("/dashboard/user");
+      else router.push("/dashboard/employee");
     }
   }, [loading, user, router]);
 

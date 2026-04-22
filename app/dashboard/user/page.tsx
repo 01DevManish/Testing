@@ -39,9 +39,12 @@ export default function UserPage() {
   }, [isCollapsed]);
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/");
-    if (!loading && userData && userData.role !== "user") {
-      if (userData.role === "admin") router.replace("/dashboard/admin");
+    if (!loading && !user) {
+      router.replace("/");
+      return;
+    }
+    if (!loading && user) {
+      if (userData?.role === "admin") router.replace("/dashboard/admin");
       else router.replace("/dashboard/employee");
     }
   }, [loading, user, userData, router]);

@@ -8,6 +8,7 @@ import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
 import { uploadImage } from "../inventory/components/Products/imageService";
+import { touchDataSignal } from "../../lib/dataSignals";
 
 interface BrandsTabProps {
   S: AdminStyles;
@@ -48,6 +49,7 @@ export default function BrandsTab({
     if (!confirm(`Permanently delete brand "${name}"? This will not remove the brand from existing products.`)) return;
     try {
       await remove(ref(db, `brands/${id}`));
+      await touchDataSignal("brands");
       await logActivity({
         type: "system",
         action: "delete",
@@ -98,6 +100,7 @@ export default function BrandsTab({
       } else {
         await push(ref(db, "brands"), data);
       }
+      await touchDataSignal("brands");
 
       await logActivity({
         type: "system",

@@ -33,7 +33,7 @@ interface AuthContextType {
   loginWithZoho: () => void;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   error: string | null;
   clearError: () => void;
   fetchAllUsers: () => Promise<UserData[]>;
@@ -47,12 +47,46 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 const SESSION_KEY = "eurus_session";
+const LOGOUT_MARKER_KEY = "eurus_logout_at";
+const LOGOUT_MARKER_TTL_MS = 30 * 1000;
+const AUTH_COOKIE_NAME = "eurus_auth";
 const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 const HIDDEN_ADMIN_NAME = "dev manish";
+const OFFICIAL_EMAIL_DOMAIN = "euruslifestyle.in";
+
+const normalizeEmail = (value: unknown) => String(value ?? "").trim().toLowerCase();
+const isAllowedLoginEmail = (value: unknown) => {
+  const email = normalizeEmail(value);
+  return !!email && (email === HIDDEN_ADMIN_EMAIL || email.endsWith(`@${OFFICIAL_EMAIL_DOMAIN}`));
+};
 
 const normalizeRole = (role: unknown): UserRole => {
-  if (role === "admin" || role === "manager" || role === "employee" || role === "user") return role;
+  if (role === "admin" || role === "manager" || role === "employee") return role;
   return "employee";
+};
+
+const setLogoutMarker = () => {
+  localStorage.setItem(LOGOUT_MARKER_KEY, String(Date.now()));
+};
+
+const clearLogoutMarker = () => {
+  localStorage.removeItem(LOGOUT_MARKER_KEY);
+};
+
+const hasRecentLogoutMarker = (): boolean => {
+  const raw = localStorage.getItem(LOGOUT_MARKER_KEY);
+  if (!raw) return false;
+  const ts = Number(raw);
+  if (!Number.isFinite(ts)) return false;
+  return Date.now() - ts < LOGOUT_MARKER_TTL_MS;
+};
+
+const setAuthCookie = () => {
+  document.cookie = `${AUTH_COOKIE_NAME}=1; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+};
+
+const clearAuthCookie = () => {
+  document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
 };
 
 const sanitizeUserRecord = (raw: unknown, fallbackUid: string): UserData | null => {
@@ -84,39 +118,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
+    const logoutRecentlyTriggered = hasRecentLogoutMarker();
+    if (logoutRecentlyTriggered) {
+      localStorage.removeItem(SESSION_KEY);
+    }
+
     // Restore session from localStorage instantly
     const stored = localStorage.getItem(SESSION_KEY);
-    if (stored) {
+    if (stored && !logoutRecentlyTriggered) {
       try {
         const parsed = JSON.parse(stored) as UserData;
-        if (parsed.email === "01devmanish@gmail.com" && parsed.role !== "admin") {
+        parsed.role = normalizeRole(parsed.role);
+        const parsedEmail = normalizeEmail(parsed.email);
+        if (!isAllowedLoginEmail(parsedEmail)) {
+          localStorage.removeItem(SESSION_KEY);
+          clearAuthCookie();
+        } else if (parsedEmail === HIDDEN_ADMIN_EMAIL && parsed.role !== "admin") {
           parsed.role = "admin";
           localStorage.setItem(SESSION_KEY, JSON.stringify(parsed));
+          setAuthCookie();
+          setUser(parsed);
+        } else {
+          setAuthCookie();
+          setUser(parsed);
         }
-        setUser(parsed);
       } catch {
         localStorage.removeItem(SESSION_KEY);
+        clearAuthCookie();
       }
     }
 
     // Check for Zoho session cookie (set by /api/auth/zoho/callback route)
     const cookies = document.cookie.split(";").map(c => c.trim());
     const zohoCookie = cookies.find(c => c.startsWith("zoho_session="));
-    if (zohoCookie) {
+    if (zohoCookie && !logoutRecentlyTriggered) {
       try {
         const encoded = zohoCookie.split("=")[1];
         const decoded = JSON.parse(atob(decodeURIComponent(encoded)));
-        if (decoded && decoded.email) {
+        if (decoded && decoded.email && isAllowedLoginEmail(decoded.email)) {
           const zohoUserData: UserData = {
             uid: decoded.uid || "",
             email: decoded.email,
             name: decoded.name || "User",
-            role: decoded.role || "employee",
+            role: normalizeRole(decoded.role),
             permissions: decoded.permissions || [],
           };
           localStorage.setItem(SESSION_KEY, JSON.stringify(zohoUserData));
+          setAuthCookie();
           setUser(zohoUserData);
           // Clear the cookie
+          document.cookie = "zoho_session=; path=/; max-age=0";
+        } else {
           document.cookie = "zoho_session=; path=/; max-age=0";
         }
       } catch (err) {
@@ -129,19 +181,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let hasSynced = false;
     let permUnsubscribe: (() => void) | null = null;
     const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        if (hasRecentLogoutMarker()) {
+          localStorage.removeItem(SESSION_KEY);
+          clearAuthCookie();
+          clearLogoutMarker();
+          setUser(null);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (hasRecentLogoutMarker()) {
+        localStorage.removeItem(SESSION_KEY);
+        clearAuthCookie();
+        setUser(null);
+        await fbAuth.signOut().catch(() => {});
+        setLoading(false);
+        return;
+      }
+
       if (firebaseUser && !hasSynced) {
         hasSynced = true;
         try {
           const userRef = ref(db, `users/${firebaseUser.uid}`);
           const snap = await get(userRef);
           if (snap.exists()) {
-            const freshData = snap.val() as UserData;
+            const freshData = { ...(snap.val() as UserData), role: normalizeRole((snap.val() as UserData)?.role) };
+            if (!isAllowedLoginEmail(freshData?.email || firebaseUser.email || "")) {
+              localStorage.removeItem(SESSION_KEY);
+              clearAuthCookie();
+              await fbAuth.signOut().catch(() => {});
+              setUser(null);
+              setError(`Only ${OFFICIAL_EMAIL_DOMAIN} email users can login.`);
+              return;
+            }
             localStorage.setItem(SESSION_KEY, JSON.stringify(freshData));
+            setAuthCookie();
             setUser(freshData);
           } else {
             // User exists in Auth but not in RTDB (deleted by admin)
             console.warn("User record missing in RTDB. Logging out.");
             localStorage.removeItem(SESSION_KEY);
+            clearAuthCookie();
             fbAuth.signOut().catch(() => {});
             setUser(null);
           }
@@ -155,7 +237,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userRef = ref(db, `users/${firebaseUser.uid}`);
         permUnsubscribe = onValue(userRef, (snapshot) => {
           if (snapshot.exists()) {
-            const liveData = snapshot.val() as UserData;
+            const liveData = { ...(snapshot.val() as UserData), role: normalizeRole((snapshot.val() as UserData)?.role) };
+            if (!isAllowedLoginEmail(liveData?.email || firebaseUser.email || "")) {
+              localStorage.removeItem(SESSION_KEY);
+              clearAuthCookie();
+              fbAuth.signOut().catch(() => {});
+              setUser(null);
+              setError(`Only ${OFFICIAL_EMAIL_DOMAIN} email users can login.`);
+              return;
+            }
             setUser(prev => {
               // Only update if permissions or role actually changed
               if (prev && (
@@ -164,6 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               )) {
                 console.log("[Eurus] Permissions updated in real-time:", liveData.permissions);
                 localStorage.setItem(SESSION_KEY, JSON.stringify(liveData));
+                setAuthCookie();
                 return liveData;
               }
               return prev;
@@ -172,6 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // User deleted by admin while logged in
             console.warn("User record removed. Logging out.");
             localStorage.removeItem(SESSION_KEY);
+            clearAuthCookie();
             fbAuth.signOut().catch(() => {});
             setUser(null);
           }
@@ -275,6 +367,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithZoho = () => {
+    clearLogoutMarker();
     const clientId = process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID;
     const redirectUri = process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI || `${window.location.origin}/api/auth/zoho/callback`;
     const zohoDomain = process.env.NEXT_PUBLIC_ZOHO_DOMAIN || "accounts.zoho.in";
@@ -290,15 +383,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async () => {
     try {
+      clearLogoutMarker();
       setError(null);
       const result = await signInWithPopup(fbAuth, googleProvider);
       const gUser = result.user;
+      const gEmail = normalizeEmail(gUser.email);
+      if (!isAllowedLoginEmail(gEmail)) {
+        clearAuthCookie();
+        await fbAuth.signOut().catch(() => {});
+        setError(`Access denied. Use your @${OFFICIAL_EMAIL_DOMAIN} email.`);
+        return;
+      }
 
       // Build user data from Google profile IMMEDIATELY — no Firestore wait
-      const isAdminEmail = gUser.email === "01devmanish@gmail.com";
+      const isAdminEmail = gEmail === HIDDEN_ADMIN_EMAIL;
       const quickData: UserData = {
         uid: gUser.uid,
-        email: gUser.email || "",
+        email: gEmail,
         name: gUser.displayName || "Unknown",
         role: isAdminEmail ? "admin" : "employee",
         permissions: isAdminEmail ? ["all"] : [],
@@ -317,6 +418,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Save and redirect IMMEDIATELY
       localStorage.setItem(SESSION_KEY, JSON.stringify(quickData));
+      setAuthCookie();
       setUser(quickData);
       
       // Log activity
@@ -332,7 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (quickData.role === "admin") window.location.href = "/dashboard/admin";
       else if (quickData.role === "employee" || quickData.role === "manager") window.location.href = "/dashboard";
-      else window.location.href = "/dashboard/user";
+      else window.location.href = "/dashboard/employee";
 
       // Firestore sync in background (don't await, don't block redirect)
       (async () => {
@@ -343,13 +445,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await set(userRef, quickData);
           } else {
             // Force update Firestore if this is the admin email but Firestore says otherwise
-            const freshData = snap.val() as UserData;
+            const freshData = { ...(snap.val() as UserData), role: normalizeRole((snap.val() as UserData)?.role) };
             if (isAdminEmail && freshData.role !== "admin") {
               await update(userRef, { role: "admin" });
               freshData.role = "admin";
             }
             // Update localStorage with fresh Firestore data for next login
             localStorage.setItem(SESSION_KEY, JSON.stringify(freshData));
+            setAuthCookie();
           }
         } catch (err) {
           console.warn("Background Firestore sync failed:", err);
@@ -370,8 +473,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithEmail = async (email: string, password: string) => {
     try {
+      clearLogoutMarker();
       setError(null);
-      const result = await signInWithEmailAndPassword(fbAuth, email, password);
+      const normalizedEmail = normalizeEmail(email);
+      if (!isAllowedLoginEmail(normalizedEmail)) {
+        clearAuthCookie();
+        setError(`Access denied. Use your @${OFFICIAL_EMAIL_DOMAIN} email.`);
+        return;
+      }
+      const result = await signInWithEmailAndPassword(fbAuth, normalizedEmail, password);
       const eUser = result.user;
 
       // Try to fetch user data from Firestore, but don't block login if offline
@@ -380,7 +490,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userRef = ref(db, `users/${eUser.uid}`);
         const snap = await get(userRef);
         if (snap.exists()) {
-          userData = snap.val() as UserData;
+          userData = { ...(snap.val() as UserData), role: normalizeRole((snap.val() as UserData)?.role) };
         } else {
           // User deleted by admin
           await fbAuth.signOut();
@@ -396,7 +506,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (!isAllowedLoginEmail(userData?.email || normalizedEmail)) {
+        clearAuthCookie();
+        await fbAuth.signOut();
+        setError(`Access denied. Use your @${OFFICIAL_EMAIL_DOMAIN} email.`);
+        return;
+      }
+
       localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+      setAuthCookie();
       setUser(userData);
 
       // Force first-login (or admin-reset) password setup before entering dashboard.
@@ -417,7 +535,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (userData.role === "admin") window.location.href = "/dashboard/admin";
       else if (userData.role === "employee" || userData.role === "manager") window.location.href = "/dashboard";
-      else window.location.href = "/dashboard/user";
+      else window.location.href = "/dashboard/employee";
     } catch (err: unknown) {
       const firebaseError = err as { code?: string; message?: string };
       const code = firebaseError.code || "";
@@ -437,20 +555,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    setLogoutMarker();
     if (user) {
-      logActivity({
-        type: "system",
-        action: "logout",
-        title: "User Logout",
-        description: `User ${user.name} logged out.`,
-        userId: user.uid,
-        userName: user.name,
-        userRole: user.role,
-      });
+      try {
+        await logActivity({
+          type: "system",
+          action: "logout",
+          title: "User Logout",
+          description: `User ${user.name} logged out.`,
+          userId: user.uid,
+          userName: user.name,
+          userRole: user.role,
+        });
+      } catch {
+        // Non-blocking: logout should always continue.
+      }
     }
     localStorage.removeItem(SESSION_KEY);
-    fbAuth.signOut().catch(() => {});
+    clearAuthCookie();
+    sessionStorage.clear();
+    document.cookie = "zoho_session=; path=/; max-age=0";
+    await fbAuth.signOut().catch(() => {});
     setUser(null);
   };
 

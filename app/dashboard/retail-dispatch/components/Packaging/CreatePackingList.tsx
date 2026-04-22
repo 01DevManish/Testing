@@ -10,6 +10,7 @@ import { PageHeader, BtnPrimary, BtnGhost, Card } from "../ui";
 import { firestoreApi } from "../../data";
 import { sendNotification } from "../../../../lib/notificationHelper";
 import { generatePackingListPdf } from "../../PackingListPdf";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 interface PackingItem {
   productId: string;
@@ -287,6 +288,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         packingListData.id = finalId;
         await set(newListRef, packingListData);
       }
+      await touchDataSignal("packingLists");
 
       // ── Cloudinary PDF Upload ──
       try {
@@ -303,6 +305,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
             if (uploadRes.ok) {
                 const { secure_url } = await uploadRes.json();
                 await update(ref(db, `packingLists/${finalId}`), { packingPdfUrl: secure_url });
+                await touchDataSignal("packingLists");
                 console.log("PDF uploaded to Cloudinary:", secure_url);
             }
         }

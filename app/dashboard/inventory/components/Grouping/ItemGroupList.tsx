@@ -7,6 +7,7 @@ import { Product, ItemGroup } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Card, PageHeader, EmptyState } from "../../ui";
 import EditItemGroupModal from "./EditItemGroupModal";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function ItemGroupList({ groups, products, user, canDelete, isMobile }: {
     groups: ItemGroup[];
@@ -48,6 +49,7 @@ export default function ItemGroupList({ groups, products, user, canDelete, isMob
                                             onClick={async () => {
                                                 if (confirm(`Delete group "${g.name}"?`)) {
                                                     await remove(ref(db, `itemGroups/${g.id}`));
+                                                    await touchDataSignal("itemGroups");
                                                     await logActivity({
                                                         type: "inventory",
                                                         action: "delete",

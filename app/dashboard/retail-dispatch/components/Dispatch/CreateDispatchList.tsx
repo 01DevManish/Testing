@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ref, get, update } from "firebase/database";
+import { ref, update } from "firebase/database";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
 import { useData } from "../../../../context/DataContext";
@@ -11,6 +11,7 @@ import { PageHeader, BtnPrimary, BtnGhost, Card } from "../ui";
 import { firestoreApi } from "../../data";
 import MobileScannerView from "./MobileScannerView";
 import { resolveS3Url } from "../../../inventory/components/Products/imageService";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 interface ScannableItem {
   id: string; // row unique id
@@ -40,7 +41,7 @@ const normalizeCode = (value?: string): string => (value || "").trim().toUpperCa
 
 export default function CreateDispatchList({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { user, userData } = useAuth();
-  const { refreshData } = useData();
+  const { refreshData, packingLists: ctxPackingLists, partyRates } = useData();
   const [packingLists, setPackingLists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,20 +73,13 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const inv = await firestoreApi.getInventoryProducts();
+        const inv = await firestoreApi.getInventoryProducts({ forceFresh: true });
         setInventory(inv);
-
-        const listsRef = ref(db, "packingLists");
-        const snap = await get(listsRef);
-        if (snap.exists()) {
-          const data: any[] = [];
-          snap.forEach((child) => {
-            const val = child.val();
-            if (val.status !== "Completed" && val.status !== "Packed") {
-              data.push({ id: child.key, ...val });
-            }
-          });
-          setPackingLists(data);
+        if (!ctxPackingLists?.length) {
+          refreshData("packingLists");
+        }
+        if (!partyRates?.length) {
+          refreshData("partyRates");
         }
       } catch (err) {
         console.error("Failed to load initial data:", err);
@@ -94,28 +88,30 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       }
     };
     loadInitialData();
-  }, []);
+  }, [ctxPackingLists?.length, partyRates?.length, refreshData]);
+
+  useEffect(() => {
+    const filtered = (ctxPackingLists || []).filter(
+      (val: any) => val.status !== "Completed" && val.status !== "Packed"
+    );
+    setPackingLists(filtered);
+  }, [ctxPackingLists]);
 
   const handleSelectList = async (list: any) => {
     setSelectedList(list);
     
-    let partyRateMap: Record<string, string> = {};
+    const partyRateMap: Record<string, string> = {};
     try {
-      const partyRatesRef = ref(db, "partyRates");
-      const snap = await get(partyRatesRef);
-      if (snap.exists()) {
-        const targetParty = (list.partyName || "").trim().toLowerCase();
-        snap.forEach(child => {
-          const val = child.val();
-          if ((val.partyName || "").trim().toLowerCase() === targetParty) {
-            (val.rates || []).forEach((r: any) => {
-              if (r.productName) {
-                partyRateMap[r.productName.trim().toLowerCase()] = r.packagingType || "";
-              }
-            });
-          }
-        });
-      }
+      const targetParty = (list.partyName || "").trim().toLowerCase();
+      (partyRates || []).forEach((val: any) => {
+        if ((val.partyName || "").trim().toLowerCase() === targetParty) {
+          (val.rates || []).forEach((r: any) => {
+            if (r.productName) {
+              partyRateMap[r.productName.trim().toLowerCase()] = r.packagingType || "";
+            }
+          });
+        }
+      });
     } catch (e) {
       console.warn("Failed to resolve party rates for packaging:", e);
     }
@@ -399,6 +395,31 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         dispatchedBy: userData?.name || user?.name || "System",
         stockDeducted: true
       });
+      await touchDataSignal("packingLists");
+
+      fetch("/api/data/packingLists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "upsert",
+          items: [{
+            ...selectedList,
+            id: selectedList.id,
+            status: "Packed",
+            invoiceNo,
+            dispatchId: dispId,
+            dispatchBarcode: finalDispatchBarcode,
+            boxBarcodes,
+            lrNo,
+            bails: totalBoxes,
+            items: updatedRecordItems,
+            dispatchedAt: Date.now(),
+            dispatchedBy: userData?.name || user?.name || "System",
+            stockDeducted: true,
+            updatedAt: Date.now(),
+          }],
+        }),
+      }).catch(() => {});
 
       for (const { qty, productId, sku, productName } of deductionMap.values()) {
         const skuKey = normalizeSku(sku);

@@ -32,6 +32,20 @@ import { PartyRate, Brand } from "./types";
 import BrandsTab from "./BrandsTab";
 import ProfileTab from "./ProfileTab";
 
+const OFFICIAL_EMAIL_DOMAIN = "euruslifestyle.in";
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
+
+const normalizeStaffEmail = (raw: string) => {
+  const value = String(raw || "").trim().toLowerCase();
+  if (!value) return "";
+  if (value === HIDDEN_ADMIN_EMAIL) return value;
+  if (value.includes("@")) {
+    if (value.endsWith(`@${OFFICIAL_EMAIL_DOMAIN}`)) return value;
+    return "";
+  }
+  return `${value}@${OFFICIAL_EMAIL_DOMAIN}`;
+};
+
 export default function AdminPage() {
   const { user, userData, logout, loading } = useAuth();
   const router = useRouter();
@@ -306,7 +320,22 @@ export default function AdminPage() {
   };
 
   const handleAddEmployee = async () => {
-    if (!newEmployee.name || !newEmployee.email || !newEmployee.password) return;
+    const name = newEmployee.name.trim();
+    const emailInput = newEmployee.email.trim();
+    const password = newEmployee.password.trim();
+    if (!name || !emailInput || !password) {
+      setAddError("Name, email and password are required.");
+      return;
+    }
+    const normalizedEmail = normalizeStaffEmail(newEmployee.email);
+    if (!normalizedEmail) {
+      setAddError(`Email must end with @${OFFICIAL_EMAIL_DOMAIN}.`);
+      return;
+    }
+    if (normalizedEmail === HIDDEN_ADMIN_EMAIL) {
+      setAddError("This reserved admin email cannot be created from this form.");
+      return;
+    }
     if (!/^\d{4}$/.test(newEmployee.pin)) {
       setAddError("PIN must be exactly 4 digits.");
       return;
@@ -315,11 +344,11 @@ export default function AdminPage() {
     try {
       const secondaryApp = getApps().find(a => a.name === "Secondary") || initializeApp(firebaseConfig, "Secondary");
       const secondaryAuth = getAuth(secondaryApp);
-      const result = await createUserWithEmailAndPassword(secondaryAuth, newEmployee.email, newEmployee.password);
+      const result = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, newEmployee.password);
       const nu: UserRecord = {
         uid: result.user.uid,
-        email: newEmployee.email,
-        name: newEmployee.name,
+        email: normalizedEmail,
+        name,
         role: newEmployee.role,
         permissions: newEmployee.permissions,
         dispatchPin: newEmployee.pin,

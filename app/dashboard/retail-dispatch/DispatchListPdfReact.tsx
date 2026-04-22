@@ -1,9 +1,8 @@
 import React from "react";
 import { Document, Image, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
 import { generateDispatchBarcode, renderBarcodeToBase64 } from "../../lib/barcodeUtils";
-import { db } from "../../lib/firebase";
-import { get, ref } from "firebase/database";
 import { PackingList } from "./types";
+import { firestoreApi } from "./data";
 
 export interface DispatchItem {
   srNo: number;
@@ -323,7 +322,7 @@ const DispatchListPDF: React.FC<{ data: DispatchListData }> = ({ data }) => {
               </View>
             </View>
 
-            <Text style={styles.footerUrl}>Generated from: https://epanel.euruslifestyle.in/dashboard/retail-dispatch</Text>
+            <Text style={styles.footerUrl}>Generated from: https://epanel​.euruslifestyle​.in/dashboard/retail-dispatch</Text>
           </Page>
         );
       })}
@@ -375,16 +374,15 @@ const normalize = (value?: string) => String(value || "").trim().toLowerCase();
 const resolveItemsFromInventory = async (items: DispatchSourceItem[]): Promise<DispatchSourceItem[]> => {
   if (!items.length) return items;
   try {
-    const snap = await get(ref(db, "inventory"));
-    if (!snap.exists()) return items;
+    const inventoryRows = await firestoreApi.getInventoryProducts();
+    if (!inventoryRows.length) return items;
 
     const bySku: Record<string, { category?: string; collection?: string }> = {};
     const byName: Record<string, { category?: string; collection?: string }> = {};
 
-    snap.forEach((child) => {
-      const data = child.val() as Record<string, unknown>;
+    inventoryRows.forEach((data) => {
       const sku = normalize(String(data.sku || ""));
-      const name = normalize(String(data.productName || data.name || ""));
+      const name = normalize(String(data.productName || ""));
       const category = String(data.category || "").trim();
       const collection = String(data.collection || "").trim();
       const payload = { category, collection };

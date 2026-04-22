@@ -7,6 +7,7 @@ import { Category } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Card, PageHeader, EmptyState } from "../../ui";
 import EditCategoryModal from "./EditCategoryModal";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function CategoryList({ categories, user, canDelete }: {
     categories: Category[];
@@ -41,6 +42,7 @@ export default function CategoryList({ categories, user, canDelete }: {
                                             onClick={async () => {
                                                 if (confirm(`Delete category "${c.name}"?`)) {
                                                     await remove(ref(db, `categories/${c.id}`));
+                                                    await touchDataSignal("categories");
                                                     await logActivity({
                                                         type: "inventory",
                                                         action: "delete",

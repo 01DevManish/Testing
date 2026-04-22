@@ -84,7 +84,7 @@ export default function EmployeePage() {
     if (!loading && userData && userData.role !== "employee") {
       if (userData.role === "admin") router.replace("/dashboard/admin");
       else if (userData.role === "manager") router.replace("/dashboard/manager");
-      else router.replace("/dashboard/user");
+      else router.replace("/dashboard");
     }
   }, [loading, user, userData, router]);
 

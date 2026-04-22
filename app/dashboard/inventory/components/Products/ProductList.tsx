@@ -10,6 +10,7 @@ import { deleteImage } from "./imageService";
 import ExcelJS from "exceljs";
 import SmartImage from "../../../../components/SmartImage";
 import { normalizeStorageImageUrl } from "../../../../lib/urlUtils";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 
 type SortKey = "productName" | "category" | "collection" | "price" | "stock" | "status" | "createdAt";
@@ -148,6 +149,7 @@ export default function ProductList({
         if (!confirm(`Delete "${p.productName}" permanently?`)) return;
         try {
             await remove(ref(db, `inventory/${id}`));
+            await touchDataSignal("inventory");
             
             // Delete images from Cloudinary
             if (p.imageUrl) await deleteImage(p.imageUrl);
@@ -186,6 +188,7 @@ export default function ProductList({
                     await Promise.all(p.imageUrls.map(url => deleteImage(url)));
                 }
             }));
+            await touchDataSignal("inventory");
             
             // Log activity
             await logActivity({
@@ -202,6 +205,7 @@ export default function ProductList({
             onProductsChange(products.filter(p => !selectedIds.has(p.id)));
         } else {
             await Promise.all(Array.from(selectedIds).map(id => update(ref(db, `inventory/${id}`), { status: bulkAction, updatedAt: Date.now() })));
+            await touchDataSignal("inventory");
             
             // Log activity
             await logActivity({

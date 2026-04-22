@@ -7,6 +7,7 @@ import { Collection } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import { Card, PageHeader, EmptyState } from "../../ui";
 import EditCollectionModal from "./EditCollectionModal";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function CollectionList({ collections, user, canDelete }: {
     collections: Collection[];
@@ -46,6 +47,7 @@ export default function CollectionList({ collections, user, canDelete }: {
                                             onClick={async () => {
                                                 if (confirm(`Delete collection "${c.name}"?`)) {
                                                     await remove(ref(db, `collections/${c.id}`));
+                                                    await touchDataSignal("collections");
                                                     await logActivity({
                                                         type: "inventory",
                                                         action: "delete",

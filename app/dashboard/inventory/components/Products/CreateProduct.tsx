@@ -16,6 +16,7 @@ import { uploadImage } from "./imageService";
 import { logActivity } from "../../../../lib/activityLogger";
 import { transformImageUrl } from "../../../../lib/urlUtils";
 import { getBarcodeMappedFields } from "../../utils/barcodeUtils";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 const EMPTY: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
     productName: "", sku: "", styleId: "", category: "", collection: "", brand: "", brandId: "",
@@ -198,6 +199,7 @@ export default function CreateProduct({
                 collections
             );
             await rtdbSet(newRef, { ...docData, ...barcodeFields });
+            await touchDataSignal("inventory");
             
             // Log activity
             await logActivity({

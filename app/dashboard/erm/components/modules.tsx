@@ -24,6 +24,7 @@ type LeadRecord = {
   id: string;
   name: string;
   phone: string;
+  address?: string;
   email?: string;
   company?: string;
   city?: string;
@@ -343,6 +344,7 @@ export function ErmLeadsModule() {
   const [leadForm, setLeadForm] = useState({
     name: "",
     phone: "",
+    address: "",
     email: "",
     company: "",
     city: "",
@@ -361,6 +363,9 @@ export function ErmLeadsModule() {
     nextAction: "",
   });
   const [leadMetaForm, setLeadMetaForm] = useState({
+    name: "",
+    phone: "",
+    address: "",
     status: "new" as LeadRecord["status"],
     assignedToUid: "",
     notes: "",
@@ -414,6 +419,9 @@ export function ErmLeadsModule() {
   useEffect(() => {
     if (!selectedLead) return;
     setLeadMetaForm({
+      name: selectedLead.name || "",
+      phone: selectedLead.phone || "",
+      address: selectedLead.address || "",
       status: selectedLead.status || "new",
       assignedToUid: selectedLead.assignedToUid || "",
       notes: selectedLead.notes || "",
@@ -430,6 +438,7 @@ export function ErmLeadsModule() {
     await set(newRef, {
       name: leadForm.name.trim(),
       phone: leadForm.phone.trim(),
+      address: leadForm.address.trim(),
       email: leadForm.email.trim(),
       company: leadForm.company.trim(),
       city: leadForm.city.trim(),
@@ -441,7 +450,7 @@ export function ErmLeadsModule() {
       updatedAt: now,
     });
 
-    setLeadForm({ name: "", phone: "", email: "", company: "", city: "", source: "", assignedToUid: "" });
+    setLeadForm({ name: "", phone: "", address: "", email: "", company: "", city: "", source: "", assignedToUid: "" });
   };
 
   const saveCallRecord = async () => {
@@ -491,6 +500,9 @@ export function ErmLeadsModule() {
     if (!canEdit || !selectedLead) return;
     const assignee = staff.find((s) => s.uid === leadMetaForm.assignedToUid);
     await update(ref(db, `ermLeads/${selectedLead.id}`), {
+      name: leadMetaForm.name.trim() || selectedLead.name || "",
+      phone: leadMetaForm.phone.trim() || selectedLead.phone || "",
+      address: leadMetaForm.address.trim() || "",
       status: leadMetaForm.status,
       assignedToUid: leadMetaForm.assignedToUid || selectedLead.assignedToUid || "",
       assignedToName: assignee?.name || selectedLead.assignedToName || "",
@@ -547,6 +559,7 @@ export function ErmLeadsModule() {
       await set(newRef, {
         name,
         phone,
+        address: pickFromRow(row, ["address", "full_address", "location"]),
         email: pickFromRow(row, ["email"]),
         company: pickFromRow(row, ["company", "organization"]),
         city: pickFromRow(row, ["city"]),
@@ -566,6 +579,7 @@ export function ErmLeadsModule() {
         <div style={{ ...cardStyle, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
           <input placeholder="Lead name" value={leadForm.name} onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
           <input placeholder="Phone" value={leadForm.phone} onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+          <input placeholder="Address" value={leadForm.address} onChange={(e) => setLeadForm({ ...leadForm, address: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
           <input placeholder="Email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
           <input placeholder="Company" value={leadForm.company} onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
           <input placeholder="Source" value={leadForm.source} onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
@@ -587,148 +601,146 @@ export function ErmLeadsModule() {
         </div>
       )}
 
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(320px, 1fr) minmax(320px, 1fr)" }}>
-        <div style={{ ...cardStyle, overflowX: "auto" }}>
-          {isAdmin ? (
-            <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>Leads ({visibleLeads.length})</div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 4px", borderBottom: "1px solid #e2e8f0" }}>Name</th>
-                    <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 4px", borderBottom: "1px solid #e2e8f0" }}>Phone</th>
-                    <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 4px", borderBottom: "1px solid #e2e8f0" }}>Status</th>
-                    <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 4px", borderBottom: "1px solid #e2e8f0" }}>Next Follow-Up</th>
-                    <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 4px", borderBottom: "1px solid #e2e8f0" }}>Assigned</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleLeads.map((lead) => (
-                    <tr key={lead.id} onClick={() => setSelectedLeadId(lead.id)} style={{ cursor: "pointer", background: selectedLeadId === lead.id ? "#eef2ff" : "transparent" }}>
-                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #f1f5f9", fontSize: 13 }}>{lead.name}</td>
-                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #f1f5f9", fontSize: 13 }}>{lead.phone}</td>
-                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.status}</td>
-                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #f1f5f9", fontSize: 11 }}>{lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toLocaleString("en-IN") : "-"}</td>
-                      <td style={{ padding: "8px 4px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.assignedToName || "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>My Assigned Leads ({visibleLeads.length})</div>
-              <div style={{ display: "grid", gap: 10, maxHeight: 520, overflowY: "auto", paddingRight: 2 }}>
-                {visibleLeads.map((lead) => (
-                  <div key={lead.id} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: selectedLeadId === lead.id ? "#eef2ff" : "#fff" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{lead.name}</div>
-                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{lead.phone}</div>
-                        <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>Status: {lead.status}</div>
-                        <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                          Next: {lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toLocaleString("en-IN") : "Not scheduled"}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSelectedLeadId(lead.id)}
-                        style={{ border: "none", background: "#4f46e5", color: "#fff", borderRadius: 8, fontSize: 12, padding: "7px 10px", cursor: "pointer", whiteSpace: "nowrap" }}
-                      >
-                        Take Action
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {visibleLeads.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>No leads assigned yet.</div>}
-              </div>
-            </>
-          )}
+      <div style={{ ...cardStyle }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>
+            {isAdmin ? `All Leads (${visibleLeads.length})` : `My Assigned Leads (${visibleLeads.length})`}
+          </div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>Action button se lead popup open hoga.</div>
         </div>
 
-        <div style={cardStyle}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>Call Log & Follow Up</div>
-          {selectedLead ? (
-            <>
-              <div style={{ fontSize: 13, color: "#334155", marginBottom: 10 }}>
-                <strong>{selectedLead.name}</strong> ({selectedLead.phone})
-              </div>
-
-              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", marginBottom: 8 }}>
-                <select value={leadMetaForm.status} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, status: e.target.value as LeadRecord["status"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
-                  <option value="new">New</option>
-                  <option value="contacted">Contacted</option>
-                  <option value="interested">Interested</option>
-                  <option value="not_interested">Not Interested</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="won">Won</option>
-                  <option value="lost">Lost</option>
-                </select>
-                <select value={leadMetaForm.assignedToUid} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, assignedToUid: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
-                  <option value="">Assigned User</option>
-                  {staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}
-                </select>
-                <button onClick={saveLeadMeta} disabled={!canEdit} style={{ border: "none", background: "#1d4ed8", color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, cursor: "pointer", opacity: canEdit ? 1 : 0.5 }}>
-                  Update Lead
-                </button>
-              </div>
-
-              <textarea placeholder="Lead master notes" value={leadMetaForm.notes} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, notes: e.target.value })} style={{ width: "100%", minHeight: 60, marginBottom: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13, resize: "vertical" }} />
-
-              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))" }}>
-                <select value={callForm.outcome} onChange={(e) => setCallForm({ ...callForm, outcome: e.target.value as LeadCallRecord["outcome"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
-                  <option value="follow_up">Follow Up</option>
-                  <option value="interested">Interested</option>
-                  <option value="not_interested">Not Interested</option>
-                  <option value="no_response">No Response</option>
-                </select>
-                <select value={callForm.callType} onChange={(e) => setCallForm({ ...callForm, callType: e.target.value as LeadCallRecord["callType"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
-                  <option value="voice">Voice Call</option>
-                  <option value="whatsapp">WhatsApp Call</option>
-                  <option value="meeting">Physical Meeting</option>
-                  <option value="video">Video Call</option>
-                </select>
-                <select value={callForm.followUpMode} onChange={(e) => setCallForm({ ...callForm, followUpMode: e.target.value as LeadCallRecord["followUpMode"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
-                  <option value="call">Follow-up by Call</option>
-                  <option value="whatsapp">Follow-up by WhatsApp</option>
-                  <option value="meeting">Follow-up by Meeting</option>
-                  <option value="none">No Follow-up</option>
-                </select>
-                <select value={callForm.priority} onChange={(e) => setCallForm({ ...callForm, priority: e.target.value as LeadCallRecord["priority"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
-                  <option value="hot">Hot</option>
-                  <option value="warm">Warm</option>
-                  <option value="cold">Cold</option>
-                </select>
-                <input placeholder="Duration (min)" type="number" min={0} value={callForm.durationMinutes} onChange={(e) => setCallForm({ ...callForm, durationMinutes: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-                <input type="datetime-local" value={callForm.scheduledAt} onChange={(e) => setCallForm({ ...callForm, scheduledAt: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-              </div>
-              <input placeholder="Next action" value={callForm.nextAction} onChange={(e) => setCallForm({ ...callForm, nextAction: e.target.value })} style={{ width: "100%", marginTop: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-              <textarea placeholder="Call notes" value={callForm.notes} onChange={(e) => setCallForm({ ...callForm, notes: e.target.value })} style={{ width: "100%", minHeight: 78, marginTop: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13, resize: "vertical" }} />
-              <button onClick={saveCallRecord} disabled={!canEdit} style={{ marginTop: 8, border: "none", background: "#4f46e5", color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, cursor: "pointer", opacity: canEdit ? 1 : 0.5 }}>
-                Save Call Record
-              </button>
-
-              <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>
-                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>History</div>
-                <div style={{ display: "grid", gap: 8, maxHeight: 260, overflow: "auto" }}>
-                  {callLogs.map((log) => (
-                    <div key={log.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 10 }}>
-                      <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 600 }}>{log.outcome} {log.priority ? `| ${log.priority}` : ""}</div>
-                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{new Date(log.calledAt).toLocaleString("en-IN")}</div>
-                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Type: {log.callType || "-"} | Duration: {log.durationMinutes || 0}m | Follow-up: {log.followUpMode || "-"}</div>
-                      {log.nextAction ? <div style={{ fontSize: 12, color: "#334155", marginTop: 6 }}>Next Action: {log.nextAction}</div> : null}
-                      {log.notes ? <div style={{ fontSize: 12, color: "#334155", marginTop: 6 }}>{log.notes}</div> : null}
-                      {log.scheduledAt ? <div style={{ fontSize: 12, color: "#475569", marginTop: 6 }}>Next: {new Date(log.scheduledAt).toLocaleString("en-IN")}</div> : null}
-                    </div>
-                  ))}
-                  {callLogs.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>No call records yet.</div>}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: 12, color: "#94a3b8" }}>Select a lead to manage calls and schedule follow-up.</div>
-          )}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Name</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Phone</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Address</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Status</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Assigned</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Next Follow-Up</th>
+                <th style={{ textAlign: "right", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleLeads.map((lead) => (
+                <tr key={lead.id} style={{ background: selectedLeadId === lead.id ? "#eef2ff" : "transparent" }}>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#0f172a", fontWeight: 600 }}>{lead.name}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 13 }}>{lead.phone}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#475569" }}>{lead.address || lead.city || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12, textTransform: "capitalize" }}>{lead.status.replace(/_/g, " ")}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.assignedToName || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 11 }}>{lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toLocaleString("en-IN") : "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
+                    <button
+                      onClick={() => setSelectedLeadId(lead.id)}
+                      style={{ border: "none", background: "#4f46e5", color: "#fff", borderRadius: 8, fontSize: 12, padding: "7px 12px", cursor: "pointer" }}
+                    >
+                      Action
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {visibleLeads.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 0 2px" }}>No leads available.</div>}
         </div>
       </div>
+
+      {selectedLead && (
+        <div
+          onClick={() => setSelectedLeadId("")}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", justifyContent: "center", alignItems: "center", padding: 14 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "min(960px, 100%)", maxHeight: "90vh", overflow: "auto", background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", padding: 16 }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Lead Action Form</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>Employee yahan se name, phone, address aur call details update karega.</div>
+              </div>
+              <button onClick={() => setSelectedLeadId("")} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Close</button>
+            </div>
+
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", marginBottom: 8 }}>
+              <input placeholder="Name" value={leadMetaForm.name} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, name: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+              <input placeholder="Phone No." value={leadMetaForm.phone} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, phone: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+              <input placeholder="Address" value={leadMetaForm.address} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, address: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+              <select value={leadMetaForm.status} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, status: e.target.value as LeadRecord["status"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="interested">Interested</option>
+                <option value="not_interested">Not Interested</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="won">Won</option>
+                <option value="lost">Lost</option>
+              </select>
+              <select value={leadMetaForm.assignedToUid} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, assignedToUid: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+                <option value="">Assigned User</option>
+                {staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}
+              </select>
+              <button onClick={saveLeadMeta} disabled={!canEdit} style={{ border: "none", background: "#1d4ed8", color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, cursor: "pointer", opacity: canEdit ? 1 : 0.5 }}>
+                Save Lead Details
+              </button>
+            </div>
+
+            <textarea placeholder="Lead master notes" value={leadMetaForm.notes} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, notes: e.target.value })} style={{ width: "100%", minHeight: 60, marginBottom: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13, resize: "vertical" }} />
+
+            <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 8, paddingTop: 10, fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Call Update</div>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", marginTop: 8 }}>
+              <select value={callForm.outcome} onChange={(e) => setCallForm({ ...callForm, outcome: e.target.value as LeadCallRecord["outcome"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+                <option value="follow_up">Follow Up</option>
+                <option value="interested">Interested</option>
+                <option value="not_interested">Not Interested</option>
+                <option value="no_response">No Response</option>
+              </select>
+              <select value={callForm.callType} onChange={(e) => setCallForm({ ...callForm, callType: e.target.value as LeadCallRecord["callType"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+                <option value="voice">Voice Call</option>
+                <option value="whatsapp">WhatsApp Call</option>
+                <option value="meeting">Physical Meeting</option>
+                <option value="video">Video Call</option>
+              </select>
+              <select value={callForm.followUpMode} onChange={(e) => setCallForm({ ...callForm, followUpMode: e.target.value as LeadCallRecord["followUpMode"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+                <option value="call">Follow-up by Call</option>
+                <option value="whatsapp">Follow-up by WhatsApp</option>
+                <option value="meeting">Follow-up by Meeting</option>
+                <option value="none">No Follow-up</option>
+              </select>
+              <select value={callForm.priority} onChange={(e) => setCallForm({ ...callForm, priority: e.target.value as LeadCallRecord["priority"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+                <option value="hot">Hot</option>
+                <option value="warm">Warm</option>
+                <option value="cold">Cold</option>
+              </select>
+              <input placeholder="Duration (min)" type="number" min={0} value={callForm.durationMinutes} onChange={(e) => setCallForm({ ...callForm, durationMinutes: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+              <input type="datetime-local" value={callForm.scheduledAt} onChange={(e) => setCallForm({ ...callForm, scheduledAt: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+            </div>
+            <input placeholder="Next action" value={callForm.nextAction} onChange={(e) => setCallForm({ ...callForm, nextAction: e.target.value })} style={{ width: "100%", marginTop: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+            <textarea placeholder="Call notes" value={callForm.notes} onChange={(e) => setCallForm({ ...callForm, notes: e.target.value })} style={{ width: "100%", minHeight: 78, marginTop: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13, resize: "vertical" }} />
+            <button onClick={saveCallRecord} disabled={!canEdit} style={{ marginTop: 8, border: "none", background: "#4f46e5", color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, cursor: "pointer", opacity: canEdit ? 1 : 0.5 }}>
+              Save Call Record
+            </button>
+
+            <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>History</div>
+              <div style={{ display: "grid", gap: 8, maxHeight: 260, overflow: "auto" }}>
+                {callLogs.map((log) => (
+                  <div key={log.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 10 }}>
+                    <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 600 }}>{log.outcome} {log.priority ? `| ${log.priority}` : ""}</div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{new Date(log.calledAt).toLocaleString("en-IN")}</div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Type: {log.callType || "-"} | Duration: {log.durationMinutes || 0}m | Follow-up: {log.followUpMode || "-"}</div>
+                    {log.nextAction ? <div style={{ fontSize: 12, color: "#334155", marginTop: 6 }}>Next Action: {log.nextAction}</div> : null}
+                    {log.notes ? <div style={{ fontSize: 12, color: "#334155", marginTop: 6 }}>{log.notes}</div> : null}
+                    {log.scheduledAt ? <div style={{ fontSize: 12, color: "#475569", marginTop: 6 }}>Next: {new Date(log.scheduledAt).toLocaleString("en-IN")}</div> : null}
+                  </div>
+                ))}
+                {callLogs.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>No call records yet.</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

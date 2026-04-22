@@ -9,6 +9,7 @@ import { Card, PageHeader } from "../../ui";
 import BarcodeSVG from "./BarcodeSVG";
 import SmartImage from "../../../../components/SmartImage";
 import { generateBarcodeForProduct, getCollectionCodeFromName, needsBarcodeRefresh, normalizeSkuKey } from "../../utils/barcodeUtils";
+import { touchDataSignal } from "../../../../lib/dataSignals";
 
 export default function BarcodeView({
     products,
@@ -56,7 +57,10 @@ export default function BarcodeView({
         for (const p of productsToPrint) {
             if (needsBarcodeRefresh(p, collections)) {
                 const code = generateBarcodeForProduct(p, collections);
-                try { await update(ref(db, `inventory/${p.id}`), { barcode: code, barcodeSku: normalizeSkuKey(p.sku) }); } catch (e) { console.error(e); }
+                try {
+                    await update(ref(db, `inventory/${p.id}`), { barcode: code, barcodeSku: normalizeSkuKey(p.sku) });
+                    await touchDataSignal("inventory");
+                } catch (e) { console.error(e); }
             }
         }
         setIsBulkPrint(true);
@@ -70,6 +74,7 @@ export default function BarcodeView({
             const code = generateBarcodeForProduct(currentP, collections);
             try {
                 await update(ref(db, `inventory/${currentP.id}`), { barcode: code, barcodeSku: normalizeSkuKey(currentP.sku) });
+                await touchDataSignal("inventory");
                 setGeneratedBarcode(code);
             } catch (e) { console.error(e); alert("Failed to save barcode to database."); }
         } else {

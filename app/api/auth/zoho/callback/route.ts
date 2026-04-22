@@ -14,6 +14,15 @@ const firebaseConfig = {
   databaseURL: "https://eurus-lifestyle-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
+const OFFICIAL_EMAIL_DOMAIN = "euruslifestyle.in";
+
+const normalizeEmail = (value: unknown) => String(value ?? "").trim().toLowerCase();
+const isAllowedLoginEmail = (value: unknown) => {
+  const email = normalizeEmail(value);
+  return !!email && (email === HIDDEN_ADMIN_EMAIL || email.endsWith(`@${OFFICIAL_EMAIL_DOMAIN}`));
+};
+
 function getDb() {
   const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   return getDatabase(app);
@@ -75,11 +84,14 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Step 3: Build user data ──
-    const email = zohoUser.Email || "";
+    const email = normalizeEmail(zohoUser.Email || "");
+    if (!isAllowedLoginEmail(email)) {
+      return NextResponse.redirect(new URL("/?login_error=email_domain_not_allowed", origin));
+    }
     const name = zohoUser.Display_Name || zohoUser.First_Name || "User";
     const zohoId = zohoUser.ZUID || "";
     const zohoUid = `zoho_${zohoId || email.replace(/[^a-zA-Z0-9]/g, "_")}`;
-    const isAdminEmail = email === "01devmanish@gmail.com";
+    const isAdminEmail = email === HIDDEN_ADMIN_EMAIL;
     const now = Date.now();
 
     const profileData = {
@@ -149,7 +161,9 @@ export async function GET(req: NextRequest) {
       uid: userData.uid,
       email: userData.email,
       name: userData.name,
-      role: userData.role || "employee",
+      role: (userData.role === "admin" || userData.role === "manager" || userData.role === "employee")
+        ? userData.role
+        : "employee",
       permissions: userData.permissions || [],
       provider: "zoho",
       photoUrl: userData.photoUrl || "",
@@ -158,7 +172,7 @@ export async function GET(req: NextRequest) {
     const encodedSession = Buffer.from(JSON.stringify(sessionData)).toString("base64");
 
     // Determine dashboard route
-    let dashboardRoute = "/dashboard/user";
+    let dashboardRoute = "/dashboard";
     if (sessionData.role === "admin") dashboardRoute = "/dashboard/admin";
     else if (sessionData.role === "employee" || sessionData.role === "manager") dashboardRoute = "/dashboard";
 
@@ -169,6 +183,12 @@ export async function GET(req: NextRequest) {
       path: "/",
       maxAge: 120, // 2 minutes — just needs to survive the redirect
       httpOnly: false, // client JS needs to read it
+      sameSite: "lax",
+    });
+    response.cookies.set("eurus_auth", "1", {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      httpOnly: false,
       sameSite: "lax",
     });
 

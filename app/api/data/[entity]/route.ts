@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { DeleteCommand, PutCommand, QueryCommand, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { DATA_TABLE_NAME, docClient } from "../../../lib/dynamodb";
 import { dataPartitionKey, dataSortKey, isDataEntity } from "../../../lib/dataEntities";
+import { adminDb } from "../../../lib/firebaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Row = Record<string, unknown> & { id?: string };
+
+const emitEntitySignal = async (entity: string): Promise<void> => {
+  try {
+    await adminDb.ref(`syncSignals/${entity}`).set(Date.now());
+  } catch (error) {
+    console.warn(`[api/data] Failed to emit sync signal for ${entity}.`, error);
+  }
+};
 
 const fetchExistingKeys = async (partition: string): Promise<string[]> => {
   const keys: string[] = [];
@@ -154,6 +163,7 @@ export async function POST(
       upserted += chunk.length;
     }
 
+    await emitEntitySignal(entity);
     return NextResponse.json({ success: true, upserted, cleared });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to sync data";

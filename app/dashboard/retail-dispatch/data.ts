@@ -4,6 +4,7 @@ import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { getBarcodeMappedFields, normalizeSkuKey } from "../inventory/utils/barcodeUtils";
 import type { Collection } from "../inventory/types";
+import { touchDataSignal } from "../../lib/dataSignals";
 
 type InventoryDispatchProduct = {
   id: string;
@@ -19,6 +20,8 @@ type InventoryDispatchProduct = {
   brand?: string;
   brandId?: string;
   category?: string;
+  imageUrl?: string;
+  imageUrls?: string[];
 };
 
 const INVENTORY_CACHE_TTL_MS = 45 * 1000;
@@ -29,23 +32,65 @@ let inventoryFetchPromise: Promise<InventoryDispatchProduct[]> | null = null;
 let lastBarcodeSyncAt = 0;
 
 const cloneInventory = (rows: InventoryDispatchProduct[]): InventoryDispatchProduct[] =>
-  rows.map((row) => ({ ...row }));
+  rows.map((row) => ({
+    ...row,
+    imageUrls: Array.isArray(row.imageUrls) ? [...row.imageUrls] : [],
+  }));
 
-const mapInventoryRow = (id: string, data: Record<string, any>): InventoryDispatchProduct => ({
-  id,
-  productName: data.productName || "Unknown",
-  price: Number(data.price) || 0,
-  stock: Number(data.stock) || 0,
-  sku: data.sku || "N/A",
-  barcode: String(data.barcode || "").trim(),
-  barcodeSku: normalizeSkuKey(data.barcodeSku || data.sku),
-  styleId: data.styleId || "",
-  unit: data.unit || "PCS",
-  collection: data.collection || "",
-  brand: data.brand || "",
-  brandId: data.brandId || "",
-  category: data.category || "",
-});
+const normalizeImageUrls = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((img): img is string => typeof img === "string")
+      .map((img) => img.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .filter((img): img is string => typeof img === "string")
+            .map((img) => img.trim())
+            .filter(Boolean);
+        }
+      } catch {
+        // fallback below
+      }
+    }
+    return [trimmed];
+  }
+  return [];
+};
+
+const mapInventoryRow = (id: string, data: Record<string, any>): InventoryDispatchProduct => {
+  const imageUrls = normalizeImageUrls(data.imageUrls);
+  const imageUrl =
+    String(data.imageUrl || "").trim() ||
+    String(data.image || "").trim() ||
+    imageUrls[0] ||
+    "";
+
+  return {
+    id,
+    productName: data.productName || "Unknown",
+    price: Number(data.price) || 0,
+    stock: Number(data.stock) || 0,
+    sku: data.sku || "N/A",
+    barcode: String(data.barcode || "").trim(),
+    barcodeSku: normalizeSkuKey(data.barcodeSku || data.sku),
+    styleId: data.styleId || "",
+    unit: data.unit || "PCS",
+    collection: data.collection || "",
+    brand: data.brand || "",
+    brandId: data.brandId || "",
+    category: data.category || "",
+    imageUrl,
+    imageUrls,
+  };
+};
 
 const loadCollectionsForBarcode = async (): Promise<Collection[]> => {
   try {
@@ -120,6 +165,7 @@ const maybeSyncBarcodes = async (rows: InventoryDispatchProduct[]): Promise<Inve
   if (Object.keys(updates).length > 0) {
     try {
       await update(ref(db), updates);
+      await touchDataSignal("inventory");
     } catch (err) {
       console.warn("[RetailDispatch] Barcode sync write failed.", err);
     }
@@ -173,12 +219,14 @@ export const firestoreApi = {
   createParty: async (party: Omit<Party, "id">): Promise<Party> => {
     const newRef = push(ref(db, "parties"));
     await set(newRef, { ...party, createdAt: new Date().toISOString() });
+    await touchDataSignal("parties");
     return { id: newRef.key as string, ...party };
   },
 
   deleteParty: async (id: string): Promise<void> => {
     try {
       await remove(ref(db, `parties/${id}`));
+      await touchDataSignal("parties");
     } catch (e) {
       console.error("Failed to delete party:", e);
       throw e;
@@ -200,6 +248,7 @@ export const firestoreApi = {
   createTransporter: async (t: Omit<Transporter, "id">): Promise<Transporter> => {
     const newRef = push(ref(db, "transporters"));
     await set(newRef, { ...t, createdAt: new Date().toISOString() });
+    await touchDataSignal("transporters");
     return { id: newRef.key as string, ...t };
   },
 
@@ -275,6 +324,7 @@ export const firestoreApi = {
           status: newStatus,
           updatedAt: Date.now() 
         });
+        await touchDataSignal("inventory");
         firestoreApi.invalidateInventoryCache();
         
         console.log(`Deducted ${quantityToDeduct} from ${productId}. New stock: ${newStock}, Status: ${newStatus}`);
@@ -338,6 +388,7 @@ export const api = {
       }
       
       await set(orderRef, updatedOrder);
+      await touchDataSignal("dispatches");
 
       // Log activity
       await logActivity({
@@ -368,6 +419,7 @@ export const api = {
       const updatedProducts = existing.products?.map((p: any) => p.id === productId ? { ...p, packed } : p) || [];
       
       await update(orderRef, { products: updatedProducts });
+      await touchDataSignal("dispatches");
       return { id: orderId, ...existing, products: updatedProducts } as Order;
     } catch (e) {
       console.error(e);
@@ -393,6 +445,7 @@ export const api = {
       };
       
       await set(orderRef, order);
+      await touchDataSignal("dispatches");
 
       // Log activity
       await logActivity({
@@ -416,6 +469,7 @@ export const api = {
   deleteOrder: async (orderId: string, actor?: { uid: string; name: string; role: string }): Promise<void> => {
     try {
       await remove(ref(db, `dispatches/${orderId}`));
+      await touchDataSignal("dispatches");
 
       // Log activity
       await logActivity({
@@ -437,6 +491,7 @@ export const api = {
   deletePackingList: async (id: string, actor?: { uid: string; name: string; role: string }): Promise<void> => {
     try {
       await remove(ref(db, `packingLists/${id}`));
+      await touchDataSignal("packingLists");
 
       // Log activity
       await logActivity({
