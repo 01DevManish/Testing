@@ -65,7 +65,7 @@ function LoginContent() {
     }
   };
 
-  if (!loading && user) return null;
+  if (!loading && user && !user.requiresPasswordChange) return null;
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,7 +176,7 @@ function LoginContent() {
         {user?.requiresPasswordChange ? (
           <form onSubmit={handleForceChange} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ textAlign: "left", padding: "12px", background: "#fef2f2", borderRadius: 12, border: "1px solid #fee2e2", marginBottom: 10 }}>
-              <p style={{ fontSize: 13, color: "#991b1b", margin: 0 }}><strong>Security Requirement:</strong> Your password was reset by an administrator. Please set a new private password to continue.</p>
+              <p style={{ fontSize: 13, color: "#991b1b", margin: 0 }}><strong>Security Requirement:</strong> This is your first login or your password was reset by admin. Please set a new private password to continue.</p>
             </div>
             <div style={{ textAlign: "left" }}>
               <label style={{ fontSize: 11, fontWeight: 400, color: "#64748b", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.08em" }}>New Private Password</label>

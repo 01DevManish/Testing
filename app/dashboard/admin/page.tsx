@@ -323,7 +323,7 @@ export default function AdminPage() {
         role: newEmployee.role,
         permissions: newEmployee.permissions,
         dispatchPin: newEmployee.pin,
-        requiresPasswordChange: false
+        requiresPasswordChange: true
       };
       // Fire both concurrently — don't wait for signOut before Firestore write
       await Promise.all([

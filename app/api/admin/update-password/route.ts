@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     // 3. Update RTDB metadata (and PIN if provided)
     const updatePayload: Record<string, unknown> = {
-      requiresPasswordChange: false,
+      requiresPasswordChange: true,
       passwordUpdatedAt: Date.now(),
       passwordUpdatedBy: adminUid,
     };

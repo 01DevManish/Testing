@@ -28,17 +28,32 @@ const toServiceAccount = (raw: unknown): admin.ServiceAccount | undefined => {
   if (!raw || typeof raw !== "object") return undefined;
   const candidate = raw as {
     projectId?: unknown;
+    project_id?: unknown;
     clientEmail?: unknown;
+    client_email?: unknown;
     privateKey?: unknown;
+    private_key?: unknown;
     privateKeyId?: unknown;
+    private_key_id?: unknown;
   };
 
-  const projectId = typeof candidate.projectId === "string" ? candidate.projectId : undefined;
-  const clientEmail = typeof candidate.clientEmail === "string" ? candidate.clientEmail : undefined;
+  const projectId =
+    typeof candidate.projectId === "string"
+      ? candidate.projectId
+      : (typeof candidate.project_id === "string" ? candidate.project_id : undefined);
+  const clientEmail =
+    typeof candidate.clientEmail === "string"
+      ? candidate.clientEmail
+      : (typeof candidate.client_email === "string" ? candidate.client_email : undefined);
   const privateKey = normalizePrivateKey(
-    typeof candidate.privateKey === "string" ? candidate.privateKey : undefined
+    typeof candidate.privateKey === "string"
+      ? candidate.privateKey
+      : (typeof candidate.private_key === "string" ? candidate.private_key : undefined)
   );
-  const privateKeyId = typeof candidate.privateKeyId === "string" ? candidate.privateKeyId : undefined;
+  const privateKeyId =
+    typeof candidate.privateKeyId === "string"
+      ? candidate.privateKeyId
+      : (typeof candidate.private_key_id === "string" ? candidate.private_key_id : undefined);
 
   if (!projectId || !clientEmail || !privateKey) return undefined;
 

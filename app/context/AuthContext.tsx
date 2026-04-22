@@ -399,6 +399,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
       setUser(userData);
 
+      // Force first-login (or admin-reset) password setup before entering dashboard.
+      if (userData.requiresPasswordChange) {
+        return;
+      }
+
       // Log activity
       await logActivity({
         type: "system",
