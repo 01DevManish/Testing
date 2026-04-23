@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { ref, push, set as rtdbSet, get, query, orderByChild, equalTo } from "firebase/database";
+import { ref, push, set as rtdbSet, get, query, orderByChild, equalTo } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import {
     FONT, UNITS, GST_RATES, Product, Category, Collection
@@ -674,3 +674,4 @@ export default function CreateProduct({
         </div>
     );
 }
+

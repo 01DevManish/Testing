@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { api, firestoreApi } from "../../data";
 import { useAuth } from "../../../../context/AuthContext";
-import { ref, update } from "firebase/database";
-import { db } from "../../../../lib/firebase";
 import { logActivity } from "../../../../lib/activityLogger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -171,7 +169,18 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
             if (enteredPin.length < 4) return;
             setIsSaving(true);
             try {
-                await update(ref(db, `users/${user?.uid}`), { dispatchPin: enteredPin });
+                const res = await fetch("/api/user-metadata", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        uid: user?.uid,
+                        data: { dispatchPin: enteredPin }
+                    })
+                });
+                const result = await res.json();
+                if (!res.ok) {
+                    throw new Error(result?.error || "Failed to set PIN.");
+                }
                 alert("Dispatch PIN created successfully! Please proceed to confirm dispatch.");
                 setPin(["", "", "", ""]);
                 // Refresh window to get new userData if not using a listener, 

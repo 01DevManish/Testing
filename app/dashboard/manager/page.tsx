@@ -3,8 +3,6 @@
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { ref, get, update, onValue } from "firebase/database";
-import { db } from "../../lib/firebase";
 import { sendNotification } from "../../lib/notificationHelper";
 import ProfileTab from "../admin/ProfileTab";
 import PartyRateModule from "../party-rate";
@@ -18,6 +16,9 @@ import EmployeeSidebar from "../employee/EmployeeSidebar";
 import TeamTab from "./TeamTab";
 import { hasPermission } from "@/app/lib/permissions";
 import type { PartyRate } from "../admin/types";
+import { fetchTasksForAssignee, patchTaskById } from "../../lib/tasksApi";
+import { fetchDataItems } from "../../lib/dynamoDataApi";
+import { useActivePolling } from "../../lib/useActivePolling";
 
 interface Task {
   id: string; title: string; description: string; assignedTo: string;
@@ -77,32 +78,31 @@ export default function ManagerPage() {
 
   const currentName = userData?.name || "Manager";
 
-  // Load tasks
-  useEffect(() => {
+  const loadTasks = useCallback(async () => {
     if (!user) return;
-    setFetchingTasks(true);
-    const unsubscribe = onValue(ref(db, "tasks"), (snapshot) => {
-      const list: Task[] = [];
-      if (snapshot.exists()) {
-        snapshot.forEach((d) => {
-          const val = d.val();
-          if (val.assignedTo === user.uid) list.push({ id: d.key!, ...val });
-        });
-      }
-      list.sort((a, b) => b.createdAt - a.createdAt);
+    try {
+      setFetchingTasks(true);
+      const all = await fetchTasksForAssignee(user.uid, {
+        email: userData?.email,
+        name: userData?.name,
+      });
+      const list = (all as unknown as Task[])
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setTasks(list);
+    } catch (e) {
+      console.error(e);
+    } finally {
       setFetchingTasks(false);
-    });
-    return () => unsubscribe();
-  }, [user]);
+    }
+  }, [user, userData?.email, userData?.name]);
+
+  useActivePolling(loadTasks, 12000, [loadTasks]);
 
   const loadPartyRates = useCallback(async () => {
     if (!hasPermission(userData, "party_rate_view")) return;
     setFetchingPartyRates(true);
     try {
-      const snap = await get(ref(db, "partyRates"));
-      const list: PartyRate[] = [];
-      if (snap.exists()) snap.forEach(d => { list.push({ id: d.key, ...d.val() }); });
+      const list = await fetchDataItems<PartyRate>("partyRates");
       setPartyRates(list);
     } catch (e) { console.error(e); } finally { setFetchingPartyRates(false); }
   }, [userData]);
@@ -129,7 +129,7 @@ export default function ManagerPage() {
         const baseStatus: "pending" | "in-progress" =
           task.status === "in-progress" ? "in-progress" : "pending";
 
-        await update(ref(db, `tasks/${id}`), {
+        await patchTaskById(id, {
           completionRequested: true,
           completionRequestedAt: now,
           completionRequestedBy: user.uid,
@@ -165,10 +165,10 @@ export default function ManagerPage() {
         return;
       }
 
-      await update(ref(db, `tasks/${id}`), {
-        status,
-        completionRequested: false,
-        completionApprovalStatus: "none",
+        await patchTaskById(id, {
+          status,
+          completionRequested: false,
+          completionApprovalStatus: "none",
         completionRequestedAt: null,
         completionRequestedBy: null,
         completedAt: null,

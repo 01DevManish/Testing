@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, push, set, get } from "firebase/database";
+import { ref, push, set, get } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { FONT, Collection } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -85,3 +85,4 @@ export default function CreateCollection({ user, onCreated }: { user: { uid: str
         </div>
     );
 }
+

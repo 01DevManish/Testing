@@ -4,7 +4,7 @@ import { PackingList } from "./types";
 
 export const generateDispatchListPdf = async (
     list: PackingList & Record<string, unknown>,
-    options?: { uploadToS3?: boolean; preferUploadedUrl?: boolean }
+    options?: { uploadToS3?: boolean; preferUploadedUrl?: boolean; targetWindow?: Window | null }
 ): Promise<void> => {
     // Upload flow depends on template + S3 sync, so keep template for that path.
     if (options?.uploadToS3) {
@@ -14,7 +14,7 @@ export const generateDispatchListPdf = async (
 
     // For preview/download comparison, try the new React-PDF layout first.
     try {
-        await generateReactDispatchListPdf(list);
+        await generateReactDispatchListPdf(list, options?.targetWindow ?? null);
     } catch (error) {
         console.warn("React PDF render failed. Falling back to template PDF.", error);
         await generateTemplateDispatchPdf(list, options);

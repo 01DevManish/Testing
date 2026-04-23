@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ref, update } from "firebase/database";
+import { ref, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
 import { useData } from "../../../../context/DataContext";
@@ -960,4 +960,5 @@ if (loading) return <div className="p-8 text-center text-slate-500">Loading pack
     </div>
   );
 }
+
 

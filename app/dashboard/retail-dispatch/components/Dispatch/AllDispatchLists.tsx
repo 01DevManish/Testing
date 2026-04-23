@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { get, ref, remove, update } from "firebase/database";
+import { get, ref, remove, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { PackingList } from "../../types";
 import { firestoreApi } from "../../data";
@@ -151,6 +151,12 @@ export default function AllDispatchLists() {
   };
 
   const handleDownload = async (list: PackingList, type: "dispatch" | "packing") => {
+    const previewWindow = window.open("", "_blank");
+    if (!previewWindow) {
+      alert("Please allow popups to view PDF.");
+      return;
+    }
+
     try {
       let fullPartyData: Record<string, unknown> = {};
       if (list.partyId) {
@@ -180,14 +186,15 @@ export default function AllDispatchLists() {
         // Always generate fresh PDF to reflect latest layout/data changes.
         await generateDispatchListPdf(
           { ...list, ...fullPartyData },
-          { uploadToS3: false, preferUploadedUrl: false }
+          { uploadToS3: false, preferUploadedUrl: false, targetWindow: previewWindow }
         );
       } else {
-        await generatePackingListPdf({ ...list, ...fullPartyData });
+        await generatePackingListPdf({ ...list, ...fullPartyData }, { targetWindow: previewWindow });
       }
     } catch (err) {
       console.error("PDF Error:", err);
       alert("Failed to generate PDF");
+      previewWindow.close();
     }
   };
 
@@ -711,3 +718,4 @@ export default function AllDispatchLists() {
     </div>
   );
 }
+

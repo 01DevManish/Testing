@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ref, update } from "firebase/database";
+import { ref, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { FONT, Product, ItemGroup } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -99,3 +99,4 @@ export default function EditItemGroupModal({ group, user, allProducts, onClose, 
         </div>
     );
 }
+

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ref, get } from "firebase/database";
+import { ref, get } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { PageHeader, Card } from "../ui";
 import { generatePackingListPdf } from "../../PackingListPdf";
@@ -35,6 +35,12 @@ export default function AllPackingLists({
   }, []);
 
   const handlePdf = async (list: any) => {
+    const previewWindow = window.open("", "_blank");
+    if (!previewWindow) {
+      alert("Please allow popups to view PDF.");
+      return;
+    }
+
     setDownloadingId(list.id);
     try {
       let fullPartyData: any = {};
@@ -68,10 +74,11 @@ export default function AllPackingLists({
         };
       });
 
-      await generatePackingListPdf({ ...list, ...fullPartyData, items: mappedItems });
+      await generatePackingListPdf({ ...list, ...fullPartyData, items: mappedItems }, { targetWindow: previewWindow });
     } catch (err) {
       console.error("PDF Error:", err);
       alert("Failed to generate PDF");
+      previewWindow.close();
     } finally {
       setDownloadingId(null);
     }
@@ -403,3 +410,4 @@ export default function AllPackingLists({
     </div>
   );
 }
+

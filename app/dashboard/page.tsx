@@ -3,7 +3,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { ref, get, update, remove, query, orderByChild, equalTo, onValue } from "firebase/database";
+import { ref, get, query, orderByChild, equalTo, onValue } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../lib/firebase";
 import type { UserRole } from "../context/AuthContext";
 import { getStyles } from "./admin/styles";
@@ -18,6 +18,8 @@ import { hasPermission } from "../lib/permissions";
 import { PartyRate } from "./admin/types";
 import { Product } from "./inventory/types";
 import EmployeeSidebar from "./employee/EmployeeSidebar";
+import { fetchTasksForAssignee, patchTaskById } from "../lib/tasksApi";
+import { useActivePolling } from "../lib/useActivePolling";
 
 interface UserRecord { uid: string; email: string; name: string; role: UserRole; }
 
@@ -105,29 +107,23 @@ export default function DashboardPage() {
   const currentEmail = userData?.email || user?.email || "";
   const currentUid = userData?.uid || user?.uid || "";
 
-  // Load tasks assigned to me real-time
-  useEffect(() => {
+  const loadTasks = useCallback(async () => {
     if (!currentUid) return;
-    setFetchingTasks(true);
-    const unsubscribe = onValue(ref(db, "tasks"), (snapshot) => {
-      const list: Task[] = [];
-      if (snapshot.exists()) {
-        snapshot.forEach((d) => {
-          const val = d.val();
-          if (val && val.assignedTo === currentUid) {
-            list.push({ id: d.key as string, ...val } as Task);
-          }
-        });
-      }
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      setTasks(list);
-      setFetchingTasks(false);
-    }, (err) => {
+    try {
+      setFetchingTasks(true);
+      const list = await fetchTasksForAssignee(currentUid, {
+        email: currentEmail,
+        name: currentName,
+      });
+      setTasks(list as unknown as Task[]);
+    } catch (err) {
       console.error(err);
+    } finally {
       setFetchingTasks(false);
-    });
-    return () => unsubscribe();
-  }, [currentUid]);
+    }
+  }, [currentUid, currentEmail, currentName]);
+
+  useActivePolling(loadTasks, 12000, [loadTasks]);
 
   useEffect(() => {
     if (!currentUid) return;
@@ -183,7 +179,7 @@ export default function DashboardPage() {
   // Mark task as done
   const markDone = async (taskId: string) => {
     try {
-      await update(ref(db, `tasks/${taskId}`), { status: "completed", completedAt: Date.now() });
+      await patchTaskById(taskId, { status: "completed", completedAt: Date.now() });
       setTasks(tasks.map((t) => t.id === taskId ? { ...t, status: "completed" } : t));
     } catch (err) { console.error(err); }
   };
@@ -191,7 +187,7 @@ export default function DashboardPage() {
   // Start working on task
   const markInProgress = async (taskId: string) => {
     try {
-      await update(ref(db, `tasks/${taskId}`), { status: "in-progress" });
+      await patchTaskById(taskId, { status: "in-progress", completedAt: null });
       setTasks(tasks.map((t) => t.id === taskId ? { ...t, status: "in-progress" } : t));
     } catch (err) { console.error(err); }
   };
@@ -453,3 +449,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

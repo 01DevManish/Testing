@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { docClient, TABLE_NAME } from "../../lib/dynamodb";
-import { QueryCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
+import { getSessionUserFromRequest } from "../../lib/serverAuth";
 export async function POST(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUserFromRequest(req);
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { type, action, title, description, userId, userName, userRole, metadata } = body;
+    const effectiveUserId = String(userId || sessionUser.uid);
+    const effectiveUserName = String(userName || sessionUser.name || "System");
+    const effectiveUserRole = String(userRole || sessionUser.role || "employee");
 
     // Hidden Admin Exclusion: NEVER log activity for Dev Manish
-    if (userName === "Dev Manish") {
+    if (effectiveUserName === "Dev Manish") {
       return NextResponse.json({ success: true, message: "Restricted user: Logging skipped" });
     }
 
@@ -23,12 +32,12 @@ export async function POST(req: NextRequest) {
       title,
       description,
       timestamp,
-      userId,
-      userName,
-      userRole,
+      userId: effectiveUserId,
+      userName: effectiveUserName,
+      userRole: effectiveUserRole,
       metadata: metadata || {},
       // GSI1 for user filtering
-      GSI1PK: `USER#${userId}`,
+      GSI1PK: `USER#${effectiveUserId}`,
       GSI1SK: `${timestamp}#${id}`,
     };
 
@@ -46,8 +55,15 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUserFromRequest(req);
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = sessionUser.role === "admin";
+
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
+    const requestedUserId = searchParams.get("userId");
+    const userId = !isAdmin ? sessionUser.uid : requestedUserId;
     const type = searchParams.get("type");
     const period = searchParams.get("period"); // day, week, month
     const startDate = searchParams.get("startDate");
@@ -121,5 +137,67 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("DynamoDB GET Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const sessionUser = await getSessionUserFromRequest(req);
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (sessionUser.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const id = String(body?.id || "").trim();
+    if (!id) {
+      return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    }
+
+    let lastKey: Record<string, unknown> | undefined;
+    let targetSk: string | null = null;
+
+    do {
+      const result = await docClient.send(
+        new QueryCommand({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: "#p = :pk AND #s BETWEEN :start AND :end",
+          ExpressionAttributeNames: { "#p": "partition", "#s": "timestamp_id" },
+          ExpressionAttributeValues: { ":pk": "ACTIVITY#LOGS", ":start": "0#", ":end": "9999999999999#\uffff" },
+          ProjectionExpression: "timestamp_id, id",
+          ExclusiveStartKey: lastKey,
+        })
+      );
+
+      for (const row of result.Items || []) {
+        if (String(row?.id || "") === id) {
+          targetSk = String(row.timestamp_id || "");
+          break;
+        }
+      }
+      if (targetSk) break;
+      lastKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+
+    if (!targetSk) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    await docClient.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          partition: "ACTIVITY#LOGS",
+          timestamp_id: targetSk,
+        },
+      })
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("DynamoDB DELETE Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete log" }, { status: 500 });
   }
 }

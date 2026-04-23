@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { Brand } from "./types";
 import type { AdminStyles } from "./styles";
-import { ref, set, push, remove, update } from "firebase/database";
+import { ref, set, push, remove, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
@@ -227,3 +227,4 @@ export default function BrandsTab({
     </div>
   );
 }
+

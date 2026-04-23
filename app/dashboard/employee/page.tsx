@@ -3,8 +3,6 @@
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { ref, get, update, onValue } from "firebase/database";
-import { db } from "../../lib/firebase";
 import { sendNotification } from "../../lib/notificationHelper";
 import PartyRateModule from "../party-rate";
 import { PartyRate } from "../admin/types";
@@ -16,6 +14,9 @@ import MobileTopBar from "../../components/MobileTopBar";
 import CatalogTab from "../inventory/components/Catalog/CatalogTab";
 import EmployeeSidebar from "./EmployeeSidebar";
 import { hasPermission } from "@/app/lib/permissions";
+import { fetchTasksForAssignee, patchTaskById } from "../../lib/tasksApi";
+import { fetchDataItems } from "../../lib/dynamoDataApi";
+import { useActivePolling } from "../../lib/useActivePolling";
 
 interface Task {
   id: string; title: string; description: string;
@@ -97,9 +98,7 @@ export default function EmployeePage() {
     if (!hasPermission(userData, "party_rate_view")) return;
     setFetchingPartyRates(true);
     try {
-      const rateSnap = await get(ref(db, "partyRates"));
-      const rates: PartyRate[] = [];
-      if (rateSnap.exists()) rateSnap.forEach(d => { rates.push({ id: d.key!, ...d.val() }); });
+      const rates = await fetchDataItems<PartyRate>("partyRates");
       setPartyRates(rates);
     } catch (e) {
       console.error(e);
@@ -108,32 +107,29 @@ export default function EmployeePage() {
     }
   }, [userData]);
 
-  useEffect(() => {
+  const loadTasks = useCallback(async () => {
     if (!user) return;
-    setFetchingTasks(true);
-    const unsubscribe = onValue(ref(db, "tasks"), (s) => {
-      const l: Task[] = []; 
-      if (s.exists()) {
-        s.forEach(d => { 
-          const val = d.val();
-          if (val && val.assignedTo === user.uid) {
-            l.push({ id: d.key as string, ...val } as Task); 
-          }
-        });
-      }
-      l.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); 
+    try {
+      setFetchingTasks(true);
+      const all = await fetchTasksForAssignee(user.uid, {
+        email: userData?.email,
+        name: userData?.name,
+      });
+      const l = (all as unknown as Task[])
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setTasks(l);
-      setFetchingTasks(false);
-    }, (err) => {
+    } catch (err) {
       console.error(err);
+    } finally {
       setFetchingTasks(false);
-    });
+    }
+  }, [user, userData?.email, userData?.name]);
 
-    loadPartyRates();
-    return () => {
-      unsubscribe();
-    };
-  }, [user, loadPartyRates]);
+  useActivePolling(loadTasks, 12000, [loadTasks]);
+
+  useEffect(() => {
+    void loadPartyRates();
+  }, [loadPartyRates]);
 
   if (loading || !user || !userData) return null;
   if (userData.role !== "employee") return null;
@@ -151,7 +147,7 @@ export default function EmployeePage() {
         const baseStatus: "pending" | "in-progress" =
           task.status === "in-progress" ? "in-progress" : "pending";
 
-        await update(ref(db, `tasks/${id}`), {
+        await patchTaskById(id, {
           completionRequested: true,
           completionRequestedAt: now,
           completionRequestedBy: user.uid,
@@ -188,7 +184,7 @@ export default function EmployeePage() {
         return;
       }
 
-      await update(ref(db, `tasks/${id}`), {
+      await patchTaskById(id, {
         status,
         completionRequested: false,
         completionApprovalStatus: "none",

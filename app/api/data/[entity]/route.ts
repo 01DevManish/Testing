@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { DeleteCommand, PutCommand, QueryCommand, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { DATA_TABLE_NAME, docClient } from "../../../lib/dynamodb";
 import { dataPartitionKey, dataSortKey, isDataEntity } from "../../../lib/dataEntities";
-import { adminDb } from "../../../lib/firebaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,11 +9,8 @@ export const dynamic = "force-dynamic";
 type Row = Record<string, unknown> & { id?: string };
 
 const emitEntitySignal = async (entity: string): Promise<void> => {
-  try {
-    await adminDb.ref(`syncSignals/${entity}`).set(Date.now());
-  } catch (error) {
-    console.warn(`[api/data] Failed to emit sync signal for ${entity}.`, error);
-  }
+  // No-op: Firebase sync signals removed in Dynamo-only mode.
+  void entity;
 };
 
 const fetchExistingKeys = async (partition: string): Promise<string[]> => {
@@ -51,7 +47,7 @@ const fetchExistingKeys = async (partition: string): Promise<string[]> => {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ entity: string }> }
 ) {
   try {
@@ -89,6 +85,14 @@ export async function GET(
 
       lastKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
     } while (lastKey);
+
+    if (entity === "tasks") {
+      const assignedTo = req.nextUrl.searchParams.get("assignedTo")?.trim();
+      if (assignedTo) {
+        const filtered = rows.filter((row) => String((row as Record<string, unknown>)?.assignedTo || "").trim() === assignedTo);
+        return NextResponse.json({ items: filtered });
+      }
+    }
 
     return NextResponse.json({ items: rows });
   } catch (error: unknown) {

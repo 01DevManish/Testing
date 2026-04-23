@@ -1,10 +1,9 @@
 import { Order, OrderStatus, Party, Transporter, ManagedBox } from "./types";
-import { ref, get, push, set, update, remove } from "firebase/database";
-import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { getBarcodeMappedFields, normalizeSkuKey } from "../inventory/utils/barcodeUtils";
 import type { Collection } from "../inventory/types";
 import { touchDataSignal } from "../../lib/dataSignals";
+import { deleteDataItemById, fetchDataItems, upsertDataItems } from "../../lib/dynamoDataApi";
 
 type InventoryDispatchProduct = {
   id: string;
@@ -94,40 +93,21 @@ const mapInventoryRow = (id: string, data: Record<string, any>): InventoryDispat
 
 const loadCollectionsForBarcode = async (): Promise<Collection[]> => {
   try {
-    const res = await fetch("/api/data/collections", { cache: "no-store" });
-    if (res.ok) {
-      const json = await res.json();
-      if (Array.isArray(json?.items) && json.items.length > 0) {
-        return json.items.map((item: any) => ({
-          id: item.id || "",
-          name: item.name || "",
-          collectionCode: item.collectionCode || "",
-          description: item.description || "",
-          productIds: Array.isArray(item.productIds) ? item.productIds : [],
-          createdAt: Number(item.createdAt) || 0,
-        }));
-      }
+    const rows = await fetchDataItems<any>("collections");
+    if (rows.length > 0) {
+      return rows.map((item: any) => ({
+        id: item.id || "",
+        name: item.name || "",
+        collectionCode: item.collectionCode || "",
+        description: item.description || "",
+        productIds: Array.isArray(item.productIds) ? item.productIds : [],
+        createdAt: Number(item.createdAt) || 0,
+      }));
     }
   } catch (err) {
-    console.warn("[RetailDispatch] Failed to load collections from Dynamo API.", err);
+    console.warn("[RetailDispatch] Failed to load collections from Dynamo.", err);
   }
-
-  const snap = await get(ref(db, "collections"));
-  const collections: Collection[] = [];
-  if (snap.exists()) {
-    snap.forEach((child) => {
-      const data = child.val() || {};
-      collections.push({
-        id: child.key as string,
-        name: data.name || "",
-        collectionCode: data.collectionCode || "",
-        description: data.description || "",
-        productIds: Array.isArray(data.productIds) ? data.productIds : [],
-        createdAt: Number(data.createdAt) || 0,
-      });
-    });
-  }
-  return collections;
+  return [];
 };
 
 const maybeSyncBarcodes = async (rows: InventoryDispatchProduct[]): Promise<InventoryDispatchProduct[]> => {
@@ -137,7 +117,7 @@ const maybeSyncBarcodes = async (rows: InventoryDispatchProduct[]): Promise<Inve
   }
 
   const collections = await loadCollectionsForBarcode();
-  const updates: Record<string, string> = {};
+  const rowsToUpsert: Array<Record<string, unknown> & { id: string }> = [];
   const nextRows = rows.map((row) => {
     const expected = getBarcodeMappedFields(
       {
@@ -154,17 +134,21 @@ const maybeSyncBarcodes = async (rows: InventoryDispatchProduct[]): Promise<Inve
     const needsRefresh = !currentBarcode || currentBarcode !== expected.barcode || currentBarcodeSku !== expected.barcodeSku;
 
     if (needsRefresh) {
-      updates[`inventory/${row.id}/barcode`] = expected.barcode;
-      updates[`inventory/${row.id}/barcodeSku`] = expected.barcodeSku;
+      rowsToUpsert.push({
+        id: row.id,
+        barcode: expected.barcode,
+        barcodeSku: expected.barcodeSku,
+        updatedAt: now,
+      });
       return { ...row, barcode: expected.barcode, barcodeSku: expected.barcodeSku };
     }
 
     return row;
   });
 
-  if (Object.keys(updates).length > 0) {
+  if (rowsToUpsert.length > 0) {
     try {
-      await update(ref(db), updates);
+      await upsertDataItems("inventory", rowsToUpsert);
       await touchDataSignal("inventory");
     } catch (err) {
       console.warn("[RetailDispatch] Barcode sync write failed.", err);
@@ -176,11 +160,8 @@ const maybeSyncBarcodes = async (rows: InventoryDispatchProduct[]): Promise<Inve
 };
 
 const fetchInventoryFromDynamoApi = async (): Promise<InventoryDispatchProduct[]> => {
-  const res = await fetch("/api/data/inventory", { cache: "no-store" });
-  if (!res.ok) throw new Error(`Inventory API failed: ${res.status}`);
-  const json = await res.json();
-  if (!Array.isArray(json?.items)) return [];
-  return json.items
+  const rows = await fetchDataItems<Record<string, any>>("inventory");
+  return rows
     .map((item: Record<string, any>) => {
       const id = typeof item.id === "string" ? item.id : "";
       if (!id) return null;
@@ -189,43 +170,31 @@ const fetchInventoryFromDynamoApi = async (): Promise<InventoryDispatchProduct[]
     .filter((row: InventoryDispatchProduct | null): row is InventoryDispatchProduct => Boolean(row));
 };
 
-const fetchInventoryFromFirebase = async (): Promise<InventoryDispatchProduct[]> => {
-  const snap = await get(ref(db, "inventory"));
-  const rows: InventoryDispatchProduct[] = [];
-  if (snap.exists()) {
-    snap.forEach((child) => {
-      const data = child.val() || {};
-      rows.push(mapInventoryRow(child.key as string, data));
-    });
-  }
-  return rows;
-};
-
 // â”€â”€ Firebase API for Dispatch â”€â”€
 
 export const firestoreApi = {
   // Parties
   getParties: async (): Promise<Party[]> => {
     try {
-      const snap = await get(ref(db, "parties"));
-      const list: Party[] = [];
-      if (snap.exists()) {
-        snap.forEach(d => { list.push({ id: d.key as string, ...d.val() } as Party); });
-      }
-      return list;
+      const rows = await fetchDataItems<Party>("parties");
+      return rows.filter((row) => typeof (row as any)?.id === "string");
     } catch (e) { console.error(e); return []; }
   },
 
   createParty: async (party: Omit<Party, "id">): Promise<Party> => {
-    const newRef = push(ref(db, "parties"));
-    await set(newRef, { ...party, createdAt: new Date().toISOString() });
+    const created: Party = {
+      id: `PTY-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      ...party,
+      createdAt: (party as any)?.createdAt || new Date().toISOString(),
+    } as Party;
+    await upsertDataItems("parties", [created as Party & { id: string }]);
     await touchDataSignal("parties");
-    return { id: newRef.key as string, ...party };
+    return created;
   },
 
   deleteParty: async (id: string): Promise<void> => {
     try {
-      await remove(ref(db, `parties/${id}`));
+      await deleteDataItemById("parties", id);
       await touchDataSignal("parties");
     } catch (e) {
       console.error("Failed to delete party:", e);
@@ -236,20 +205,20 @@ export const firestoreApi = {
   // Transporters
   getTransporters: async (): Promise<Transporter[]> => {
     try {
-      const snap = await get(ref(db, "transporters"));
-      const list: Transporter[] = [];
-      if (snap.exists()) {
-        snap.forEach(d => { list.push({ id: d.key as string, ...d.val() } as Transporter); });
-      }
-      return list;
+      const rows = await fetchDataItems<Transporter>("transporters");
+      return rows.filter((row) => typeof (row as any)?.id === "string");
     } catch (e) { console.error(e); return []; }
   },
 
   createTransporter: async (t: Omit<Transporter, "id">): Promise<Transporter> => {
-    const newRef = push(ref(db, "transporters"));
-    await set(newRef, { ...t, createdAt: new Date().toISOString() });
+    const created: Transporter = {
+      id: `TRN-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      ...t,
+      createdAt: (t as any)?.createdAt || new Date().toISOString(),
+    } as Transporter;
+    await upsertDataItems("transporters", [created as Transporter & { id: string }]);
     await touchDataSignal("transporters");
-    return { id: newRef.key as string, ...t };
+    return created;
   },
 
   // Inventory - Dynamo-first + short-lived in-memory cache (reduces Firebase reads heavily)
@@ -267,17 +236,7 @@ export const firestoreApi = {
 
     const fetcher = (async (): Promise<InventoryDispatchProduct[]> => {
       try {
-        let rows: InventoryDispatchProduct[] = [];
-
-        try {
-          rows = await fetchInventoryFromDynamoApi();
-        } catch (apiErr) {
-          console.warn("[RetailDispatch] Inventory API unavailable, falling back to Firebase.", apiErr);
-        }
-
-        if (rows.length === 0) {
-          rows = await fetchInventoryFromFirebase();
-        }
+        const rows = await fetchInventoryFromDynamoApi();
 
         const syncedRows = await maybeSyncBarcodes(rows);
         inventoryCache = { ts: Date.now(), data: syncedRows };
@@ -302,35 +261,33 @@ export const firestoreApi = {
   // Atomic Stock Deduction & Status Update
   deductStock: async (productId: string, quantityToDeduct: number): Promise<boolean> => {
     try {
-      const productRef = ref(db, `inventory/${productId}`);
-      const snap = await get(productRef);
-      
-      if (snap.exists()) {
-        const productData = snap.val();
-        const currentStock = Number(productData.stock) || 0;
-        const minStock = Number(productData.minStock) || 5;
-        const newStock = Math.max(0, currentStock - quantityToDeduct);
-        
-        // Auto-calculate new status
-        let newStatus = productData.status || "active";
-        if (newStatus === "active" || newStatus === "low-stock" || newStatus === "out-of-stock") {
-          if (newStock <= 0) newStatus = "out-of-stock";
-          else if (newStock <= minStock) newStatus = "low-stock";
-          else newStatus = "active";
-        }
+      const inventoryRows = await fetchDataItems<Record<string, any>>("inventory");
+      const productData = inventoryRows.find((row) => String(row.id) === String(productId));
+      if (!productData) return false;
 
-        await update(productRef, { 
-          stock: newStock, 
-          status: newStatus,
-          updatedAt: Date.now() 
-        });
-        await touchDataSignal("inventory");
-        firestoreApi.invalidateInventoryCache();
-        
-        console.log(`Deducted ${quantityToDeduct} from ${productId}. New stock: ${newStock}, Status: ${newStatus}`);
-        return true;
+      const currentStock = Number(productData.stock) || 0;
+      const minStock = Number(productData.minStock) || 5;
+      const newStock = Math.max(0, currentStock - quantityToDeduct);
+      
+      let newStatus = productData.status || "active";
+      if (newStatus === "active" || newStatus === "low-stock" || newStatus === "out-of-stock") {
+        if (newStock <= 0) newStatus = "out-of-stock";
+        else if (newStock <= minStock) newStatus = "low-stock";
+        else newStatus = "active";
       }
-      return false;
+
+      await upsertDataItems("inventory", [{
+        ...productData,
+        id: String(productData.id),
+        stock: newStock,
+        status: newStatus,
+        updatedAt: Date.now(),
+      }]);
+      await touchDataSignal("inventory");
+      firestoreApi.invalidateInventoryCache();
+      
+      console.log(`Deducted ${quantityToDeduct} from ${productId}. New stock: ${newStock}, Status: ${newStatus}`);
+      return true;
     } catch (e) {
       console.error("Failed to deduct stock:", e);
       return false;
@@ -341,11 +298,7 @@ export const firestoreApi = {
 export const api = {
   getOrders: async (): Promise<Order[]> => {
     try {
-      const snap = await get(ref(db, "dispatches"));
-      const list: Order[] = [];
-      if (snap.exists()) {
-        snap.forEach(d => { list.push({ id: d.key as string, ...d.val() } as Order); });
-      }
+      const list = await fetchDataItems<Order>("dispatches");
       return list.sort((a,b) => {
         const dateA = a.logs?.[a.logs.length - 1]?.timestamp || a.dispatchDate || "";
         const dateB = b.logs?.[b.logs.length - 1]?.timestamp || b.dispatchDate || "";
@@ -356,21 +309,15 @@ export const api = {
 
   getOrderById: async (id: string): Promise<Order | null> => {
     try {
-      const snap = await get(ref(db, `dispatches/${id}`));
-      if (snap.exists()) {
-        return { id: snap.key as string, ...snap.val() } as Order;
-      }
-      return null;
+      const rows = await fetchDataItems<Order>("dispatches");
+      return rows.find((row) => String((row as any).id) === String(id)) || null;
     } catch (e) { console.error(e); return null; }
   },
 
   updateOrderStatus: async (id: string, newStatus: OrderStatus, user: string, updates: Partial<Order> = {}, actor?: { uid: string; name: string; role: string }): Promise<Order> => {
     try {
-      const orderRef = ref(db, `dispatches/${id}`);
-      const snap = await get(orderRef);
-      if (!snap.exists()) throw new Error("Order not found");
-      
-      const existing = snap.val() as Order;
+      const existing = await api.getOrderById(id);
+      if (!existing) throw new Error("Order not found");
       const newLog = { status: newStatus, timestamp: new Date().toISOString(), user, note: updates.packedNotes };
       const updatedLogs = existing.logs ? [...existing.logs, newLog] : [newLog];
       
@@ -387,7 +334,18 @@ export const api = {
         }
       }
       
-      await set(orderRef, updatedOrder);
+      // Cancel/reset rollback: restore inventory when a dispatched order is moved back to Pending.
+      if (existing.status === "Dispatched" && newStatus === "Pending" && existing.stockDeducted) {
+        if (existing.products && existing.products.length > 0) {
+          console.log(`Restoring stock for cancelled retail order ${id}...`);
+          for (const prod of existing.products) {
+            await firestoreApi.deductStock(prod.id, -Math.abs(Number(prod.quantity) || 0));
+          }
+          updatedOrder.stockDeducted = false;
+        }
+      }
+      
+      await upsertDataItems("dispatches", [updatedOrder as Order & { id: string }]);
       await touchDataSignal("dispatches");
 
       // Log activity
@@ -411,16 +369,13 @@ export const api = {
 
   markItemPacked: async (orderId: string, productId: string, packed: boolean): Promise<Order> => {
     try {
-      const orderRef = ref(db, `dispatches/${orderId}`);
-      const snap = await get(orderRef);
-      if (!snap.exists()) throw new Error("Order not found");
-      
-      const existing = snap.val();
+      const existing = await api.getOrderById(orderId);
+      if (!existing) throw new Error("Order not found");
       const updatedProducts = existing.products?.map((p: any) => p.id === productId ? { ...p, packed } : p) || [];
       
-      await update(orderRef, { products: updatedProducts });
+      await upsertDataItems("dispatches", [{ ...existing, products: updatedProducts, updatedAt: Date.now() } as Order & { id: string }]);
       await touchDataSignal("dispatches");
-      return { id: orderId, ...existing, products: updatedProducts } as Order;
+      return { ...existing, products: updatedProducts } as Order;
     } catch (e) {
       console.error(e);
       throw e;
@@ -430,7 +385,6 @@ export const api = {
   createOrder: async (newOrder: Partial<Order>, actor?: { uid: string; name: string; role: string }): Promise<Order> => {
     try {
       const orderId = newOrder.id || `ORD-${Math.floor(Math.random() * 10000)}`;
-      const orderRef = ref(db, `dispatches/${orderId}`);
       
       const order: Order = {
         id: orderId,
@@ -444,7 +398,7 @@ export const api = {
         updatedAt: Date.now()
       };
       
-      await set(orderRef, order);
+      await upsertDataItems("dispatches", [order as Order & { id: string }]);
       await touchDataSignal("dispatches");
 
       // Log activity
@@ -468,7 +422,7 @@ export const api = {
 
   deleteOrder: async (orderId: string, actor?: { uid: string; name: string; role: string }): Promise<void> => {
     try {
-      await remove(ref(db, `dispatches/${orderId}`));
+      await deleteDataItemById("dispatches", orderId);
       await touchDataSignal("dispatches");
 
       // Log activity
@@ -490,7 +444,7 @@ export const api = {
 
   deletePackingList: async (id: string, actor?: { uid: string; name: string; role: string }): Promise<void> => {
     try {
-      await remove(ref(db, `packingLists/${id}`));
+      await deleteDataItemById("packingLists", id);
       await touchDataSignal("packingLists");
 
       // Log activity
@@ -519,17 +473,9 @@ export const api = {
         if (Array.isArray(json?.boxes)) return json.boxes as ManagedBox[];
       }
     } catch (e) {
-      console.warn("Managed boxes fetch from DynamoDB failed. Falling back to Firebase.", e);
+      console.warn("Managed boxes fetch from DynamoDB failed.", e);
     }
-
-    const snap = await get(ref(db, "managed_boxes"));
-    if (!snap.exists()) return [];
-
-    const list: ManagedBox[] = [];
-    snap.forEach((child) => {
-      list.push({ id: child.key as string, ...child.val() });
-    });
-    return list;
+    return [];
   },
 
   getNextManagedBoxId: async (): Promise<string> => {
@@ -556,8 +502,6 @@ export const api = {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || "Failed to write managed box to DynamoDB");
       }
-
-      await set(ref(db, `managed_boxes/${box.id}`), box);
       
       // Log activity
       await logActivity({
@@ -585,8 +529,6 @@ export const api = {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || "Failed to delete managed box from DynamoDB");
       }
-
-      await remove(ref(db, `managed_boxes/${id}`));
       
       // Log activity
       await logActivity({

@@ -52,7 +52,7 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
   const userInitial = String(userData?.name || "U").trim().charAt(0).toUpperCase() || "U";
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "inherit" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: "radial-gradient(circle at top left, #eff6ff 0%, #f8fafc 45%, #f1f5f9 100%)", fontFamily: "inherit" }}>
       {mobileOpen && (
         <div
           style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,0.45)", zIndex: 90 }}
@@ -63,7 +63,7 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
       <aside
         style={{
           width: 260,
-          background: "#0f172a",
+          background: "linear-gradient(180deg, #0f172a 0%, #111827 100%)",
           color: "#e2e8f0",
           padding: "18px 12px",
           position: "fixed",
@@ -95,13 +95,14 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
                 }}
                 style={{
                   textAlign: "left",
-                  border: "none",
+                  border: "1px solid transparent",
                   borderRadius: 10,
                   padding: "10px 12px",
                   fontSize: 13,
                   cursor: "pointer",
                   color: isActive ? "#c7d2fe" : "#cbd5e1",
                   background: isActive ? "rgba(99,102,241,0.2)" : "transparent",
+                  fontWeight: isActive ? 600 : 500,
                 }}
               >
                 {item.label}
@@ -130,7 +131,23 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
       </aside>
 
       <main style={{ flex: 1, marginLeft: 0, padding: "16px" }}>
-        <div style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+        <div style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <button
+            className="erm-menu-toggle"
+            onClick={() => setMobileOpen(true)}
+            style={{
+              border: "1px solid #cbd5e1",
+              background: "#fff",
+              borderRadius: 10,
+              padding: "8px 10px",
+              fontSize: 12,
+              color: "#0f172a",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Menu
+          </button>
           <div
             style={{
               display: "flex",
@@ -140,7 +157,7 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
               border: "1px solid #e2e8f0",
               borderRadius: 12,
               padding: "8px 10px",
-              boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
+              boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
               minWidth: 180,
             }}
           >
@@ -170,7 +187,7 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
           </div>
         </div>
 
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 }}>
+        <div style={{ background: "linear-gradient(135deg,#ffffff,#f8fafc)", border: "1px solid #dbeafe", borderRadius: 16, padding: 16, boxShadow: "0 10px 30px rgba(30,64,175,0.08)" }}>
           <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a" }}>{title}</h1>
           <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>{subtitle}</p>
         </div>
@@ -182,6 +199,7 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
         @media (min-width: 1024px) {
           aside { transform: translateX(0) !important; }
           main { margin-left: 260px !important; padding: 24px !important; }
+          :global(.erm-menu-toggle) { display: none !important; }
         }
       `}</style>
     </div>

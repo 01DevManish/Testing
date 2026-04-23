@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ref, onValue, set, onDisconnect, serverTimestamp } from "firebase/database";
+import { ref, onValue, set, onDisconnect, serverTimestamp } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 
@@ -35,3 +35,4 @@ export default function PresenceHandler() {
 
   return null;
 }
+

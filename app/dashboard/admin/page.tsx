@@ -5,10 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { ref, get, push, remove, update, set } from "firebase/database";
-import { db, firebaseConfig } from "../../lib/firebase";
-import { createUserWithEmailAndPassword, getAuth, signOut } from "firebase/auth";
-import { initializeApp, getApps } from "firebase/app";
+import { deleteTaskById, fetchAllTasks, patchTaskById, upsertTask } from "../../lib/tasksApi";
 
 import { UserRecord, Task, UserRole } from "./types";
 import { useWindowSize } from "./hooks";
@@ -31,6 +28,7 @@ import PartyRateModule from "../party-rate";
 import { PartyRate, Brand } from "./types";
 import BrandsTab from "./BrandsTab";
 import ProfileTab from "./ProfileTab";
+import { useActivePolling } from "../../lib/useActivePolling";
 
 const OFFICIAL_EMAIL_DOMAIN = "euruslifestyle.in";
 const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
@@ -114,10 +112,7 @@ export default function AdminPage() {
     const timeout = setTimeout(() => controller.abort(), 7000);
 
     try {
-      const { auth } = await import("../../lib/firebase");
-      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch("/api/admin/users", {
-        headers: { "Authorization": `Bearer ${idToken}` },
         signal: controller.signal
       });
       const data = await res.json();
@@ -135,7 +130,31 @@ export default function AdminPage() {
       clearTimeout(timeout);
       setFetchingAuthUsers(false);
     }
-  }, [user]);
+  }, []);
+
+  const upsertUserMetadataAsAdmin = useCallback(async (uid: string, data: Record<string, unknown>) => {
+    const res = await fetch("/api/admin/user-metadata", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uid, data }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error || "Failed to update user metadata");
+  }, []);
+
+  const deleteUserMetadataAsAdmin = useCallback(async (uid: string) => {
+    const res = await fetch("/api/admin/user-metadata", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uid }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error || "Failed to delete user metadata");
+  }, []);
 
   useEffect(() => {
     fetchAuthUsers();
@@ -166,11 +185,7 @@ export default function AdminPage() {
   const loadTasks = useCallback(async () => {
     setFetchingTasks(true);
     try {
-      const s = await get(ref(db, "tasks"));
-      const l: Task[] = [];
-      if (s.exists()) {
-        s.forEach(d => { l.push({ id: d.key as string, ...d.val() } as Task); });
-      }
+      const l = await fetchAllTasks() as unknown as Task[];
       l.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setTasks(l);
     } catch (e) {
@@ -180,9 +195,7 @@ export default function AdminPage() {
     }
   }, []);
 
-  useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
+  useActivePolling(loadTasks, 15000, [loadTasks]);
 
 
   if (loading || !user) return null;
@@ -195,7 +208,13 @@ export default function AdminPage() {
     if (!editingUser) return;
     setSavingRole(true);
     try {
-      await update(ref(db, `users/${editingUser.uid}`), { role: editRole, permissions: editPermissions, dispatchPin: editPin });
+      await upsertUserMetadataAsAdmin(editingUser.uid, {
+        email: editingUser.email,
+        name: editingUser.name,
+        role: editRole,
+        permissions: editPermissions,
+        dispatchPin: editPin
+      });
 
       // Log activity
       await logActivity({
@@ -227,8 +246,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           uid: editingUser.uid,
           newPassword,
-          newPin,
-          adminUid: user.uid
+          newPin
         })
       });
       const data = await res.json();
@@ -256,16 +274,12 @@ export default function AdminPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uid: uid,
-          adminUid: user.uid
+          uid: uid
         })
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete user from Auth");
-
-      // 2. Remove from RTDB (redundant but safe)
-      await remove(ref(db, `users/${uid}`));
 
       // Log activity
       await logActivity({
@@ -292,11 +306,14 @@ export default function AdminPage() {
     if (!adminToDelete || !replacementAdminId) return;
     setReplacingAdmin(true);
     try {
-      await update(ref(db, `users/${replacementAdminId}`), {
+      const replacementUser = users.find((u) => u.uid === replacementAdminId);
+      await upsertUserMetadataAsAdmin(replacementAdminId, {
+        email: replacementUser?.email,
+        name: replacementUser?.name,
         role: "admin",
         permissions: ["dispatch", "inventory", "reports", "settings"]
       });
-      await remove(ref(db, `users/${adminToDelete.uid}`));
+      await deleteUserMetadataAsAdmin(adminToDelete.uid);
 
       // Log activity
       await logActivity({
@@ -342,11 +359,22 @@ export default function AdminPage() {
     }
     setAddingEmployee(true); setAddError("");
     try {
-      const secondaryApp = getApps().find(a => a.name === "Secondary") || initializeApp(firebaseConfig, "Secondary");
-      const secondaryAuth = getAuth(secondaryApp);
-      const result = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, newEmployee.password);
+      const res = await fetch("/api/admin/create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          name,
+          password: newEmployee.password,
+          role: newEmployee.role,
+          permissions: newEmployee.permissions,
+          dispatchPin: newEmployee.pin,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Failed to add");
       const nu: UserRecord = {
-        uid: result.user.uid,
+        uid: json?.user?.uid,
         email: normalizedEmail,
         name,
         role: newEmployee.role,
@@ -355,10 +383,6 @@ export default function AdminPage() {
         requiresPasswordChange: true
       };
       // Fire both concurrently — don't wait for signOut before Firestore write
-      await Promise.all([
-        signOut(secondaryAuth).catch(() => { }),
-        set(ref(db, `users/${result.user.uid}`), nu),
-      ]);
       // Only add to state if it's not the hidden email
       if (nu.email !== "01devmanish@gmail.com") {
         setUsers([{ ...nu }, ...users]);
@@ -386,7 +410,9 @@ export default function AdminPage() {
 
       const creationPromises = taskForm.assignedTo.map(async (uid) => {
         const au = users.find(u => u.uid === uid);
+        const taskId = `task_${now}_${Math.random().toString(36).slice(2, 8)}`;
         const td: any = {
+          id: taskId,
           title: taskForm.title.trim(),
           description: taskForm.description.trim(),
           assignedTo: uid,
@@ -407,8 +433,7 @@ export default function AdminPage() {
           if (validAttachments.length > 0) td.attachments = validAttachments;
         }
 
-        const newTaskRef = push(ref(db, "tasks"));
-        await set(newTaskRef, td);
+        await upsertTask(td);
 
         await logActivity({
           type: "task",
@@ -418,10 +443,10 @@ export default function AdminPage() {
           userId: user?.uid || "unknown",
           userName: td.createdByName,
           userRole: "admin",
-          metadata: { taskId: newTaskRef.key }
+          metadata: { taskId }
         });
 
-        return { id: newTaskRef.key as string, ...td };
+        return td;
       });
 
       const newTasks = await Promise.all(creationPromises);
@@ -453,14 +478,20 @@ export default function AdminPage() {
 
   const handleDeleteTask = async (id: string) => {
     if (!confirm("Delete this task?")) return;
-    try { await remove(ref(db, `tasks/${id}`)); setTasks(tasks.filter(t => t.id !== id)); } catch (e) { console.error(e); }
+    try {
+      await deleteTaskById(id);
+      setTasks(tasks.filter(t => t.id !== id));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleTaskStatus = async (id: string, status: Task["status"]) => {
     const upd: Record<string, unknown> = { status };
     if (status === "completed") upd.completedAt = Date.now();
     try {
-      await update(ref(db, `tasks/${id}`), upd);
+      const updated = await patchTaskById(id, upd as Partial<any>);
+      if (!updated) return;
 
       // Log activity
       const task = tasks.find(t => t.id === id);
@@ -500,7 +531,7 @@ export default function AdminPage() {
       completedAt: isAccept ? now : null,
     };
 
-    await update(ref(db, `tasks/${id}`), payload);
+    await patchTaskById(id, payload as Partial<any>);
 
     setTasks((prev) =>
       prev.map((item) =>
@@ -537,7 +568,7 @@ export default function AdminPage() {
     if (updates.status === "completed") payload.completedAt = Date.now();
     if (updates.status && updates.status !== "completed") payload.completedAt = null;
 
-    await update(ref(db, `tasks/${id}`), payload);
+    await patchTaskById(id, payload as Partial<any>);
 
     const task = tasks.find(t => t.id === id);
     await logActivity({

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, remove } from "firebase/database";
+import { ref, remove } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { Product, ItemGroup } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -88,3 +88,4 @@ export default function ItemGroupList({ groups, products, user, canDelete, isMob
         </div>
     );
 }
+

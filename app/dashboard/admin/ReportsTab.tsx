@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { onValue, ref } from "firebase/database";
+import { onValue, ref } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import type { AdminStyles } from "./styles";
 import type { Product as InventoryProduct } from "../inventory/types";
@@ -536,3 +536,4 @@ export default function ReportsTab({ S, isMobile, isTablet, products, orders }: 
     </div>
   );
 }
+

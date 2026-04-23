@@ -5,8 +5,7 @@ import { Card, PageHeader, BtnPrimary, BtnGhost } from "../ui";
 import { api } from "../../data";
 import { ManagedBox } from "../../types";
 import { useAuth } from "@/app/context/AuthContext";
-import { ref, push, set } from "firebase/database";
-import { db } from "@/app/lib/firebase";
+import { ref, push, set } from "@/app/lib/dynamoRtdbCompat";
 import { generateBoxDispatchPdf } from "../../BoxDispatchPdf";
 import { renderBarcodeToBase64 } from "@/app/lib/barcodeUtils";
 import Image from "next/image";
@@ -113,7 +112,7 @@ export default function DispatchBoxTab({ products }: DispatchBoxTabProps) {
         sourceBoxTotalBoxes: selectedBox.totalBoxes || 1,
       };
 
-      const newListRef = push(ref(db, "packingLists"));
+      const newListRef = push(ref(null, "packingLists"));
       await set(newListRef, packingList);
       await api.createBoxDispatchRecord({
         ...packingList,
@@ -251,3 +250,4 @@ export default function DispatchBoxTab({ products }: DispatchBoxTabProps) {
     </div>
   );
 }
+

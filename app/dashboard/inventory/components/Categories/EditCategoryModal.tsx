@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, update } from "firebase/database";
+import { ref, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { Category } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -56,3 +56,4 @@ export default function EditCategoryModal({ category, user, onClose }: {
         </div>
     );
 }
+

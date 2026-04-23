@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
+import { ref, get, update, query, orderByChild, equalTo } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -188,6 +188,10 @@ export default function InventoryPage() {
   const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
 
   const loadAll = useCallback(async () => {
+    refreshData("inventory");
+  }, [refreshData]);
+
+  useEffect(() => {
     refreshData("inventory");
   }, [refreshData]);
 
@@ -759,3 +763,4 @@ export default function InventoryPage() {
     </>
   );
 }
+

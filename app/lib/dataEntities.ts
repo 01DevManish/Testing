@@ -9,6 +9,9 @@ export const DATA_ENTITIES = [
   "packingLists",
   "parties",
   "transporters",
+  "tasks",
+  "ermLeads",
+  "ermLeadCalls",
 ] as const;
 
 export type DataEntity = (typeof DATA_ENTITIES)[number];

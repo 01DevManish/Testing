@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ref, onValue, off } from "firebase/database";
+import { ref, onValue, off } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { UserRecord } from "../admin/types";
@@ -169,3 +169,4 @@ export default function MessagingContainer({ users, isMobile }: MessagingProps) 
     </div>
   );
 }
+

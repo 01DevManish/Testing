@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FONT, ActiveView } from "../../types";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
 
@@ -272,3 +272,4 @@ export default function DispatchSidebar({
         </aside>
     );
 }
+

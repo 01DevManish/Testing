@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ref, update } from "firebase/database";
+import { ref, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { FONT, Product, Collection } from "../../types";
 import { Card, PageHeader } from "../../ui";
@@ -260,3 +260,4 @@ export default function BarcodeView({
         </div>
     );
 }
+

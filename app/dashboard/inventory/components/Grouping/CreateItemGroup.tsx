@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ref, push, set } from "firebase/database";
+import { ref, push, set } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { FONT, Product, ItemGroup } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -113,3 +113,4 @@ export default function CreateItemGroup({ products, user, onCreated, isMobile }:
         </div>
     );
 }
+

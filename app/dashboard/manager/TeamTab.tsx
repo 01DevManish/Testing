@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ref, get } from "firebase/database";
+import { ref, get } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 
 interface Employee {
@@ -202,3 +202,4 @@ const styles = {
     transition: "background 0.2s"
   }
 };
+

@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
-import { adminAuth, adminDb } from "../../../lib/firebaseAdmin";
+import { getSessionUserFromRequest, setUserPasswordByUid } from "../../../lib/serverAuth";
+import { getUserMetadataByUid, upsertUserMetadata } from "../../../lib/serverUserMetadata";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 
 
 export async function POST(req: Request) {
   try {
-    const { uid, newPassword, newPin, adminUid } = await req.json();
+    const sessionUser = await getSessionUserFromRequest(req);
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!uid || !newPassword || !adminUid) {
+    const { uid, newPassword, newPin } = await req.json();
+
+    if (!uid || !newPassword) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
     if (newPin !== undefined && newPin !== null && !/^\d{4}$/.test(String(newPin))) {
@@ -17,29 +24,27 @@ export async function POST(req: Request) {
     }
 
     // 1. Verify that the requester is an admin
-    const adminRef = adminDb.ref(`users/${adminUid}`);
-    const adminSnap = await adminRef.once("value");
-    const adminData = adminSnap.val();
-
-    if (!adminData || adminData.role !== "admin") {
+    const isHiddenAdmin = (sessionUser.email || "").toLowerCase() === HIDDEN_ADMIN_EMAIL;
+    const adminData = await getUserMetadataByUid(sessionUser.uid);
+    if (!isHiddenAdmin && (!adminData || adminData.role !== "admin")) {
       return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 403 });
     }
 
-    // 2. Update the user's password in Firebase Auth
-    await adminAuth.updateUser(uid, {
-      password: newPassword,
-    });
+    // 2. Update the user's password in Dynamo Auth
+    await setUserPasswordByUid(uid, newPassword);
 
-    // 3. Update RTDB metadata (and PIN if provided)
-    const updatePayload: Record<string, unknown> = {
+    // 3. Update Dynamo user metadata (and PIN if provided)
+    const existing = await getUserMetadataByUid(uid);
+    if (!existing) {
+      return NextResponse.json({ error: "User metadata not found." }, { status: 404 });
+    }
+    await upsertUserMetadata({
+      ...existing,
       requiresPasswordChange: true,
       passwordUpdatedAt: Date.now(),
-      passwordUpdatedBy: adminUid,
-    };
-    if (newPin !== undefined && newPin !== null) {
-      updatePayload.dispatchPin = String(newPin);
-    }
-    await adminDb.ref(`users/${uid}`).update(updatePayload);
+      passwordUpdatedBy: sessionUser.uid,
+      dispatchPin: newPin !== undefined && newPin !== null ? String(newPin) : existing.dispatchPin,
+    });
 
     return NextResponse.json({ success: true, message: "Password updated successfully" });
   } catch (error: unknown) {

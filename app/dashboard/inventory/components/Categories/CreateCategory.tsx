@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, push, set } from "firebase/database";
+import { ref, push, set } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { FONT, Category } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -65,3 +65,4 @@ export default function CreateCategory({ user, onCreated }: { user: { uid: strin
         </div>
     );
 }
+

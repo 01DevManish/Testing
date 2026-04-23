@@ -152,8 +152,17 @@ const getBase64Image = async (
 
 export const generatePackingListPdf = async (
   list: PackingPdfPayload,
-  save = true
+  saveOrOptions: boolean | { save?: boolean; targetWindow?: Window | null } = true
 ): Promise<Blob | null> => {
+  const save =
+    typeof saveOrOptions === "boolean"
+      ? saveOrOptions
+      : (saveOrOptions.save ?? true);
+  const targetWindow =
+    typeof saveOrOptions === "boolean"
+      ? null
+      : (saveOrOptions.targetWindow ?? null);
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "pt",
@@ -284,8 +293,11 @@ export const generatePackingListPdf = async (
   if (save) {
     const blob = doc.output("blob");
     const url = URL.createObjectURL(blob);
-    const newWindow = window.open(url, "_blank");
+    const newWindow = targetWindow || window.open(url, "_blank");
     if (newWindow) {
+      if (targetWindow) {
+        targetWindow.location.href = url;
+      }
       newWindow.focus();
       setTimeout(() => URL.revokeObjectURL(url), 8000);
     } else {

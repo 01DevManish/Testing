@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, update, get } from "firebase/database";
+import { ref, update, get } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { Collection } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
@@ -74,3 +74,4 @@ export default function EditCollectionModal({ collection, user, onClose }: {
         </div>
     );
 }
+

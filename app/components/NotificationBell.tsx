@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { ref, onValue, update, remove, query, limitToLast, orderByKey } from "firebase/database";
-import { db } from "../lib/firebase";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useActivePolling } from "../lib/useActivePolling";
 
 export default function NotificationBell() {
   const { user } = useAuth();
@@ -12,24 +11,23 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const loadNotifications = useCallback(async () => {
     if (!user?.uid) return;
-
-    // Listen for notification updates
-    const notifRef = query(ref(db, `notifications/${user.uid}`), orderByKey(), limitToLast(20));
-    const unsubscribe = onValue(notifRef, (snapshot) => {
-      const data: any[] = [];
-      let unread = 0;
-      snapshot.forEach((child) => {
-        const val = child.val();
-        data.push({ id: child.key, ...val });
-        if (!val.read) unread++;
-      });
-      // Sort: newest first
-      setNotifications(data.reverse());
+    try {
+      const res = await fetch(`/api/notifications?uid=${encodeURIComponent(user.uid)}&limit=20`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      const data: any[] = Array.isArray(json?.notifications) ? json.notifications : [];
+      const unread = data.filter((n) => !n?.read).length;
+      setNotifications(data);
       setUnreadCount(unread);
-    });
+    } catch (err) {
+      console.error(err);
+    }
+  }, [user?.uid]);
 
+  useActivePolling(loadNotifications, 12000, [loadNotifications]);
+
+  useEffect(() => {
     // Close dropdown on outside click
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -39,15 +37,20 @@ export default function NotificationBell() {
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      unsubscribe();
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [user]);
+  }, []);
 
   const markAsRead = async (id: string) => {
     if (!user?.uid) return;
     try {
-      await update(ref(db, `notifications/${user.uid}/${id}`), { read: true });
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid, id, read: true }),
+      });
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error(err);
     }
@@ -55,12 +58,22 @@ export default function NotificationBell() {
 
   const markAllRead = async () => {
     if (!user?.uid || notifications.length === 0) return;
-    const updates: any = {};
+    const updates: string[] = [];
     notifications.forEach((n) => {
-      if (!n.read) updates[`notifications/${user.uid}/${n.id}/read`] = true;
+      if (!n.read) updates.push(n.id);
     });
     try {
-      await update(ref(db), updates);
+      await Promise.all(
+        updates.map((id: string) =>
+          fetch("/api/notifications", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: user.uid, id, read: true }),
+          })
+        )
+      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
     } catch (err) {
       console.error(err);
     }
@@ -69,8 +82,13 @@ export default function NotificationBell() {
   const clearAll = async () => {
     if (!user?.uid || !confirm("Clear all notifications?")) return;
     try {
-      await remove(ref(db, `notifications/${user.uid}`));
+      await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid, clearAll: true }),
+      });
       setNotifications([]);
+      setUnreadCount(0);
     } catch (err) {
       console.error(err);
     }

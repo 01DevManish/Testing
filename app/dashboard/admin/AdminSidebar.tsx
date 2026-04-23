@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { roleBg } from "./types";
 import type { AdminStyles } from "./styles";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermission } from "../../lib/permissions";
@@ -400,3 +400,4 @@ export default function AdminSidebar({
     </>
   );
 }
+

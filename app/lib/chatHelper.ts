@@ -1,4 +1,4 @@
-import { ref, push, set, update, serverTimestamp } from "firebase/database";
+import { ref, push, set, update, serverTimestamp, get } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "./firebase";
 import { sendNotification } from "./notificationHelper";
 
@@ -67,8 +67,7 @@ export const sendMessage = async (
   const messageRef = push(ref(db, `chats/${chatId}/messages`));
   await set(messageRef, newMessage);
 
-  // 2. Read current unread count for receiver (dynamically import 'get' to avoid issues)
-  const { get } = await import("firebase/database");
+  // 2. Read current unread count for receiver
   const receiverChatRef = ref(db, `user_chats/${receiverId}/${senderId}`);
   const receiverSnap = await get(receiverChatRef);
   const currentUnread = receiverSnap.exists()
@@ -121,4 +120,5 @@ export const markAsRead = async (uid: string, otherId: string) => {
     lastReadAt: timestamp
   });
 };
+
 

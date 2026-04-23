@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "setup:dynamo-data-table": "node scripts/setupDataTable.js",
-    "migrate:firebase-to-dynamo": "node scripts/migrateFirebaseToDynamo.js"
+    "migrate:firebase-to-dynamo": "node scripts/migrateFirebaseToDynamo.js",
+    "migrate:users-meta-json-to-dynamo": "node scripts/migrateUsersMetaFromRtdbJson.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1029.0",

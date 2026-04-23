@@ -450,13 +450,16 @@ export const mapDispatchListToReactPdfData = (list: DispatchSource): DispatchLis
   };
 };
 
-export const generateReactDispatchListPdf = async (list: DispatchSource): Promise<void> => {
+export const generateReactDispatchListPdf = async (list: DispatchSource, targetWindow?: Window | null): Promise<void> => {
   const resolvedItems = await resolveItemsFromInventory(Array.isArray(list.items) ? list.items : []);
   const data = mapDispatchListToReactPdfData({ ...list, items: resolvedItems });
   const blob = await pdf(<DispatchListPDF data={data} />).toBlob();
   const url = URL.createObjectURL(blob);
-  const win = window.open(url, "_blank");
+  const win = targetWindow || window.open(url, "_blank");
   if (win) win.focus();
   else alert("Popup blocked. Please allow popups to view the PDF.");
+  if (targetWindow) {
+    targetWindow.location.href = url;
+  }
   setTimeout(() => URL.revokeObjectURL(url), 8000);
 };

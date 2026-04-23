@@ -1,4 +1,4 @@
-import { ref, set } from "firebase/database";
+import { ref, set } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "./firebase";
 import { DataEntity, isDataEntity } from "./dataEntities";
 
@@ -16,4 +16,5 @@ export const touchDataSignalByName = async (entity: string): Promise<void> => {
   if (!isDataEntity(entity)) return;
   await touchDataSignal(entity);
 };
+
 

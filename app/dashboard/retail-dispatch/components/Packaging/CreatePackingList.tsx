@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { update, ref, get, push, set } from "firebase/database";
+import { update, ref, get, push, set } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
 import { useData } from "../../../../context/DataContext";
@@ -692,3 +692,4 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     </div>
   );
 }
+

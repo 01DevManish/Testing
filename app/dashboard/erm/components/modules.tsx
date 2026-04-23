@@ -492,6 +492,7 @@ export function ErmLeadsModule() {
       });
 
     const timer = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       syncLeadsFromApi().catch(() => {});
       syncLeadCallsFromApi().catch(() => {});
     }, 15000);

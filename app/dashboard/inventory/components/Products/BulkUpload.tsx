@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import ExcelJS from "exceljs";
 import * as XLSX from "xlsx";
-import { ref, get, push, update, set as rtdbSet } from "firebase/database";
+import { ref, get, push, update, set as rtdbSet } from "@/app/lib/dynamoRtdbCompat";
 
 import { db } from "../../../../lib/firebase";
 import { FONT, Product, Category, Collection, UNITS, GST_RATES } from "../../types";
@@ -664,3 +664,4 @@ export default function BulkUpload({ categories, collections, brands, user, onDo
         </div>
     );
 }
+

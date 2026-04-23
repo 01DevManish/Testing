@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { PartyRate } from "./types";
 import { Product } from "../inventory/types";
-import { ref, push, remove, update } from "firebase/database";
+import { ref, push, remove, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
@@ -385,3 +385,4 @@ export default function PartyRateModule({
         </>
     );
 }
+

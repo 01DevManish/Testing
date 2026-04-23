@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { ref, get, update } from "firebase/database";
+import { ref, get, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import { renderBarcodeToBase64, generateDispatchBarcode } from "../../lib/barcodeUtils";
 import { firestoreApi } from "./data";
@@ -236,7 +236,7 @@ const appendBoxSummaryPages = async (
 
 export const generateTemplateDispatchPdf = async (
     list: any,
-    options?: { uploadToS3?: boolean; preferUploadedUrl?: boolean }
+    options?: { uploadToS3?: boolean; preferUploadedUrl?: boolean; targetWindow?: Window | null }
 ) => {
     try {
         // 1. Load template (Strictly A4: 595.28 x 841.89 pt)
@@ -489,8 +489,13 @@ export const generateTemplateDispatchPdf = async (
         }
 
         const viewUrl = preferUploadedUrl ? (uploadedUrl || localBlobUrl) : localBlobUrl;
-        const newWindow = window.open(viewUrl, '_blank');
-        if (newWindow) newWindow.focus();
+        const newWindow = options?.targetWindow || window.open(viewUrl, '_blank');
+        if (newWindow) {
+            if (options?.targetWindow) {
+                options.targetWindow.location.href = viewUrl;
+            }
+            newWindow.focus();
+        }
         else alert("Popup blocked. Please allow popups to view the PDF.");
 
         setTimeout(() => URL.revokeObjectURL(localBlobUrl), 8000);
@@ -499,3 +504,4 @@ export const generateTemplateDispatchPdf = async (
         console.error("Template PDF Generation Error:", error);
     }
 };
+

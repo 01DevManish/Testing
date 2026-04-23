@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { BtnPrimary, BtnGhost } from "../ui";
@@ -6,8 +6,7 @@ import { api } from "../../data";
 import { ManagedBox } from "../../types";
 import { generateBoxMgtBarcode, renderBarcodeToBase64 } from "@/app/lib/barcodeUtils";
 import { useAuth } from "@/app/context/AuthContext";
-import { db } from "@/app/lib/firebase";
-import { ref, get, push, set } from "firebase/database";
+import { ref, get, push, set } from "@/app/lib/dynamoRtdbCompat";
 
 interface CreateBoxModalProps {
   onClose: () => void;
@@ -43,7 +42,7 @@ export default function CreateBoxModal({ onClose, onCreated, products, initialBo
   useEffect(() => {
     const init = async () => {
       try {
-        const partySnap = await get(ref(db, "managedBoxParties"));
+        const partySnap = await get(ref(null, "managedBoxParties"));
         if (partySnap.exists()) {
           const list: ManagedBoxParty[] = [];
           partySnap.forEach((child) => {
@@ -116,7 +115,7 @@ export default function CreateBoxModal({ onClose, onCreated, products, initialBo
       const existing = parties.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
       if (existing) return { partyId: existing.id, partyName: existing.name };
 
-      const partyRef = push(ref(db, "managedBoxParties"));
+      const partyRef = push(ref(null, "managedBoxParties"));
       await set(partyRef, {
         name,
         createdAt: Date.now(),
@@ -460,3 +459,4 @@ export default function CreateBoxModal({ onClose, onCreated, products, initialBo
     </div>
   );
 }
+

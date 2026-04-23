@@ -4,8 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { api, firestoreApi } from "../../data";
 import { useAuth } from "../../../../context/AuthContext";
 import { useData } from "../../../../context/DataContext";
-import { ref, update } from "firebase/database";
-import { db } from "../../../../lib/firebase";
 import { logActivity } from "../../../../lib/activityLogger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -197,7 +195,18 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
             if (enteredPin.length < 4) return;
             setIsSaving(true);
             try {
-                await update(ref(db, `users/${user?.uid}`), { dispatchPin: enteredPin });
+                const res = await fetch("/api/user-metadata", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        uid: user?.uid,
+                        data: { dispatchPin: enteredPin }
+                    })
+                });
+                const result = await res.json();
+                if (!res.ok) {
+                    throw new Error(result?.error || "Failed to set PIN.");
+                }
                 alert("Dispatch PIN created successfully! Please proceed to confirm dispatch.");
                 setPin(["", "", "", ""]);
                 // Refresh window to get new userData if not using a listener, 
@@ -814,3 +823,4 @@ const tabActive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, b
 const tabInactive: React.CSSProperties = { padding: "8px 18px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#64748b", fontWeight: 400, fontSize: 13, cursor: "pointer", fontFamily: "inherit" };
 const btnPrimary: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 400, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };
 const btnGhost: React.CSSProperties = { padding: "11px 22px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#374151", fontWeight: 400, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" };
+

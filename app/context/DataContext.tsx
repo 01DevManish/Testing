@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { db } from "../lib/firebase";
-import { ref, onValue, off, get, DataSnapshot } from "firebase/database";
+import { ref, onValue, off, get, DataSnapshot } from "@/app/lib/dynamoRtdbCompat";
 import { Product, Category, Collection, ItemGroup } from "../dashboard/inventory/types";
 import { PartyRate, UserRecord, Brand } from "../dashboard/admin/types";
 import { Order, Party, Transporter } from "../dashboard/ecom-dispatch/types";
@@ -72,6 +72,7 @@ type EntityPath =
 const HEAVY_NODE_POLL_MS = 10 * 60 * 1000; // fallback safety poll (10 min)
 const DATA_SIGNAL_ROOT = "syncSignals";
 const SIGNAL_FETCH_COOLDOWN_MS = 4000;
+const INVENTORY_DYNAMO_MIN_ROWS_FOR_TRUST = 400;
 
 const NODE_DEFS: Array<{
   path: EntityPath;
@@ -107,14 +108,28 @@ const DYNAMO_PRIMARY_PATHS = new Set<EntityPath>([
 ]);
 
 // These entities should not hit Firebase in normal read flow once Dynamo responds successfully.
-// Keeps Firebase bandwidth/cost low for heavy datasets like inventory.
+// Keeps Firebase bandwidth/cost low by making app data fully Dynamo-driven.
 const DYNAMO_AUTHORITATIVE_PATHS = new Set<EntityPath>([
   "inventory",
+  "partyRates",
+  "brands",
+  "categories",
+  "collections",
+  "itemGroups",
+  "dispatches",
+  "packingLists",
+  "parties",
+  "transporters",
 ]);
 
 // Keep inventory on-demand only (no automatic signal/poll fetch) to control Firebase/Dynamo churn and UI flicker.
 const ON_DEMAND_ONLY_PATHS = new Set<EntityPath>([
   "inventory",
+]);
+
+// Avoid Firebase syncSignal listeners for Dynamo-authoritative datasets.
+const NO_FIREBASE_SIGNAL_PATHS = new Set<EntityPath>([
+  ...DYNAMO_AUTHORITATIVE_PATHS,
 ]);
 
 const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
@@ -326,10 +341,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
               dynamoRows = json.items as Array<Record<string, unknown>>;
               const isDynamoAuthoritative = DYNAMO_AUTHORITATIVE_PATHS.has(path);
               if (isDynamoAuthoritative) {
+                const isInventoryShort = path === "inventory"
+                  && dynamoRows.length > 0
+                  && dynamoRows.length < INVENTORY_DYNAMO_MIN_ROWS_FOR_TRUST;
+                if (isInventoryShort) {
+                  console.warn(
+                    `[DataContext] Inventory Dynamo rows look incomplete (${dynamoRows.length}). Falling back to Firebase for safety.`
+                  );
+                } else {
                 // For cost-sensitive heavy nodes, avoid Firebase node reads when Dynamo has responded.
                 applyEntityData(path, dynamoRows);
                 localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
                 return;
+                }
               }
               const shouldReconcileWithFirebase = FIREBASE_RECONCILE_PATHS.has(path);
               if (dynamoRows.length > 0 && !shouldReconcileWithFirebase) {
@@ -416,6 +440,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const signalPath = `${DATA_SIGNAL_ROOT}/${node.path}`;
         const signalRef = ref(db, signalPath);
         const signalListener = onValue(signalRef, (snapshot) => {
+          if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+          if (NO_FIREBASE_SIGNAL_PATHS.has(node.path)) return;
           if (ON_DEMAND_ONLY_PATHS.has(node.path)) return;
           const signalValueRaw = snapshot.val();
           const signalValue = signalValueRaw == null ? "" : String(signalValueRaw);
@@ -436,8 +462,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       if (!node.realtime && node.pollMs) {
+        if (NO_FIREBASE_SIGNAL_PATHS.has(node.path)) return;
         if (ON_DEMAND_ONLY_PATHS.has(node.path)) return;
         const id = window.setInterval(() => {
+          if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
           fetchEntity(node.path);
         }, node.pollMs);
         pollers.push(id);

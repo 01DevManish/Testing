@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { ref, remove, update } from "firebase/database";
+import { ref, remove, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { FONT, Product, Category, Collection, STATUS_CONFIG } from "../../types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "../../ui";
@@ -715,3 +715,4 @@ export default function ProductList({
         </div>
     );
 }
+

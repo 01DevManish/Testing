@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { UserRecord, Task, LoggedActivity } from "./types";
 import type { AdminStyles } from "./styles";
-import { ref, query, limitToLast, onValue, off, remove } from "firebase/database";
-import { db } from "../../lib/firebase";
+import { ref, remove } from "@/app/lib/dynamoRtdbCompat";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import SmartImage from "../../components/SmartImage";
 import { useRouter } from "next/navigation";
+import { useActivePolling } from "../../lib/useActivePolling";
 
 interface Activity {
   id: string;
@@ -75,37 +75,35 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
 
   // Reset pagination when searching
   useEffect(() => { setInventoryPage(1); }, [inventorySearch]);
+  const mapActivity = (val: Partial<LoggedActivity>): Activity => ({
+    id: String(val.id || crypto.randomUUID()),
+    type: (val.type as Activity["type"]) || "system",
+    title: String(val.title || "Activity"),
+    description: String(val.description || ""),
+    timestamp: Number(val.timestamp || Date.now()),
+    user: String(val.userName || "System"),
+    icon: val.type === "dispatch"
+      ? (String(val.title || "").includes("Ecommerce") ? "ECOM" : "RETAIL")
+      : (val.type === "inventory" ? "INV" : "LOG"),
+    color: val.type === "dispatch"
+      ? (String(val.title || "").includes("Ecommerce") ? "#6366f1" : "linear-gradient(135deg,#3b82f6,#2dd4bf)")
+      : (val.type === "inventory" ? "#10b981" : "#94a3b8"),
+    metadata: val.metadata as Record<string, any> | undefined,
+  });
 
-  useEffect(() => {
-    // 1. Listen for Activities (Live)
-    const actRef = query(ref(db, "activities"), limitToLast(50));
-    const unsubActivities = onValue(actRef, (snap) => {
-      if (snap.exists()) {
-        const acts: Activity[] = [];
-        snap.forEach((d) => {
-          const val = d.val() as LoggedActivity;
-          acts.push({
-            id: val.id,
-            type: val.type,
-            title: val.title,
-            description: val.description,
-            timestamp: val.timestamp,
-            user: val.userName || "System",
-            icon: val.type === "dispatch" ? (val.title.includes("Ecommerce") ? "🛒" : "🚛") : (val.type === "inventory" ? "📦" : "🔔"),
-            color: val.type === "dispatch" ? (val.title.includes("Ecommerce") ? "#6366f1" : "linear-gradient(135deg,#3b82f6,#2dd4bf)") : (val.type === "inventory" ? "#10b981" : "#94a3b8"),
-            metadata: val.metadata
-          });
-        });
-        setActivities(acts.sort((a, b) => b.timestamp - a.timestamp));
-      }
+  useActivePolling(async () => {
+    try {
+      const res = await fetch("/api/logs?period=month", { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      const rows = Array.isArray(json?.logs) ? json.logs : [];
+      const acts: Activity[] = rows.map((row: unknown) => mapActivity(row as Partial<LoggedActivity>));
+      setActivities(acts.sort((a: Activity, b: Activity) => b.timestamp - a.timestamp));
+    } catch {
+      setActivities([]);
+    } finally {
       setActivityLoading(false);
-    });
-
-    return () => {
-      off(actRef, "value", unsubActivities);
-    };
-  }, []);
-
+    }
+  }, 20000, []);
   const allProducts = useMemo(() => products as Product[], [products]);
   const completedPackingLists = useMemo(
     () => (packingLists as PackingList[]).filter((item) => item.status === "Completed" || item.status === "Packed"),
@@ -124,7 +122,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
 
     try {
       if (deleteOrderToo && orderId) {
-        await remove(ref(db, `dispatches/${orderId}`));
+        await remove(ref(null, `dispatches/${orderId}`));
         // Log deep deletion
         await logActivity({
           type: "dispatch",
@@ -138,7 +136,12 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
         });
       }
 
-      await remove(ref(db, `activities/${a.id}`));
+      await fetch("/api/logs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: a.id }),
+      });
+      setActivities((prev) => prev.filter((x) => x.id !== a.id));
     } catch (e) {
       console.error(e);
       alert("Something went wrong during deletion.");
@@ -148,7 +151,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
   const deleteProduct = async (p: Product) => {
     if (confirm(`DANGER: Permanently delete product "${p.productName}" and its entire inventory?`)) {
       try {
-        await remove(ref(db, `inventory/${p.id}`));
+        await remove(ref(null, `inventory/${p.id}`));
 
         // Log product deletion
         await logActivity({
@@ -543,3 +546,4 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
     </div>
   );
 }
+
