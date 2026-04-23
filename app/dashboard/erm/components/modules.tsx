@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onValue, push, ref, set, update } from "firebase/database";
 import CatalogTab from "../../inventory/components/Catalog/CatalogTab";
 import ProductList from "../../inventory/components/Products/ProductList";
 import { useData } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
-import { db } from "../../../lib/firebase";
 import { hasPermission } from "../../../lib/permissions";
 
 type DispatchLike = Record<string, any>;
@@ -43,6 +41,7 @@ type LeadRecord = {
 
 type LeadCallRecord = {
   id: string;
+  leadId?: string;
   outcome: "interested" | "not_interested" | "follow_up" | "no_response";
   notes?: string;
   scheduledAt?: number;
@@ -59,9 +58,78 @@ type LeadCallRecord = {
 const cardStyle: React.CSSProperties = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
-  borderRadius: 14,
+  borderRadius: 16,
   padding: 16,
-  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+  boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
+};
+
+const inputStyle: React.CSSProperties = {
+  border: "1px solid #cbd5e1",
+  borderRadius: 10,
+  padding: 10,
+  fontSize: 13,
+  outline: "none",
+  background: "#fff",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  border: "none",
+  background: "linear-gradient(135deg, #1d4ed8, #4f46e5)",
+  color: "#fff",
+  borderRadius: 10,
+  padding: "10px 14px",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const subtleButtonStyle: React.CSSProperties = {
+  border: "1px solid #cbd5e1",
+  background: "#fff",
+  color: "#334155",
+  borderRadius: 10,
+  padding: "10px 12px",
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: "pointer",
+};
+
+const ERM_LEADS_CACHE_KEY = "eurus_cache_erm_leads";
+const ERM_LEAD_CALLS_CACHE_KEY = "eurus_cache_erm_lead_calls";
+type ErmEntity = "ermLeads" | "ermLeadCalls";
+
+const sortByUpdatedAtDesc = <T extends { updatedAt?: number }>(rows: T[]): T[] =>
+  rows.slice().sort((a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0));
+
+const sortByCalledAtDesc = <T extends { calledAt?: number }>(rows: T[]): T[] =>
+  rows.slice().sort((a, b) => (Number(b.calledAt) || 0) - (Number(a.calledAt) || 0));
+
+const parseCachedArray = <T,>(key: string): T[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveCachedArray = (key: string, value: unknown[]) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // no-op
+  }
+};
+
+const generateEntityId = (prefix: string) => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
 const formatMoney = (amount: number) => `Rs. ${Math.round(amount || 0).toLocaleString("en-IN")}`;
@@ -339,7 +407,14 @@ export function ErmLeadsModule() {
 
   const [leads, setLeads] = useState<LeadRecord[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string>("");
-  const [callLogs, setCallLogs] = useState<LeadCallRecord[]>([]);
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [allLeadCalls, setAllLeadCalls] = useState<LeadCallRecord[]>([]);
+  const [loadingLeads, setLoadingLeads] = useState(true);
+  const [creatingLead, setCreatingLead] = useState(false);
+  const [savingLeadMeta, setSavingLeadMeta] = useState(false);
+  const [savingCall, setSavingCall] = useState(false);
+  const [leadSearch, setLeadSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | LeadRecord["status"]>("all");
 
   const [leadForm, setLeadForm] = useState({
     name: "",
@@ -359,7 +434,6 @@ export function ErmLeadsModule() {
     callType: "voice" as LeadCallRecord["callType"],
     durationMinutes: "",
     followUpMode: "call" as LeadCallRecord["followUpMode"],
-    priority: "warm" as LeadCallRecord["priority"],
     nextAction: "",
   });
   const [leadMetaForm, setLeadMetaForm] = useState({
@@ -371,38 +445,62 @@ export function ErmLeadsModule() {
     notes: "",
   });
 
-  useEffect(() => {
-    const unsub = onValue(ref(db, "ermLeads"), (snap) => {
-      const list: LeadRecord[] = [];
-      if (snap.exists()) {
-        snap.forEach((child) => {
-          list.push({ id: child.key || "", ...child.val() });
-        });
-      }
-      list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      setLeads(list);
-      if (!selectedLeadId && list[0]?.id) setSelectedLeadId(list[0].id);
+  const fetchEntityItems = useCallback(async <T,>(entity: ErmEntity): Promise<T[]> => {
+    const response = await fetch(`/api/data/${entity}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Failed to load ${entity}`);
+    const json = await response.json();
+    return Array.isArray(json?.items) ? (json.items as T[]) : [];
+  }, []);
+
+  const upsertEntityItems = useCallback(async <T extends { id: string }>(entity: ErmEntity, items: T[]) => {
+    const validItems = items.filter((item) => String(item.id || "").trim());
+    if (!validItems.length) return;
+    const response = await fetch(`/api/data/${entity}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "upsert", items: validItems }),
     });
-    return () => unsub();
-  }, [selectedLeadId]);
+    if (!response.ok) throw new Error(`Failed to save ${entity}`);
+  }, []);
+
+  const syncLeadsFromApi = useCallback(async () => {
+    const rows = await fetchEntityItems<LeadRecord>("ermLeads");
+    const sorted = sortByUpdatedAtDesc(rows);
+    setLeads(sorted);
+    saveCachedArray(ERM_LEADS_CACHE_KEY, sorted);
+  }, [fetchEntityItems]);
+
+  const syncLeadCallsFromApi = useCallback(async () => {
+    const rows = await fetchEntityItems<LeadCallRecord>("ermLeadCalls");
+    const sorted = sortByCalledAtDesc(rows);
+    setAllLeadCalls(sorted);
+    saveCachedArray(ERM_LEAD_CALLS_CACHE_KEY, sorted);
+  }, [fetchEntityItems]);
 
   useEffect(() => {
-    if (!selectedLeadId) {
-      setCallLogs([]);
-      return;
-    }
-    const unsub = onValue(ref(db, `ermLeadCalls/${selectedLeadId}`), (snap) => {
-      const list: LeadCallRecord[] = [];
-      if (snap.exists()) {
-        snap.forEach((child) => {
-          list.push({ id: child.key || "", ...child.val() } as LeadCallRecord);
-        });
-      }
-      list.sort((a, b) => (b.calledAt || 0) - (a.calledAt || 0));
-      setCallLogs(list);
-    });
-    return () => unsub();
-  }, [selectedLeadId]);
+    const cachedLeads = sortByUpdatedAtDesc(parseCachedArray<LeadRecord>(ERM_LEADS_CACHE_KEY));
+    if (cachedLeads.length) setLeads(cachedLeads);
+
+    const cachedCalls = sortByCalledAtDesc(parseCachedArray<LeadCallRecord>(ERM_LEAD_CALLS_CACHE_KEY));
+    if (cachedCalls.length) setAllLeadCalls(cachedCalls);
+
+    let alive = true;
+    Promise.all([syncLeadsFromApi(), syncLeadCallsFromApi()])
+      .catch((error) => console.error("ERM Dynamo sync failed:", error))
+      .finally(() => {
+        if (alive) setLoadingLeads(false);
+      });
+
+    const timer = window.setInterval(() => {
+      syncLeadsFromApi().catch(() => {});
+      syncLeadCallsFromApi().catch(() => {});
+    }, 15000);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [syncLeadsFromApi, syncLeadCallsFromApi]);
 
   const staff = useMemo(
     () => users.filter((u) => u.role === "employee" || u.role === "manager" || u.role === "admin"),
@@ -414,7 +512,26 @@ export function ErmLeadsModule() {
     return leads.filter((lead) => lead.assignedToUid === userData?.uid);
   }, [isAdmin, leads, userData]);
 
+  const filteredLeads = useMemo(() => {
+    const query = leadSearch.trim().toLowerCase();
+    return visibleLeads.filter((lead) => {
+      const statusPass = statusFilter === "all" ? true : lead.status === statusFilter;
+      if (!statusPass) return false;
+      if (!query) return true;
+      return (
+        String(lead.name || "").toLowerCase().includes(query) ||
+        String(lead.phone || "").toLowerCase().includes(query) ||
+        String(lead.address || lead.city || "").toLowerCase().includes(query) ||
+        String(lead.assignedToName || "").toLowerCase().includes(query)
+      );
+    });
+  }, [visibleLeads, leadSearch, statusFilter]);
+
   const selectedLead = visibleLeads.find((x) => x.id === selectedLeadId) || null;
+  const callLogs = useMemo(
+    () => sortByCalledAtDesc(allLeadCalls.filter((log) => String((log as Record<string, unknown>).leadId || "") === selectedLeadId)),
+    [allLeadCalls, selectedLeadId]
+  );
 
   useEffect(() => {
     if (!selectedLead) return;
@@ -428,87 +545,135 @@ export function ErmLeadsModule() {
     });
   }, [selectedLead]);
 
+  const closeLeadModal = () => {
+    setIsLeadModalOpen(false);
+    setSelectedLeadId("");
+  };
+
+  const openLeadModal = (leadId: string) => {
+    setSelectedLeadId(leadId);
+    setIsLeadModalOpen(true);
+  };
+
   const createLead = async () => {
     if (!canAdminUpload) return;
     if (!leadForm.name.trim() || !leadForm.phone.trim()) return;
 
-    const assignee = staff.find((s) => s.uid === leadForm.assignedToUid);
-    const newRef = push(ref(db, "ermLeads"));
-    const now = Date.now();
-    await set(newRef, {
-      name: leadForm.name.trim(),
-      phone: leadForm.phone.trim(),
-      address: leadForm.address.trim(),
-      email: leadForm.email.trim(),
-      company: leadForm.company.trim(),
-      city: leadForm.city.trim(),
-      source: leadForm.source.trim() || "manual",
-      status: "new",
-      assignedToUid: assignee?.uid || userData?.uid || "",
-      assignedToName: assignee?.name || userData?.name || "",
-      createdAt: now,
-      updatedAt: now,
-    });
+    setCreatingLead(true);
+    try {
+      const assignee = staff.find((s) => s.uid === leadForm.assignedToUid);
+      const now = Date.now();
+      const newLead: LeadRecord = {
+        id: generateEntityId("lead"),
+        name: leadForm.name.trim(),
+        phone: leadForm.phone.trim(),
+        address: leadForm.address.trim(),
+        email: leadForm.email.trim(),
+        company: leadForm.company.trim(),
+        city: leadForm.city.trim(),
+        source: leadForm.source.trim() || "manual",
+        status: "new",
+        assignedToUid: assignee?.uid || userData?.uid || "",
+        assignedToName: assignee?.name || userData?.name || "",
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    setLeadForm({ name: "", phone: "", address: "", email: "", company: "", city: "", source: "", assignedToUid: "" });
+      const next = sortByUpdatedAtDesc([newLead, ...leads.filter((lead) => lead.id !== newLead.id)]);
+      setLeads(next);
+      saveCachedArray(ERM_LEADS_CACHE_KEY, next);
+      await upsertEntityItems("ermLeads", [newLead]);
+
+      setLeadForm({ name: "", phone: "", address: "", email: "", company: "", city: "", source: "", assignedToUid: "" });
+    } finally {
+      setCreatingLead(false);
+    }
   };
 
   const saveCallRecord = async () => {
     if (!canEdit || !selectedLead) return;
-    const now = Date.now();
-    const scheduledTs = callForm.scheduledAt ? new Date(callForm.scheduledAt).getTime() : undefined;
-    const duration = Number(callForm.durationMinutes || 0);
+    setSavingCall(true);
+    try {
+      const now = Date.now();
+      const scheduledTs = callForm.scheduledAt ? new Date(callForm.scheduledAt).getTime() : undefined;
+      const duration = Number(callForm.durationMinutes || 0);
+      const newCall: LeadCallRecord = {
+        id: generateEntityId("call"),
+        leadId: selectedLead.id,
+        outcome: callForm.outcome,
+        notes: callForm.notes.trim(),
+        scheduledAt: scheduledTs,
+        callType: callForm.callType,
+        durationMinutes: duration > 0 ? duration : undefined,
+        followUpMode: callForm.followUpMode,
+        priority: selectedLead.priority || "cold",
+        nextAction: callForm.nextAction.trim(),
+        calledAt: now,
+        calledByUid: userData?.uid || "",
+        calledByName: userData?.name || "",
+      };
 
-    const callRef = push(ref(db, `ermLeadCalls/${selectedLead.id}`));
-    await set(callRef, {
-      outcome: callForm.outcome,
-      notes: callForm.notes.trim(),
-      scheduledAt: scheduledTs,
-      callType: callForm.callType,
-      durationMinutes: duration > 0 ? duration : null,
-      followUpMode: callForm.followUpMode,
-      priority: callForm.priority,
-      nextAction: callForm.nextAction.trim(),
-      calledAt: now,
-      calledByUid: userData?.uid || "",
-      calledByName: userData?.name || "",
-    });
+      const patchedLead: LeadRecord = {
+        ...selectedLead,
+        status: callForm.outcome === "interested" ? "interested" : callForm.outcome === "not_interested" ? "not_interested" : (scheduledTs ? "scheduled" : "contacted"),
+        nextFollowUpAt: scheduledTs,
+        lastOutcome: callForm.outcome,
+        notes: callForm.notes.trim() || selectedLead.notes || "",
+        callAttemptCount: Number(selectedLead.callAttemptCount || 0) + 1,
+        updatedAt: now,
+      };
 
-    await update(ref(db, `ermLeads/${selectedLead.id}`), {
-      status: callForm.outcome === "interested" ? "interested" : callForm.outcome === "not_interested" ? "not_interested" : (scheduledTs ? "scheduled" : "contacted"),
-      nextFollowUpAt: scheduledTs || null,
-      lastOutcome: callForm.outcome,
-      notes: callForm.notes.trim() || selectedLead.notes || "",
-      priority: callForm.priority || selectedLead.priority || "warm",
-      callAttemptCount: Number(selectedLead.callAttemptCount || 0) + 1,
-      updatedAt: now,
-    });
+      const nextCalls = sortByCalledAtDesc([newCall, ...allLeadCalls.filter((log) => log.id !== newCall.id)]);
+      const nextLeads = sortByUpdatedAtDesc(leads.map((lead) => (lead.id === selectedLead.id ? patchedLead : lead)));
+      setAllLeadCalls(nextCalls);
+      setLeads(nextLeads);
+      saveCachedArray(ERM_LEAD_CALLS_CACHE_KEY, nextCalls);
+      saveCachedArray(ERM_LEADS_CACHE_KEY, nextLeads);
 
-    setCallForm({
-      outcome: "follow_up",
-      notes: "",
-      scheduledAt: "",
-      callType: "voice",
-      durationMinutes: "",
-      followUpMode: "call",
-      priority: "warm",
-      nextAction: "",
-    });
+      await Promise.all([
+        upsertEntityItems("ermLeadCalls", [newCall]),
+        upsertEntityItems("ermLeads", [patchedLead]),
+      ]);
+
+      setCallForm({
+        outcome: "follow_up",
+        notes: "",
+        scheduledAt: "",
+        callType: "voice",
+        durationMinutes: "",
+        followUpMode: "call",
+        nextAction: "",
+      });
+      closeLeadModal();
+    } finally {
+      setSavingCall(false);
+    }
   };
 
   const saveLeadMeta = async () => {
     if (!canEdit || !selectedLead) return;
-    const assignee = staff.find((s) => s.uid === leadMetaForm.assignedToUid);
-    await update(ref(db, `ermLeads/${selectedLead.id}`), {
-      name: leadMetaForm.name.trim() || selectedLead.name || "",
-      phone: leadMetaForm.phone.trim() || selectedLead.phone || "",
-      address: leadMetaForm.address.trim() || "",
-      status: leadMetaForm.status,
-      assignedToUid: leadMetaForm.assignedToUid || selectedLead.assignedToUid || "",
-      assignedToName: assignee?.name || selectedLead.assignedToName || "",
-      notes: leadMetaForm.notes.trim(),
-      updatedAt: Date.now(),
-    });
+    setSavingLeadMeta(true);
+    try {
+      const assignee = staff.find((s) => s.uid === leadMetaForm.assignedToUid);
+      const updatedLead: LeadRecord = {
+        ...selectedLead,
+        name: leadMetaForm.name.trim() || selectedLead.name || "",
+        phone: leadMetaForm.phone.trim() || selectedLead.phone || "",
+        address: leadMetaForm.address.trim() || "",
+        status: leadMetaForm.status,
+        assignedToUid: leadMetaForm.assignedToUid || selectedLead.assignedToUid || "",
+        assignedToName: assignee?.name || selectedLead.assignedToName || "",
+        notes: leadMetaForm.notes.trim(),
+        updatedAt: Date.now(),
+      };
+      const nextLeads = sortByUpdatedAtDesc(leads.map((lead) => (lead.id === selectedLead.id ? updatedLead : lead)));
+      setLeads(nextLeads);
+      saveCachedArray(ERM_LEADS_CACHE_KEY, nextLeads);
+      await upsertEntityItems("ermLeads", [updatedLead]);
+      closeLeadModal();
+    } finally {
+      setSavingLeadMeta(false);
+    }
   };
 
   const uploadLeadsFile = async (file: File) => {
@@ -547,6 +712,7 @@ export function ErmLeadsModule() {
     if (!rows.length) return;
 
     const now = Date.now();
+    const toInsert: LeadRecord[] = [];
     for (const row of rows) {
       const name = pickFromRow(row, ["name", "full_name", "customer_name", "lead_name"]);
       const phone = pickFromRow(row, ["phone", "mobile", "contact", "phone_number"]);
@@ -554,9 +720,8 @@ export function ErmLeadsModule() {
 
       const assignedUid = pickFromRow(row, ["assigned_uid", "assigned_to_uid", "assignedtouid", "owner_uid"]) || userData?.uid || "";
       const assigned = staff.find((s) => s.uid === assignedUid);
-
-      const newRef = push(ref(db, "ermLeads"));
-      await set(newRef, {
+      toInsert.push({
+        id: generateEntityId("lead"),
         name,
         phone,
         address: pickFromRow(row, ["address", "full_address", "location"]),
@@ -571,25 +736,33 @@ export function ErmLeadsModule() {
         updatedAt: now,
       });
     }
+
+    if (!toInsert.length) return;
+    const nextLeads = sortByUpdatedAtDesc([...toInsert, ...leads]);
+    setLeads(nextLeads);
+    saveCachedArray(ERM_LEADS_CACHE_KEY, nextLeads);
+    await upsertEntityItems("ermLeads", toInsert);
   };
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {isAdmin ? (
         <div style={{ ...cardStyle, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-          <input placeholder="Lead name" value={leadForm.name} onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-          <input placeholder="Phone" value={leadForm.phone} onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-          <input placeholder="Address" value={leadForm.address} onChange={(e) => setLeadForm({ ...leadForm, address: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-          <input placeholder="Email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-          <input placeholder="Company" value={leadForm.company} onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-          <input placeholder="Source" value={leadForm.source} onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-          <select value={leadForm.assignedToUid} onChange={(e) => setLeadForm({ ...leadForm, assignedToUid: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+          <input placeholder="Lead name" value={leadForm.name} onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })} style={inputStyle} />
+          <input placeholder="Phone" value={leadForm.phone} onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })} style={inputStyle} />
+          <input placeholder="Address" value={leadForm.address} onChange={(e) => setLeadForm({ ...leadForm, address: e.target.value })} style={inputStyle} />
+          <input placeholder="Email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} style={inputStyle} />
+          <input placeholder="Company" value={leadForm.company} onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })} style={inputStyle} />
+          <input placeholder="Source" value={leadForm.source} onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })} style={inputStyle} />
+          <select value={leadForm.assignedToUid} onChange={(e) => setLeadForm({ ...leadForm, assignedToUid: e.target.value })} style={inputStyle}>
             <option value="">Assign to</option>
             {staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}
           </select>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={createLead} disabled={!canAdminUpload} style={{ border: "none", background: "#4f46e5", color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, cursor: "pointer", opacity: canAdminUpload ? 1 : 0.5 }}>Add Lead</button>
-            <label style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: "10px 12px", fontSize: 13, cursor: "pointer", background: "#fff" }}>
+            <button onClick={createLead} disabled={!canAdminUpload || creatingLead} style={{ ...primaryButtonStyle, opacity: canAdminUpload && !creatingLead ? 1 : 0.5 }}>
+              {creatingLead ? "Saving..." : "Save Lead"}
+            </button>
+            <label style={subtleButtonStyle}>
               Upload CSV/XLSX
               <input type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLeadsFile(f); }} />
             </label>
@@ -604,9 +777,30 @@ export function ErmLeadsModule() {
       <div style={{ ...cardStyle }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>
-            {isAdmin ? `All Leads (${visibleLeads.length})` : `My Assigned Leads (${visibleLeads.length})`}
+            {isAdmin ? `All Leads (${filteredLeads.length})` : `My Assigned Leads (${filteredLeads.length})`}
           </div>
-          <div style={{ fontSize: 12, color: "#64748b" }}>Action button se lead popup open hoga.</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              placeholder="Search lead"
+              value={leadSearch}
+              onChange={(e) => setLeadSearch(e.target.value)}
+              style={{ ...inputStyle, minWidth: 180, padding: "8px 10px" }}
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as "all" | LeadRecord["status"])}
+              style={{ ...inputStyle, padding: "8px 10px" }}
+            >
+              <option value="all">All Status</option>
+              <option value="new">New</option>
+              <option value="contacted">Contacted</option>
+              <option value="interested">Interested</option>
+              <option value="not_interested">Not Interested</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+            </select>
+          </div>
         </div>
 
         <div style={{ overflowX: "auto" }}>
@@ -623,7 +817,7 @@ export function ErmLeadsModule() {
               </tr>
             </thead>
             <tbody>
-              {visibleLeads.map((lead) => (
+              {filteredLeads.map((lead) => (
                 <tr key={lead.id} style={{ background: selectedLeadId === lead.id ? "#eef2ff" : "transparent" }}>
                   <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#0f172a", fontWeight: 600 }}>{lead.name}</td>
                   <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 13 }}>{lead.phone}</td>
@@ -633,7 +827,7 @@ export function ErmLeadsModule() {
                   <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 11 }}>{lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toLocaleString("en-IN") : "-"}</td>
                   <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
                     <button
-                      onClick={() => setSelectedLeadId(lead.id)}
+                      onClick={() => openLeadModal(lead.id)}
                       style={{ border: "none", background: "#4f46e5", color: "#fff", borderRadius: 8, fontSize: 12, padding: "7px 12px", cursor: "pointer" }}
                     >
                       Action
@@ -643,13 +837,14 @@ export function ErmLeadsModule() {
               ))}
             </tbody>
           </table>
-          {visibleLeads.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 0 2px" }}>No leads available.</div>}
+          {loadingLeads && filteredLeads.length === 0 && <div style={{ fontSize: 12, color: "#64748b", padding: "8px 0 2px" }}>Loading leads...</div>}
+          {!loadingLeads && filteredLeads.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 0 2px" }}>No leads available.</div>}
         </div>
       </div>
 
-      {selectedLead && (
+      {selectedLead && isLeadModalOpen && (
         <div
-          onClick={() => setSelectedLeadId("")}
+          onClick={closeLeadModal}
           style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", justifyContent: "center", alignItems: "center", padding: 14 }}
         >
           <div
@@ -661,14 +856,14 @@ export function ErmLeadsModule() {
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Lead Action Form</div>
                 <div style={{ fontSize: 12, color: "#64748b" }}>Employee yahan se name, phone, address aur call details update karega.</div>
               </div>
-              <button onClick={() => setSelectedLeadId("")} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Close</button>
+              <button onClick={closeLeadModal} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Close</button>
             </div>
 
             <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", marginBottom: 8 }}>
-              <input placeholder="Name" value={leadMetaForm.name} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, name: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-              <input placeholder="Phone No." value={leadMetaForm.phone} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, phone: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-              <input placeholder="Address" value={leadMetaForm.address} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, address: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-              <select value={leadMetaForm.status} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, status: e.target.value as LeadRecord["status"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+              <input placeholder="Name" value={leadMetaForm.name} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, name: e.target.value })} style={inputStyle} />
+              <input placeholder="Phone No." value={leadMetaForm.phone} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, phone: e.target.value })} style={inputStyle} />
+              <input placeholder="Address" value={leadMetaForm.address} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, address: e.target.value })} style={inputStyle} />
+              <select value={leadMetaForm.status} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, status: e.target.value as LeadRecord["status"] })} style={inputStyle}>
                 <option value="new">New</option>
                 <option value="contacted">Contacted</option>
                 <option value="interested">Interested</option>
@@ -677,12 +872,12 @@ export function ErmLeadsModule() {
                 <option value="won">Won</option>
                 <option value="lost">Lost</option>
               </select>
-              <select value={leadMetaForm.assignedToUid} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, assignedToUid: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+              <select value={leadMetaForm.assignedToUid} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, assignedToUid: e.target.value })} style={inputStyle}>
                 <option value="">Assigned User</option>
                 {staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}
               </select>
-              <button onClick={saveLeadMeta} disabled={!canEdit} style={{ border: "none", background: "#1d4ed8", color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, cursor: "pointer", opacity: canEdit ? 1 : 0.5 }}>
-                Save Lead Details
+              <button onClick={saveLeadMeta} disabled={!canEdit || savingLeadMeta} style={{ ...primaryButtonStyle, opacity: canEdit && !savingLeadMeta ? 1 : 0.5 }}>
+                {savingLeadMeta ? "Saving..." : "Save Leads"}
               </button>
             </div>
 
@@ -696,30 +891,25 @@ export function ErmLeadsModule() {
                 <option value="not_interested">Not Interested</option>
                 <option value="no_response">No Response</option>
               </select>
-              <select value={callForm.callType} onChange={(e) => setCallForm({ ...callForm, callType: e.target.value as LeadCallRecord["callType"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+              <select value={callForm.callType} onChange={(e) => setCallForm({ ...callForm, callType: e.target.value as LeadCallRecord["callType"] })} style={inputStyle}>
                 <option value="voice">Voice Call</option>
                 <option value="whatsapp">WhatsApp Call</option>
                 <option value="meeting">Physical Meeting</option>
                 <option value="video">Video Call</option>
               </select>
-              <select value={callForm.followUpMode} onChange={(e) => setCallForm({ ...callForm, followUpMode: e.target.value as LeadCallRecord["followUpMode"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
+              <select value={callForm.followUpMode} onChange={(e) => setCallForm({ ...callForm, followUpMode: e.target.value as LeadCallRecord["followUpMode"] })} style={inputStyle}>
                 <option value="call">Follow-up by Call</option>
                 <option value="whatsapp">Follow-up by WhatsApp</option>
                 <option value="meeting">Follow-up by Meeting</option>
                 <option value="none">No Follow-up</option>
               </select>
-              <select value={callForm.priority} onChange={(e) => setCallForm({ ...callForm, priority: e.target.value as LeadCallRecord["priority"] })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }}>
-                <option value="hot">Hot</option>
-                <option value="warm">Warm</option>
-                <option value="cold">Cold</option>
-              </select>
-              <input placeholder="Duration (min)" type="number" min={0} value={callForm.durationMinutes} onChange={(e) => setCallForm({ ...callForm, durationMinutes: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
-              <input type="datetime-local" value={callForm.scheduledAt} onChange={(e) => setCallForm({ ...callForm, scheduledAt: e.target.value })} style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+              <input placeholder="Duration (min)" type="number" min={0} value={callForm.durationMinutes} onChange={(e) => setCallForm({ ...callForm, durationMinutes: e.target.value })} style={inputStyle} />
+              <input type="datetime-local" value={callForm.scheduledAt} onChange={(e) => setCallForm({ ...callForm, scheduledAt: e.target.value })} style={inputStyle} />
             </div>
-            <input placeholder="Next action" value={callForm.nextAction} onChange={(e) => setCallForm({ ...callForm, nextAction: e.target.value })} style={{ width: "100%", marginTop: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13 }} />
+            <input placeholder="Next action" value={callForm.nextAction} onChange={(e) => setCallForm({ ...callForm, nextAction: e.target.value })} style={{ ...inputStyle, width: "100%", marginTop: 8 }} />
             <textarea placeholder="Call notes" value={callForm.notes} onChange={(e) => setCallForm({ ...callForm, notes: e.target.value })} style={{ width: "100%", minHeight: 78, marginTop: 8, border: "1px solid #cbd5e1", borderRadius: 10, padding: 10, fontSize: 13, resize: "vertical" }} />
-            <button onClick={saveCallRecord} disabled={!canEdit} style={{ marginTop: 8, border: "none", background: "#4f46e5", color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, cursor: "pointer", opacity: canEdit ? 1 : 0.5 }}>
-              Save Call Record
+            <button onClick={saveCallRecord} disabled={!canEdit || savingCall} style={{ ...primaryButtonStyle, marginTop: 8, opacity: canEdit && !savingCall ? 1 : 0.5 }}>
+              {savingCall ? "Saving..." : "Save Record"}
             </button>
 
             <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>

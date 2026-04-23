@@ -188,7 +188,7 @@ export default function InventoryPage() {
   const roleColors: Record<string, string> = { admin: "#ef4444", manager: "#f59e0b", employee: "#22c55e" };
 
   const loadAll = useCallback(async () => {
-    refreshData();
+    refreshData("inventory");
   }, [refreshData]);
 
   const handleLogout = async () => { await logout(); router.replace("/"); };

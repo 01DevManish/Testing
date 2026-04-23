@@ -71,6 +71,7 @@ type EntityPath =
 
 const HEAVY_NODE_POLL_MS = 10 * 60 * 1000; // fallback safety poll (10 min)
 const DATA_SIGNAL_ROOT = "syncSignals";
+const SIGNAL_FETCH_COOLDOWN_MS = 4000;
 
 const NODE_DEFS: Array<{
   path: EntityPath;
@@ -105,8 +106,18 @@ const DYNAMO_PRIMARY_PATHS = new Set<EntityPath>([
   "transporters",
 ]);
 
-const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
+// These entities should not hit Firebase in normal read flow once Dynamo responds successfully.
+// Keeps Firebase bandwidth/cost low for heavy datasets like inventory.
+const DYNAMO_AUTHORITATIVE_PATHS = new Set<EntityPath>([
   "inventory",
+]);
+
+// Keep inventory on-demand only (no automatic signal/poll fetch) to control Firebase/Dynamo churn and UI flicker.
+const ON_DEMAND_ONLY_PATHS = new Set<EntityPath>([
+  "inventory",
+]);
+
+const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
   "partyRates",
   "parties",
   "collections",
@@ -217,6 +228,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [transporters, setTransporters] = useState<Transporter[]>([]);
   const [loading, setLoading] = useState(true);
   const lastSignalRef = useRef<Record<string, string>>({});
+  const lastSignalFetchAtRef = useRef<Record<string, number>>({});
 
   // 1. Initial Load from LocalStorage (Instant 0ms feel)
   useEffect(() => {
@@ -312,13 +324,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
             const json = await res.json();
             if (Array.isArray(json?.items)) {
               dynamoRows = json.items as Array<Record<string, unknown>>;
-              if (dynamoRows.length > 0) {
+              const isDynamoAuthoritative = DYNAMO_AUTHORITATIVE_PATHS.has(path);
+              if (isDynamoAuthoritative) {
+                // For cost-sensitive heavy nodes, avoid Firebase node reads when Dynamo has responded.
                 applyEntityData(path, dynamoRows);
                 localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
+                return;
               }
-
-              // For selected paths, reconcile Dynamo with Firebase to prevent stale server snapshots.
-              if (!FIREBASE_RECONCILE_PATHS.has(path) && dynamoRows.length > 0) {
+              const shouldReconcileWithFirebase = FIREBASE_RECONCILE_PATHS.has(path);
+              if (dynamoRows.length > 0 && !shouldReconcileWithFirebase) {
+                // Non-reconcile entities are Dynamo-first and can be applied immediately.
+                applyEntityData(path, dynamoRows);
+                localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
                 return;
               }
             }
@@ -358,14 +375,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       applyEntityData(path, rowsToApply);
       localStorage.setItem(def.cacheKey, JSON.stringify(rowsToApply));
 
-      // Keep DynamoDB warm/in-sync when fallback came from Firebase.
-      if (shouldSyncDynamo) {
-        fetch(`/api/data/${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "replace", items: rowsToApply }),
-        }).catch((syncErr) => console.warn(`[DataContext] Failed to sync ${path} to Dynamo.`, syncErr));
-      }
+      // Important: never push full-entity sync writes from client runtime.
+      // This can create a feedback loop:
+      // client fetch -> client replace POST -> server signal -> client fetch again.
+      // Background synchronization should be handled by server-side jobs/scripts only.
+      void shouldSyncDynamo;
     } catch (error) {
       console.error(`[DataContext] Failed to fetch ${path}:`, error);
     }
@@ -382,7 +396,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     Promise.all(
       NODE_DEFS
-        .filter((node) => !node.realtime)
+        .filter((node) => !node.realtime && !ON_DEMAND_ONLY_PATHS.has(node.path))
         .map((node) => fetchEntity(node.path))
     ).finally(() => setLoading(false));
 
@@ -402,11 +416,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const signalPath = `${DATA_SIGNAL_ROOT}/${node.path}`;
         const signalRef = ref(db, signalPath);
         const signalListener = onValue(signalRef, (snapshot) => {
+          if (ON_DEMAND_ONLY_PATHS.has(node.path)) return;
           const signalValueRaw = snapshot.val();
           const signalValue = signalValueRaw == null ? "" : String(signalValueRaw);
           const lastValue = lastSignalRef.current[node.path] || "";
           if (signalValue && signalValue !== lastValue) {
+            const now = Date.now();
+            const lastFetchAt = lastSignalFetchAtRef.current[node.path] || 0;
+            if (now - lastFetchAt < SIGNAL_FETCH_COOLDOWN_MS) {
+              lastSignalRef.current[node.path] = signalValue;
+              return;
+            }
             lastSignalRef.current[node.path] = signalValue;
+            lastSignalFetchAtRef.current[node.path] = now;
             fetchEntity(node.path);
           }
         });
@@ -414,6 +436,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       if (!node.realtime && node.pollMs) {
+        if (ON_DEMAND_ONLY_PATHS.has(node.path)) return;
         const id = window.setInterval(() => {
           fetchEntity(node.path);
         }, node.pollMs);
@@ -431,6 +454,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const refreshData = useCallback((entity?: string) => {
     if (!entity) {
       NODE_DEFS.forEach((node) => {
+        if (ON_DEMAND_ONLY_PATHS.has(node.path)) return;
         fetchEntity(node.path);
       });
       return;
