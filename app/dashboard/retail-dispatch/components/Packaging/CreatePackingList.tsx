@@ -30,9 +30,81 @@ interface CreatePackingListProps {
 }
 
 const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", "Own Vehicle", "Other"];
-const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
-const HIDDEN_ADMIN_NAME = "dev manish";
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+const normalizeRole = (value: unknown): string => {
+  if (typeof value !== "string") return "employee";
+  const role = value.trim().toLowerCase();
+  return role || "employee";
+};
+const normalizeAssignableUsersFromSnapshot = (value: unknown): any[] => {
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value as Record<string, unknown>)
+    .map(([key, row]) => {
+      if (!row || typeof row !== "object") return null;
+      const safeRow = row as Record<string, unknown>;
+      const uidRaw = typeof safeRow.uid === "string" ? safeRow.uid.trim() : "";
+      const uid = uidRaw || key;
+      if (!uid) return null;
+
+      const nameRaw = typeof safeRow.name === "string" ? safeRow.name.trim() : "";
+      const email = typeof safeRow.email === "string" ? safeRow.email.trim() : "";
+      const fallbackFromEmail = email ? email.split("@")[0] : "";
+      const name = nameRaw || fallbackFromEmail || `User ${uid.slice(0, 6)}`;
+
+      return {
+        ...safeRow,
+        id: key,
+        uid,
+        name,
+        email,
+        role: normalizeRole(safeRow.role),
+      };
+    })
+    .filter(Boolean) as any[];
+};
+const normalizeAssignableUsersFromApi = (rows: unknown): any[] => {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const safeRow = row as Record<string, unknown>;
+      const uid = typeof safeRow.uid === "string" ? safeRow.uid.trim() : "";
+      if (!uid) return null;
+      const email = typeof safeRow.email === "string" ? safeRow.email.trim() : "";
+      const nameRaw = typeof safeRow.name === "string" ? safeRow.name.trim() : "";
+      const name = nameRaw || (email ? email.split("@")[0] : "") || `User ${uid.slice(0, 6)}`;
+      return {
+        ...safeRow,
+        id: typeof safeRow.id === "string" && safeRow.id.trim() ? safeRow.id.trim() : uid,
+        uid,
+        email,
+        name,
+        role: normalizeRole(safeRow.role),
+      };
+    })
+    .filter(Boolean) as any[];
+};
+const mergeUsersByUid = (base: any[], incoming: any[]): any[] => {
+  const byUid = new Map<string, any>();
+  (base || []).forEach((u) => {
+    const uid = typeof u?.uid === "string" ? u.uid.trim() : "";
+    if (!uid) return;
+    byUid.set(uid, { ...u, uid, role: normalizeRole(u?.role) });
+  });
+  (incoming || []).forEach((u) => {
+    const uid = typeof u?.uid === "string" ? u.uid.trim() : "";
+    if (!uid) return;
+    const existing = byUid.get(uid) || {};
+    byUid.set(uid, {
+      ...u,
+      ...existing,
+      uid,
+      name: existing.name || u.name || `User ${uid.slice(0, 6)}`,
+      role: normalizeRole(existing.role || u.role),
+    });
+  });
+  return Array.from(byUid.values()).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+};
 const getItemMatchKey = (row: any): string => {
   const sku = normalizeSku(row?.sku);
   if (sku) return `sku:${sku}`;
@@ -144,8 +216,42 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
   useEffect(() => {
     if (!Array.isArray(dataUsers)) return;
-    setAllUsers(dataUsers);
+    setAllUsers(dataUsers as any[]);
   }, [dataUsers]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadAssignableUsers = async () => {
+      try {
+        const usersSnap = await get(ref(db, "users"));
+        const snapshotUsers = usersSnap.exists()
+          ? normalizeAssignableUsersFromSnapshot(usersSnap.val())
+          : [];
+        if (alive) {
+          setAllUsers((prev) => mergeUsersByUid(prev, snapshotUsers));
+        }
+      } catch (err) {
+        console.warn("Direct users read failed in packing form:", err);
+      }
+
+      try {
+        const res = await fetch("/api/users/assignable", { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && alive) {
+          const apiUsers = normalizeAssignableUsersFromApi(json?.users);
+          setAllUsers((prev) => mergeUsersByUid(prev, apiUsers));
+        }
+      } catch (err) {
+        console.warn("Assignable users API fallback failed:", err);
+      }
+    };
+
+    loadAssignableUsers();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const partyRatesForForm = useMemo(() => {
     if (!selectedParty) return [];
@@ -422,15 +528,14 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     (p.partyName || "").toLowerCase().includes(partySearch.toLowerCase())
   );
 
-  const assignableUsers = (allUsers || []).filter((u: any) => {
+  const usersForAssignment = (allUsers && allUsers.length > 0)
+    ? allUsers
+    : (Array.isArray(dataUsers) ? (dataUsers as any[]) : []);
+
+  const assignableUsers = (usersForAssignment || []).filter((u: any) => {
     if (!u || typeof u !== "object") return false;
     const uid = typeof u.uid === "string" ? u.uid.trim() : "";
-    const email = typeof u.email === "string" ? u.email.trim().toLowerCase() : "";
-    const name = typeof u.name === "string" ? u.name.trim() : "";
-    const nameLower = name.toLowerCase();
-    if (!uid || !name) return false;
-    if (email === HIDDEN_ADMIN_EMAIL || nameLower === HIDDEN_ADMIN_NAME) return false;
-    return true;
+    return Boolean(uid);
   });
 
   const getRoleLabel = (role: unknown) => {
@@ -720,7 +825,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
              </div>
              
              <p style={{ fontSize: isMobile ? 10 : 11, color: "#94a3b8", lineHeight: 1.5, margin: "12px 0 0" }}>
-               The assigned employee will see this list on their dashboard and will be responsible for packing these items.
+               The assigned user will see this list on their dashboard and will be responsible for packing these items.
              </p>
           </Card>
 

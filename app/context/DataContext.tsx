@@ -52,8 +52,6 @@ const CACHE_KEYS = {
   TRANSPORTERS: "eurus_cache_transporters",
 };
 
-const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
-const HIDDEN_ADMIN_NAME = "dev manish";
 const VALID_USER_ROLES = new Set(["admin", "manager", "employee", "user"]);
 
 type EntityPath =
@@ -154,12 +152,12 @@ const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<s
           ? safeRecord.uid.trim()
           : key;
         const email = typeof safeRecord.email === "string" ? safeRecord.email.trim() : "";
-        const name = typeof safeRecord.name === "string" ? safeRecord.name.trim() : "";
+        const nameRaw = typeof safeRecord.name === "string" ? safeRecord.name.trim() : "";
+        const fallbackFromEmail = email ? email.split("@")[0] : "";
+        const name = nameRaw || fallbackFromEmail || `User ${uid.slice(0, 6)}`;
         const roleRaw = typeof safeRecord.role === "string" ? safeRecord.role.trim().toLowerCase() : "employee";
         const role = VALID_USER_ROLES.has(roleRaw) ? roleRaw : "employee";
-
-        const isHidden = email.toLowerCase() === HIDDEN_ADMIN_EMAIL || name.toLowerCase() === HIDDEN_ADMIN_NAME;
-        if (!uid || !email || !name || isHidden) return [];
+        if (!uid) return [];
 
         return [{
           ...safeRecord,
@@ -209,12 +207,13 @@ const sanitizeCachedUsers = (rows: unknown[]): UserRecord[] => {
       const user = row as Record<string, unknown>;
       const uid = typeof user.uid === "string" ? user.uid.trim() : "";
       const email = typeof user.email === "string" ? user.email.trim() : "";
-      const name = typeof user.name === "string" ? user.name.trim() : "";
+      const nameRaw = typeof user.name === "string" ? user.name.trim() : "";
+      const fallbackFromEmail = email ? email.split("@")[0] : "";
+      const name = nameRaw || fallbackFromEmail || `User ${uid.slice(0, 6)}`;
       const roleRaw = typeof user.role === "string" ? user.role.trim().toLowerCase() : "employee";
       const role = VALID_USER_ROLES.has(roleRaw) ? roleRaw : "employee";
-      const isHidden = email.toLowerCase() === HIDDEN_ADMIN_EMAIL || name.toLowerCase() === HIDDEN_ADMIN_NAME;
 
-      if (!uid || !email || !name || isHidden) return null;
+      if (!uid) return null;
 
       return {
         ...user,
