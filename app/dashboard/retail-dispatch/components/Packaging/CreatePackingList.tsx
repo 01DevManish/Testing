@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { update, ref, get, push, set } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
@@ -33,6 +33,15 @@ const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", 
 const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 const HIDDEN_ADMIN_NAME = "dev manish";
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+const getItemMatchKey = (row: any): string => {
+  const sku = normalizeSku(row?.sku);
+  if (sku) return `sku:${sku}`;
+  const productId = String(row?.productId || "").trim().toLowerCase();
+  if (productId) return `pid:${productId}`;
+  const productName = String(row?.productName || "").trim().toLowerCase();
+  if (productName) return `name:${productName}`;
+  return "";
+};
 const toStockNumber = (value: unknown): number => {
   const n = Number(value);
   return Number.isFinite(n) ? Math.max(0, n) : 0;
@@ -51,8 +60,8 @@ const mapInventoryForDispatch = (rows: any[]) =>
   }));
 
 export default function CreatePackingList({ onClose, onCreated, editingList }: CreatePackingListProps) {
-  const { user, userData, fetchAllUsers } = useAuth();
-  const { products: cachedProducts, refreshData } = useData();
+  const { user, userData } = useAuth();
+  const { products: cachedProducts, refreshData, users: dataUsers } = useData();
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   const [parties, setParties] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -110,10 +119,6 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
           setParties(partiesData);
         }
 
-        // Load All Users for assignment
-        const users = await fetchAllUsers();
-        setAllUsers(users);
-
         // Trigger shared inventory refresh (Dynamo-first in DataContext).
         refreshData("inventory");
         const inv = await firestoreApi.getInventoryProducts();
@@ -127,14 +132,6 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         if (editingList) {
            const pMatch = partiesData.find(p => p.id === editingList.partyId);
            if (pMatch) setSelectedParty(pMatch);
-           
-           const itemsMap: Record<number, number> = {};
-           (editingList.items || []).forEach((it: any, idx: number) => {
-              itemsMap[idx] = it.quantity;
-           });
-           setSelectedItems(itemsMap);
-           setTransporter(editingList.transporter || "");
-           setAssignedUserId(editingList.assignedTo || "");
         }
       } catch (err) {
         console.error("Failed to load data for packing list:", err);
@@ -143,7 +140,57 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       }
     };
     loadData();
-  }, [fetchAllUsers, editingList, refreshData]);
+  }, [editingList, refreshData]);
+
+  useEffect(() => {
+    if (!Array.isArray(dataUsers)) return;
+    setAllUsers(dataUsers);
+  }, [dataUsers]);
+
+  const partyRatesForForm = useMemo(() => {
+    if (!selectedParty) return [];
+    const baseRates = Array.isArray(selectedParty.rates) ? selectedParty.rates : [];
+    if (!editingList) return baseRates;
+
+    const editingItems = Array.isArray(editingList.items) ? editingList.items : [];
+    const baseKeys = new Set(baseRates.map((r: any) => getItemMatchKey(r)).filter(Boolean));
+    const mergedRates = [...baseRates];
+
+    editingItems.forEach((item: any) => {
+      const key = getItemMatchKey(item);
+      if (!key || baseKeys.has(key)) return;
+      mergedRates.push({
+        productName: item.productName || "Unknown Product",
+        sku: item.sku || "",
+        rate: Number(item.rate) || 0,
+        packagingType: item.packagingType || item.packingType || "Box",
+      });
+    });
+
+    return mergedRates;
+  }, [selectedParty, editingList]);
+
+  useEffect(() => {
+    if (!editingList || !selectedParty) return;
+    const qtyByKey = new Map<string, number>();
+    (editingList.items || []).forEach((item: any) => {
+      const key = getItemMatchKey(item);
+      if (!key) return;
+      qtyByKey.set(key, Number(item.quantity) || 0);
+    });
+
+    const mappedQuantities: Record<number, number> = {};
+    partyRatesForForm.forEach((rate: any, idx: number) => {
+      const key = getItemMatchKey(rate);
+      if (!key) return;
+      const qty = qtyByKey.get(key);
+      if (typeof qty === "number" && qty > 0) mappedQuantities[idx] = qty;
+    });
+
+    setSelectedItems(mappedQuantities);
+    setTransporter(editingList.transporter || "");
+    setAssignedUserId(editingList.assignedTo || "");
+  }, [editingList, selectedParty, partyRatesForForm]);
 
   useEffect(() => {
     if (Array.isArray(cachedProducts) && cachedProducts.length > 0) {
@@ -157,7 +204,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       let changed = false;
       const next = { ...prev };
 
-      (selectedParty.rates || []).forEach((r: any, idx: number) => {
+      partyRatesForForm.forEach((r: any, idx: number) => {
         const rateSkuKey = normalizeSku(r.sku);
         const invMatch =
           inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
@@ -173,7 +220,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
       return changed ? next : prev;
     });
-  }, [inventory, selectedParty]);
+  }, [inventory, partyRatesForForm, selectedParty]);
 
   const handleCreate = async () => {
     if (!selectedParty || !assignedUserId || !transporter) {
@@ -186,7 +233,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
     const stockValidationErrors: string[] = [];
 
-    const items = (selectedParty.rates || [])
+    const items = partyRatesForForm
       .map((r: any, idx: number) => ({ r, idx }))
       .filter(({ idx }: { idx: number }) => (selectedItems[idx] || 0) > 0)
       .map(({ r, idx }: { r: any; idx: number }) => {
@@ -481,7 +528,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
               </div>
               {isMobile ? (
               <div style={{ display: "grid", gap: 8, padding: 10 }}>
-                  {(selectedParty.rates || []).map((r: any, idx: number) => {
+                  {partyRatesForForm.map((r: any, idx: number) => {
                     const rateSkuKey = normalizeSku(r.sku);
                     const invMatch =
                       inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
@@ -505,7 +552,9 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                             <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>Rs. {r.rate}</div>
                           </div>
                           <input 
-                            type="number" 
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             min="0"
                             max={availableStock}
                             disabled={isOutOfStock}
@@ -517,13 +566,13 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                               const clamped = Math.max(0, Math.min(val, availableStock));
                               setSelectedItems(prev => ({ ...prev, [idx]: clamped }));
                             }}
-                            style={{ width: 78, padding: "9px 8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 12, outline: "none", color: (selectedItems[idx] || 0) > 0 ? "#6366f1" : "#1e293b", fontWeight: (selectedItems[idx] || 0) > 0 ? 600 : 400, background: isOutOfStock ? "#f8fafc" : "#fff", cursor: isOutOfStock ? "not-allowed" : "text" }}
+                            style={{ width: 78, padding: "9px 8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 12, outline: "none", color: (selectedItems[idx] || 0) > 0 ? "#6366f1" : "#1e293b", fontWeight: (selectedItems[idx] || 0) > 0 ? 600 : 400, background: isOutOfStock ? "#f8fafc" : "#fff", cursor: isOutOfStock ? "not-allowed" : "text", appearance: "textfield" }}
                           />
                         </div>
                       </div>
                     );
                   })}
-                  {(selectedParty.rates || []).length === 0 && (
+                  {partyRatesForForm.length === 0 && (
                     <div style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>
                       No rates have been assigned to this party yet. Please update the Party-wise Rate List first.
                     </div>
@@ -541,7 +590,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                       </tr>
                     </thead>
                     <tbody>
-                      {(selectedParty.rates || []).map((r: any, idx: number) => {
+                      {partyRatesForForm.map((r: any, idx: number) => {
                         const rateSkuKey = normalizeSku(r.sku);
                         const invMatch =
                           inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
@@ -560,7 +609,9 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                             <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", textAlign: "right", fontWeight: 600 }}>Rs. {r.rate}</td>
                             <td style={{ padding: "14px 24px", textAlign: "center" }}>
                               <input 
-                                type="number" 
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 min="0"
                                 max={availableStock}
                                 disabled={isOutOfStock}
@@ -572,13 +623,13 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                                   const clamped = Math.max(0, Math.min(val, availableStock));
                                   setSelectedItems(prev => ({ ...prev, [idx]: clamped }));
                                 }}
-                                style={{ width: "80px", padding: "8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 14, outline: "none", color: (selectedItems[idx] || 0) > 0 ? "#6366f1" : "#1e293b", fontWeight: (selectedItems[idx] || 0) > 0 ? 600 : 400, background: isOutOfStock ? "#f8fafc" : "#fff", cursor: isOutOfStock ? "not-allowed" : "text" }}
+                                style={{ width: "80px", padding: "8px", borderRadius: 10, border: "1.5px solid #e2e8f0", textAlign: "center", fontSize: 14, outline: "none", color: (selectedItems[idx] || 0) > 0 ? "#6366f1" : "#1e293b", fontWeight: (selectedItems[idx] || 0) > 0 ? 600 : 400, background: isOutOfStock ? "#f8fafc" : "#fff", cursor: isOutOfStock ? "not-allowed" : "text", appearance: "textfield" }}
                               />
                             </td>
                           </tr>
                         );
                       })}
-                      {(selectedParty.rates || []).length === 0 && (
+                      {partyRatesForForm.length === 0 && (
                         <tr>
                           <td colSpan={4} style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic" }}>
                             No rates have been assigned to this party yet. Please update the Party-wise Rate List first.

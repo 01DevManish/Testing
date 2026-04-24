@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ref, remove, update } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
-import { FONT, Product, Category, Collection, STATUS_CONFIG } from "../../types";
+import { FONT, Product, Category, Collection, STATUS_CONFIG, getStockBucket } from "../../types";
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "../../ui";
 import { logActivity } from "../../../../lib/activityLogger";
 import { deleteImage } from "./imageService";
@@ -43,13 +43,6 @@ export default function ProductList({
             .toLowerCase()
             .replace(/\s+/g, " ")
             .trim();
-
-    const getStockStatus = (stock?: number): "out-of-stock" | "low-stock" | "in-stock" => {
-        const safeStock = Number(stock) || 0;
-        if (safeStock === 0) return "out-of-stock";
-        if (safeStock < 10) return "low-stock";
-        return "in-stock";
-    };
 
     const [searchTerm, setSearchTerm] = useState("");
     const [filterCat, setFilterCat] = useState("all");
@@ -105,11 +98,11 @@ export default function ProductList({
         if (filterCol !== "all") list = list.filter(p => p.collection === filterCol);
         if (filterStatus !== "all") {
             if (filterStatus === "out-of-stock") {
-                list = list.filter(p => getStockStatus(p.stock) === "out-of-stock");
+                list = list.filter((p) => getStockBucket(p.stock, p.minStock) === "out-of-stock");
             } else if (filterStatus === "low-stock") {
-                list = list.filter(p => getStockStatus(p.stock) === "low-stock");
+                list = list.filter((p) => getStockBucket(p.stock, p.minStock) === "low-stock");
             } else if (filterStatus === "in-stock") {
-                list = list.filter(p => getStockStatus(p.stock) === "in-stock");
+                list = list.filter((p) => getStockBucket(p.stock, p.minStock) === "in-stock");
             } else {
                 list = list.filter(p => (p.status as string) === filterStatus);
             }
@@ -482,7 +475,7 @@ export default function ProductList({
                     ) : (
                         <div style={{ display: "grid", gap: 10, padding: "10px 10px 10px 8px", width: "100%", boxSizing: "border-box" }}>
                             {paginatedItems.map((p) => {
-                                const effectiveStatus = getStockStatus(p.stock);
+                                const effectiveStatus = getStockBucket(p.stock, p.minStock);
                                 const sc = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.active;
                                 const checked = selectedIds.has(p.id);
                                 return (
@@ -564,7 +557,7 @@ export default function ProductList({
                             </thead>
                             <tbody>
                                 {paginatedItems.map(p => {
-                                    const effectiveStatus = getStockStatus(p.stock);
+                                    const effectiveStatus = getStockBucket(p.stock, p.minStock);
                                     const isLow = effectiveStatus === "low-stock";
                                     const isOut = effectiveStatus === "out-of-stock";
                                     const sc = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.active;

@@ -133,10 +133,8 @@ const NO_FIREBASE_SIGNAL_PATHS = new Set<EntityPath>([
 ]);
 
 const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
-  "partyRates",
   "parties",
   "collections",
-  "packingLists",
 ]);
 
 const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<string, unknown>> => {

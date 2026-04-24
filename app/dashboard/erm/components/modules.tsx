@@ -26,8 +26,10 @@ type LeadRecord = {
   email?: string;
   company?: string;
   city?: string;
+  state?: string;
+  pincode?: string;
   source?: string;
-  status: "new" | "contacted" | "interested" | "not_interested" | "scheduled" | "won" | "lost";
+  status: "new" | "contacted" | "interested" | "not_interested" | "scheduled" | "won" | "lost" | "follow_up" | "scheduled_meeting" | "ordered" | "onboarding_scheduled";
   assignedToUid?: string;
   assignedToName?: string;
   nextFollowUpAt?: number;
@@ -53,6 +55,21 @@ type LeadCallRecord = {
   calledAt: number;
   calledByUid?: string;
   calledByName?: string;
+};
+
+type LeadFormState = {
+  name: string;
+  phone: string;
+  address: string;
+  email: string;
+  company: string;
+  city: string;
+  state: string;
+  pincode: string;
+  source: string;
+  status: LeadRecord["status"];
+  nextFollowUpAt: string;
+  assignedToUid: string;
 };
 
 const cardStyle: React.CSSProperties = {
@@ -405,6 +422,21 @@ export function ErmLeadsModule() {
   const isAdmin = userData?.role === "admin";
   const canAdminUpload = isAdmin && canCreate;
 
+  const initialLeadForm = useMemo<LeadFormState>(() => ({
+    name: "",
+    phone: "",
+    address: "",
+    email: "",
+    company: "",
+    city: "",
+    state: "",
+    pincode: "",
+    source: "",
+    status: "new",
+    nextFollowUpAt: "",
+    assignedToUid: "",
+  }), []);
+
   const [leads, setLeads] = useState<LeadRecord[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string>("");
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -416,16 +448,7 @@ export function ErmLeadsModule() {
   const [leadSearch, setLeadSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | LeadRecord["status"]>("all");
 
-  const [leadForm, setLeadForm] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    email: "",
-    company: "",
-    city: "",
-    source: "",
-    assignedToUid: "",
-  });
+  const [leadForm, setLeadForm] = useState<LeadFormState>(initialLeadForm);
 
   const [callForm, setCallForm] = useState({
     outcome: "follow_up" as LeadCallRecord["outcome"],
@@ -443,6 +466,12 @@ export function ErmLeadsModule() {
     status: "new" as LeadRecord["status"],
     assignedToUid: "",
     notes: "",
+    email: "",
+    company: "",
+    city: "",
+    state: "",
+    pincode: "",
+    nextFollowUpAt: "",
   });
 
   const fetchEntityItems = useCallback(async <T,>(entity: ErmEntity): Promise<T[]> => {
@@ -504,7 +533,7 @@ export function ErmLeadsModule() {
   }, [syncLeadsFromApi, syncLeadCallsFromApi]);
 
   const staff = useMemo(
-    () => users.filter((u) => u.role === "employee" || u.role === "manager" || u.role === "admin"),
+    () => users.filter((u) => hasPermission(u, "erm_leads_view") || u.role === "admin"),
     [users],
   );
 
@@ -543,8 +572,19 @@ export function ErmLeadsModule() {
       status: selectedLead.status || "new",
       assignedToUid: selectedLead.assignedToUid || "",
       notes: selectedLead.notes || "",
+      email: selectedLead.email || "",
+      company: selectedLead.company || "",
+      city: selectedLead.city || "",
+      state: selectedLead.state || "",
+      pincode: selectedLead.pincode || "",
+      nextFollowUpAt: selectedLead.nextFollowUpAt ? new Date(selectedLead.nextFollowUpAt).toISOString().slice(0,16) : "",
     });
   }, [selectedLead]);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadPreviewRows, setUploadPreviewRows] = useState<Record<string, string>[]>([]);
+  const [showUploadPreview, setShowUploadPreview] = useState(false);
+  const [uploadPreviewLoading, setUploadPreviewLoading] = useState(false);
 
   const closeLeadModal = () => {
     setIsLeadModalOpen(false);
@@ -571,9 +611,12 @@ export function ErmLeadsModule() {
         address: leadForm.address.trim(),
         email: leadForm.email.trim(),
         company: leadForm.company.trim(),
-        city: leadForm.city.trim(),
+        city: leadForm.city?.trim(),
+        state: leadForm.state?.trim(),
+        pincode: leadForm.pincode?.trim(),
         source: leadForm.source.trim() || "manual",
-        status: "new",
+        status: leadForm.status || "new",
+        nextFollowUpAt: leadForm.nextFollowUpAt ? new Date(leadForm.nextFollowUpAt).getTime() : undefined,
         assignedToUid: assignee?.uid || userData?.uid || "",
         assignedToName: assignee?.name || userData?.name || "",
         createdAt: now,
@@ -585,11 +628,13 @@ export function ErmLeadsModule() {
       saveCachedArray(ERM_LEADS_CACHE_KEY, next);
       await upsertEntityItems("ermLeads", [newLead]);
 
-      setLeadForm({ name: "", phone: "", address: "", email: "", company: "", city: "", source: "", assignedToUid: "" });
+      setLeadForm({ ...initialLeadForm });
     } finally {
       setCreatingLead(false);
     }
   };
+
+  const canSubmitLead = Boolean(leadForm.name.trim() && leadForm.phone.trim() && canAdminUpload);
 
   const saveCallRecord = async () => {
     if (!canEdit || !selectedLead) return;
@@ -664,7 +709,13 @@ export function ErmLeadsModule() {
         status: leadMetaForm.status,
         assignedToUid: leadMetaForm.assignedToUid || selectedLead.assignedToUid || "",
         assignedToName: assignee?.name || selectedLead.assignedToName || "",
+        email: leadMetaForm.email?.trim() || selectedLead.email || "",
+        company: leadMetaForm.company?.trim() || selectedLead.company || "",
+        city: leadMetaForm.city?.trim() || selectedLead.city || "",
+        state: leadMetaForm.state?.trim() || selectedLead.state || "",
+        pincode: leadMetaForm.pincode?.trim() || selectedLead.pincode || "",
         notes: leadMetaForm.notes.trim(),
+        nextFollowUpAt: leadMetaForm.nextFollowUpAt ? new Date(leadMetaForm.nextFollowUpAt).getTime() : undefined,
         updatedAt: Date.now(),
       };
       const nextLeads = sortByUpdatedAtDesc(leads.map((lead) => (lead.id === selectedLead.id ? updatedLead : lead)));
@@ -675,6 +726,91 @@ export function ErmLeadsModule() {
     } finally {
       setSavingLeadMeta(false);
     }
+  };
+
+  const statusColor = (s?: LeadRecord["status"]) => {
+    switch (s) {
+      case "new": return "#f97316";
+      case "contacted": return "#60a5fa";
+      case "interested": return "#10b981";
+      case "not_interested": return "#94a3b8";
+      case "follow_up": return "#f59e0b";
+      case "scheduled_meeting": return "#6366f1";
+      case "ordered": return "#059669";
+      case "onboarding_scheduled": return "#06b6d4";
+      case "won": return "#0ea5a4";
+      case "lost": return "#ef4444";
+      default: return "#cbd5e1";
+    }
+  };
+
+  const parseFileToRows = async (file: File) => {
+    let rows: Record<string, string>[] = [];
+    const fileName = (file.name || "").toLowerCase();
+    if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+      const firstSheet = wb.SheetNames[0];
+      if (firstSheet) {
+        const sheet = wb.Sheets[firstSheet];
+        const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+        rows = jsonRows.map((raw) => {
+          const mapped: Record<string, string> = {};
+          Object.entries(raw).forEach(([k, v]) => { mapped[normalizeHeader(k)] = String(v ?? "").trim(); });
+          return mapped;
+        });
+      }
+    } else {
+      const text = await file.text();
+      const csvRows = parseCsvRows(text);
+      rows = csvRows.map((raw) => {
+        const mapped: Record<string, string> = {};
+        Object.entries(raw).forEach(([k, v]) => { mapped[normalizeHeader(k)] = String(v ?? "").trim(); });
+        return mapped;
+      });
+    }
+    return rows;
+  };
+
+  const handleFileSelected = async (file: File | null) => {
+    if (!file) return;
+    setSelectedFile(file);
+    setUploadPreviewLoading(true);
+    try {
+      const rows = await parseFileToRows(file);
+      setUploadPreviewRows(rows.slice(0, 6));
+      setShowUploadPreview(true);
+    } catch (e) {
+      console.error("Preview parse failed:", e);
+      setUploadPreviewRows([]);
+      setShowUploadPreview(false);
+    } finally {
+      setUploadPreviewLoading(false);
+    }
+  };
+
+  const confirmUpload = async () => {
+    if (!selectedFile) return;
+    setShowUploadPreview(false);
+    await uploadLeadsFile(selectedFile);
+    setSelectedFile(null);
+    setUploadPreviewRows([]);
+  };
+
+  const downloadTemplate = () => {
+    const headers = ["name","phone","address","email","company","city","state","pincode","source","assigned_to_uid"];
+    const sample = ["Example Name","9999999999","Example address","email@example.com","Example Co","Mumbai","Maharashtra","400001","web",""];
+    const csv = [headers.join(","), sample.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "erm_leads_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   const uploadLeadsFile = async (file: File) => {
@@ -729,6 +865,8 @@ export function ErmLeadsModule() {
         email: pickFromRow(row, ["email"]),
         company: pickFromRow(row, ["company", "organization"]),
         city: pickFromRow(row, ["city"]),
+        state: pickFromRow(row, ["state", "region", "state_name"]),
+        pincode: pickFromRow(row, ["pincode", "pin", "postal", "postal_code", "zip"]),
         source: pickFromRow(row, ["source"]) || (fileName.endsWith(".csv") ? "csv_upload" : "xlsx_upload"),
         status: "new",
         assignedToUid: assignedUid,
@@ -748,26 +886,91 @@ export function ErmLeadsModule() {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {isAdmin ? (
-        <div style={{ ...cardStyle, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+        <div style={{ ...cardStyle, display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Create Lead</div>
+              <div style={{ fontSize: 12, color: "#64748b" }}>`Name` and `Phone` are required. Remaining fields are optional.</div>
+            </div>
+            {!canSubmitLead && (
+              <div style={{ fontSize: 11, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", padding: "6px 8px", borderRadius: 8 }}>
+                Fill required fields to enable Save.
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
           <input placeholder="Lead name" value={leadForm.name} onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })} style={inputStyle} />
           <input placeholder="Phone" value={leadForm.phone} onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })} style={inputStyle} />
           <input placeholder="Address" value={leadForm.address} onChange={(e) => setLeadForm({ ...leadForm, address: e.target.value })} style={inputStyle} />
           <input placeholder="Email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} style={inputStyle} />
           <input placeholder="Company" value={leadForm.company} onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })} style={inputStyle} />
+          <input placeholder="City" value={leadForm.city} onChange={(e) => setLeadForm({ ...leadForm, city: e.target.value })} style={inputStyle} />
+          <input placeholder="State" value={leadForm.state} onChange={(e) => setLeadForm({ ...leadForm, state: e.target.value })} style={inputStyle} />
+          <input placeholder="Pin code" value={leadForm.pincode} onChange={(e) => setLeadForm({ ...leadForm, pincode: e.target.value })} style={inputStyle} />
           <input placeholder="Source" value={leadForm.source} onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })} style={inputStyle} />
+          <select value={leadForm.status} onChange={(e) => setLeadForm({ ...leadForm, status: e.target.value as LeadRecord["status"] })} style={inputStyle}>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="interested">Interested</option>
+            <option value="not_interested">Not Interested</option>
+            <option value="follow_up">Follow Up</option>
+            <option value="scheduled_meeting">Schedule Meeting</option>
+            <option value="ordered">Ordered</option>
+            <option value="onboarding_scheduled">Onboarding Scheduled</option>
+          </select>
+          {(leadForm.status === "follow_up" || leadForm.status === "scheduled_meeting" || leadForm.status === "onboarding_scheduled") && (
+            <input type="datetime-local" value={leadForm.nextFollowUpAt} onChange={(e) => setLeadForm({ ...leadForm, nextFollowUpAt: e.target.value })} style={inputStyle} />
+          )}
           <select value={leadForm.assignedToUid} onChange={(e) => setLeadForm({ ...leadForm, assignedToUid: e.target.value })} style={inputStyle}>
             <option value="">Assign to</option>
             {staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}
           </select>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={createLead} disabled={!canAdminUpload || creatingLead} style={{ ...primaryButtonStyle, opacity: canAdminUpload && !creatingLead ? 1 : 0.5 }}>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={createLead} disabled={!canSubmitLead || creatingLead} style={{ ...primaryButtonStyle, opacity: canSubmitLead && !creatingLead ? 1 : 0.5 }}>
               {creatingLead ? "Saving..." : "Save Lead"}
             </button>
+            <button onClick={downloadTemplate} style={subtleButtonStyle}>Download Template</button>
             <label style={subtleButtonStyle}>
               Upload CSV/XLSX
-              <input type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLeadsFile(f); }} />
+              <input type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelected(f); }} />
             </label>
           </div>
+          {showUploadPreview && (
+            <div style={{ marginTop: 8, border: "1px dashed #cbd5e1", padding: 8, borderRadius: 8, background: "#fbfafe" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Upload Preview ({uploadPreviewRows.length} rows)</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={confirmUpload} style={{ ...primaryButtonStyle }}>Confirm Upload</button>
+                  <button onClick={() => { setShowUploadPreview(false); setSelectedFile(null); setUploadPreviewRows([]); }} style={subtleButtonStyle}>Cancel</button>
+                </div>
+              </div>
+              {uploadPreviewLoading ? <div style={{ fontSize: 12, color: "#64748b" }}>Parsing preview...</div> : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {uploadPreviewRows[0] && Object.keys(uploadPreviewRows[0]).slice(0, 8).map((h) => (
+                          <th key={h} style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "4px 6px" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {uploadPreviewRows.map((r, i) => (
+                        <tr key={i}>
+                          {Object.values(r).slice(0, 8).map((v, j) => (
+                            <td key={j} style={{ padding: "6px", fontSize: 13 }}>{v}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ ...cardStyle, fontSize: 13, color: "#475569" }}>
@@ -808,24 +1011,37 @@ export function ErmLeadsModule() {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Name</th>
-                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Phone</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Date / Time</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Source</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>POC Name</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Phone No.</th>
                 <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Address</th>
-                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Status</th>
-                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Assigned</th>
-                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Next Follow-Up</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Email ID</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Company Name</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>City</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>State</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Pincode</th>
+                <th style={{ textAlign: "left", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Assign To</th>
                 <th style={{ textAlign: "right", fontSize: 11, color: "#64748b", padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredLeads.map((lead) => (
                 <tr key={lead.id} style={{ background: selectedLeadId === lead.id ? "#eef2ff" : "transparent" }}>
-                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#0f172a", fontWeight: 600 }}>{lead.name}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.createdAt ? new Date(lead.createdAt).toLocaleString("en-IN") : "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.source || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#0f172a", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>{lead.name}</span>
+                    <span style={{ background: statusColor(lead.status), color: "#fff", padding: "4px 8px", borderRadius: 999, fontSize: 11, textTransform: "capitalize" }}>{String(lead.status || "").replace(/_/g, " ")}</span>
+                  </td>
                   <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 13 }}>{lead.phone}</td>
-                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#475569" }}>{lead.address || lead.city || "-"}</td>
-                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12, textTransform: "capitalize" }}>{lead.status.replace(/_/g, " ")}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12, color: "#475569" }}>{lead.address || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.email || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.company || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.city || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.state || "-"}</td>
+                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.pincode || "-"}</td>
                   <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>{lead.assignedToName || "-"}</td>
-                  <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", fontSize: 11 }}>{lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toLocaleString("en-IN") : "-"}</td>
                   <td style={{ padding: "10px 6px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
                     <button
                       onClick={() => openLeadModal(lead.id)}
@@ -856,6 +1072,10 @@ export function ErmLeadsModule() {
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Lead Action Form</div>
                 <div style={{ fontSize: 12, color: "#64748b" }}>Employee yahan se name, phone, address aur call details update karega.</div>
+                <div style={{ fontSize: 12, color: "#475569", marginTop: 6 }}>
+                  <div><strong>Date:</strong> {selectedLead?.createdAt ? new Date(selectedLead.createdAt).toLocaleString("en-IN") : "-"}</div>
+                  <div><strong>Source:</strong> {selectedLead?.source || "-"}</div>
+                </div>
               </div>
               <button onClick={closeLeadModal} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Close</button>
             </div>
@@ -864,15 +1084,26 @@ export function ErmLeadsModule() {
               <input placeholder="Name" value={leadMetaForm.name} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, name: e.target.value })} style={inputStyle} />
               <input placeholder="Phone No." value={leadMetaForm.phone} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, phone: e.target.value })} style={inputStyle} />
               <input placeholder="Address" value={leadMetaForm.address} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, address: e.target.value })} style={inputStyle} />
+              <input placeholder="Email" value={leadMetaForm.email} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, email: e.target.value })} style={inputStyle} />
+              <input placeholder="Company" value={leadMetaForm.company} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, company: e.target.value })} style={inputStyle} />
+              <input placeholder="City" value={leadMetaForm.city} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, city: e.target.value })} style={inputStyle} />
+              <input placeholder="State" value={leadMetaForm.state} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, state: e.target.value })} style={inputStyle} />
+              <input placeholder="Pin code" value={leadMetaForm.pincode} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, pincode: e.target.value })} style={inputStyle} />
               <select value={leadMetaForm.status} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, status: e.target.value as LeadRecord["status"] })} style={inputStyle}>
                 <option value="new">New</option>
                 <option value="contacted">Contacted</option>
                 <option value="interested">Interested</option>
                 <option value="not_interested">Not Interested</option>
-                <option value="scheduled">Scheduled</option>
+                <option value="follow_up">Follow Up</option>
+                <option value="scheduled_meeting">Schedule Meeting</option>
+                <option value="ordered">Ordered</option>
+                <option value="onboarding_scheduled">Onboarding Scheduled</option>
                 <option value="won">Won</option>
                 <option value="lost">Lost</option>
               </select>
+              {(leadMetaForm.status === "follow_up" || leadMetaForm.status === "scheduled_meeting" || leadMetaForm.status === "onboarding_scheduled") && (
+                <input type="datetime-local" value={leadMetaForm.nextFollowUpAt} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, nextFollowUpAt: e.target.value })} style={inputStyle} />
+              )}
               <select value={leadMetaForm.assignedToUid} onChange={(e) => setLeadMetaForm({ ...leadMetaForm, assignedToUid: e.target.value })} style={inputStyle}>
                 <option value="">Assigned User</option>
                 {staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}

@@ -90,3 +90,16 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: s
     "out-of-stock": { label: "Out of Stock", color: "#991b1b", bg: "rgba(153,27,27,0.12)" },
     "in-stock": { label: "In Stock", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
+
+export type StockBucket = "out-of-stock" | "low-stock" | "in-stock";
+
+export const getStockBucket = (stock?: number, minStock?: number): StockBucket => {
+    const safeStock = Number(stock);
+    const safeMin = Number(minStock);
+    const normalizedStock = Number.isFinite(safeStock) ? safeStock : 0;
+    const normalizedMin = Number.isFinite(safeMin) ? safeMin : 5;
+
+    if (normalizedStock <= 0) return "out-of-stock";
+    if (normalizedStock <= normalizedMin) return "low-stock";
+    return "in-stock";
+};

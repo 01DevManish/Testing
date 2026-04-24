@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { FONT, Product, Category, Collection } from "../../types";
+import { FONT, Product, Category, Collection, getStockBucket } from "../../types";
 import { Card, PageHeader, EmptyState } from "../../ui";
 import SmartImage from "../../../../components/SmartImage";
 import { MOBILE_ADMIN_OVERVIEW_GRID, MOBILE_STAFF_OVERVIEW_GRID } from "../mobile/mobileGrid";
@@ -39,9 +39,9 @@ export default function Overview({ products, categories, collections, loading, o
 
         const total = products.length;
         const totalStock = products.reduce((s, p) => s + (p.stock || 0), 0);
-        const inStock = products.filter(p => p.stock > p.minStock).length;
-        const outStock = products.filter(p => p.stock <= 0).length;
-        const lowStock = products.filter(p => p.stock > 0 && p.stock <= (p.minStock || 5)).length;
+        const inStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "in-stock").length;
+        const outStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "out-of-stock").length;
+        const lowStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "low-stock").length;
         const totalVal = products.reduce(
             (sum, p) => sum + (toSafeNumber(p.costPrice) * toSafeNumber(p.stock)),
             0
@@ -89,9 +89,10 @@ export default function Overview({ products, categories, collections, loading, o
         products.filter((p: Product) => {
             const matchQ = p.productName.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
             let matchS = true;
-            if (filterStatus === "in-stock") matchS = p.stock > p.minStock;
-            if (filterStatus === "low-stock") matchS = p.stock > 0 && p.stock <= p.minStock;
-            if (filterStatus === "out-stock") matchS = p.stock <= 0;
+            const bucket = getStockBucket(p.stock, p.minStock);
+            if (filterStatus === "in-stock") matchS = bucket === "in-stock";
+            if (filterStatus === "low-stock") matchS = bucket === "low-stock";
+            if (filterStatus === "out-stock") matchS = bucket === "out-of-stock";
             return matchQ && matchS;
         }),
         [products, searchTerm, filterStatus]

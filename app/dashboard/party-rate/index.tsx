@@ -3,14 +3,13 @@
 import React, { useState } from "react";
 import { PartyRate } from "./types";
 import { Product } from "../inventory/types";
-import { ref, push, remove, update } from "@/app/lib/dynamoRtdbCompat";
-import { db } from "../../lib/firebase";
 import { logActivity } from "../../lib/activityLogger";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermission } from "../../lib/permissions";
 import { generatePartyRatePdf } from "../inventory/components/Catalog/PdfGenerator";
 import { firestoreApi } from "../retail-dispatch/data";
 import { touchDataSignal } from "../../lib/dataSignals";
+import { upsertDataItems } from "../../lib/dynamoDataApi";
 
 // Sub-components
 import PartyList from "./components/Management/PartyList";
@@ -179,9 +178,10 @@ export default function PartyRateModule({
             };
 
             if (editingId) {
-                await update(ref(db, `partyRates/${editingId}`), data);
+                await upsertDataItems("partyRates", [{ id: editingId, ...data } as PartyRate]);
             } else {
-                await push(ref(db, "partyRates"), data);
+                const id = `id_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                await upsertDataItems("partyRates", [{ id, ...data } as PartyRate]);
             }
             await touchDataSignal("partyRates");
 
@@ -208,14 +208,14 @@ export default function PartyRateModule({
     const handleDeleteProfile = async (id: string, name: string) => {
         if (!canDeleteParty || !confirm(`Permanently delete all rate data for "${name}"?`)) return;
         try {
-            await remove(ref(db, `partyRates/${id}`));
-            await touchDataSignal("partyRates");
-            const remaining = partyRates.filter((item) => item.id !== id);
-            await fetch("/api/data/partyRates", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mode: "replace", items: remaining }),
+            const res = await fetch(`/api/data/partyRates/${encodeURIComponent(id)}`, {
+                method: "DELETE",
             });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json?.error || "Failed to delete party rate");
+            }
+            await touchDataSignal("partyRates");
             await logActivity({
                 type: "system",
                 action: "delete",
@@ -237,11 +237,11 @@ export default function PartyRateModule({
     const handleUpdateRates = async (updatedRates: any[]) => {
         if (!viewingCatalog) return;
         try {
-            const partyRef = ref(db, `partyRates/${viewingCatalog.id}`);
-            await update(partyRef, {
+            await upsertDataItems("partyRates", [{
+                ...viewingCatalog,
                 rates: updatedRates,
                 updatedAt: Date.now()
-            });
+            }]);
             await touchDataSignal("partyRates");
             loadData();
             setViewingCatalog({ ...viewingCatalog, rates: updatedRates });
