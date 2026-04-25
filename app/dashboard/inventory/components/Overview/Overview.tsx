@@ -47,15 +47,8 @@ export default function Overview({ products, categories, collections, loading, o
         const inStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "in-stock").length;
         const outStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "out-of-stock").length;
         const lowStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "low-stock").length;
-        const getUnitValue = (p: Product): number => {
-            const cost = toSafeNumber(p.costPrice);
-            if (cost > 0) return cost;
-            const wholesale = toSafeNumber((p as Product & { wholesalePrice?: unknown }).wholesalePrice);
-            if (wholesale > 0) return wholesale;
-            return toSafeNumber(p.price);
-        };
         const totalVal = products.reduce(
-            (sum, p) => sum + (getUnitValue(p) * toSafeNumber(p.stock)),
+            (sum, p) => sum + (toSafeNumber(p.costPrice) * toSafeNumber(p.stock)),
             0
         );
 
