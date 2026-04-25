@@ -31,6 +31,7 @@ interface CreatePackingListProps {
 
 const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", "Own Vehicle", "Other"];
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 const normalizeRole = (value: unknown): string => {
   if (typeof value !== "string") return "employee";
   const role = value.trim().toLowerCase();
@@ -48,6 +49,7 @@ const normalizeAssignableUsersFromSnapshot = (value: unknown): any[] => {
 
       const nameRaw = typeof safeRow.name === "string" ? safeRow.name.trim() : "";
       const email = typeof safeRow.email === "string" ? safeRow.email.trim() : "";
+      if (email.toLowerCase() === HIDDEN_ADMIN_EMAIL) return null;
       const fallbackFromEmail = email ? email.split("@")[0] : "";
       const name = nameRaw || fallbackFromEmail || `User ${uid.slice(0, 6)}`;
 
@@ -71,6 +73,7 @@ const normalizeAssignableUsersFromApi = (rows: unknown): any[] => {
       const uid = typeof safeRow.uid === "string" ? safeRow.uid.trim() : "";
       if (!uid) return null;
       const email = typeof safeRow.email === "string" ? safeRow.email.trim() : "";
+      if (email.toLowerCase() === HIDDEN_ADMIN_EMAIL) return null;
       const nameRaw = typeof safeRow.name === "string" ? safeRow.name.trim() : "";
       const name = nameRaw || (email ? email.split("@")[0] : "") || `User ${uid.slice(0, 6)}`;
       return {
@@ -96,11 +99,12 @@ const mergeUsersByUid = (base: any[], incoming: any[]): any[] => {
     if (!uid) return;
     const existing = byUid.get(uid) || {};
     byUid.set(uid, {
-      ...u,
       ...existing,
+      ...u,
       uid,
-      name: existing.name || u.name || `User ${uid.slice(0, 6)}`,
-      role: normalizeRole(existing.role || u.role),
+      // Prefer latest incoming values so updated role/name are reflected immediately.
+      name: u.name || existing.name || `User ${uid.slice(0, 6)}`,
+      role: normalizeRole(u.role || existing.role),
     });
   });
   return Array.from(byUid.values()).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
@@ -240,7 +244,8 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         const json = await res.json().catch(() => ({}));
         if (res.ok && alive) {
           const apiUsers = normalizeAssignableUsersFromApi(json?.users);
-          setAllUsers((prev) => mergeUsersByUid(prev, apiUsers));
+          // API is source of truth for assignable users; replace to avoid stale snapshot roles.
+          setAllUsers(apiUsers);
         }
       } catch (err) {
         console.warn("Assignable users API fallback failed:", err);

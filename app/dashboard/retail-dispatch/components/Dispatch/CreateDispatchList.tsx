@@ -48,6 +48,7 @@ const pinMatches = (enteredPin: string, savedPin: unknown): boolean => {
 
 export default function CreateDispatchList({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { user, userData } = useAuth();
+  const isAdmin = userData?.role === "admin";
   const { refreshData, packingLists: ctxPackingLists, partyRates } = useData();
   const [packingLists, setPackingLists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,11 +99,21 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   }, [ctxPackingLists?.length, partyRates?.length, refreshData]);
 
   useEffect(() => {
-    const filtered = (ctxPackingLists || []).filter(
+    const baseLists = (ctxPackingLists || []).filter(
       (val: any) => val.status !== "Completed" && val.status !== "Packed"
     );
-    setPackingLists(filtered);
-  }, [ctxPackingLists]);
+
+    if (isAdmin) {
+      setPackingLists(baseLists);
+      return;
+    }
+
+    const currentUid = String(userData?.uid || user?.uid || "").trim();
+    const scoped = currentUid
+      ? baseLists.filter((val: any) => String(val?.assignedTo || "").trim() === currentUid)
+      : [];
+    setPackingLists(scoped);
+  }, [ctxPackingLists, isAdmin, userData?.uid, user?.uid]);
 
   const handleSelectList = async (list: any) => {
     setSelectedList(list);

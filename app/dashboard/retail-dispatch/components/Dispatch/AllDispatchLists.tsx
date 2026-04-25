@@ -42,6 +42,12 @@ export default function AllDispatchLists() {
       .sort((a, b) => (Number(b.dispatchedAt) || 0) - (Number(a.dispatchedAt) || 0));
     return rows as PackingList[];
   }, [allPackingLists]);
+  const scopedLists = useMemo(() => {
+    if (isAdmin) return lists;
+    const currentUid = String(userData?.uid || "").trim();
+    if (!currentUid) return [];
+    return lists.filter((list) => String(list.assignedTo || "").trim() === currentUid);
+  }, [isAdmin, lists, userData?.uid]);
 
   const handleFinalize = async (id: string) => {
     const lrVal = tempLr[id];
@@ -216,15 +222,15 @@ export default function AllDispatchLists() {
   };
 
   const stats = useMemo(() => {
-    const total = lists.length;
-    const pendingLr = lists.filter((list) => list.status === "Packed").length;
-    const shipped = lists.filter((list) => list.status === "Completed").length;
+    const total = scopedLists.length;
+    const pendingLr = scopedLists.filter((list) => list.status === "Packed").length;
+    const shipped = scopedLists.filter((list) => list.status === "Completed").length;
     return { total, pendingLr, shipped };
-  }, [lists]);
+  }, [scopedLists]);
 
   const filteredLists = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    return lists.filter((list) => {
+    return scopedLists.filter((list) => {
       const statusPass =
         statusFilter === "all" ||
         (statusFilter === "packed" && list.status === "Packed") ||
@@ -240,7 +246,7 @@ export default function AllDispatchLists() {
 
       return dispatchCode.includes(query) || party.includes(query) || lr.includes(query) || by.includes(query);
     });
-  }, [lists, searchTerm, statusFilter]);
+  }, [scopedLists, searchTerm, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLists.length / PAGE_SIZE));
 
@@ -287,7 +293,7 @@ export default function AllDispatchLists() {
             </p>
           </div>
           <div style={{ fontSize: isMobile ? 11 : 12, color: "#64748b", fontWeight: 400 }}>
-            Showing {filteredLists.length} of {lists.length}
+            Showing {filteredLists.length} of {scopedLists.length}
           </div>
         </div>
 

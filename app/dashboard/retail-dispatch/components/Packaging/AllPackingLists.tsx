@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ref, get } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { PageHeader, Card } from "../ui";
 import { generatePackingListPdf } from "../../PackingListPdf";
 import { useData } from "../../../../context/DataContext";
+import { useAuth } from "../../../../context/AuthContext";
 import { firestoreApi } from "../../data";
 
 export default function AllPackingLists({
@@ -19,6 +20,7 @@ export default function AllPackingLists({
   onDelete?: (id: string) => void;
   canDelete?: boolean;
 }) {
+  const { user, userData } = useAuth();
   const { packingLists, loading: dataLoading } = useData();
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   const [searchTerm, setSearchTerm] = useState("");
@@ -97,8 +99,14 @@ export default function AllPackingLists({
   };
 
   const lists = (packingLists || []).slice().sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+  const scopedLists = useMemo(() => {
+    if (userData?.role === "admin") return lists;
+    const currentUid = String(userData?.uid || user?.uid || "").trim();
+    if (!currentUid) return [];
+    return lists.filter((list) => String(list.assignedTo || "").trim() === currentUid);
+  }, [lists, userData?.role, userData?.uid, user?.uid]);
 
-  const filteredLists = lists.filter((list) => {
+  const filteredLists = scopedLists.filter((list) => {
     const matchesSearch =
       String(list.partyName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(list.assignedToName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -127,7 +135,7 @@ export default function AllPackingLists({
     }
   };
 
-  if (dataLoading && lists.length === 0) return <div className="p-8 text-center text-slate-500">Loading packing lists...</div>;
+  if (dataLoading && scopedLists.length === 0) return <div className="p-8 text-center text-slate-500">Loading packing lists...</div>;
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }}>

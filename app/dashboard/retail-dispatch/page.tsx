@@ -69,6 +69,13 @@ export default function AdvancedDispatchDashboard() {
   } = useData();
 
   const orders = useMemo(() => allOrders.filter(o => o.dispatchType === "retail" || !o.dispatchType), [allOrders]);
+  const visiblePackingLists = useMemo(() => {
+    const isAdmin = userData?.role === "admin";
+    if (isAdmin) return packingLists;
+    const currentUid = String(userData?.uid || user?.uid || "").trim();
+    if (!currentUid) return [];
+    return packingLists.filter((list) => String(list.assignedTo || "").trim() === currentUid);
+  }, [packingLists, userData?.role, userData?.uid, user?.uid]);
   const fetching = fetchingGlobal;
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -162,7 +169,7 @@ export default function AdvancedDispatchDashboard() {
   }, [loading, user, hasAccess, router]);
 
   const overviewDispatches = useMemo(() => (
-    packingLists
+    visiblePackingLists
       .filter((list) => {
         const matchesStatus = list.status === "Packed" || list.status === "Completed";
         const matchesDate = Boolean(list.dispatchedAt) && new Date(list.dispatchedAt || 0).toISOString().split('T')[0] === statsDate;
@@ -176,7 +183,7 @@ export default function AdvancedDispatchDashboard() {
         return matchesStatus && matchesDate && matchesSearch;
       })
       .sort((first, second) => (Number(second.dispatchedAt) || 0) - (Number(first.dispatchedAt) || 0))
-  ), [packingLists, searchQuery, statsDate]);
+  ), [visiblePackingLists, searchQuery, statsDate]);
 
   if (loading) return null;
   if (!user) return null;
@@ -195,9 +202,9 @@ export default function AdvancedDispatchDashboard() {
 
   const todayDate = new Date().toISOString().split('T')[0];
   const stats: RetailDispatchOverviewStats = {
-    todayPacking: packingLists.filter(l => new Date(l.createdAt).toISOString().split('T')[0] === todayDate).length,
-    todayDispatch: packingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt && new Date(l.dispatchedAt).toISOString().split('T')[0] === todayDate).length,
-    totalDispatch: packingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt).length,
+    todayPacking: visiblePackingLists.filter(l => new Date(l.createdAt).toISOString().split('T')[0] === todayDate).length,
+    todayDispatch: visiblePackingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt && new Date(l.dispatchedAt).toISOString().split('T')[0] === todayDate).length,
+    totalDispatch: visiblePackingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt).length,
     pending: orders.filter(o => o.status === "Pending").length,
   };
 
@@ -338,7 +345,7 @@ export default function AdvancedDispatchDashboard() {
           )}
           {activeView === "box-management" && (
             <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
-              <BoxManagementTab packingLists={packingLists} products={products} />
+              <BoxManagementTab packingLists={visiblePackingLists} products={products} />
             </div>
           )}
           {activeView === "dispatch-box" && (
@@ -348,7 +355,7 @@ export default function AdvancedDispatchDashboard() {
           )}
           {activeView === "all-box-dispatches" && (
             <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
-              <AllBoxDispatchesTab packingLists={packingLists} products={products} />
+              <AllBoxDispatchesTab packingLists={visiblePackingLists} products={products} />
             </div>
           )}
           {activeView === "catalog" && (

