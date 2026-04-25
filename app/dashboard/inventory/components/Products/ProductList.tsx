@@ -7,7 +7,6 @@ import { FONT, Product, Category, Collection, STATUS_CONFIG, getStockBucket } fr
 import { BtnPrimary, BtnGhost, Card, Badge, EmptyState, Spinner, PageHeader } from "../../ui";
 import { logActivity } from "../../../../lib/activityLogger";
 import { deleteImage } from "./imageService";
-import ExcelJS from "exceljs";
 import SmartImage from "../../../../components/SmartImage";
 import { normalizeStorageImageUrl } from "../../../../lib/urlUtils";
 import { touchDataSignal } from "../../../../lib/dataSignals";
@@ -221,6 +220,7 @@ export default function ProductList({
 
     const exportExcelForBulkEdit = async () => {
         try {
+            const ExcelJS = (await import("exceljs")).default;
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet("Inventory_Bulk_Edit");
             const isAdmin = user.role === "admin";

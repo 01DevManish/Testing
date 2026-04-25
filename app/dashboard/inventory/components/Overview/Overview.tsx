@@ -87,7 +87,10 @@ export default function Overview({ products, categories, collections, loading, o
 
     const filteredStock = useMemo(() =>
         products.filter((p: Product) => {
-            const matchQ = p.productName.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+            const q = String(searchTerm || "").toLowerCase();
+            const productName = String(p.productName || "").toLowerCase();
+            const sku = String(p.sku || "").toLowerCase();
+            const matchQ = productName.includes(q) || sku.includes(q);
             let matchS = true;
             const bucket = getStockBucket(p.stock, p.minStock);
             if (filterStatus === "in-stock") matchS = bucket === "in-stock";

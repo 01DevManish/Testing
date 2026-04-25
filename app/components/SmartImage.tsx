@@ -6,6 +6,7 @@ import { resolveS3Url } from "../dashboard/inventory/components/Products/imageSe
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   zoomable?: boolean;
+  priority?: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export default function SmartImage({
   style, 
   className, 
   zoomable = true,
+  priority = false,
   loading = "lazy",
   ...props 
 }: SmartImageProps) {
@@ -25,7 +27,7 @@ export default function SmartImage({
   const originalSrc = (src && typeof src === "string") ? src : "";
   const resolvedSrc = originalSrc ? resolveS3Url(originalSrc) : originalSrc;
   const [displaySrc, setDisplaySrc] = React.useState<string>(resolvedSrc);
-  const isPriority = (props as { priority?: boolean }).priority === true;
+  const isPriority = priority === true;
 
   React.useEffect(() => {
     setDisplaySrc(resolvedSrc);

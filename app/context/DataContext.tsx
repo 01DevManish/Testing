@@ -135,6 +135,7 @@ const NO_FIREBASE_SIGNAL_PATHS = new Set<EntityPath>([
 ]);
 
 const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
+  "inventory",
   "parties",
   "collections",
 ]);
@@ -344,6 +345,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (Array.isArray(json?.items)) {
               dynamoRows = json.items as Array<Record<string, unknown>>;
               const isDynamoAuthoritative = DYNAMO_AUTHORITATIVE_PATHS.has(path);
+              const shouldReconcileWithFirebase = FIREBASE_RECONCILE_PATHS.has(path);
               if (isDynamoAuthoritative) {
                 const isInventoryShort = path === "inventory"
                   && dynamoRows.length > 0
@@ -352,14 +354,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   console.warn(
                     `[DataContext] Inventory Dynamo rows look incomplete (${dynamoRows.length}). Falling back to Firebase for safety.`
                   );
-                } else {
+                } else if (!shouldReconcileWithFirebase) {
                 // For cost-sensitive heavy nodes, avoid Firebase node reads when Dynamo has responded.
                 applyEntityData(path, dynamoRows);
                 localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
                 return;
                 }
               }
-              const shouldReconcileWithFirebase = FIREBASE_RECONCILE_PATHS.has(path);
               if (dynamoRows.length > 0 && !shouldReconcileWithFirebase) {
                 // Non-reconcile entities are Dynamo-first and can be applied immediately.
                 applyEntityData(path, dynamoRows);
