@@ -45,6 +45,14 @@ const normalizeRole = (role: unknown): UserRole => {
   if (role === "admin" || role === "manager" || role === "employee" || role === "user") return role;
   return "employee";
 };
+const normalizeDispatchPin = (value: unknown): string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const digits = String(value).trim().replace(/\D/g, "");
+  if (!digits) return undefined;
+  if (digits.length === 4) return digits;
+  if (digits.length < 4) return digits.padStart(4, "0");
+  return undefined;
+};
 
 const setAuthCookie = () => {
   document.cookie = `${AUTH_COOKIE_NAME}=1; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
@@ -68,7 +76,7 @@ const sanitizeUserRecord = (raw: unknown, fallbackUid: string): UserData | null 
     name,
     role: normalizeRole(input.role),
     permissions: Array.isArray(input.permissions) ? input.permissions.filter((p): p is string => typeof p === "string") : [],
-    dispatchPin: input.dispatchPin,
+    dispatchPin: normalizeDispatchPin(input.dispatchPin),
     profilePic: input.profilePic,
     requiresPasswordChange: input.requiresPasswordChange,
   };

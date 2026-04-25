@@ -24,6 +24,15 @@ const normalizeRole = (role: unknown): UserRole => {
   return "employee";
 };
 
+const normalizeDispatchPin = (value: unknown): string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const digits = String(value).trim().replace(/\D/g, "");
+  if (!digits) return undefined;
+  if (digits.length === 4) return digits;
+  if (digits.length < 4) return digits.padStart(4, "0");
+  return undefined;
+};
+
 export const sanitizeUserMetadata = (raw: unknown): UserMetadata | null => {
   if (!raw || typeof raw !== "object") return null;
   const input = raw as Partial<UserMetadata>;
@@ -38,7 +47,7 @@ export const sanitizeUserMetadata = (raw: unknown): UserMetadata | null => {
     name,
     role: normalizeRole(input.role),
     permissions: Array.isArray(input.permissions) ? input.permissions.filter((p): p is string => typeof p === "string") : [],
-    dispatchPin: typeof input.dispatchPin === "string" ? input.dispatchPin : undefined,
+    dispatchPin: normalizeDispatchPin(input.dispatchPin),
     profilePic: typeof input.profilePic === "string" ? input.profilePic : undefined,
     requiresPasswordChange: Boolean(input.requiresPasswordChange),
     passwordUpdatedAt: typeof input.passwordUpdatedAt === "number" ? input.passwordUpdatedAt : undefined,

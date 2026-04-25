@@ -39,6 +39,7 @@ export interface SessionUser {
   role: UserRole;
   name: string;
   permissions: string[];
+  dispatchPin?: string;
   exp: number;
 }
 
@@ -425,6 +426,7 @@ export const getSessionUserFromRequest = async (req: Request): Promise<SessionUs
     role: latestMeta.role,
     name: latestMeta.name,
     permissions: latestMeta.permissions || [],
+    dispatchPin: latestMeta.dispatchPin,
     exp: parsed.exp,
   };
 };

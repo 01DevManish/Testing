@@ -38,6 +38,13 @@ const normalizeScannerImageUrl = (raw?: string): string => {
 
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
 const normalizeCode = (value?: string): string => (value || "").trim().toUpperCase();
+const normalizePinValue = (value: unknown): string => String(value ?? "").trim().replace(/\D/g, "");
+const pinMatches = (enteredPin: string, savedPin: unknown): boolean => {
+  const entered = normalizePinValue(enteredPin);
+  const saved = normalizePinValue(savedPin);
+  if (entered.length !== 4 || !saved) return false;
+  return entered === saved || entered === saved.padStart(4, "0");
+};
 
 export default function CreateDispatchList({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { user, userData } = useAuth();
@@ -160,7 +167,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const allItemsPacked = scannableItems.every((item) => item.isPacked);
   const nextItemToScan = scannableItems.find((item) => !item.isPacked) || null;
   const previewItem = nextItemToScan || lastMatchedItem;
-  const canFinalize = !!selectedList && !saving && allItemsPacked && pin.trim().length >= 4 && !!invoiceNo.trim();
+  const canFinalize = !!selectedList && !saving && allItemsPacked && normalizePinValue(pin).length >= 4 && !!invoiceNo.trim();
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -298,7 +305,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       return;
     }
 
-    if (pin !== userData?.dispatchPin) {
+    if (!pinMatches(pin, (userData as { dispatchPin?: unknown } | null)?.dispatchPin)) {
       alert("Incorrect MPIN. Access denied.");
       setPin("");
       return;
@@ -318,11 +325,25 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       const finalDispatchBarcode = generateDispatchBarcode(dispId, totalBoxes, totalItems);
 
       const updatedRecordItems = scannableItems.reduce((acc: any[], item) => {
-        const existing = acc.find(x => x.productName === item.productName && x.boxName === item.boxName);
+        const itemSkuKey = normalizeSku(item.sku);
+        const existing = acc.find((x) => {
+          const sameBox = String(x.boxName || "") === String(item.boxName || "");
+          if (!sameBox) return false;
+
+          const existingProductId = String(x.productId || "");
+          const itemProductId = String(item.productId || "");
+          if (existingProductId && itemProductId && existingProductId === itemProductId) {
+            return true;
+          }
+
+          const existingSkuKey = normalizeSku(x.sku);
+          return !!itemSkuKey && !!existingSkuKey && itemSkuKey === existingSkuKey;
+        });
         if (existing) {
           existing.quantity = (existing.quantity || 0) + 1;
         } else {
           acc.push({
+            productId: item.productId,
             productName: item.productName,
             sku: item.sku,
             quantity: 1,

@@ -1,7 +1,7 @@
 "use client";
 
 import ErmShell from "../components/ErmShell";
-import { ErmLeadsModule } from "../components/modules";
+import { ErmLeadsModule } from "../components/erm-leads";
 import { useErmGuard } from "../components/useErmGuard";
 
 export default function ErmLeadsPage() {
@@ -12,7 +12,7 @@ export default function ErmLeadsPage() {
     <ErmShell
       active="leads"
       title="ERM Leads"
-      subtitle="Leads lifecycle module under ERM CRM."
+      subtitle="Manage your sales pipeline — create, assign, track, and close leads."
     >
       <ErmLeadsModule />
     </ErmShell>

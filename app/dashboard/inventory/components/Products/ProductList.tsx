@@ -33,10 +33,12 @@ interface Props {
     onShareCatalog: (selected: Product[]) => void;
     isMobile?: boolean;
     isDesktop?: boolean;
+    hideBulkExport?: boolean;
+    hideActions?: boolean;
 }
 
 export default function ProductList({
-    products, categories, collections, user, loading, isAdminOrManager, canCreate, canEdit, canDelete, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop,
+    products, categories, collections, user, loading, isAdminOrManager, canCreate, canEdit, canDelete, onEdit, onRefresh, onCreateNew, onProductsChange, onShareCatalog, isMobile, isDesktop, hideBulkExport, hideActions,
 }: Props) {
     const normalizeText = (value: unknown) =>
         String(value ?? "")
@@ -318,13 +320,13 @@ export default function ProductList({
     const sortArrow = (key: SortKey) => sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
     const th: React.CSSProperties = {
-        padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 400,
+        padding: "11px 14px", textAlign: "left", fontSize: 12, fontWeight: 400,
         textTransform: "uppercase", letterSpacing: "0.07em", color: "#94a3b8",
         borderBottom: "1px solid #e2e8f0", background: "#fafbfc",
         cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", fontFamily: FONT,
     };
     const td: React.CSSProperties = {
-        padding: "12px 14px", fontSize: 13, color: "#475569",
+        padding: "12px 14px", fontSize: 14, color: "#475569",
         borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", fontFamily: FONT,
     };
 
@@ -332,8 +334,8 @@ export default function ProductList({
         <div style={{ maxWidth: "100%", overflowX: "hidden", paddingRight: isMobile ? 2 : 0 }}>
             <PageHeader title="All Products" sub={`${filtered.length} products`} />
             <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, flexWrap: "nowrap", width: "100%", marginBottom: 14 }}>
-                {canCreate && <BtnPrimary onClick={onCreateNew} style={{ minWidth: 0, fontSize: isMobile ? 10 : 12, padding: isMobile ? "7px 10px" : "8px 12px", justifyContent: "center", minHeight: isMobile ? 34 : 36, whiteSpace: "nowrap" }}>+ Add Product</BtnPrimary>}
-                <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: isMobile ? 10 : 12, padding: isMobile ? "7px 10px" : "8px 12px", minWidth: 0, justifyContent: "center", minHeight: isMobile ? 34 : 36, whiteSpace: "nowrap", lineHeight: 1.1 }}>Export for Bulk Edit</BtnGhost>
+                {canCreate && <BtnPrimary onClick={onCreateNew} style={{ minWidth: 0, fontSize: isMobile ? 12 : 14, padding: isMobile ? "7px 10px" : "8px 12px", justifyContent: "center", minHeight: isMobile ? 34 : 36, whiteSpace: "nowrap" }}>+ Add Product</BtnPrimary>}
+                {!hideBulkExport && <BtnGhost onClick={exportExcelForBulkEdit} style={{ fontSize: isMobile ? 12 : 14, padding: isMobile ? "7px 10px" : "8px 12px", minWidth: 0, justifyContent: "center", minHeight: isMobile ? 34 : 36, whiteSpace: "nowrap", lineHeight: 1.1 }}>Export for Bulk Edit</BtnGhost>}
             </div>
 
             <Card>
@@ -360,7 +362,7 @@ export default function ProductList({
                             placeholder="Search Product / SKU / Barcode / Style ID"
                             style={{ 
                                 background: "transparent", border: "none", outline: "none", 
-                                color: "#1e293b", fontSize: isMobile ? 12 : 13, width: "100%", fontFamily: FONT,
+                                color: "#1e293b", fontSize: isMobile ? 14 : 15, width: "100%", fontFamily: FONT,
                                 fontWeight: 400,
                                 // Override global focus styles effectively
                                 boxShadow: "none"
@@ -394,12 +396,12 @@ export default function ProductList({
                     {/* Filter chips */}
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                            style={{ padding: isMobile ? "8px 8px" : "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: isMobile ? 11 : 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial", minWidth: 0 }}>
+                            style={{ padding: isMobile ? "8px 8px" : "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: isMobile ? 13 : 13, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial", minWidth: 0 }}>
                             <option value="all">All Categories</option>
                             {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                         <select value={filterCol} onChange={e => setFilterCol(e.target.value)}
-                            style={{ padding: isMobile ? "8px 8px" : "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: isMobile ? 11 : 12, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial", minWidth: 0 }}>
+                            style={{ padding: isMobile ? "8px 8px" : "6px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#475569", fontSize: isMobile ? 13 : 13, fontFamily: FONT, cursor: "pointer", outline: "none", flex: isMobile ? 1 : "initial", minWidth: 0 }}>
                             <option value="all">All Collections</option>
                             {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
@@ -407,7 +409,7 @@ export default function ProductList({
                             {/* Adjusted filter order: In Stock default, then Low Stock, Out of Stock, then others */}
                             {(["in-stock", "low-stock", "out-of-stock", "all", "active", "inactive"] as const).map(f => (
                                 <button key={f} onClick={() => setFilterStatus(f)}
-                                    style={{ padding: isMobile ? "5px 9px" : "5px 10px", borderRadius: 20, fontSize: isMobile ? 10 : 10, fontWeight: 500, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
+                                    style={{ padding: isMobile ? "5px 9px" : "5px 10px", borderRadius: 20, fontSize: isMobile ? 12 : 12, fontWeight: 500, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap", border: `1.5px solid ${filterStatus === f ? "#6366f1" : "#e2e8f0"}`, background: filterStatus === f ? "rgba(99,102,241,0.08)" : "#fff", color: filterStatus === f ? "#6366f1" : "#94a3b8" }}>
                                     {f === "all" ? "All" : STATUS_CONFIG[f]?.label}
                                 </button>
                             ))}
@@ -419,20 +421,20 @@ export default function ProductList({
                 {/* Bulk action bar */}
                 {selectedIds.size > 0 && isAdminOrManager && (
                     <div style={{ padding: "9px 16px", background: "rgba(99,102,241,0.04)", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
+                        <span style={{ fontSize: 14, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
                         <select value={bulkAction} onChange={e => setBulkAction(e.target.value)}
-                            style={{ padding: "5px 10px", fontSize: 12, borderRadius: 7, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontFamily: FONT, cursor: "pointer", outline: "none" }}>
+                            style={{ padding: "5px 10px", fontSize: 14, borderRadius: 7, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontFamily: FONT, cursor: "pointer", outline: "none" }}>
                             <option value="">Action...</option>
                             <option value="active">Set Active</option>
                             <option value="inactive">Set Inactive</option>
                             {canDelete && <option value="delete">Delete</option>}
                         </select>
-                        <BtnPrimary onClick={executeBulk} disabled={!bulkAction} style={{ padding: "5px 12px", fontSize: 12 }}>Apply</BtnPrimary>
+                        <BtnPrimary onClick={executeBulk} disabled={!bulkAction} style={{ padding: "5px 12px", fontSize: 14 }}>Apply</BtnPrimary>
                         <button 
                             onClick={() => onShareCatalog(Array.from(selectedIds).map(id => products.find(p => p.id === id)!))}
                             style={{ 
                                 padding: "5px 14px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", 
-                                color: "#fff", border: "none", borderRadius: 8, fontSize: 12, 
+                                color: "#fff", border: "none", borderRadius: 8, fontSize: 14, 
                                 fontWeight: 400, fontFamily: FONT, cursor: "pointer",
                                 display: "flex", alignItems: "center", gap: 6
                             }}
@@ -442,19 +444,19 @@ export default function ProductList({
                             </svg>
                             Share Catalog
                         </button>
-                        <BtnGhost onClick={() => setSelectedIds(new Set())} style={{ padding: "5px 10px", fontSize: 12 }}>Clear</BtnGhost>
+                        <BtnGhost onClick={() => setSelectedIds(new Set())} style={{ padding: "5px 10px", fontSize: 14 }}>Clear</BtnGhost>
                     </div>
                 )}
 
                 {/* Selection bar for non-admins (only for sharing) */}
                 {selectedIds.size > 0 && !isAdminOrManager && (
                     <div style={{ padding: "9px 16px", background: "rgba(99,102,241,0.04)", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
+                        <span style={{ fontSize: 15, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{selectedIds.size} selected</span>
                         <button 
                             onClick={() => onShareCatalog(Array.from(selectedIds).map(id => products.find(p => p.id === id)!))}
                             style={{ 
                                 padding: "5px 14px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", 
-                                color: "#fff", border: "none", borderRadius: 8, fontSize: 12, 
+                                color: "#fff", border: "none", borderRadius: 8, fontSize: 14, 
                                 fontWeight: 400, fontFamily: FONT, cursor: "pointer",
                                 display: "flex", alignItems: "center", gap: 6
                             }}
@@ -464,7 +466,7 @@ export default function ProductList({
                             </svg>
                             Share Catalog
                         </button>
-                        <BtnGhost onClick={() => setSelectedIds(new Set())} style={{ padding: "5px 10px", fontSize: 12 }}>Clear</BtnGhost>
+                        <BtnGhost onClick={() => setSelectedIds(new Set())} style={{ padding: "5px 10px", fontSize: 14 }}>Clear</BtnGhost>
                     </div>
                 )}
 
@@ -487,45 +489,45 @@ export default function ProductList({
                                                 {p.imageUrl ? <SmartImage src={p.imageUrl} alt={p.productName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
                                             </div>
                                             <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div style={{ fontSize: 13, color: "#0f172a", fontWeight: 600, fontFamily: FONT, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{p.productName}</div>
-                                                <div style={{ fontSize: 10, color: "#64748b", fontFamily: FONT }}>SKU: {p.sku}</div>
+                                                <div style={{ fontSize: 15, color: "#0f172a", fontWeight: 600, fontFamily: FONT, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{p.productName}</div>
+                                                <div style={{ fontSize: 12, color: "#64748b", fontFamily: FONT }}>SKU: {p.sku}</div>
                                             </div>
                                             </div>
                                             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                                                <span style={{ fontSize: 10, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.color}30`, borderRadius: 999, padding: "3px 8px", whiteSpace: "nowrap", maxWidth: "100%" }}>{sc.label}</span>
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.color}30`, borderRadius: 999, padding: "3px 8px", whiteSpace: "nowrap", maxWidth: "100%" }}>{sc.label}</span>
                                             </div>
                                         </div>
 
                                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
                                             <div style={{ padding: "7px 6px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff" }}>
-                                                <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>Price</div>
-                                                <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
+                                                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>Price</div>
+                                                <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
                                             </div>
                                             <div style={{ padding: "7px 6px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff" }}>
-                                                <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>Stock</div>
-                                                <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>{p.stock}</div>
+                                                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>Stock</div>
+                                                <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>{p.stock}</div>
                                             </div>
                                             <div style={{ padding: "7px 6px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff" }}>
-                                                <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>GST</div>
-                                                <div style={{ fontSize: 11, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>{p.gstRate ?? 18}%</div>
+                                                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2, textTransform: "uppercase", fontFamily: FONT }}>GST</div>
+                                                <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 600, fontFamily: FONT }}>{p.gstRate ?? 18}%</div>
                                             </div>
                                         </div>
 
                                         <div style={{ display: "grid", gap: 6 }}>
                                             <div style={{ padding: "6px 7px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff", minWidth: 0, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                                                <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontFamily: FONT }}>Collection</div>
-                                                <div style={{ minWidth: 0, maxWidth: "65%", fontSize: 10, color: "#1e293b", fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>{p.collection || "N/A"}</div>
+                                                <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", fontFamily: FONT }}>Collection</div>
+                                                <div style={{ minWidth: 0, maxWidth: "65%", fontSize: 12, color: "#1e293b", fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>{p.collection || "N/A"}</div>
                                             </div>
                                             <div style={{ padding: "6px 7px", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff", minWidth: 0, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                                                <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontFamily: FONT }}>Unit</div>
-                                                <div style={{ minWidth: 0, maxWidth: "65%", fontSize: 10, color: "#1e293b", fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>{p.unit || "PCS"}</div>
+                                                <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", fontFamily: FONT }}>Unit</div>
+                                                <div style={{ minWidth: 0, maxWidth: "65%", fontSize: 12, color: "#1e293b", fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>{p.unit || "PCS"}</div>
                                             </div>
                                         </div>
 
-                                        {(canEdit || canDelete) && (
+                                        {!hideActions && (canEdit || canDelete) && (
                                             <div style={{ display: "grid", gridTemplateColumns: canEdit && canDelete ? "repeat(2, minmax(0, 1fr))" : "1fr", gap: 6, minWidth: 0 }}>
-                                                {canEdit && <button onClick={() => onEdit(p)} style={{ padding: "7px 8px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>Edit</button>}
-                                                {canDelete && <button onClick={() => handleDelete(p.id)} style={{ padding: "7px 8px", background: "rgba(239,68,68,0.08)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>Delete</button>}
+                                                {canEdit && <button onClick={() => onEdit(p)} style={{ padding: "7px 8px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>Edit</button>}
+                                                {canDelete && <button onClick={() => handleDelete(p.id)} style={{ padding: "7px 8px", background: "rgba(239,68,68,0.08)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>Delete</button>}
                                             </div>
                                         )}
                                     </div>
@@ -552,7 +554,7 @@ export default function ProductList({
                                     <th style={th} onClick={() => handleSort("stock")}>Stock{sortArrow("stock")}</th>
                                     <th style={th}>GST</th>
                                     <th style={th} onClick={() => handleSort("status")}>Status{sortArrow("status")}</th>
-                                    {isAdminOrManager && <th style={{ ...th, textAlign: "right" }}>Actions</th>}
+                                    {!hideActions && isAdminOrManager && <th style={{ ...th, textAlign: "right" }}>Actions</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -581,44 +583,44 @@ export default function ProductList({
                                                                 {...({ priority: paginatedItems.indexOf(p) < 10 } as any)}
                                                             />
                                                         ) : (
-                                                            <span style={{ fontSize: 9, fontWeight: 400, color: "#94a3b8", fontFamily: FONT }}>IMG</span>
+                                                            <span style={{ fontSize: 11, fontWeight: 400, color: "#94a3b8", fontFamily: FONT }}>IMG</span>
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 13, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{p.productName}</div>
-                                                        <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>SKU: {p.sku}{p.brand ? ` · ${p.brand}` : ""}</div>
+                                                        <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 14, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>{p.productName}</div>
+                                                        <div style={{ fontSize: 13, color: "#94a3b8", fontFamily: FONT }}>SKU: {p.sku}{p.brand ? ` · ${p.brand}` : ""}</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td style={td}>
                                                 {p.collection
-                                                    ? <span style={{ padding: "3px 8px", background: "rgba(99,102,241,0.06)", borderRadius: 6, fontSize: 11, fontWeight: 500, color: "#6366f1", fontFamily: FONT, border: "1px solid rgba(99,102,241,0.1)" }}>{p.collection}</span>
-                                                    : <span style={{ color: "#cbd5e1", fontSize: 12, fontFamily: FONT }}>—</span>}
+                                                    ? <span style={{ padding: "3px 8px", background: "rgba(99,102,241,0.06)", borderRadius: 6, fontSize: 13, fontWeight: 500, color: "#6366f1", fontFamily: FONT, border: "1px solid rgba(99,102,241,0.1)" }}>{p.collection}</span>
+                                                    : <span style={{ color: "#cbd5e1", fontSize: 14, fontFamily: FONT }}>—</span>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{p.unit || "PCS"}</div>
-                                                {p.hsnCode && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>HSN: {p.hsnCode}</div>}
+                                                <div style={{ fontSize: 15, fontWeight: 400, color: "#1e293b", fontFamily: FONT }}>{p.unit || "PCS"}</div>
+                                                {p.hsnCode && <div style={{ fontSize: 13, color: "#94a3b8", fontFamily: FONT }}>HSN: {p.hsnCode}</div>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 13, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
-                                                {user.role === "admin" && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}</div>}
+                                                <div style={{ fontWeight: 400, color: "#1e293b", fontSize: 15, fontFamily: FONT }}>Rs.{Number(p.price || 0).toLocaleString("en-IN")}</div>
+                                                {user.role === "admin" && <div style={{ fontSize: 13, color: "#94a3b8", fontFamily: FONT }}>Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}</div>}
                                             </td>
                                             <td style={td}>
-                                                <div style={{ fontWeight: 400, fontSize: 14, fontFamily: FONT, color: isLow ? "#a16207" : isOut ? "#991b1b" : "#1e293b" }}>{p.stock}</div>
-                                                {isLow && <div style={{ fontSize: 10, color: "#a16207", fontWeight: 400, fontFamily: FONT }}>Low</div>}
-                                                {isOut && <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 400, fontFamily: FONT }}>Empty</div>}
+                                                <div style={{ fontWeight: 400, fontSize: 16, fontFamily: FONT, color: isLow ? "#a16207" : isOut ? "#991b1b" : "#1e293b" }}>{p.stock}</div>
+                                                {isLow && <div style={{ fontSize: 12, color: "#a16207", fontWeight: 400, fontFamily: FONT }}>Low</div>}
+                                                {isOut && <div style={{ fontSize: 12, color: "#991b1b", fontWeight: 400, fontFamily: FONT }}>Empty</div>}
                                             </td>
                                             <td style={td}>
-                                                <span style={{ fontSize: 13, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{p.gstRate ?? 18}%</span>
+                                                <span style={{ fontSize: 15, fontWeight: 400, color: "#6366f1", fontFamily: FONT }}>{p.gstRate ?? 18}%</span>
                                             </td>
                                             <td style={td}>
                                                 <Badge color={sc.color} bg={sc.bg}>{sc.label}</Badge>
                                             </td>
-                                            {(canEdit || canDelete) && (
+                                            {!hideActions && (canEdit || canDelete) && (
                                                 <td style={{ ...td, textAlign: "right" }}>
                                                     <div style={{ display: "flex", gap: 5, justifyContent: "flex-end" }}>
-                                                        {canEdit && <button onClick={() => onEdit(p)} style={{ padding: "5px 10px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}>Edit</button>}
-                                                        {canDelete && <button onClick={() => handleDelete(p.id)} style={{ padding: "5px 10px", background: "rgba(239,68,68,0.07)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 7, fontSize: 12, fontFamily: FONT, cursor: "pointer" }}>Del</button>}
+                                                        {canEdit && <button onClick={() => onEdit(p)} style={{ padding: "5px 10px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 14, fontFamily: FONT, cursor: "pointer" }}>Edit</button>}
+                                                        {canDelete && <button onClick={() => handleDelete(p.id)} style={{ padding: "5px 10px", background: "rgba(239,68,68,0.07)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 7, fontSize: 14, fontFamily: FONT, cursor: "pointer" }}>Del</button>}
                                                     </div>
                                                 </td>
                                             )}
@@ -638,7 +640,7 @@ export default function ProductList({
                         display: "flex", 
                         justifyContent: "space-between", 
                         alignItems: "center", 
-                        fontSize: 12, 
+                        fontSize: 14, 
                         color: "#64748b", 
                         flexWrap: "wrap", 
                         gap: 16, 
@@ -657,7 +659,7 @@ export default function ProductList({
                                 disabled={currentPage === 1}
                                 style={{ 
                                     padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === 1 ? "#f8fafc" : "#fff", 
-                                    color: currentPage === 1 ? "#cbd5e1" : "#475569", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 11, transition: "0.2s"
+                                    color: currentPage === 1 ? "#cbd5e1" : "#475569", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 13, transition: "0.2s"
                                 }}
                             >
                                 Previous
@@ -677,7 +679,7 @@ export default function ProductList({
                                                     background: currentPage === p ? "rgba(99,102,241,0.08)" : "transparent",
                                                     color: currentPage === p ? "#6366f1" : "#64748b",
                                                     fontWeight: currentPage === p ? 600 : 400,
-                                                    cursor: "pointer", fontSize: 11, transition: "0.2s"
+                                                    cursor: "pointer", fontSize: 13, transition: "0.2s"
                                                 }}
                                             >
                                                 {p}
@@ -692,7 +694,7 @@ export default function ProductList({
                                 disabled={currentPage === totalPages}
                                 style={{ 
                                     padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: currentPage === totalPages ? "#f8fafc" : "#fff", 
-                                    color: currentPage === totalPages ? "#cbd5e1" : "#475569", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 11, transition: "0.2s"
+                                    color: currentPage === totalPages ? "#cbd5e1" : "#475569", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 13, transition: "0.2s"
                                 }}
                             >
                                 Next

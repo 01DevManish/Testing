@@ -54,6 +54,14 @@ function dispatchId() {
     return "DSP-" + Math.floor(Math.random() * 900000 + 100000).toString();
 }
 
+const normalizePinValue = (value: unknown): string => String(value ?? "").trim().replace(/\D/g, "");
+const pinMatches = (enteredPin: string, savedPin: unknown): boolean => {
+    const entered = normalizePinValue(enteredPin);
+    const saved = normalizePinValue(savedPin);
+    if (entered.length !== 4 || !saved) return false;
+    return entered === saved || entered === saved.padStart(4, "0");
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -138,9 +146,11 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
     const [pinStep, setPinStep] = useState(false);
     const [pin, setPin] = useState(["", "", "", ""]);
     const [pinError, setPinError] = useState("");
+    const [localSavedPin, setLocalSavedPin] = useState<string | null>(null);
     const pinRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
-    const hasPin = !!userData?.dispatchPin;
+    const effectiveSavedPin = localSavedPin ?? (userData as { dispatchPin?: unknown } | null)?.dispatchPin;
+    const hasPin = normalizePinValue(effectiveSavedPin).length > 0;
 
     // Print
     const [dispatched, setDispatched] = useState(false);
@@ -208,11 +218,11 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                     throw new Error(result?.error || "Failed to set PIN.");
                 }
                 alert("Dispatch PIN created successfully! Please proceed to confirm dispatch.");
+                setLocalSavedPin(enteredPin);
                 setPin(["", "", "", ""]);
-                // Refresh window to get new userData if not using a listener, 
-                // but since we are in a wizard, let's just use local state for this session.
-                // Or better, the AuthContext should handle it if it listens.
-                window.location.reload(); // Simplest way to ensure context updates for now
+                setPinError("");
+                setIsSaving(false);
+                pinRefs[0].current?.focus();
                 return;
             } catch (e) {
                 setPinError("Failed to set PIN.");
@@ -222,7 +232,7 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
         }
 
         // Mode 2: Verification
-        if (enteredPin !== userData?.dispatchPin) {
+        if (!pinMatches(enteredPin, effectiveSavedPin)) {
             setPinError("Incorrect PIN. Please try again.");
             setPin(["", "", "", ""]);
             pinRefs[0].current?.focus();

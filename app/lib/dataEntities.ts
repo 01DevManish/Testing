@@ -12,6 +12,8 @@ export const DATA_ENTITIES = [
   "tasks",
   "ermLeads",
   "ermLeadCalls",
+  "usersMeta",
+  "ermOrders",
 ] as const;
 
 export type DataEntity = (typeof DATA_ENTITIES)[number];

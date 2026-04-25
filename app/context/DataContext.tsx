@@ -58,6 +58,7 @@ type EntityPath =
   | "inventory"
   | "partyRates"
   | "users"
+  | "usersMeta"
   | "brands"
   | "categories"
   | "collections"
@@ -81,7 +82,7 @@ const NODE_DEFS: Array<{
 }> = [
   { path: "inventory", cacheKey: CACHE_KEYS.PRODUCTS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["inventory", "products"] },
   { path: "partyRates", cacheKey: CACHE_KEYS.PARTIES, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["partyRates", "party-rates"] },
-  { path: "users", cacheKey: CACHE_KEYS.USERS, realtime: true, aliases: ["users"] },
+  { path: "usersMeta", cacheKey: CACHE_KEYS.USERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["users", "usersMeta"] },
   { path: "brands", cacheKey: CACHE_KEYS.BRANDS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["brands"] },
   { path: "categories", cacheKey: CACHE_KEYS.CATEGORIES, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["categories"] },
   { path: "collections", cacheKey: CACHE_KEYS.COLLECTIONS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["collections"] },
@@ -103,6 +104,7 @@ const DYNAMO_PRIMARY_PATHS = new Set<EntityPath>([
   "packingLists",
   "parties",
   "transporters",
+  "usersMeta",
 ]);
 
 // These entities should not hit Firebase in normal read flow once Dynamo responds successfully.
@@ -118,6 +120,7 @@ const DYNAMO_AUTHORITATIVE_PATHS = new Set<EntityPath>([
   "packingLists",
   "parties",
   "transporters",
+  "usersMeta",
 ]);
 
 // Keep inventory on-demand only (no automatic signal/poll fetch) to control Firebase/Dynamo churn and UI flicker.
@@ -140,7 +143,7 @@ const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<s
 
   const entries = Object.entries(val as Record<string, unknown>);
 
-  if (path === "users") {
+  if (path === "usersMeta" || path === "users") {
     return entries.flatMap(([
       key,
       record,
@@ -290,6 +293,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       case "partyRates":
         setPartyRates(castEntityList<PartyRate>(data));
         break;
+      case "usersMeta":
       case "users":
         setUsers(castEntityList<UserRecord>(data));
         break;
