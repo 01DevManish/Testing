@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DeleteCommand, PutCommand, QueryCommand, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { DeleteCommand, PutCommand, QueryCommand, BatchWriteCommand, BatchGetCommand } from "@aws-sdk/lib-dynamodb";
 import { DATA_TABLE_NAME, docClient } from "../../../lib/dynamodb";
 import { dataPartitionKey, dataSortKey, isDataEntity } from "../../../lib/dataEntities";
 
@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 
 type Row = Record<string, unknown> & { id?: string };
+type WriteRequest = { DeleteRequest?: { Key: Record<string, unknown> }; PutRequest?: { Item: Record<string, unknown> } };
 
 const emitEntitySignal = async (entity: string): Promise<void> => {
   // No-op: Firebase sync signals removed in Dynamo-only mode.
@@ -45,6 +46,44 @@ const fetchExistingKeys = async (partition: string): Promise<string[]> => {
   } while (lastKey);
 
   return keys;
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const writeBatchWithRetries = async (requests: WriteRequest[]): Promise<void> => {
+  if (!requests.length) return;
+
+  let pending: WriteRequest[] = requests;
+  let attempt = 0;
+
+  while (pending.length > 0) {
+    attempt += 1;
+    const result = await docClient.send(
+      new BatchWriteCommand({
+        RequestItems: {
+          [DATA_TABLE_NAME]: pending,
+        },
+      })
+    );
+
+    const unprocessed = (result.UnprocessedItems?.[DATA_TABLE_NAME] || []) as WriteRequest[];
+    if (!unprocessed.length) return;
+
+    if (attempt >= 10) {
+      throw new Error(`Batch write incomplete after retries. Unprocessed items: ${unprocessed.length}`);
+    }
+
+    pending = unprocessed;
+    await sleep(Math.min(1000 * attempt, 5000));
+  }
+};
+
+const mergeDefined = (base: Row, patch: Row): Row => {
+  const next: Row = { ...base };
+  Object.entries(patch || {}).forEach(([key, value]) => {
+    if (value !== undefined) next[key] = value;
+  });
+  return next;
 };
 
 export async function GET(
@@ -95,6 +134,16 @@ export async function GET(
       return NextResponse.json({ items: filtered });
     }
 
+    if (entity === "inventory") {
+      const filtered = rows.filter((row) => {
+        const sku = String((row as Record<string, unknown>)?.sku || "").trim();
+        const productName = String((row as Record<string, unknown>)?.productName || "").trim();
+        // Guard against corrupted/empty rows that break inventory UX.
+        return Boolean(sku || productName);
+      });
+      return NextResponse.json({ items: filtered });
+    }
+
     if (entity === "tasks") {
       const assignedTo = req.nextUrl.searchParams.get("assignedTo")?.trim();
       if (assignedTo) {
@@ -136,16 +185,12 @@ export async function POST(
       const existingKeys = await fetchExistingKeys(partition);
       for (let i = 0; i < existingKeys.length; i += 25) {
         const chunk = existingKeys.slice(i, i + 25);
-        await docClient.send(
-          new BatchWriteCommand({
-            RequestItems: {
-              [DATA_TABLE_NAME]: chunk.map((sk) => ({
-                DeleteRequest: {
-                  Key: { partition, timestamp_id: sk },
-                },
-              })),
+        await writeBatchWithRetries(
+          chunk.map((sk) => ({
+            DeleteRequest: {
+              Key: { partition, timestamp_id: sk },
             },
-          })
+          }))
         );
       }
       cleared = existingKeys.length;
@@ -156,22 +201,45 @@ export async function POST(
     
     for (let i = 0; i < itemsToPut.length; i += 25) {
       const chunk = itemsToPut.slice(i, i + 25);
-      await docClient.send(
-        new BatchWriteCommand({
+      const keys = chunk.map((row) => ({
+        partition,
+        timestamp_id: dataSortKey((row.id as string).trim()),
+      }));
+
+      const existingResponse = await docClient.send(
+        new BatchGetCommand({
           RequestItems: {
-            [DATA_TABLE_NAME]: chunk.map((row) => ({
-              PutRequest: {
-                Item: {
-                  partition,
-                  timestamp_id: dataSortKey((row.id as string).trim()),
-                  entityType: `dataset_${entity}`,
-                  payload: row,
-                  updatedAt: Date.now(),
-                },
-              },
-            })),
+            [DATA_TABLE_NAME]: {
+              Keys: keys,
+            },
           },
         })
+      );
+
+      const existingMap = new Map<string, Row>();
+      (existingResponse.Responses?.[DATA_TABLE_NAME] || []).forEach((item) => {
+        const sk = item.timestamp_id;
+        const payload = item.payload as Row | undefined;
+        if (typeof sk !== "string") return;
+        if (!payload || typeof payload !== "object") return;
+        existingMap.set(sk, payload);
+      });
+
+      await writeBatchWithRetries(
+        chunk.map((row) => ({
+          PutRequest: {
+            Item: {
+              partition,
+              timestamp_id: dataSortKey((row.id as string).trim()),
+              entityType: `dataset_${entity}`,
+              payload: mergeDefined(
+                existingMap.get(dataSortKey((row.id as string).trim())) || {},
+                row
+              ),
+              updatedAt: Date.now(),
+            },
+          },
+        }))
       );
       upserted += chunk.length;
     }

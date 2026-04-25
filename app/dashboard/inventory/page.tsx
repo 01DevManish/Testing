@@ -152,11 +152,11 @@ export default function InventoryPage() {
 
     if (!toFix.length) return;
 
-    Promise.all(
-      toFix.map((p) =>
-        update(
-          ref(db, `inventory/${p.id}`),
-          getBarcodeMappedFields(
+    const runBackfill = async () => {
+      try {
+        const items = toFix.map((p) => ({
+          id: p.id,
+          ...getBarcodeMappedFields(
             {
               id: p.id,
               sku: p.sku,
@@ -164,12 +164,23 @@ export default function InventoryPage() {
               collection: p.collection
             },
             collections
-          )
-        )
-      )
-    )
-      .then(() => touchDataSignal("inventory"))
-      .catch((err) => console.error("Barcode backfill failed:", err));
+          ),
+          updatedAt: Date.now(),
+        }));
+
+        await fetch("/api/data/inventory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "upsert", items }),
+        });
+
+        await touchDataSignal("inventory");
+      } catch (err) {
+        console.error("Barcode backfill failed:", err);
+      }
+    };
+
+    void runBackfill();
   }, [products, collections, fetching]);
 
   // ── Granular Sub-Module Permissions ──────────────────────────

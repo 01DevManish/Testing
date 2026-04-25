@@ -72,6 +72,9 @@ type EntityPath =
 const HEAVY_NODE_POLL_MS = 10 * 60 * 1000; // fallback safety poll (10 min)
 const DATA_SIGNAL_ROOT = "syncSignals";
 const SIGNAL_FETCH_COOLDOWN_MS = 4000;
+const WS_ENTITY_REFRESH_COOLDOWN_MS = 2500;
+const ENTITY_FETCH_COOLDOWN_MS = 2000;
+const WS_FLUSH_INTERVAL_MS = 1200;
 const INVENTORY_DYNAMO_MIN_ROWS_FOR_TRUST = 400;
 
 const NODE_DEFS: Array<{
@@ -81,7 +84,7 @@ const NODE_DEFS: Array<{
   pollMs?: number;
   aliases: string[];
 }> = [
-  { path: "inventory", cacheKey: CACHE_KEYS.PRODUCTS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["inventory", "products"] },
+  { path: "inventory", cacheKey: CACHE_KEYS.PRODUCTS, realtime: true, pollMs: HEAVY_NODE_POLL_MS, aliases: ["inventory", "products"] },
   { path: "partyRates", cacheKey: CACHE_KEYS.PARTIES, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["partyRates", "party-rates"] },
   { path: "usersMeta", cacheKey: CACHE_KEYS.USERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["users", "usersMeta"] },
   { path: "brands", cacheKey: CACHE_KEYS.BRANDS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["brands"] },
@@ -124,14 +127,13 @@ const DYNAMO_AUTHORITATIVE_PATHS = new Set<EntityPath>([
   "usersMeta",
 ]);
 
-// Keep inventory on-demand only (no automatic signal/poll fetch) to control Firebase/Dynamo churn and UI flicker.
-const ON_DEMAND_ONLY_PATHS = new Set<EntityPath>([
-  "inventory",
-]);
+// Keep this empty unless an entity must be strictly manual-refresh only.
+const ON_DEMAND_ONLY_PATHS = new Set<EntityPath>([]);
 
-// Avoid Firebase syncSignal listeners for Dynamo-authoritative datasets.
+// Avoid Firebase syncSignal listeners for Dynamo-authoritative datasets,
+// but keep inventory signal-enabled so stock updates reflect live across clients.
 const NO_FIREBASE_SIGNAL_PATHS = new Set<EntityPath>([
-  ...DYNAMO_AUTHORITATIVE_PATHS,
+  ...Array.from(DYNAMO_AUTHORITATIVE_PATHS).filter((path) => path !== "inventory"),
 ]);
 
 const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
@@ -248,6 +250,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const lastSignalRef = useRef<Record<string, string>>({});
   const lastSignalFetchAtRef = useRef<Record<string, number>>({});
+  const entityLastFetchAtRef = useRef<Partial<Record<EntityPath, number>>>({});
+  const entityInFlightRef = useRef<Partial<Record<EntityPath, Promise<void>>>>({});
 
   // 1. Initial Load from LocalStorage (Instant 0ms feel)
   useEffect(() => {
@@ -334,84 +338,98 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const def = NODE_DEFS.find((n) => n.path === path);
     if (!def) return;
 
-    try {
-      let dynamoRows: Array<Record<string, unknown>> | null = null;
+    const now = Date.now();
+    const lastFetchAt = entityLastFetchAtRef.current[path] || 0;
+    if (now - lastFetchAt < ENTITY_FETCH_COOLDOWN_MS) return;
+    const inFlight = entityInFlightRef.current[path];
+    if (inFlight) return inFlight;
 
-      if (DYNAMO_PRIMARY_PATHS.has(path)) {
-        try {
-          const res = await fetch(`/api/data/${path}`, { cache: "no-store" });
-          if (res.ok) {
-            const json = await res.json();
-            if (Array.isArray(json?.items)) {
-              dynamoRows = json.items as Array<Record<string, unknown>>;
-              const isDynamoAuthoritative = DYNAMO_AUTHORITATIVE_PATHS.has(path);
-              const shouldReconcileWithFirebase = FIREBASE_RECONCILE_PATHS.has(path);
-              if (isDynamoAuthoritative) {
-                const isInventoryShort = path === "inventory"
-                  && dynamoRows.length > 0
-                  && dynamoRows.length < INVENTORY_DYNAMO_MIN_ROWS_FOR_TRUST;
-                if (isInventoryShort) {
-                  console.warn(
-                    `[DataContext] Inventory Dynamo rows look incomplete (${dynamoRows.length}). Falling back to Firebase for safety.`
-                  );
-                } else if (!shouldReconcileWithFirebase) {
-                // For cost-sensitive heavy nodes, avoid Firebase node reads when Dynamo has responded.
-                applyEntityData(path, dynamoRows);
-                localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
-                return;
+    const task = (async () => {
+      try {
+        let dynamoRows: Array<Record<string, unknown>> | null = null;
+
+        if (DYNAMO_PRIMARY_PATHS.has(path)) {
+          try {
+            const res = await fetch(`/api/data/${path}`, { cache: "no-store" });
+            if (res.ok) {
+              const json = await res.json();
+              if (Array.isArray(json?.items)) {
+                dynamoRows = json.items as Array<Record<string, unknown>>;
+                const isDynamoAuthoritative = DYNAMO_AUTHORITATIVE_PATHS.has(path);
+                const shouldReconcileWithFirebase = FIREBASE_RECONCILE_PATHS.has(path);
+                if (isDynamoAuthoritative) {
+                  const isInventoryShort = path === "inventory"
+                    && dynamoRows.length > 0
+                    && dynamoRows.length < INVENTORY_DYNAMO_MIN_ROWS_FOR_TRUST;
+                  if (isInventoryShort) {
+                    console.warn(
+                      `[DataContext] Inventory Dynamo rows look incomplete (${dynamoRows.length}). Falling back to Firebase for safety.`
+                    );
+                  } else if (!shouldReconcileWithFirebase) {
+                    // For cost-sensitive heavy nodes, avoid Firebase node reads when Dynamo has responded.
+                    applyEntityData(path, dynamoRows);
+                    localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
+                    return;
+                  }
+                }
+                if (dynamoRows.length > 0 && !shouldReconcileWithFirebase) {
+                  // Non-reconcile entities are Dynamo-first and can be applied immediately.
+                  applyEntityData(path, dynamoRows);
+                  localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
+                  return;
                 }
               }
-              if (dynamoRows.length > 0 && !shouldReconcileWithFirebase) {
-                // Non-reconcile entities are Dynamo-first and can be applied immediately.
-                applyEntityData(path, dynamoRows);
-                localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
-                return;
-              }
             }
+          } catch (dynamoErr) {
+            console.warn(`[DataContext] Dynamo primary fetch failed for ${path}, falling back to Firebase.`, dynamoErr);
           }
-        } catch (dynamoErr) {
-          console.warn(`[DataContext] Dynamo primary fetch failed for ${path}, falling back to Firebase.`, dynamoErr);
         }
-      }
 
-      const snapshot = await get(ref(db, path));
-      const data = snapshot.exists() ? normalizeSnapshotToList(path, snapshot.val()) : [];
+        const snapshot = await get(ref(db, path));
+        const data = snapshot.exists() ? normalizeSnapshotToList(path, snapshot.val()) : [];
 
-      let rowsToApply = data;
-      let shouldSyncDynamo = DYNAMO_PRIMARY_PATHS.has(path) && data.length > 0;
+        let rowsToApply = data;
+        let shouldSyncDynamo = DYNAMO_PRIMARY_PATHS.has(path) && data.length > 0;
 
-      if (FIREBASE_RECONCILE_PATHS.has(path) && dynamoRows && dynamoRows.length > 0) {
-        const firebaseImageCount = countRowsWithImage(data);
-        const dynamoImageCount = countRowsWithImage(dynamoRows);
-        
-        const fbMaxTs = getMaxUpdatedAt(data);
-        const dynMaxTs = getMaxUpdatedAt(dynamoRows);
-        
-        const shouldPreferFirebase = path === "inventory"
-          ? (data.length !== dynamoRows.length || firebaseImageCount > dynamoImageCount || fbMaxTs > dynMaxTs + 2000)
-          : (data.length !== dynamoRows.length || fbMaxTs > dynMaxTs + 2000);
+        if (FIREBASE_RECONCILE_PATHS.has(path) && dynamoRows && dynamoRows.length > 0) {
+          const firebaseImageCount = countRowsWithImage(data);
+          const dynamoImageCount = countRowsWithImage(dynamoRows);
 
-        if (!shouldPreferFirebase) {
-          rowsToApply = dynamoRows;
-          shouldSyncDynamo = false;
-        } else {
-          console.info(
-            `[DataContext] ${path} reconciled with Firebase (fbTs=${fbMaxTs}, dynTs=${dynMaxTs}, fbLength=${data.length}, dynLength=${dynamoRows.length}).`
-          );
+          const fbMaxTs = getMaxUpdatedAt(data);
+          const dynMaxTs = getMaxUpdatedAt(dynamoRows);
+
+          const shouldPreferFirebase = path === "inventory"
+            ? (data.length !== dynamoRows.length || firebaseImageCount > dynamoImageCount || fbMaxTs > dynMaxTs + 2000)
+            : (data.length !== dynamoRows.length || fbMaxTs > dynMaxTs + 2000);
+
+          if (!shouldPreferFirebase) {
+            rowsToApply = dynamoRows;
+            shouldSyncDynamo = false;
+          } else {
+            console.info(
+              `[DataContext] ${path} reconciled with Firebase (fbTs=${fbMaxTs}, dynTs=${dynMaxTs}, fbLength=${data.length}, dynLength=${dynamoRows.length}).`
+            );
+          }
         }
+
+        applyEntityData(path, rowsToApply);
+        localStorage.setItem(def.cacheKey, JSON.stringify(rowsToApply));
+
+        // Important: never push full-entity sync writes from client runtime.
+        // This can create a feedback loop:
+        // client fetch -> client replace POST -> server signal -> client fetch again.
+        // Background synchronization should be handled by server-side jobs/scripts only.
+        void shouldSyncDynamo;
+      } catch (error) {
+        console.error(`[DataContext] Failed to fetch ${path}:`, error);
+      } finally {
+        entityLastFetchAtRef.current[path] = Date.now();
+        delete entityInFlightRef.current[path];
       }
+    })();
 
-      applyEntityData(path, rowsToApply);
-      localStorage.setItem(def.cacheKey, JSON.stringify(rowsToApply));
-
-      // Important: never push full-entity sync writes from client runtime.
-      // This can create a feedback loop:
-      // client fetch -> client replace POST -> server signal -> client fetch again.
-      // Background synchronization should be handled by server-side jobs/scripts only.
-      void shouldSyncDynamo;
-    } catch (error) {
-      console.error(`[DataContext] Failed to fetch ${path}:`, error);
-    }
+    entityInFlightRef.current[path] = task;
+    return task;
   }, [applyEntityData]);
 
   // 2. Hybrid Sync:
@@ -505,6 +523,86 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     console.warn(`[DataContext] Unknown refresh entity: ${entity}`);
   }, [fetchEntity]);
+
+  useEffect(() => {
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    const enableWsInDev = process.env.NEXT_PUBLIC_ENABLE_REALTIME_WS === "true";
+    const isProd = process.env.NODE_ENV === "production";
+    if (!wsUrl) return;
+    if (!isProd && !enableWsInDev) return;
+
+    let ws: WebSocket | null = null;
+    let retryDelayMs = 1000;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
+    const lastRefreshByEntity: Record<string, number> = {};
+    const pendingEntities = new Set<string>();
+
+    const flushPendingEntities = () => {
+      flushTimer = null;
+      if (disposed) return;
+      pendingEntities.forEach((entity) => refreshData(entity));
+      pendingEntities.clear();
+    };
+
+    const queueEntityRefresh = (entity: string) => {
+      pendingEntities.add(entity);
+      if (flushTimer) return;
+      flushTimer = setTimeout(flushPendingEntities, WS_FLUSH_INTERVAL_MS);
+    };
+
+    const connect = () => {
+      if (disposed) return;
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        retryDelayMs = 1000;
+        ws?.send(JSON.stringify({
+          action: "subscribe",
+          channels: ["inventory", "partyRates", "dispatches", "packingLists", "usersMeta", "parties", "transporters"],
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message?.type === "entity_update" && message?.entity) {
+            if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+            const entity = String(message.entity || "").trim().toLowerCase();
+            if (!entity) return;
+            const now = Date.now();
+            const last = lastRefreshByEntity[entity] || 0;
+            if (now - last < WS_ENTITY_REFRESH_COOLDOWN_MS) return;
+            lastRefreshByEntity[entity] = now;
+            queueEntityRefresh(entity);
+          }
+        } catch {
+          // Ignore malformed websocket payloads
+        }
+      };
+
+      ws.onerror = () => {
+        ws?.close();
+      };
+
+      ws.onclose = () => {
+        if (disposed) return;
+        reconnectTimer = setTimeout(connect, retryDelayMs);
+        retryDelayMs = Math.min(retryDelayMs * 2, 30000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      disposed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (flushTimer) clearTimeout(flushTimer);
+      pendingEntities.clear();
+      ws?.close();
+    };
+  }, [refreshData]);
 
   return (
     <DataContext.Provider value={{

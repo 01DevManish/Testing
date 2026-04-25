@@ -68,6 +68,28 @@ const upsertEntityRows = async (entity: string, rows: JsonObject[]) => {
   });
 };
 
+const fetchEntityItem = async (entity: string, id: string): Promise<JsonObject | null> => {
+  const res = await fetch(`/api/data/${entity}/${encodeURIComponent(id)}`, { cache: "no-store" });
+  if (!res.ok) return null;
+  const json = await res.json().catch(() => ({}));
+  const item = json?.item;
+  return item && typeof item === "object" ? (item as JsonObject) : null;
+};
+
+const patchEntityItem = async (entity: string, id: string, updates: JsonObject): Promise<void> => {
+  await fetch(`/api/data/${entity}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ updates }),
+  });
+};
+
+const deleteEntityItem = async (entity: string, id: string): Promise<void> => {
+  await fetch(`/api/data/${entity}/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+};
+
 const toMap = (rows: JsonObject[]): JsonObject => {
   const out: JsonObject = {};
   rows.forEach((row) => {
@@ -205,13 +227,10 @@ export const set = async (target: RefObject, value: any): Promise<void> => {
     return;
   }
 
-  const rows = await fetchEntityRows(entity);
-  const existing = rows.find((r) => String(r.id) === id) || { id };
+  const existing = (await fetchEntityItem(entity, id)) || { id };
   const next = { ...existing };
   setByPath(next, rest, value);
-  const out = rows.filter((r) => String(r.id) !== id);
-  out.push(next);
-  await replaceEntityRows(entity, out);
+  await patchEntityItem(entity, id, next);
 };
 
 export const update = async (target: RefObject, patch: JsonObject): Promise<void> => {
@@ -228,17 +247,14 @@ export const update = async (target: RefObject, patch: JsonObject): Promise<void
     return;
   }
 
-  const rows = await fetchEntityRows(entity);
-  const existing = rows.find((r) => String(r.id) === id) || { id };
+  const existing = (await fetchEntityItem(entity, id)) || { id };
   const next = { ...existing };
   if (rest.length === 0) {
     Object.assign(next, patch);
   } else {
     mergeByPath(next, rest, patch);
   }
-  const out = rows.filter((r) => String(r.id) !== id);
-  out.push(next);
-  await replaceEntityRows(entity, out);
+  await patchEntityItem(entity, id, next);
 };
 
 export const remove = async (target: RefObject): Promise<void> => {
@@ -251,9 +267,7 @@ export const remove = async (target: RefObject): Promise<void> => {
     await replaceEntityRows(entity, []);
     return;
   }
-  const rows = await fetchEntityRows(entity);
-  const out = rows.filter((r) => String(r.id) !== id);
-  await replaceEntityRows(entity, out);
+  await deleteEntityItem(entity, id);
 };
 
 export const push = (target: RefObject, value?: any): (RefObject & { key: string }) => {

@@ -12,6 +12,8 @@ export default function InventoryAdjustment({ products, collections, user, onDon
     onDone?: () => void;
     isMobile?: boolean;
 }) {
+    const safeLower = (value: unknown) => String(value ?? "").toLowerCase();
+
     const [search, setSearch] = useState("");
     const [filterCol, setFilterCol] = useState("all");
     const [filterSize, setFilterSize] = useState("all");
@@ -35,14 +37,15 @@ export default function InventoryAdjustment({ products, collections, user, onDon
         setCurrentPage(1);
     }, [search, filterCol, filterSize]);
 
-    const filtered = products.filter(p => {
-        const q = search.toLowerCase();
+    const filtered = products.filter((p) => {
+        if (!p) return false;
+        const q = safeLower(search);
         const matchSearch =
-            p.productName.toLowerCase().includes(q) ||
-            p.sku.toLowerCase().includes(q) ||
-            p.brand?.toLowerCase().includes(q) ||
-            p.category?.toLowerCase().includes(q) ||
-            p.collection?.toLowerCase().includes(q);
+            safeLower(p.productName).includes(q) ||
+            safeLower(p.sku).includes(q) ||
+            safeLower(p.brand).includes(q) ||
+            safeLower(p.category).includes(q) ||
+            safeLower(p.collection).includes(q);
 
         const matchSize = filterSize === "all" || p.unit === filterSize || p.size === filterSize;
 

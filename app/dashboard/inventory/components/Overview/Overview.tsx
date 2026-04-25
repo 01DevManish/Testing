@@ -19,6 +19,11 @@ export default function Overview({ products, categories, collections, loading, o
     isMobile?: boolean;
     isDesktop?: boolean;
 }) {
+    const safeNum = (value: unknown): number => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [groupBy, setGroupBy] = useState<"category" | "collection">("category");
@@ -42,8 +47,15 @@ export default function Overview({ products, categories, collections, loading, o
         const inStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "in-stock").length;
         const outStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "out-of-stock").length;
         const lowStock = products.filter((p) => getStockBucket(p.stock, p.minStock) === "low-stock").length;
+        const getUnitValue = (p: Product): number => {
+            const cost = toSafeNumber(p.costPrice);
+            if (cost > 0) return cost;
+            const wholesale = toSafeNumber((p as Product & { wholesalePrice?: unknown }).wholesalePrice);
+            if (wholesale > 0) return wholesale;
+            return toSafeNumber(p.price);
+        };
         const totalVal = products.reduce(
-            (sum, p) => sum + (toSafeNumber(p.costPrice) * toSafeNumber(p.stock)),
+            (sum, p) => sum + (getUnitValue(p) * toSafeNumber(p.stock)),
             0
         );
 
@@ -81,7 +93,7 @@ export default function Overview({ products, categories, collections, loading, o
     );
 
     const recentProducts = useMemo(() =>
-        [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
+        [...products].sort((a, b) => safeNum(b.createdAt) - safeNum(a.createdAt)).slice(0, 5),
         [products]
     );
 
@@ -144,7 +156,7 @@ export default function Overview({ products, categories, collections, loading, o
                                             <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT }}>SKU: {p.sku} • Stock: {p.stock}</div>
                                         </div>
                                         <div style={{ textAlign: "right" }}>
-                                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>₹{p.price.toLocaleString("en-IN")}</div>
+                                            <div style={{ fontSize: 13, fontWeight: 400, color: "#0f172a", fontFamily: FONT }}>₹{safeNum(p.price).toLocaleString("en-IN")}</div>
                                             {isAdmin && (
                                                 <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: FONT }}>
                                                     Cost: Rs.{Number(p.costPrice || 0).toLocaleString("en-IN")}
@@ -278,3 +290,4 @@ export default function Overview({ products, categories, collections, loading, o
         </div>
     );
 }
+
