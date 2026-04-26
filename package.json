@@ -7,6 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "backup:dynamo": "node scripts/backupDynamoData.js",
+    "setup:erpdev": "node scripts/setupErpDevInfra.js",
+    "migrate:inventory-images-s3:dry": "node scripts/migrateInventoryImagesToS3Dynamo.js",
+    "migrate:inventory-images-s3": "node scripts/migrateInventoryImagesToS3Dynamo.js --apply",
     "setup:dynamo-data-table": "node scripts/setupDataTable.js",
     "migrate:firebase-to-dynamo": "node scripts/migrateFirebaseToDynamo.js",
     "migrate:users-meta-json-to-dynamo": "node scripts/migrateUsersMetaFromRtdbJson.js"

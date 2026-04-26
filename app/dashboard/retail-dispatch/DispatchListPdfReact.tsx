@@ -224,6 +224,7 @@ const DispatchListPDF: React.FC<{ data: DispatchListData }> = ({ data }) => {
     <Document>
       {pages.map((pageItems, pageIndex) => {
         const emptyRows = Math.max(0, ROWS_PER_PAGE - pageItems.length);
+        const isLastPage = pageIndex === pages.length - 1;
         return (
           <Page key={`page-${pageIndex + 1}`} size="A4" style={styles.page}>
             <View style={styles.headerWrapper}>
@@ -302,11 +303,13 @@ const DispatchListPDF: React.FC<{ data: DispatchListData }> = ({ data }) => {
                 </View>
               ))}
 
-              <View style={styles.tableTotalRow}>
-                <View style={styles.totalLabelCell}><Text style={styles.totalLabel}>TOTAL:-</Text></View>
-                <View style={styles.totalQtyCell}><Text style={styles.totalQtyText}>{totalQty}</Text></View>
-                <View style={styles.totalBoxCell}><Text style={styles.tableCellText}> </Text></View>
-              </View>
+              {isLastPage && (
+                <View style={styles.tableTotalRow}>
+                  <View style={styles.totalLabelCell}><Text style={styles.totalLabel}>TOTAL:-</Text></View>
+                  <View style={styles.totalQtyCell}><Text style={styles.totalQtyText}>{totalQty}</Text></View>
+                  <View style={styles.totalBoxCell}><Text style={styles.tableCellText}> </Text></View>
+                </View>
+              )}
             </View>
 
             <View style={styles.footer}>

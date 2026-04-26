@@ -43,6 +43,7 @@ service-account.json
 serviceAccountKey.json
 firebase-admin-key.json
 scratch/
+scripts/backups/daily/
 
 # firebase sync scripts
 firebase-sync/
