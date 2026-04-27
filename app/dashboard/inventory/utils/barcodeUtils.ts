@@ -2,6 +2,9 @@ import { Collection, Product } from "../types";
 
 const MIN_COLLECTION_CODE = 1;
 const MAX_COLLECTION_CODE = 999;
+const BARCODE_TOTAL_LENGTH = 13;
+const BARCODE_V1 = "v1";
+const BARCODE_V2 = "v2";
 
 const toNumeric3 = (value?: string): string | null => {
     const digits = String(value || "").replace(/\D/g, "");
@@ -18,7 +21,28 @@ const stableHash = (input: string): number => {
     return Math.abs(hash);
 };
 
-export const normalizeSkuKey = (sku?: string): string => String(sku || "").trim().toUpperCase();
+export const normalizeSkuKey = (sku?: string): string =>
+    String(sku || "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+
+const isV2SkuPattern = (sku?: string): boolean => {
+    const normalized = normalizeSkuKey(sku);
+    return /^[A-Z]{2,4}[0-9]{2,4}$/.test(normalized);
+};
+
+const getBarcodeVersion = (sku?: string): "v1" | "v2" => (isV2SkuPattern(sku) ? BARCODE_V2 : BARCODE_V1);
+
+const buildNumericEntropy = (seed: string, length: number): string => {
+    let value = "";
+    let index = 0;
+    while (value.length < length) {
+        value += String(stableHash(`${seed}:${index}`)).replace(/\D/g, "");
+        index++;
+    }
+    return value.slice(0, length);
+};
 
 export const getCollectionCodeFromName = (collectionName: string, collections: Collection[]): string => {
     const lookup = (collectionName || "").trim().toLowerCase();
@@ -45,10 +69,21 @@ export const generateBarcodeForProduct = (
     product: Pick<Product, "id" | "sku" | "styleId" | "collection">,
     collections: Collection[]
 ): string => {
+    const version = getBarcodeVersion(product.sku || "");
     const colPart = getCollectionCodeFromName(product.collection || "", collections);
+
+    if (version === BARCODE_V2) {
+        const fullSku = normalizeSkuKey(product.sku || "");
+        const usedLength = colPart.length + fullSku.length;
+        const randLength = Math.max(2, BARCODE_TOTAL_LENGTH - usedLength);
+        const entropyBase = `${product.id || ""}:${product.sku || ""}:${product.styleId || ""}:${product.collection || ""}:${BARCODE_V2}`;
+        const randPart = buildNumericEntropy(entropyBase, randLength);
+        return `${colPart}${fullSku}${randPart}`;
+    }
+
     const skuPart = getSkuPart(product.sku || "");
     const stylePart = getStylePart(product.styleId || "");
-    const entropyBase = `${product.id || ""}:${product.sku || ""}:${product.styleId || ""}:${product.collection || ""}`;
+    const entropyBase = `${product.id || ""}:${product.sku || ""}:${product.styleId || ""}:${product.collection || ""}:${BARCODE_V1}`;
     const randPart = String((stableHash(entropyBase) % 9000) + 1000);
     return `${colPart}${skuPart}${stylePart}${randPart}`;
 };
@@ -56,19 +91,21 @@ export const generateBarcodeForProduct = (
 export const getBarcodeMappedFields = (
     product: Pick<Product, "id" | "sku" | "styleId" | "collection">,
     collections: Collection[]
-): { barcode: string; barcodeSku: string } => ({
-    barcode: generateBarcodeForProduct(product, collections),
-    barcodeSku: normalizeSkuKey(product.sku),
-});
+): { barcode: string; barcodeSku: string; barcodeVersion: "v1" | "v2" } => {
+    const barcodeVersion = getBarcodeVersion(product.sku);
+    return {
+        barcode: generateBarcodeForProduct(product, collections),
+        barcodeSku: normalizeSkuKey(product.sku),
+        barcodeVersion,
+    };
+};
 
 export const needsBarcodeRefresh = (
-    product: Pick<Product, "id" | "sku" | "styleId" | "collection" | "barcode"> & { barcodeSku?: string },
-    collections: Collection[]
+    product: Pick<Product, "id" | "sku" | "styleId" | "collection" | "barcode"> & { barcodeSku?: string }
 ): boolean => {
-    const expected = getBarcodeMappedFields(product, collections);
     if (!product.barcode) return true;
-    if (String(product.barcode) !== expected.barcode) return true;
-    if (normalizeSkuKey(product.barcodeSku) !== expected.barcodeSku) return true;
+    if (!normalizeSkuKey(product.barcodeSku)) return true;
+    if (normalizeSkuKey(product.barcodeSku) !== normalizeSkuKey(product.sku)) return true;
     return false;
 };
 

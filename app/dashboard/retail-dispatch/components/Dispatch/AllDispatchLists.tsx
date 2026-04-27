@@ -11,7 +11,7 @@ import { generateDispatchListPdf } from "../../DispatchListPdf";
 import { generatePackingListPdf } from "../../PackingListPdf";
 import { touchDataSignal } from "../../../../lib/dataSignals";
 
-const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
 export default function AllDispatchLists() {
   const { userData } = useAuth();
@@ -20,12 +20,15 @@ export default function AllDispatchLists() {
   const PAGE_SIZE = 3;
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   const [tempLr, setTempLr] = useState<Record<string, string>>({});
+  const [tempInvoice, setTempInvoice] = useState<Record<string, string>>({});
   const [updating, setUpdating] = useState<string | null>(null);
   const [editingLrId, setEditingLrId] = useState<string | null>(null);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "packed" | "completed">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [viewingList, setViewingList] = useState<PackingList | null>(null);
 
   const isMobile = viewportWidth < 640;
 
@@ -72,6 +75,258 @@ export default function AllDispatchLists() {
     } catch (err) {
       console.error(err);
       alert("Failed to update LR Number");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleSaveInvoice = async (id: string) => {
+    const invoiceVal = tempInvoice[id];
+    if (!invoiceVal || !invoiceVal.trim()) {
+      alert("Please enter Invoice Number");
+      return;
+    }
+
+    setUpdating(id);
+    try {
+      await update(ref(db, `packingLists/${id}`), {
+        invoiceNo: invoiceVal.trim(),
+      });
+      await touchDataSignal("packingLists");
+      setTempInvoice((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setEditingInvoiceId(null);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update Invoice Number");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const hasInvoice = (list: PackingList): boolean => Boolean(String(list.invoiceNo || "").trim());
+
+  const handleViewDispatchInfo = (list: PackingList) => {
+    setViewingList(list);
+  };
+
+  const actionRowStyle = (compact?: boolean): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    gap: compact ? 6 : 8,
+    flexWrap: "nowrap",
+    overflowX: "auto",
+    paddingBottom: compact ? 2 : 0,
+    justifyContent: "flex-end",
+  });
+
+  const iconButtonStyle = (danger?: boolean, compact?: boolean): React.CSSProperties => ({
+    width: compact ? 32 : 34,
+    height: compact ? 32 : 34,
+    borderRadius: 10,
+    border: danger ? "1.5px solid #fca5a5" : "1px solid #dbe4f0",
+    background: danger ? "#fff" : "#4f46e5",
+    color: danger ? "#dc2626" : "#fff",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+  });
+
+  const iconSvg = (kind: "invoice" | "view" | "lr" | "dispatch" | "packing" | "cancel") => {
+    if (kind === "invoice") {
+      return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M6 3h9l5 5v13H6V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M15 3v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        </svg>
+      );
+    }
+    if (kind === "view") {
+      return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" stroke="currentColor" strokeWidth="1.8" />
+          <circle cx="12" cy="12" r="2.7" stroke="currentColor" strokeWidth="1.8" />
+        </svg>
+      );
+    }
+    if (kind === "lr") {
+      return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M5 5h14v14H5z" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+    }
+    if (kind === "dispatch") {
+      return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M12 4v11M7 10l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+    }
+    if (kind === "packing") {
+      return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M4 7l8-4 8 4-8 4-8-4zM4 7v10l8 4 8-4V7" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        </svg>
+      );
+    }
+    return (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  };
+
+  const renderActionButton = ({
+    title,
+    kind,
+    onClick,
+    danger,
+    compact,
+    disabled,
+    badgeText,
+  }: {
+    title: string;
+    kind: "invoice" | "view" | "lr" | "dispatch" | "packing" | "cancel";
+    onClick: () => void;
+    danger?: boolean;
+    compact?: boolean;
+    disabled?: boolean;
+    badgeText?: string;
+  }) => (
+    <button
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        ...iconButtonStyle(Boolean(danger), compact),
+        opacity: disabled ? 0.6 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        position: "relative",
+      }}
+    >
+      {iconSvg(kind)}
+      {badgeText && (
+        <span
+          style={{
+            position: "absolute",
+            right: -5,
+            top: -5,
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            borderRadius: 999,
+            background: "#0f172a",
+            color: "#fff",
+            border: "1px solid #fff",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 9,
+            fontWeight: 700,
+            lineHeight: 1,
+          }}
+        >
+          {badgeText}
+        </span>
+      )}
+    </button>
+  );
+
+  const renderActionRow = (list: PackingList, compact?: boolean) => (
+    <div style={actionRowStyle(compact)}>
+      {renderActionButton({
+        title: hasInvoice(list) ? "Update Invoice" : "Set Invoice",
+        kind: "invoice",
+        compact,
+        disabled: updating === list.id,
+        onClick: () => {
+          if (list.status === "Packed") {
+            if (!list.id) return;
+            setTempInvoice((prev) => ({ ...prev, [list.id || ""]: String(list.invoiceNo || "") }));
+            setEditingLrId(null);
+            setEditingInvoiceId(list.id);
+            return;
+          }
+          handlePromptInvoiceUpdate(list);
+        },
+      })}
+
+      {renderActionButton({
+        title: "View Dispatch Details",
+        kind: "view",
+        compact,
+        onClick: () => handleViewDispatchInfo(list),
+      })}
+
+      {list.status === "Packed" &&
+        renderActionButton({
+          title: "Set LR",
+          kind: "lr",
+          compact,
+          onClick: () => {
+            if (!list.id) return;
+            setEditingInvoiceId(null);
+            setEditingLrId(list.id);
+          },
+        })}
+
+      {hasInvoice(list) &&
+        renderActionButton({
+          title: "Print Dispatch",
+          kind: "dispatch",
+          compact,
+          onClick: () => handleDownload(list, "dispatch"),
+        })}
+
+      {hasInvoice(list) &&
+        renderActionButton({
+          title: "Print Packing",
+          kind: "packing",
+          compact,
+          onClick: () => handleDownload(list, "packing"),
+        })}
+
+      {isAdmin &&
+        renderActionButton({
+          title: "Cancel Dispatch",
+          kind: "cancel",
+          danger: true,
+          compact,
+          disabled: cancelling === list.id,
+          onClick: () => handleCancelDispatch(list),
+        })}
+    </div>
+  );
+
+  const handlePromptInvoiceUpdate = async (list: PackingList) => {
+    if (!list.id) return;
+    const existing = String(list.invoiceNo || "").trim();
+    const value = window.prompt("Enter Invoice Number", existing);
+    if (value === null) return;
+    const next = value.trim();
+    if (!next) {
+      alert("Please enter Invoice Number");
+      return;
+    }
+
+    setUpdating(list.id);
+    try {
+      await update(ref(db, `packingLists/${list.id}`), {
+        invoiceNo: next,
+      });
+      await touchDataSignal("packingLists");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update Invoice Number");
     } finally {
       setUpdating(null);
     }
@@ -157,6 +412,11 @@ export default function AllDispatchLists() {
   };
 
   const handleDownload = async (list: PackingList, type: "dispatch" | "packing") => {
+    if (!String(list.invoiceNo || "").trim()) {
+      alert("Please set Invoice Number first. Print/Download requires invoice.");
+      return;
+    }
+
     const previewWindow = window.open("", "_blank");
     if (!previewWindow) {
       alert("Please allow popups to view PDF.");
@@ -407,9 +667,40 @@ export default function AllDispatchLists() {
                   </div>
                 </div>
 
+                <div style={{ padding: "9px 10px", borderRadius: 11, background: "#fff", border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 5 }}>Invoice Number</div>
+                  <div style={{ fontSize: 12, color: list.invoiceNo ? "#0f172a" : "#94a3b8", fontWeight: list.invoiceNo ? 500 : 400 }}>
+                    {list.invoiceNo ? `INV: ${list.invoiceNo}` : "Invoice not set"}
+                  </div>
+                </div>
+
                 {list.status === "Packed" && (
                   <div style={{ display: "grid", gap: 8 }}>
-                    {editingLrId === list.id ? (
+                    {editingInvoiceId === list.id ? (
+                      <>
+                        <input
+                          placeholder="Enter Invoice No."
+                          value={tempInvoice[list.id || ""] || ""}
+                          onChange={(e) => setTempInvoice((prev) => ({ ...prev, [list.id || ""]: e.target.value }))}
+                          style={{ width: "100%", padding: "10px 11px", border: "1.5px solid #dbe4f0", borderRadius: 10, fontSize: 11, outline: "none", background: "#fff" }}
+                        />
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                          <button
+                            onClick={() => list.id && handleSaveInvoice(list.id)}
+                            disabled={updating === list.id}
+                            style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 600, opacity: updating === list.id ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}
+                          >
+                            {updating === list.id ? "Saving..." : "Save Invoice"}
+                          </button>
+                          <button
+                            onClick={() => setEditingInvoiceId(null)}
+                            style={{ background: "#fff", color: "#475569", border: "1px solid #dbe4f0", padding: "0 10px", borderRadius: 10, minHeight: 34, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center" }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : editingLrId === list.id ? (
                       <>
                         <input
                           placeholder="Enter LR No."
@@ -433,64 +724,12 @@ export default function AllDispatchLists() {
                           </button>
                         </div>
                       </>
-                    ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "repeat(4, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: 6 }}>
-                        <button
-                          onClick={() => list.id && setEditingLrId(list.id)}
-                          style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
-                        >
-                          Set LR
-                        </button>
-                        <button
-                          onClick={() => handleDownload(list, "dispatch")}
-                          style={{ background: "#4f46e5", border: "none", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
-                        >
-                          Disp
-                        </button>
-                        <button
-                          onClick={() => handleDownload(list, "packing")}
-                          style={{ background: "#4f46e5", border: "none", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }}
-                        >
-                          Pack
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleCancelDispatch(list)}
-                            disabled={cancelling === list.id}
-                            style={{ background: cancelling === list.id ? "#fee2e2" : "#fff", color: "#dc2626", border: "1.5px solid #fca5a5", padding: "0 6px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", cursor: cancelling === list.id ? "not-allowed" : "pointer" }}
-                          >
-                            {cancelling === list.id ? "..." : "Cancel"}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    ) : renderActionRow(list, true)}
                   </div>
                 )}
 
                 {list.status !== "Packed" && (
-                  <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 6 }}>
-                    <button
-                      onClick={() => handleDownload(list, "dispatch")}
-                      style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      Disp
-                    </button>
-                    <button
-                      onClick={() => handleDownload(list, "packing")}
-                      style={{ background: "#4f46e5", border: "none", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      Pack
-                    </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleCancelDispatch(list)}
-                        disabled={cancelling === list.id}
-                        style={{ background: cancelling === list.id ? "#fee2e2" : "#fff", color: "#dc2626", border: "1.5px solid #fca5a5", padding: "0 8px", borderRadius: 10, minHeight: 34, fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", cursor: cancelling === list.id ? "not-allowed" : "pointer" }}
-                      >
-                        {cancelling === list.id ? "..." : "Cancel"}
-                      </button>
-                    )}
-                  </div>
+                  <div>{renderActionRow(list, true)}</div>
                 )}
               </div>
             );
@@ -586,7 +825,29 @@ export default function AllDispatchLists() {
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
                       {list.status === "Packed" && (
                         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                          {editingLrId === list.id ? (
+                          {editingInvoiceId === list.id ? (
+                            <>
+                              <input
+                                placeholder="Enter Invoice No."
+                                value={tempInvoice[list.id || ""] || ""}
+                                onChange={(e) => setTempInvoice((prev) => ({ ...prev, [list.id || ""]: e.target.value }))}
+                                style={{ width: 130, padding: "7px 9px", border: "1.5px solid #dbe4f0", borderRadius: 9, fontSize: 12, outline: "none", background: "#fff" }}
+                              />
+                              <button
+                                onClick={() => list.id && handleSaveInvoice(list.id)}
+                                disabled={updating === list.id}
+                                style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", opacity: updating === list.id ? 0.7 : 1 }}
+                              >
+                                {updating === list.id ? "Saving..." : "Save Invoice"}
+                              </button>
+                              <button
+                                onClick={() => setEditingInvoiceId(null)}
+                                style={{ background: "#fff", color: "#475569", border: "1px solid #dbe4f0", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 400, cursor: "pointer" }}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : editingLrId === list.id ? (
                             <>
                               <input
                                 placeholder="Enter LR No."
@@ -608,45 +869,11 @@ export default function AllDispatchLists() {
                                 Cancel
                               </button>
                             </>
-                          ) : (
-                              <button
-                                onClick={() => list.id && setEditingLrId(list.id)}
-                                style={{ background: "#4f46e5", color: "#fff", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}
-                              >
-                                Set LR
-                            </button>
-                          )}
+                          ) : renderActionRow(list, false)}
                         </div>
                       )}
 
-                      {(list.status === "Completed" || list.status === "Packed") && (
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <button
-                            onClick={() => handleDownload(list, "dispatch")}
-                            title="Dispatch List"
-                            style={{ background: "#4f46e5", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                          >
-                            Disp
-                          </button>
-                          <button
-                            onClick={() => handleDownload(list, "packing")}
-                            title="Packing List"
-                            style={{ background: "#4f46e5", border: "none", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                          >
-                            Pack
-                          </button>
-                          {isAdmin && (
-                            <button
-                              onClick={() => handleCancelDispatch(list)}
-                              disabled={cancelling === list.id}
-                              title="Cancel Dispatch & Restore Stock"
-                              style={{ background: cancelling === list.id ? "#fee2e2" : "#fff", color: "#dc2626", border: "1.5px solid #fca5a5", padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: cancelling === list.id ? "not-allowed" : "pointer", whiteSpace: "nowrap", opacity: cancelling === list.id ? 0.7 : 1 }}
-                            >
-                              {cancelling === list.id ? "Cancelling..." : "Cancel"}
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      {list.status === "Completed" && <div>{renderActionRow(list, false)}</div>}
                     </div>
                   </td>
                 </tr>
@@ -664,6 +891,105 @@ export default function AllDispatchLists() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {viewingList && (
+        <div
+          onClick={() => setViewingList(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.55)",
+            backdropFilter: "blur(4px)",
+            zIndex: 1400,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: isMobile ? 12 : 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 760,
+              maxHeight: "88vh",
+              overflowY: "auto",
+              background: "#fff",
+              borderRadius: 14,
+              border: "1px solid #e2e8f0",
+              boxShadow: "0 28px 50px rgba(15,23,42,0.25)",
+              padding: isMobile ? 14 : 18,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: "#0f172a" }}>Dispatch Full View</div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                  #{viewingList.dispatchId || viewingList.id?.slice(-6).toUpperCase() || "N/A"} · {viewingList.status}
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingList(null)}
+                style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer" }}
+                aria-label="Close"
+                title="Close"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginTop: 2 }}>
+                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div style={{ padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 10, background: "#f8fafc" }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>Party</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{viewingList.partyName || "N/A"}</div>
+              </div>
+              <div style={{ padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 10, background: "#f8fafc" }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>Dispatched By</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{viewingList.dispatchedBy || "N/A"}</div>
+              </div>
+              <div style={{ padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 10, background: "#f8fafc" }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>Invoice</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{String(viewingList.invoiceNo || "").trim() || "Not set"}</div>
+              </div>
+              <div style={{ padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 10, background: "#f8fafc" }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>LR Number</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{String(viewingList.lrNo || "").trim() || "Not set"}</div>
+              </div>
+            </div>
+
+            <div style={{ padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 10, background: "#fff", marginBottom: 12 }}>
+              <div style={{ fontSize: 10, textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>Dispatch Summary</div>
+              <div style={{ fontSize: 13, color: "#0f172a", fontWeight: 600 }}>
+                Items: {(viewingList.items || []).length} · Qty: {(viewingList.items || []).reduce((sum, item) => sum + (Number((item as { quantity?: number })?.quantity) || 0), 0)}
+              </div>
+            </div>
+
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1.2fr .9fr .5fr" : "1.5fr 1fr .7fr", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                <div style={{ padding: "10px 12px", fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>Item</div>
+                <div style={{ padding: "10px 12px", fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>SKU</div>
+                <div style={{ padding: "10px 12px", fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Qty</div>
+              </div>
+              {(viewingList.items || []).length > 0 ? (
+                (viewingList.items || []).map((item, idx) => {
+                  const row = item as { productName?: string; sku?: string; quantity?: number };
+                  return (
+                    <div key={`${row.sku || "sku"}-${idx}`} style={{ display: "grid", gridTemplateColumns: isMobile ? "1.2fr .9fr .5fr" : "1.5fr 1fr .7fr", borderBottom: idx === (viewingList.items || []).length - 1 ? "none" : "1px solid #f1f5f9" }}>
+                      <div style={{ padding: "10px 12px", fontSize: 13, color: "#0f172a", fontWeight: 600 }}>{row.productName || "N/A"}</div>
+                      <div style={{ padding: "10px 12px", fontSize: 12, color: "#334155", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>{row.sku || "N/A"}</div>
+                      <div style={{ padding: "10px 12px", fontSize: 13, color: "#0f172a", fontWeight: 700, textAlign: "right" }}>{Number(row.quantity) || 0}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ padding: "18px 12px", fontSize: 13, color: "#94a3b8", textAlign: "center" }}>No dispatch items found.</div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

@@ -58,6 +58,14 @@ export const PERMISSION_GROUPS = [
       { id: "erm_catalog", name: "Catalog Sharing", actions: ["view", "create", "edit"] as const },
     ],
   },
+  {
+    id: "clout",
+    name: "Clout",
+    icon: "CLT",
+    subModules: [
+      { id: "clout_drive", name: "Clout Drive", actions: ["view", "create", "edit"] as const },
+    ],
+  },
 ] as const;
 
 function buildAllPermissions(): string[] {
@@ -76,9 +84,10 @@ function buildAllPermissions(): string[] {
     "retail_view", "retail_create", "retail_edit", "retail_delete",
     "ecom_view", "ecom_create", "ecom_edit", "ecom_delete",
     "erm_view", "erm_create", "erm_edit",
+    "clout_view", "clout_create", "clout_edit",
     "crm_view", "crm_create", "crm_edit",
     "reports", "settings", "party-rates",
-    "inventory", "dispatch", "erm", "crm"
+    "inventory", "dispatch", "erm", "crm", "clout"
   );
 
   return perms;
@@ -147,6 +156,12 @@ const LEGACY_MAP: Record<string, string[]> = {
     "erm_orders_view", "erm_orders_create", "erm_orders_edit",
     "erm_catalog_view", "erm_catalog_create", "erm_catalog_edit",
   ],
+
+  // Clout
+  "clout_view": ["clout_drive_view"],
+  "clout_create": ["clout_drive_create"],
+  "clout_edit": ["clout_drive_edit"],
+  "clout": ["clout_drive_view", "clout_drive_create", "clout_drive_edit"],
 };
 
 interface UserLike {

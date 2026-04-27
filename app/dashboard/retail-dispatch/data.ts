@@ -1,6 +1,6 @@
 import { Order, OrderStatus, Party, Transporter, ManagedBox } from "./types";
 import { logActivity } from "../../lib/activityLogger";
-import { getBarcodeMappedFields, normalizeSkuKey } from "../inventory/utils/barcodeUtils";
+import { getBarcodeMappedFields, needsBarcodeRefresh, normalizeSkuKey } from "../inventory/utils/barcodeUtils";
 import type { Collection } from "../inventory/types";
 import { touchDataSignal } from "../../lib/dataSignals";
 import { deleteDataItemById, fetchDataItems, upsertDataItems } from "../../lib/dynamoDataApi";
@@ -13,6 +13,7 @@ type InventoryDispatchProduct = {
   sku?: string;
   barcode?: string;
   barcodeSku?: string;
+  barcodeVersion?: string;
   styleId?: string;
   unit?: string;
   collection?: string;
@@ -119,28 +120,35 @@ const maybeSyncBarcodes = async (rows: InventoryDispatchProduct[]): Promise<Inve
   const collections = await loadCollectionsForBarcode();
   const rowsToUpsert: Array<Record<string, unknown> & { id: string }> = [];
   const nextRows = rows.map((row) => {
-    const expected = getBarcodeMappedFields(
-      {
-        id: row.id,
-        sku: row.sku || "",
-        styleId: row.styleId || "",
-        collection: row.collection || "",
-      },
-      collections
-    );
+    const shouldRefresh = needsBarcodeRefresh({
+      id: row.id,
+      sku: row.sku || "",
+      styleId: row.styleId || "",
+      collection: row.collection || "",
+      barcode: row.barcode,
+      barcodeSku: row.barcodeSku,
+    });
 
-    const currentBarcode = String(row.barcode || "").trim();
-    const currentBarcodeSku = normalizeSkuKey(row.barcodeSku || row.sku);
-    const needsRefresh = !currentBarcode || currentBarcode !== expected.barcode || currentBarcodeSku !== expected.barcodeSku;
-
-    if (needsRefresh) {
+    if (shouldRefresh) {
+      const expected = getBarcodeMappedFields(
+        {
+          id: row.id,
+          sku: row.sku || "",
+          styleId: row.styleId || "",
+          collection: row.collection || "",
+        },
+        collections
+      );
+      const currentBarcode = String(row.barcode || "").trim();
+      const nextBarcode = currentBarcode || expected.barcode;
       rowsToUpsert.push({
         id: row.id,
-        barcode: expected.barcode,
+        barcode: nextBarcode,
         barcodeSku: expected.barcodeSku,
+        barcodeVersion: expected.barcodeVersion,
         updatedAt: now,
       });
-      return { ...row, barcode: expected.barcode, barcodeSku: expected.barcodeSku };
+      return { ...row, barcode: nextBarcode, barcodeSku: expected.barcodeSku, barcodeVersion: expected.barcodeVersion };
     }
 
     return row;

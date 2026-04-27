@@ -145,8 +145,7 @@ export default function InventoryPage() {
           collection: p.collection,
           barcode: p.barcode,
           barcodeSku: p.barcodeSku
-        },
-        collections
+        }
       )
     );
 
@@ -156,15 +155,24 @@ export default function InventoryPage() {
       try {
         const items = toFix.map((p) => ({
           id: p.id,
-          ...getBarcodeMappedFields(
-            {
-              id: p.id,
-              sku: p.sku,
-              styleId: p.styleId,
-              collection: p.collection
-            },
-            collections
-          ),
+          ...(() => {
+            const next = getBarcodeMappedFields(
+              {
+                id: p.id,
+                sku: p.sku,
+                styleId: p.styleId,
+                collection: p.collection
+              },
+              collections
+            );
+            const currentBarcode = String(p.barcode || "").trim();
+            if (!currentBarcode) return next;
+            return {
+              barcode: currentBarcode,
+              barcodeSku: next.barcodeSku,
+              barcodeVersion: next.barcodeVersion,
+            };
+          })(),
           updatedAt: Date.now(),
         }));
 
