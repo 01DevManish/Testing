@@ -30,7 +30,7 @@ interface CreatePackingListProps {
 }
 
 const TRANSPORTERS = ["DTDC", "Delhivery", "BlueDart", "FedEx", "Ecom Express", "Own Vehicle", "Other"];
-const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
+const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 const HIDDEN_ADMIN_EMAIL = "01devmanish@gmail.com";
 const normalizeRole = (value: unknown): string => {
   if (typeof value !== "string") return "employee";

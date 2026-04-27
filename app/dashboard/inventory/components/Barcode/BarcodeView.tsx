@@ -55,7 +55,7 @@ export default function BarcodeView({
         if (selectedIds.size === 0) return;
         const productsToPrint = products.filter(p => selectedIds.has(p.id));
         for (const p of productsToPrint) {
-            if (needsBarcodeRefresh(p, collections)) {
+            if (needsBarcodeRefresh(p)) {
                 const code = generateBarcodeForProduct(p, collections);
                 try {
                     await update(ref(db, `inventory/${p.id}`), { barcode: code, barcodeSku: normalizeSkuKey(p.sku) });
@@ -70,7 +70,7 @@ export default function BarcodeView({
     const handleGenerate = async (p: Product) => {
         const currentP = products.find(x => x.id === p.id) || p;
         setSelectedProduct(currentP);
-        if (needsBarcodeRefresh(currentP, collections)) {
+        if (needsBarcodeRefresh(currentP)) {
             const code = generateBarcodeForProduct(currentP, collections);
             try {
                 await update(ref(db, `inventory/${currentP.id}`), { barcode: code, barcodeSku: normalizeSkuKey(currentP.sku) });
@@ -101,7 +101,7 @@ export default function BarcodeView({
     return (
         <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <PageHeader title="Barcode Manager" sub="Generate and manage 13-digit product barcodes." />
+                <PageHeader title="Barcode Manager" sub="Generate and manage 13-character product barcodes." />
                 {selectedIds.size > 0 && (
                     <button
                         onClick={handleBulkPrint}

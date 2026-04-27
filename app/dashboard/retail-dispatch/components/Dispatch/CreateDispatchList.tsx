@@ -36,8 +36,8 @@ const normalizeScannerImageUrl = (raw?: string): string => {
   return `https://epanelimages.s3.ap-south-1.amazonaws.com/${value.replace(/^\/+/, "")}`;
 };
 
-const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase();
-const normalizeCode = (value?: string): string => (value || "").trim().toUpperCase();
+const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+const normalizeCode = (value?: string): string => (value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 const normalizePinValue = (value: unknown): string => String(value ?? "").trim().replace(/\D/g, "");
 const pinMatches = (enteredPin: string, savedPin: unknown): boolean => {
   const entered = normalizePinValue(enteredPin);
@@ -54,7 +54,6 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedList, setSelectedList] = useState<any>(null);
-  const [invoiceNo, setInvoiceNo] = useState("");
   const [lrNo, setLrNo] = useState("");
   const [dispatchId, setDispatchId] = useState("");
   const [scannableItems, setScannableItems] = useState<ScannableItem[]>([]);
@@ -178,7 +177,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
   const allItemsPacked = scannableItems.every((item) => item.isPacked);
   const nextItemToScan = scannableItems.find((item) => !item.isPacked) || null;
   const previewItem = nextItemToScan || lastMatchedItem;
-  const canFinalize = !!selectedList && !saving && allItemsPacked && normalizePinValue(pin).length >= 4 && !!invoiceNo.trim();
+  const canFinalize = !!selectedList && !saving && allItemsPacked && normalizePinValue(pin).length >= 4;
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -285,16 +284,18 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     
     if (value.trim().length >= 3) {
       const item = newItems[idx];
-      let scannedSkuPart = value.trim();
-      if (value.trim().length === 13) scannedSkuPart = value.trim().substring(3, 6);
+      const normalizedInput = normalizeCode(value);
+      let scannedSkuPart = normalizedInput;
+      if (/^[0-9]{13}$/.test(normalizedInput)) scannedSkuPart = normalizedInput.substring(3, 6);
       
-      const targetSkuDigits = (item.sku || "").replace(/\D/g, "");
+      const normalizedItemSku = normalizeCode(item.sku);
+      const targetSkuDigits = normalizedItemSku.replace(/[^0-9]/g, "");
       const targetSkuPart = targetSkuDigits.substring(targetSkuDigits.length - 3).padStart(3, "0");
 
       if (
         scannedSkuPart === targetSkuPart ||
-        normalizeCode(value) === normalizeCode(item.barcode) ||
-        normalizeCode(value) === normalizeCode(item.sku)
+        normalizedInput === normalizeCode(item.barcode) ||
+        normalizedInput === normalizedItemSku
       ) {
         if (!item.boxName) return;
         newItems[idx].isPacked = true;
@@ -416,7 +417,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
 
       await update(listRef, {
         status: "Packed",
-        invoiceNo,
+        invoiceNo: "",
         dispatchId: dispId,
         dispatchBarcode: finalDispatchBarcode,
         boxBarcodes,
@@ -438,7 +439,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
             ...selectedList,
             id: selectedList.id,
             status: "Packed",
-            invoiceNo,
+            invoiceNo: "",
             dispatchId: dispId,
             dispatchBarcode: finalDispatchBarcode,
             boxBarcodes,
@@ -479,7 +480,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         metadata: { 
           packingListId: selectedList.id, 
           dispatchId: dispId,
-          invoiceNo,
+          invoiceNo: "",
           lrNo, 
           unitsScanned: scannableItems.length,
           totalBoxes: totalBoxes,
@@ -930,20 +931,6 @@ if (loading) return <div className="p-8 text-center text-slate-500">Loading pack
               </div>
 
               <div className={`${isMobile ? "space-y-5" : "space-y-6"}`}>
-                <div>
-                  <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                    Invoice Number
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="INV-"
-                    value={invoiceNo}
-                    onChange={(e) => setInvoiceNo(e.target.value)}
-                    className={`w-full rounded-xl border border-slate-200 bg-white outline-none transition-all focus:border-indigo-500 ${isMobile ? "px-4 py-3 text-sm font-medium" : "p-3 text-sm font-semibold"}`}
-                  />
-                  <p className="mt-2 px-1 text-[10px] text-slate-400">This field is mandatory for tracking.</p>
-                </div>
-
                 <div className="border-t border-slate-100 pt-5">
                   <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
                     Security Verification

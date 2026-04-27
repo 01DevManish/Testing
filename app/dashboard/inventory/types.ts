@@ -34,6 +34,7 @@ export interface Product {
     updatedByName?: string;
     barcode?: string;
     barcodeSku?: string;
+    barcodeVersion?: "v1" | "v2";
 }
 
 // ── Category ───────────────────────────────────────────────────
