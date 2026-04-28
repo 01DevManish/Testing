@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { ref, update } from "@/app/lib/dynamoRtdbCompat";
-import { db } from "../../../../lib/firebase";
 import { FONT, Product } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import SmartImage from "../../../../components/SmartImage";
 import { touchDataSignal } from "../../../../lib/dataSignals";
+import { upsertDataItems } from "../../../../lib/dynamoDataApi";
 
 export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: {
     p: Product,
@@ -40,7 +39,9 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 else if (newStock <= p.minStock) autoStatus = "low-stock";
                 else autoStatus = "active";
             }
-            await update(ref(db, `inventory/${p.id}`), {
+            await upsertDataItems("inventory", [{
+                ...p,
+                id: p.id,
                 stock: newStock,
                 status: autoStatus,
                 updatedAt: Date.now(),
@@ -50,7 +51,7 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 lastAdjustmentNote: note.trim().slice(0, 60),
                 lastAdjustmentAt: Date.now(),
                 lastAdjustmentByName: user.name
-            });
+            }]);
             await touchDataSignal("inventory");
 
             await logActivity({

@@ -1,9 +1,10 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { ref, get, update } from "@/app/lib/dynamoRtdbCompat";
+import { ref, get } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../lib/firebase";
 import { renderBarcodeToBase64, generateDispatchBarcode } from "../../lib/barcodeUtils";
 import { firestoreApi } from "./data";
 import { touchDataSignal } from "../../lib/dataSignals";
+import { upsertDataItems } from "../../lib/dynamoDataApi";
 
 /**
  * Generate a Dispatch List PDF by filling data into the user's custom template.
@@ -472,7 +473,7 @@ export const generateTemplateDispatchPdf = async (
 
             if (uploadedUrl && list.id) {
                 try {
-                    await update(ref(db, `packingLists/${list.id}`), { dispatchPdfUrl: uploadedUrl });
+                    await upsertDataItems("packingLists", [{ ...list, id: list.id, dispatchPdfUrl: uploadedUrl, updatedAt: Date.now() }]);
                     await touchDataSignal("packingLists");
                     fetch("/api/data/packingLists", {
                         method: "POST",

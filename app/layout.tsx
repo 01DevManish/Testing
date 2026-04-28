@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
-import FirebaseMessagingHandler from "./components/FirebaseMessagingHandler";
-import NotificationToastContainer from "./components/NotificationToastContainer";
 import PresenceHandler from "./components/PresenceHandler";
 
 // These are now handled via system fonts in globals.css to fix build errors
@@ -29,8 +27,6 @@ export default function RootLayout({
         <AuthProvider>
           <DataProvider>
             <LightboxProvider>
-              <FirebaseMessagingHandler />
-              <NotificationToastContainer />
               <PresenceHandler />
               {children}
               <ImageLightbox />

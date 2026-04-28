@@ -3,12 +3,11 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ref, get, update, query, orderByChild, equalTo } from "@/app/lib/dynamoRtdbCompat";
-import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { logActivity } from "../../lib/activityLogger";
 import { hasPermission } from "../../lib/permissions";
+import { fetchDataItems, upsertDataItems } from "../../lib/dynamoDataApi";
 
 import InventorySidebar from "./components/Layout/InventorySidebar";
 import CreateProduct from "./components/Products/CreateProduct";
@@ -242,9 +241,13 @@ export default function InventoryPage() {
       // SKU uniqueness check (if SKU changed)
       const sanitizedSku = editForm.sku.trim();
       if (sanitizedSku !== editProduct.sku) {
-        const skuQuery = query(ref(db, "inventory"), orderByChild("sku"), equalTo(sanitizedSku));
-        const skuSnap = await get(skuQuery);
-        if (skuSnap.exists()) {
+        const inventoryRows = await fetchDataItems<any>("inventory");
+        const duplicate = inventoryRows.some(
+          (row) =>
+            String(row?.id || "") !== String(editProduct.id) &&
+            String(row?.sku || "").trim().toLowerCase() === sanitizedSku.toLowerCase()
+        );
+        if (duplicate) {
           alert("This SKU already exists for another product. Please use a unique SKU.");
           setEditSaving(false);
           return;
@@ -309,7 +312,7 @@ export default function InventoryPage() {
       );
       Object.assign(updated, barcodeFields);
       if (!user) throw new Error("User not authenticated");
-      await update(ref(db, `inventory/${editProduct.id}`), updated);
+      await upsertDataItems("inventory", [{ id: editProduct.id, ...updated }]);
       await touchDataSignal("inventory");
 
       // Log activity

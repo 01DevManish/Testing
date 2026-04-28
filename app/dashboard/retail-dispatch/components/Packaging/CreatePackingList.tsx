@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { update, ref, get, push, set } from "@/app/lib/dynamoRtdbCompat";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { get, ref } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { useAuth } from "../../../../context/AuthContext";
 import { useData } from "../../../../context/DataContext";
@@ -11,6 +11,7 @@ import { firestoreApi } from "../../data";
 import { sendNotification } from "../../../../lib/notificationHelper";
 import { generatePackingListPdf } from "../../PackingListPdf";
 import { touchDataSignal } from "../../../../lib/dataSignals";
+import { upsertDataItems } from "../../../../lib/dynamoDataApi";
 
 interface PackingItem {
   productId: string;
@@ -137,17 +138,19 @@ const mapInventoryForDispatch = (rows: any[]) =>
 
 export default function CreatePackingList({ onClose, onCreated, editingList }: CreatePackingListProps) {
   const { user, userData } = useAuth();
-  const { products: cachedProducts, refreshData, users: dataUsers } = useData();
+  const { products: cachedProducts, users: dataUsers, partyRates: ctxPartyRates } = useData();
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   const [parties, setParties] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
   const [dbTransporters, setDbTransporters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAddTransporter, setShowAddTransporter] = useState(false);
   const [newTransporterName, setNewTransporterName] = useState("");
   const [isAddingTransporter, setIsAddingTransporter] = useState(false);
+  const createLockRef = useRef(false);
 
   // Form State
   const [selectedParty, setSelectedParty] = useState<any>(null);
@@ -164,43 +167,38 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
   }, []);
 
   const sendAssignmentNotification = async (targetUid: string, partyName: string, isUpdate: boolean) => {
-    try {
-      await fetch("/api/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetUid,
-          title: isUpdate ? "Task Updated" : "New Task Assigned! 📦",
-          body: `You have a new packing list for ${partyName}. Please check your dashboard.`,
-          url: "/dashboard"
-        })
-      });
-    } catch (err) {
-      console.warn("Failed to deliver notification:", err);
-    }
+    // Notifications are disabled to reduce API load.
+    void targetUid;
+    void partyName;
+    void isUpdate;
   };
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        // Load Party Rates
-        const partyRatesRef = ref(db, "partyRates");
-        const partySnap = await get(partyRatesRef);
         let partiesData: any[] = [];
-        if (partySnap.exists()) {
-          partySnap.forEach((child) => {
-            partiesData.push({ id: child.key, ...child.val() });
-          });
+
+        // Cache-first party rates for instant UI.
+        if (Array.isArray(ctxPartyRates) && ctxPartyRates.length > 0) {
+          partiesData = ctxPartyRates as any[];
           setParties(partiesData);
+        } else {
+          const partyRatesRef = ref(db, "partyRates");
+          const partySnap = await get(partyRatesRef);
+          if (partySnap.exists()) {
+            partySnap.forEach((child) => {
+              partiesData.push({ id: child.key, ...child.val() });
+            });
+            setParties(partiesData);
+          }
         }
 
-        // Trigger shared inventory refresh (Dynamo-first in DataContext).
-        refreshData("inventory");
-        const inv = await firestoreApi.getInventoryProducts();
-        setInventory(mapInventoryForDispatch(inv as any[]));
+        // Cache-first inventory only; avoid blocking modal open on full inventory pull.
+        if (Array.isArray(cachedProducts) && cachedProducts.length > 0) {
+          setInventory(mapInventoryForDispatch(cachedProducts as any[]));
+        }
 
-        // Load Transporters
         const trans = await firestoreApi.getTransporters();
         setDbTransporters(trans);
 
@@ -216,7 +214,27 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       }
     };
     loadData();
-  }, [editingList, refreshData]);
+  }, [editingList, cachedProducts, ctxPartyRates]);
+
+  useEffect(() => {
+    if (!selectedParty) return;
+    if (inventoryLoading) return;
+    if (Array.isArray(inventory) && inventory.length > 0) return;
+
+    const loadInventoryForSelection = async () => {
+      setInventoryLoading(true);
+      try {
+        const inv = await firestoreApi.getInventoryProducts();
+        setInventory(mapInventoryForDispatch(inv as any[]));
+      } catch (err) {
+        console.error("Failed to lazy-load inventory for packing list:", err);
+      } finally {
+        setInventoryLoading(false);
+      }
+    };
+
+    void loadInventoryForSelection();
+  }, [selectedParty, inventory, inventoryLoading]);
 
   useEffect(() => {
     if (!Array.isArray(dataUsers)) return;
@@ -334,8 +352,12 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
   }, [inventory, partyRatesForForm, selectedParty]);
 
   const handleCreate = async () => {
+    if (createLockRef.current || saving) return;
+    createLockRef.current = true;
+
     if (!selectedParty || !assignedUserId || !transporter) {
       alert("Please fill in all required fields (Party, Transporter, and Assigned User).");
+      createLockRef.current = false;
       return;
     }
 
@@ -383,11 +405,13 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
     if (items.length === 0) {
       alert("Please select at least one product with a quantity greater than zero.");
+      createLockRef.current = false;
       return;
     }
 
     if (stockValidationErrors.length > 0) {
       alert(`Cannot create packing list due to live stock mismatch:\n\n${stockValidationErrors.join("\n")}`);
+      createLockRef.current = false;
       return;
     }
 
@@ -436,16 +460,11 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       };
 
       let finalId = isEdit ? editingList.id : "";
-      if (isEdit) {
-        const listRef = ref(db, `packingLists/${editingList.id}`);
-        await set(listRef, packingListData);
-      } else {
-        const packingListRef = ref(db, "packingLists");
-        const newListRef = push(packingListRef);
-        finalId = newListRef.key!;
+      if (!isEdit) {
+        finalId = `PKL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         packingListData.id = finalId;
-        await set(newListRef, packingListData);
       }
+      await upsertDataItems("packingLists", [packingListData]);
       await touchDataSignal("packingLists");
 
       // ── Cloudinary PDF Upload ──
@@ -462,7 +481,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
             
             if (uploadRes.ok) {
                 const { secure_url } = await uploadRes.json();
-                await update(ref(db, `packingLists/${finalId}`), { packingPdfUrl: secure_url });
+                await upsertDataItems("packingLists", [{ ...packingListData, packingPdfUrl: secure_url, updatedAt: Date.now() }]);
                 await touchDataSignal("packingLists");
                 console.log("PDF uploaded to Cloudinary:", secure_url);
             }
@@ -508,6 +527,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       alert("Error saving packing list.");
     } finally {
       setSaving(false);
+      createLockRef.current = false;
     }
   };
 
@@ -550,7 +570,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading data...</div>;
+  if (loading && parties.length === 0) return <div className="p-8 text-center text-slate-500">Loading data...</div>;
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }}>
@@ -853,4 +873,5 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
     </div>
   );
 }
+
 

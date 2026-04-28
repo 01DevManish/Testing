@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { get, ref, remove, update } from "@/app/lib/dynamoRtdbCompat";
+import { get, ref } from "@/app/lib/dynamoRtdbCompat";
 import { db } from "../../../../lib/firebase";
 import { PackingList } from "../../types";
 import { firestoreApi } from "../../data";
@@ -10,6 +10,7 @@ import { useData } from "../../../../context/DataContext";
 import { generateDispatchListPdf } from "../../DispatchListPdf";
 import { generatePackingListPdf } from "../../PackingListPdf";
 import { touchDataSignal } from "../../../../lib/dataSignals";
+import { upsertDataItems } from "../../../../lib/dynamoDataApi";
 
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -61,10 +62,9 @@ export default function AllDispatchLists() {
 
     setUpdating(id);
     try {
-      await update(ref(db, `packingLists/${id}`), {
-        lrNo: lrVal.trim(),
-        status: "Completed",
-      });
+      const row = allPackingLists.find((x) => x.id === id);
+      if (!row) throw new Error("Packing list not found");
+      await upsertDataItems("packingLists", [{ ...row, id, lrNo: lrVal.trim(), status: "Completed", updatedAt: Date.now() }]);
       await touchDataSignal("packingLists");
       setTempLr((prev) => {
         const next = { ...prev };
@@ -89,9 +89,9 @@ export default function AllDispatchLists() {
 
     setUpdating(id);
     try {
-      await update(ref(db, `packingLists/${id}`), {
-        invoiceNo: invoiceVal.trim(),
-      });
+      const row = allPackingLists.find((x) => x.id === id);
+      if (!row) throw new Error("Packing list not found");
+      await upsertDataItems("packingLists", [{ ...row, id, invoiceNo: invoiceVal.trim(), updatedAt: Date.now() }]);
       await touchDataSignal("packingLists");
       setTempInvoice((prev) => {
         const next = { ...prev };
@@ -320,9 +320,7 @@ export default function AllDispatchLists() {
 
     setUpdating(list.id);
     try {
-      await update(ref(db, `packingLists/${list.id}`), {
-        invoiceNo: next,
-      });
+      await upsertDataItems("packingLists", [{ ...list, id: list.id, invoiceNo: next, updatedAt: Date.now() }]);
       await touchDataSignal("packingLists");
     } catch (err) {
       console.error(err);
@@ -391,7 +389,9 @@ export default function AllDispatchLists() {
       }
 
       // 2. Reset PackingList status — back to "In Progress"
-      await update(ref(db, `packingLists/${list.id}`), {
+      await upsertDataItems("packingLists", [{
+        ...list,
+        id: list.id,
         status: "In Progress",
         stockDeducted: false,
         dispatchId: null,
@@ -403,7 +403,8 @@ export default function AllDispatchLists() {
         bails: null,
         boxBarcodes: null,
         cancelledAt: Date.now(),
-      });
+        updatedAt: Date.now(),
+      }]);
       await touchDataSignal("packingLists");
 
       alert("Dispatch cancelled successfully and stock restored! ✅");

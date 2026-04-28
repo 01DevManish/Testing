@@ -1,8 +1,6 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
-import { db } from "../lib/firebase";
-import { ref, onValue, off, get, DataSnapshot } from "@/app/lib/dynamoRtdbCompat";
 import { Product, Category, Collection, ItemGroup } from "../dashboard/inventory/types";
 import { PartyRate, UserRecord, Brand } from "../dashboard/admin/types";
 import { Order, Party, Transporter } from "../dashboard/ecom-dispatch/types";
@@ -32,6 +30,8 @@ interface DataContextType {
   packingLists: PackingList[];
   setPackingLists: React.Dispatch<React.SetStateAction<PackingList[]>>;
   loading: boolean;
+  realtimeStatus: "disabled" | "connecting" | "connected" | "reconnecting";
+  lastSyncAt: number | null;
   refreshData: (entity?: string) => void;
 }
 
@@ -70,12 +70,9 @@ type EntityPath =
   | "transporters";
 
 const HEAVY_NODE_POLL_MS = 10 * 60 * 1000; // fallback safety poll (10 min)
-const DATA_SIGNAL_ROOT = "syncSignals";
-const SIGNAL_FETCH_COOLDOWN_MS = 4000;
 const WS_ENTITY_REFRESH_COOLDOWN_MS = 2500;
 const ENTITY_FETCH_COOLDOWN_MS = 2000;
 const WS_FLUSH_INTERVAL_MS = 1200;
-const INVENTORY_DYNAMO_MIN_ROWS_FOR_TRUST = 400;
 
 const NODE_DEFS: Array<{
   path: EntityPath;
@@ -84,7 +81,7 @@ const NODE_DEFS: Array<{
   pollMs?: number;
   aliases: string[];
 }> = [
-  { path: "inventory", cacheKey: CACHE_KEYS.PRODUCTS, realtime: true, pollMs: HEAVY_NODE_POLL_MS, aliases: ["inventory", "products"] },
+  { path: "inventory", cacheKey: CACHE_KEYS.PRODUCTS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["inventory", "products"] },
   { path: "partyRates", cacheKey: CACHE_KEYS.PARTIES, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["partyRates", "party-rates"] },
   { path: "usersMeta", cacheKey: CACHE_KEYS.USERS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["users", "usersMeta"] },
   { path: "brands", cacheKey: CACHE_KEYS.BRANDS, realtime: false, pollMs: HEAVY_NODE_POLL_MS, aliases: ["brands"] },
@@ -111,100 +108,11 @@ const DYNAMO_PRIMARY_PATHS = new Set<EntityPath>([
   "usersMeta",
 ]);
 
-// These entities should not hit Firebase in normal read flow once Dynamo responds successfully.
-// Keeps Firebase bandwidth/cost low by making app data fully Dynamo-driven.
-const DYNAMO_AUTHORITATIVE_PATHS = new Set<EntityPath>([
-  "inventory",
-  "partyRates",
-  "brands",
-  "categories",
-  "collections",
-  "itemGroups",
-  "dispatches",
-  "packingLists",
-  "parties",
-  "transporters",
-  "usersMeta",
-]);
-
 // Keep this empty unless an entity must be strictly manual-refresh only.
 const ON_DEMAND_ONLY_PATHS = new Set<EntityPath>([]);
 
-// Avoid Firebase syncSignal listeners for Dynamo-authoritative datasets,
-// but keep inventory signal-enabled so stock updates reflect live across clients.
-const NO_FIREBASE_SIGNAL_PATHS = new Set<EntityPath>([
-  ...Array.from(DYNAMO_AUTHORITATIVE_PATHS).filter((path) => path !== "inventory"),
-]);
-
-const FIREBASE_RECONCILE_PATHS = new Set<EntityPath>([
-  "inventory",
-  "parties",
-  "collections",
-]);
-
-const normalizeSnapshotToList = (path: EntityPath, val: unknown): Array<Record<string, unknown>> => {
-  if (!val || typeof val !== "object") return [];
-
-  const entries = Object.entries(val as Record<string, unknown>);
-
-  if (path === "usersMeta" || path === "users") {
-    return entries.flatMap(([
-      key,
-      record,
-    ]): Array<Record<string, unknown>> => {
-        if (!record || typeof record !== "object") return [];
-        const safeRecord = record as Record<string, unknown>;
-
-        const uid = typeof safeRecord.uid === "string" && safeRecord.uid.trim()
-          ? safeRecord.uid.trim()
-          : key;
-        const email = typeof safeRecord.email === "string" ? safeRecord.email.trim() : "";
-        if (email.toLowerCase() === HIDDEN_ADMIN_EMAIL) return [];
-        const nameRaw = typeof safeRecord.name === "string" ? safeRecord.name.trim() : "";
-        const fallbackFromEmail = email ? email.split("@")[0] : "";
-        const name = nameRaw || fallbackFromEmail || `User ${uid.slice(0, 6)}`;
-        const roleRaw = typeof safeRecord.role === "string" ? safeRecord.role.trim().toLowerCase() : "employee";
-        const role = VALID_USER_ROLES.has(roleRaw) ? roleRaw : "employee";
-        if (!uid) return [];
-
-        return [{
-          ...safeRecord,
-          id: key,
-          uid,
-          email,
-          name,
-          role,
-        }];
-      });
-  }
-
-  return entries.map(([key, record]) => {
-    const safeRecord = (record && typeof record === "object")
-      ? (record as Record<string, unknown>)
-      : {};
-    return {
-      ...safeRecord,
-      id: key,
-      uid: typeof safeRecord.uid === "string" ? safeRecord.uid : key,
-    };
-  });
-};
-
 const castEntityList = <T,>(data: Array<Record<string, unknown>>): T[] =>
   data as unknown as T[];
-
-const getMaxUpdatedAt = (rows: Array<Record<string, unknown>>): number => {
-  return rows.reduce((max, row) => {
-    const ts = typeof row.updatedAt === "number" ? row.updatedAt : 0;
-    return ts > max ? ts : max;
-  }, 0);
-};
-
-const countRowsWithImage = (rows: Array<Record<string, unknown>>): number =>
-  rows.reduce((count, row) => {
-    const imageUrl = typeof row.imageUrl === "string" ? row.imageUrl.trim() : "";
-    return imageUrl ? count + 1 : count;
-  }, 0);
 
 const sanitizeCachedUsers = (rows: unknown[]): UserRecord[] => {
   if (!Array.isArray(rows)) return [];
@@ -248,8 +156,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [parties, setParties] = useState<Party[]>([]);
   const [transporters, setTransporters] = useState<Transporter[]>([]);
   const [loading, setLoading] = useState(true);
-  const lastSignalRef = useRef<Record<string, string>>({});
-  const lastSignalFetchAtRef = useRef<Record<string, number>>({});
+  const [realtimeStatus, setRealtimeStatus] = useState<"disabled" | "connecting" | "connected" | "reconnecting">("disabled");
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const entityLastFetchAtRef = useRef<Partial<Record<EntityPath, number>>>({});
   const entityInFlightRef = useRef<Partial<Record<EntityPath, Promise<void>>>>({});
 
@@ -346,80 +254,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const task = (async () => {
       try {
-        let dynamoRows: Array<Record<string, unknown>> | null = null;
-
-        if (DYNAMO_PRIMARY_PATHS.has(path)) {
-          try {
-            const res = await fetch(`/api/data/${path}`, { cache: "no-store" });
-            if (res.ok) {
-              const json = await res.json();
-              if (Array.isArray(json?.items)) {
-                dynamoRows = json.items as Array<Record<string, unknown>>;
-                const isDynamoAuthoritative = DYNAMO_AUTHORITATIVE_PATHS.has(path);
-                const shouldReconcileWithFirebase = FIREBASE_RECONCILE_PATHS.has(path);
-                if (isDynamoAuthoritative) {
-                  const isInventoryShort = path === "inventory"
-                    && dynamoRows.length > 0
-                    && dynamoRows.length < INVENTORY_DYNAMO_MIN_ROWS_FOR_TRUST;
-                  if (isInventoryShort) {
-                    console.warn(
-                      `[DataContext] Inventory Dynamo rows look incomplete (${dynamoRows.length}). Falling back to Firebase for safety.`
-                    );
-                  } else if (!shouldReconcileWithFirebase) {
-                    // For cost-sensitive heavy nodes, avoid Firebase node reads when Dynamo has responded.
-                    applyEntityData(path, dynamoRows);
-                    localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
-                    return;
-                  }
-                }
-                if (dynamoRows.length > 0 && !shouldReconcileWithFirebase) {
-                  // Non-reconcile entities are Dynamo-first and can be applied immediately.
-                  applyEntityData(path, dynamoRows);
-                  localStorage.setItem(def.cacheKey, JSON.stringify(dynamoRows));
-                  return;
-                }
-              }
-            }
-          } catch (dynamoErr) {
-            console.warn(`[DataContext] Dynamo primary fetch failed for ${path}, falling back to Firebase.`, dynamoErr);
-          }
+        if (!DYNAMO_PRIMARY_PATHS.has(path)) return;
+        const res = await fetch(`/api/data/${path}`, { cache: "no-store" });
+        if (!res.ok) {
+          throw new Error(`Failed to fetch ${path}: ${res.status}`);
         }
-
-        const snapshot = await get(ref(db, path));
-        const data = snapshot.exists() ? normalizeSnapshotToList(path, snapshot.val()) : [];
-
-        let rowsToApply = data;
-        let shouldSyncDynamo = DYNAMO_PRIMARY_PATHS.has(path) && data.length > 0;
-
-        if (FIREBASE_RECONCILE_PATHS.has(path) && dynamoRows && dynamoRows.length > 0) {
-          const firebaseImageCount = countRowsWithImage(data);
-          const dynamoImageCount = countRowsWithImage(dynamoRows);
-
-          const fbMaxTs = getMaxUpdatedAt(data);
-          const dynMaxTs = getMaxUpdatedAt(dynamoRows);
-
-          const shouldPreferFirebase = path === "inventory"
-            ? (data.length !== dynamoRows.length || firebaseImageCount > dynamoImageCount || fbMaxTs > dynMaxTs + 2000)
-            : (data.length !== dynamoRows.length || fbMaxTs > dynMaxTs + 2000);
-
-          if (!shouldPreferFirebase) {
-            rowsToApply = dynamoRows;
-            shouldSyncDynamo = false;
-          } else {
-            console.info(
-              `[DataContext] ${path} reconciled with Firebase (fbTs=${fbMaxTs}, dynTs=${dynMaxTs}, fbLength=${data.length}, dynLength=${dynamoRows.length}).`
-            );
-          }
-        }
-
-        applyEntityData(path, rowsToApply);
-        localStorage.setItem(def.cacheKey, JSON.stringify(rowsToApply));
-
-        // Important: never push full-entity sync writes from client runtime.
-        // This can create a feedback loop:
-        // client fetch -> client replace POST -> server signal -> client fetch again.
-        // Background synchronization should be handled by server-side jobs/scripts only.
-        void shouldSyncDynamo;
+        const json = await res.json();
+        const rows = Array.isArray(json?.items) ? (json.items as Array<Record<string, unknown>>) : [];
+        applyEntityData(path, rows);
+        localStorage.setItem(def.cacheKey, JSON.stringify(rows));
+        setLastSyncAt(Date.now());
       } catch (error) {
         console.error(`[DataContext] Failed to fetch ${path}:`, error);
       } finally {
@@ -432,13 +276,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return task;
   }, [applyEntityData]);
 
-  // 2. Hybrid Sync:
-  // - lightweight nodes stay realtime as-is
-  // - heavy nodes use tiny realtime signals + Dynamo fetch
-  // - very slow fallback poll keeps data safe if a signal is ever missed
+  // 2. Dynamo-only Sync:
+  // - initial fetch all entities from Dynamo
+  // - interval polling as fallback
+  // - websocket entity updates trigger targeted refresh
   useEffect(() => {
-    const activeListeners: Array<{ refPath: EntityPath; listener: (snapshot: DataSnapshot) => void }> = [];
-    const signalListeners: Array<{ refPath: string; listener: (snapshot: DataSnapshot) => void }> = [];
     const pollers: number[] = [];
 
     Promise.all(
@@ -448,44 +290,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ).finally(() => setLoading(false));
 
     NODE_DEFS.forEach((node) => {
-      if (node.realtime) {
-        const dbRef = ref(db, node.path);
-        const listener = onValue(dbRef, (snapshot) => {
-          const data = snapshot.exists() ? normalizeSnapshotToList(node.path, snapshot.val()) : [];
-          applyEntityData(node.path, data);
-          localStorage.setItem(node.cacheKey, JSON.stringify(data));
-          setLoading(false);
-        });
-        activeListeners.push({ refPath: node.path, listener });
-      }
-
-      if (!node.realtime) {
-        const signalPath = `${DATA_SIGNAL_ROOT}/${node.path}`;
-        const signalRef = ref(db, signalPath);
-        const signalListener = onValue(signalRef, (snapshot) => {
-          if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-          if (NO_FIREBASE_SIGNAL_PATHS.has(node.path)) return;
-          if (ON_DEMAND_ONLY_PATHS.has(node.path)) return;
-          const signalValueRaw = snapshot.val();
-          const signalValue = signalValueRaw == null ? "" : String(signalValueRaw);
-          const lastValue = lastSignalRef.current[node.path] || "";
-          if (signalValue && signalValue !== lastValue) {
-            const now = Date.now();
-            const lastFetchAt = lastSignalFetchAtRef.current[node.path] || 0;
-            if (now - lastFetchAt < SIGNAL_FETCH_COOLDOWN_MS) {
-              lastSignalRef.current[node.path] = signalValue;
-              return;
-            }
-            lastSignalRef.current[node.path] = signalValue;
-            lastSignalFetchAtRef.current[node.path] = now;
-            fetchEntity(node.path);
-          }
-        });
-        signalListeners.push({ refPath: signalPath, listener: signalListener });
-      }
-
-      if (!node.realtime && node.pollMs) {
-        if (NO_FIREBASE_SIGNAL_PATHS.has(node.path)) return;
+      if (node.pollMs) {
         if (ON_DEMAND_ONLY_PATHS.has(node.path)) return;
         const id = window.setInterval(() => {
           if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
@@ -496,11 +301,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
-      activeListeners.forEach(({ refPath, listener }) => off(ref(db, refPath), "value", listener));
-      signalListeners.forEach(({ refPath, listener }) => off(ref(db, refPath), "value", listener));
       pollers.forEach((id) => window.clearInterval(id));
     };
-  }, [applyEntityData, fetchEntity]);
+  }, [fetchEntity]);
 
   const refreshData = useCallback((entity?: string) => {
     if (!entity) {
@@ -528,8 +331,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
     const enableWsInDev = process.env.NEXT_PUBLIC_ENABLE_REALTIME_WS === "true";
     const isProd = process.env.NODE_ENV === "production";
-    if (!wsUrl) return;
-    if (!isProd && !enableWsInDev) return;
+    if (!wsUrl) {
+      setRealtimeStatus("disabled");
+      return;
+    }
+    if (!isProd && !enableWsInDev) {
+      setRealtimeStatus("disabled");
+      return;
+    }
 
     let ws: WebSocket | null = null;
     let retryDelayMs = 1000;
@@ -554,10 +363,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const connect = () => {
       if (disposed) return;
+      setRealtimeStatus(reconnectTimer ? "reconnecting" : "connecting");
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         retryDelayMs = 1000;
+        setRealtimeStatus("connected");
         ws?.send(JSON.stringify({
           action: "subscribe",
           channels: ["inventory", "partyRates", "dispatches", "packingLists", "usersMeta", "parties", "transporters"],
@@ -571,6 +382,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
             const entity = String(message.entity || "").trim().toLowerCase();
             if (!entity) return;
+            setLastSyncAt(Date.now());
             const now = Date.now();
             const last = lastRefreshByEntity[entity] || 0;
             if (now - last < WS_ENTITY_REFRESH_COOLDOWN_MS) return;
@@ -588,6 +400,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       ws.onclose = () => {
         if (disposed) return;
+        setRealtimeStatus("reconnecting");
         reconnectTimer = setTimeout(connect, retryDelayMs);
         retryDelayMs = Math.min(retryDelayMs * 2, 30000);
       };
@@ -597,6 +410,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     return () => {
       disposed = true;
+      setRealtimeStatus("disabled");
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (flushTimer) clearTimeout(flushTimer);
       pendingEntities.clear();
@@ -629,6 +443,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       transporters,
       setTransporters,
       loading,
+      realtimeStatus,
+      lastSyncAt,
       refreshData,
     }}>
       {children}

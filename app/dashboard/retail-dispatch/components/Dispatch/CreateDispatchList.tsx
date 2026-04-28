@@ -49,7 +49,7 @@ const pinMatches = (enteredPin: string, savedPin: unknown): boolean => {
 export default function CreateDispatchList({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { user, userData } = useAuth();
   const isAdmin = userData?.role === "admin";
-  const { refreshData, packingLists: ctxPackingLists, partyRates } = useData();
+  const { refreshData, packingLists: ctxPackingLists, partyRates, products: ctxProducts } = useData();
   const [packingLists, setPackingLists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,13 +80,18 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const inv = await firestoreApi.getInventoryProducts({ forceFresh: true });
+        // Cache-first: use already-loaded inventory immediately, then refresh in background.
+        if (Array.isArray(ctxProducts) && ctxProducts.length > 0) {
+          setInventory(ctxProducts as any[]);
+          setLoading(false);
+        }
+        const inv = await firestoreApi.getInventoryProducts();
         setInventory(inv);
         if (!ctxPackingLists?.length) {
-          refreshData("packingLists");
+          void refreshData("packingLists");
         }
         if (!partyRates?.length) {
-          refreshData("partyRates");
+          void refreshData("partyRates");
         }
       } catch (err) {
         console.error("Failed to load initial data:", err);
@@ -95,7 +100,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       }
     };
     loadInitialData();
-  }, [ctxPackingLists?.length, partyRates?.length, refreshData]);
+  }, [ctxPackingLists?.length, partyRates?.length, refreshData, ctxProducts]);
 
   useEffect(() => {
     const baseLists = (ctxPackingLists || []).filter(
