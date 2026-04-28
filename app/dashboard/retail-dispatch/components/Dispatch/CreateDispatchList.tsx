@@ -343,18 +343,25 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
 
       const updatedRecordItems = scannableItems.reduce((acc: any[], item) => {
         const itemSkuKey = normalizeSku(item.sku);
+        const itemProductId = String(item.productId || "").trim();
         const existing = acc.find((x) => {
           const sameBox = String(x.boxName || "") === String(item.boxName || "");
           if (!sameBox) return false;
 
-          const existingProductId = String(x.productId || "");
-          const itemProductId = String(item.productId || "");
-          if (existingProductId && itemProductId && existingProductId === itemProductId) {
-            return true;
+          const existingSkuKey = normalizeSku(x.sku);
+          const existingProductId = String(x.productId || "").trim();
+
+          // Keep SKU identity strict to avoid collapsing different scanned SKUs.
+          if (itemSkuKey && existingSkuKey) {
+            return itemSkuKey === existingSkuKey;
           }
 
-          const existingSkuKey = normalizeSku(x.sku);
-          return !!itemSkuKey && !!existingSkuKey && itemSkuKey === existingSkuKey;
+          // Fallback only when SKU is unavailable on both rows.
+          if (!itemSkuKey && !existingSkuKey && itemProductId && existingProductId) {
+            return itemProductId === existingProductId;
+          }
+
+          return false;
         });
         if (existing) {
           existing.quantity = (existing.quantity || 0) + 1;
@@ -374,9 +381,13 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       const deductionMap = new Map<string, { qty: number; productId?: string; sku?: string; productName?: string }>();
       for (const item of scannableItems) {
         const skuKey = normalizeSku(item.sku);
-        const dedupeKey = item.productId
-          ? `id:${item.productId}`
-          : (skuKey && skuKey !== "n/a" ? `sku:${skuKey}` : "");
+        const productIdKey = String(item.productId || "").trim();
+        const dedupeKey =
+          productIdKey && skuKey && skuKey !== "n/a"
+            ? `idsku:${productIdKey}:${skuKey}`
+            : productIdKey
+              ? `id:${productIdKey}`
+              : (skuKey && skuKey !== "n/a" ? `sku:${skuKey}` : "");
 
         if (!dedupeKey) {
           console.warn("Item skipped for stock deduction because it lacks both productId and valid SKU:", item);
@@ -434,30 +445,6 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         stockDeducted: true
       });
       await touchDataSignal("packingLists");
-
-      fetch("/api/data/packingLists", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "upsert",
-          items: [{
-            ...selectedList,
-            id: selectedList.id,
-            status: "Packed",
-            invoiceNo: "",
-            dispatchId: dispId,
-            dispatchBarcode: finalDispatchBarcode,
-            boxBarcodes,
-            lrNo,
-            bails: totalBoxes,
-            items: updatedRecordItems,
-            dispatchedAt: Date.now(),
-            dispatchedBy: userData?.name || user?.name || "System",
-            stockDeducted: true,
-            updatedAt: Date.now(),
-          }],
-        }),
-      }).catch(() => {});
 
       for (const { qty, productId, sku, productName } of deductionMap.values()) {
         const skuKey = normalizeSku(sku);

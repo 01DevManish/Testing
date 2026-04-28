@@ -475,14 +475,6 @@ export const generateTemplateDispatchPdf = async (
                 try {
                     await upsertDataItems("packingLists", [{ ...list, id: list.id, dispatchPdfUrl: uploadedUrl, updatedAt: Date.now() }]);
                     await touchDataSignal("packingLists");
-                    fetch("/api/data/packingLists", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            mode: "upsert",
-                            items: [{ ...list, id: list.id, dispatchPdfUrl: uploadedUrl, updatedAt: Date.now() }],
-                        }),
-                    }).catch(() => {});
                 } catch {
                     // non-blocking db sync failure
                 }
