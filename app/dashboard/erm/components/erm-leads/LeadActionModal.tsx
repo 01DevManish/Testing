@@ -38,6 +38,7 @@ interface CallForm {
 
 export default function LeadActionModal({ lead, callLogs, canEdit, staff, savingMeta, savingCall, onClose, onSaveMeta, onSaveCall }: Props) {
   const [tab, setTab] = useState<"details" | "call" | "history">("details");
+  const [lookingUpPincode, setLookingUpPincode] = useState(false);
 
   const [meta, setMeta] = useState<MetaForm>({
     name: lead.name || "", phone: lead.phone || "", address: lead.address || "",
@@ -56,6 +57,27 @@ export default function LeadActionModal({ lead, callLogs, canEdit, staff, saving
 
   const mSet = (k: keyof MetaForm, v: string) => setMeta((p) => ({ ...p, [k]: v }));
   const cSet = (k: keyof CallForm, v: string) => setCall((p) => ({ ...p, [k]: v }));
+
+  const autoFillCityStateFromPincode = async (rawPincode: string) => {
+    const pincode = String(rawPincode || "").trim();
+    if (!/^\d{6}$/.test(pincode)) return;
+    try {
+      setLookingUpPincode(true);
+      const r = await fetch(`/api/pincode/${pincode}`, { cache: "no-store" });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (!j?.found) return;
+      setMeta((prev) => ({
+        ...prev,
+        city: String(j.city || prev.city || "").trim(),
+        state: String(j.state || prev.state || "").trim(),
+      }));
+    } catch {
+      // no-op
+    } finally {
+      setLookingUpPincode(false);
+    }
+  };
 
   const tabBtn = (key: typeof tab, label: string, Icon: React.ComponentType<any>) => (
     <button
@@ -91,7 +113,21 @@ export default function LeadActionModal({ lead, callLogs, canEdit, staff, saving
           {staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}
         </select>
       ) : (
-        <input type={type} placeholder={ph} value={meta[key]} onChange={(e) => mSet(key, e.target.value)} style={crmInput} />
+        <input
+          type={type}
+          placeholder={ph}
+          value={meta[key]}
+          onChange={(e) => {
+            const nextVal = e.target.value;
+            mSet(key, nextVal);
+            if (key === "pincode") {
+              const digits = String(nextVal || "").replace(/\D/g, "");
+              if (digits.length === 6) void autoFillCityStateFromPincode(digits);
+            }
+          }}
+          onBlur={key === "pincode" ? () => autoFillCityStateFromPincode(meta.pincode) : undefined}
+          style={crmInput}
+        />
       )}
     </div>
   );
@@ -146,6 +182,11 @@ export default function LeadActionModal({ lead, callLogs, canEdit, staff, saving
                 {(meta.status === "follow_up" || meta.status === "scheduled_meeting" || meta.status === "onboarding_scheduled") &&
                   fieldRow("Follow-up Date", "nextFollowUpAt", "", "datetime-local")}
               </div>
+              {lookingUpPincode && (
+                <div style={{ fontSize: 12, color: "#6366f1" }}>
+                  Looking up city/state from pincode...
+                </div>
+              )}
               <div>
                 <label style={crmLabel}>Notes</label>
                 <textarea placeholder="Internal notes about this lead..." value={meta.notes}

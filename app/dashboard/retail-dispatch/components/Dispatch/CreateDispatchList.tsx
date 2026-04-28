@@ -461,7 +461,12 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           latestInventory.find((p: any) => skuKey && skuKey !== "n/a" && normalizeSku(p.sku) === skuKey);
 
         if (invProd?.id) {
-          await firestoreApi.deductStock(invProd.id, qty);
+          const dispatchContextNote = `${dispId} - ${selectedList.partyName || "Unknown Party"}`.slice(0, 60);
+          await firestoreApi.deductStock(invProd.id, qty, {
+            reason: "Dispatch",
+            note: dispatchContextNote,
+            userName: userData?.name || user?.name || "System",
+          });
         } else {
           console.warn("Could not find inventory product to deduct stock:", { productId, sku, productName, qty });
         }

@@ -66,6 +66,7 @@ export default function AdminSidebar({
     reports: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="5" y="10" width="3" height="8"></rect><rect x="10.5" y="6" width="3" height="12"></rect><rect x="16" y="3" width="3" height="15"></rect></svg>,
     party: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
     inventory: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>,
+    clout: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 19h11a4 4 0 0 0 .5-8 5 5 0 0 0-9.7-1.8A4 4 0 0 0 6 19Z"></path></svg>,
     retail: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 17h4V5H2v12h3"></path><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"></path><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>,
     ecom: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"></path><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"></path><path d="M2 7h20"></path><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7"></path></svg>,
     catalog: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>,
@@ -92,7 +93,8 @@ export default function AdminSidebar({
         { key: "inventory", label: "Inventory Management", icon: ICONS.inventory, path: "/dashboard/inventory" },
         { key: "retail", label: "Retail Dispatch", icon: ICONS.retail, path: "/dashboard/retail-dispatch" },
         { key: "ecom", label: "Ecommerce Dispatch", icon: ICONS.ecom, path: "/dashboard/ecom-dispatch" },
-        { key: "erm", label: "ERM CRM", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
+        { key: "erm", label: "CRM", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
+        { key: "clout", label: "Clout", icon: ICONS.clout, path: "/dashboard/clout", permission: "clout_drive_view" },
       ]
     },
     {
@@ -109,7 +111,6 @@ export default function AdminSidebar({
         { key: "users", label: "User Access Control", icon: ICONS.users, count: usersCount },
         { key: "tasks", label: "Administrative Tasks", icon: ICONS.tasks, count: tasksCount },
         { key: "logs", label: "Activity Logs", icon: ICONS.logs },
-        { key: "messages", label: "Team Messaging", icon: ICONS.messages, count: unreadCount },
       ]
     },
     {

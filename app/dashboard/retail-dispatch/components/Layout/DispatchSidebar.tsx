@@ -25,6 +25,7 @@ function getNavGroups(userData: any): NavGroup[] {
             items: [
                 { id: "create-packing-list", label: "Create Packing", permKey: "retail_packing_create" },
                 { id: "all-packing-lists", label: "All Packing Lists", permKey: "retail_packing_view" },
+                { id: "packing-transporters", label: "Transporters", permKey: "retail_packing_view" },
             ],
             permKey: "retail_packing_view"
         },

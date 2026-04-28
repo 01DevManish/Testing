@@ -32,6 +32,10 @@ export interface Product {
     createdByName?: string;
     updatedBy?: string;
     updatedByName?: string;
+    lastAdjustmentReason?: string;
+    lastAdjustmentNote?: string;
+    lastAdjustmentAt?: number;
+    lastAdjustmentByName?: string;
     barcode?: string;
     barcodeSku?: string;
     barcodeVersion?: "v1" | "v2";

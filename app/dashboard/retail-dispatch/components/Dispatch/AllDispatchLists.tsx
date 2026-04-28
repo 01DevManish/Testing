@@ -378,7 +378,12 @@ export default function AllDispatchLists() {
 
           if (invProd?.id) {
              // Pass negative quantity to restore stock
-             await firestoreApi.deductStock(invProd.id, -qty);
+             const returnContextNote = `${list.dispatchId || list.id} - ${list.partyName || "Unknown Party"}`.slice(0, 60);
+             await firestoreApi.deductStock(invProd.id, -qty, {
+               reason: "Dispatch Return",
+               note: returnContextNote,
+               userName: userData?.name || "System",
+             });
           } else {
              console.warn("Could not find inventory product to restore stock:", { productId, sku, productName, qty });
           }

@@ -25,7 +25,7 @@ export default function LeadStatCards({ leads, loading }: Props) {
   ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, width: "100%", minWidth: 0 }}>
       {cards.map((c) => {
         const Icon = c.icon;
         return (
@@ -38,6 +38,7 @@ export default function LeadStatCards({ leads, loading }: Props) {
               padding: "20px 24px",
               position: "relative",
               overflow: "hidden",
+              minWidth: 0,
             }}
           >
             <div style={{ marginBottom: 6 }}>

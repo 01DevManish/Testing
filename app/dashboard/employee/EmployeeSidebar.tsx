@@ -73,6 +73,7 @@ export default function EmployeeSidebar({
     retail: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 17h4V5H2v12h3"></path><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"></path><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>,
     ecom: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"></path><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"></path><path d="M2 7h20"></path><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7"></path></svg>,
     inventory: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>,
+    clout: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 19h11a4 4 0 0 0 .5-8 5 5 0 0 0-9.7-1.8A4 4 0 0 0 6 19Z"></path></svg>,
     erm: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 8h10"></path><path d="M7 12h6"></path><path d="M7 16h8"></path></svg>,
     exit: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
   };
@@ -85,7 +86,8 @@ export default function EmployeeSidebar({
         { key: "retail", label: "Retail Dispatch", icon: ICONS.retail, path: "/dashboard/retail-dispatch", permission: "retail_view" },
         { key: "ecom", label: "Ecommerce Dispatch", icon: ICONS.ecom, path: "/dashboard/ecom-dispatch", permission: "ecom_view" },
         { key: "inventory", label: "Inventory Feed", icon: ICONS.inventory, path: "/dashboard/inventory", permission: "inventory_view" },
-        { key: "erm", label: "ERM CRM", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
+        { key: "erm", label: "CRM", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
+        { key: "clout", label: "Clout", icon: ICONS.clout, path: "/dashboard/clout", permission: "clout_drive_view" },
       ]
     },
     {
@@ -99,12 +101,6 @@ export default function EmployeeSidebar({
       items: [
         { key: "party-rates", label: "Party Wise Rates", icon: ICONS.party, permission: "party_rate_view" },
         { key: "catalog", label: "Catalog Sharing", icon: ICONS.catalog },
-      ]
-    },
-    {
-      label: "Communication",
-      items: [
-        { key: "messages", label: "Team Messaging", icon: ICONS.messages, count: unreadCount },
       ]
     }
   ];

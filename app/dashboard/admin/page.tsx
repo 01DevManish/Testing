@@ -228,6 +228,7 @@ export default function AdminPage() {
       });
 
       setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, role: editRole, permissions: editPermissions, dispatchPin: editPin } : u));
+      await fetchAuthUsers();
       setEditingUser(null);
     } catch (e) {
       console.error(e);

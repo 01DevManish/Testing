@@ -1,0 +1,195 @@
+{
+  "mode": "apply",
+  "table": "eurus-data",
+  "bucket": "epanelimages",
+  "region": "ap-south-1",
+  "scanned": 511,
+  "changed": 403,
+  "unchanged": 0,
+  "copied": 0,
+  "skippedNoImage": 108,
+  "unresolved": 0,
+  "sampleUpdates": [
+    {
+      "id": "-OqpFXdcHvd7v9wvt2Jy",
+      "sku": "PTL-216",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/PTL-216.webp",
+      "count": 1
+    },
+    {
+      "id": "-OqpFXcJNVqBJmlzEScq",
+      "sku": "PTL-215",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/PTL-215.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqpFXb0WwY1ckUKIAeE",
+      "sku": "PTL-214",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/PTL-214.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqpFX__1bprnRII3x4k",
+      "sku": "PTL-213",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/PTL-213.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqoK-2yTLNZBn-bqMf_",
+      "sku": "EMB-320",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/EMB-320.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqoK-1W-sPwvzUC_aEg",
+      "sku": "EMB-319",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/EMB-319.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqoHGZlfBRN6lu-un4A",
+      "sku": "CLR-427",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CLR-427.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqoHGYNTtslDZ8z6KSi",
+      "sku": "CLR-426",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CLR-426.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqoHGX-VaUjaGkg6DuP",
+      "sku": "CLR-425",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CLR-425.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqoHGVZCahLcygILBGX",
+      "sku": "CLR-424",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CLR-424.webp",
+      "count": 2
+    },
+    {
+      "id": "-Oqepuaxwwnvsju8LHwk",
+      "sku": "OXF-1312",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1312.webp",
+      "count": 2
+    },
+    {
+      "id": "-Oqepu_W-vT_AtVA-iF2",
+      "sku": "OXF-1311",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1311.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuZ48qhZfeziNUeP",
+      "sku": "OXF-1310",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1310.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuXd_Srhe6b668Ex",
+      "sku": "OXF-1309",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1309.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuWDoopDU55N-xV9",
+      "sku": "OXF-1308",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1308.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuUnZVBvstOYaYY3",
+      "sku": "OXF-1307",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1307.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuTMerWm52L7-R5Z",
+      "sku": "OXF-1306",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1306.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuRys6AA6ERo6LzF",
+      "sku": "OXF-1305",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1305.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuQ_oMq9zQHU3wtS",
+      "sku": "OXF-1304",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1304.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuP9XRvJCkV2Gfgl",
+      "sku": "OXF-1303",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1303.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuNloO6H2tFK_yQS",
+      "sku": "OXF-1302",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1302.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqepuMLyaFt2ps5NjSo",
+      "sku": "OXF-1301",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/OXF-1301.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqeDbMfeXE66EJVsItj",
+      "sku": "CMFTR-814",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CMFTR-814.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqeDbLGQtFxhjHvjnPb",
+      "sku": "CMFTR-813",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CMFTR-813.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqeDbJvnDyWIMBpKSIj",
+      "sku": "CMFTR-812",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CMFTR-812.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqeDbIamylgGv-hvf55",
+      "sku": "CMFTR-811",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/CMFTR-811.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqWEu30-vkODG-wVzd3",
+      "sku": "EBZ-1206",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/EBZ-1206.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqWEu1RoFK13AIyHWVs",
+      "sku": "EBZ-1205",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/EBZ-1205.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqWEu-lWyZOdJ6OVeoD",
+      "sku": "EBZ-1204",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/EBZ-1204.webp",
+      "count": 2
+    },
+    {
+      "id": "-OqWEtzMzMaB5-strmNE",
+      "sku": "EBZ-1203",
+      "imageUrl": "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/EBZ-1203.webp",
+      "count": 2
+    }
+  ],
+  "completedAt": "2026-04-25T12:23:28.489Z"
+}

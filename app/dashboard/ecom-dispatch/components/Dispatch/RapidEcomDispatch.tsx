@@ -135,7 +135,12 @@ export default function RapidEcomDispatch({ onClose, onDispatched }: { onClose: 
             const dispatchId = "RE-" + Math.floor(Math.random() * 900000 + 100000);
             
             // 1. Deduct Stock
-            await firestoreApi.deductStock(selectedProduct.id, quantity, forceDispatch);
+            const dispatchContextNote = `${awb} - ${selectedPlatform}`.slice(0, 60);
+            await firestoreApi.deductStock(selectedProduct.id, quantity, forceDispatch, {
+                reason: "Dispatch",
+                note: dispatchContextNote,
+                userName: userData?.name || "User",
+            });
 
             // 2. Create Order
             await api.createOrder({

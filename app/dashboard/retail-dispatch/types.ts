@@ -145,6 +145,7 @@ export type ActiveView =
   | "scanner"
   | "create-packing-list"
   | "all-packing-lists"
+  | "packing-transporters"
   | "create-dispatch-list"
   | "all-dispatch-lists"
   | "box-management"

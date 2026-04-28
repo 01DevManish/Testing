@@ -124,7 +124,12 @@ export const firestoreApi = {
   },
 
   // Atomic Stock Deduction & Status Update
-  deductStock: async (productId: string, quantityToDeduct: number, force: boolean = false): Promise<boolean> => {
+  deductStock: async (
+    productId: string,
+    quantityToDeduct: number,
+    force: boolean = false,
+    context?: { reason?: string; note?: string; userName?: string }
+  ): Promise<boolean> => {
     try {
       const inventoryRows = await fetchDataItems<Record<string, any>>("inventory");
       const productData = inventoryRows.find((row) => String(row.id) === String(productId));
@@ -146,6 +151,10 @@ export const firestoreApi = {
         id: String(productData.id),
         stock: newStock,
         status: newStatus,
+        lastAdjustmentReason: context?.reason || "Dispatch",
+        lastAdjustmentNote: (context?.note || "").slice(0, 60),
+        lastAdjustmentByName: context?.userName || "System",
+        lastAdjustmentAt: Date.now(),
         updatedAt: Date.now(),
       }]);
       await touchDataSignal("inventory");
@@ -193,7 +202,11 @@ export const api = {
         if (existing.products && existing.products.length > 0) {
           console.log(`Deducting stock for ecom order ${id}...`);
           for (const prod of existing.products) {
-            await firestoreApi.deductStock(prod.id, prod.quantity);
+            await firestoreApi.deductStock(prod.id, prod.quantity, false, {
+              reason: "Dispatch",
+              note: `Dispatch ${id}`,
+              userName: actor?.name || user,
+            });
           }
           updatedOrder.stockDeducted = true;
         }
@@ -204,7 +217,11 @@ export const api = {
         if (existing.products && existing.products.length > 0) {
           console.log(`Restoring stock for cancelled ecom order ${id}...`);
           for (const prod of existing.products) {
-            await firestoreApi.deductStock(prod.id, -Math.abs(Number(prod.quantity) || 0), true);
+            await firestoreApi.deductStock(prod.id, -Math.abs(Number(prod.quantity) || 0), true, {
+              reason: "Dispatch Return",
+              note: `Return from dispatch ${id}`,
+              userName: actor?.name || user,
+            });
           }
           updatedOrder.stockDeducted = false;
         }

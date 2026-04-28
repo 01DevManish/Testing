@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { logActivity } from "../lib/activityLogger";
 import { ToastItem } from "../components/NotificationToast";
 
@@ -88,6 +88,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
+  const refreshSessionUser = useCallback(async () => {
+    const response = await fetch("/api/auth/session", { cache: "no-store" });
+    if (!response.ok) {
+      localStorage.removeItem(SESSION_KEY);
+      clearAuthCookie();
+      setUser(null);
+      return;
+    }
+
+    const json = await response.json().catch(() => ({}));
+    const fresh = sanitizeUserRecord(json?.user, json?.user?.uid || "");
+    if (!fresh) {
+      localStorage.removeItem(SESSION_KEY);
+      clearAuthCookie();
+      setUser(null);
+      return;
+    }
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(fresh));
+    setAuthCookie();
+    setUser(fresh);
+  }, []);
+
   useEffect(() => {
     const hydrate = async () => {
       try {
@@ -99,26 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthCookie();
         }
 
-        const response = await fetch("/api/auth/session", { cache: "no-store" });
-        if (!response.ok) {
-          localStorage.removeItem(SESSION_KEY);
-          clearAuthCookie();
-          setUser(null);
-          return;
-        }
-
-        const json = await response.json().catch(() => ({}));
-        const fresh = sanitizeUserRecord(json?.user, json?.user?.uid || "");
-        if (!fresh) {
-          localStorage.removeItem(SESSION_KEY);
-          clearAuthCookie();
-          setUser(null);
-          return;
-        }
-
-        localStorage.setItem(SESSION_KEY, JSON.stringify(fresh));
-        setAuthCookie();
-        setUser(fresh);
+        await refreshSessionUser();
       } catch {
         localStorage.removeItem(SESSION_KEY);
         clearAuthCookie();
@@ -129,7 +133,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     hydrate();
-  }, []);
+  }, [refreshSessionUser]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshSessionUser().catch(() => {});
+      }
+    };
+    const handleFocus = () => {
+      refreshSessionUser().catch(() => {});
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [refreshSessionUser]);
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));

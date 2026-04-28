@@ -36,9 +36,31 @@ export default function LeadCreateForm({ canAdminUpload, staff, leads, setLeads,
   const [previewRows, setPreviewRows] = useState<Record<string, string>[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [lookingUpPincode, setLookingUpPincode] = useState(false);
 
   const set = (key: keyof LeadFormState, val: string) => setForm((p) => ({ ...p, [key]: val }));
   const canSubmit = Boolean(form.name.trim() && form.phone.trim() && canAdminUpload);
+
+  const autoFillCityStateFromPincode = async (rawPincode: string) => {
+    const pincode = String(rawPincode || "").trim();
+    if (!/^\d{6}$/.test(pincode)) return;
+    try {
+      setLookingUpPincode(true);
+      const r = await fetch(`/api/pincode/${pincode}`, { cache: "no-store" });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (!j?.found) return;
+      setForm((prev) => ({
+        ...prev,
+        city: String(j.city || prev.city || "").trim(),
+        state: String(j.state || prev.state || "").trim(),
+      }));
+    } catch {
+      // no-op
+    } finally {
+      setLookingUpPincode(false);
+    }
+  };
 
   const createLead = async () => {
     if (!canSubmit) return;
@@ -167,14 +189,14 @@ export default function LeadCreateForm({ canAdminUpload, staff, leads, setLeads,
   }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gap: 12, width: "100%", maxWidth: "100%", minWidth: 0 }}>
       {/* Action bar */}
-      <div style={{ ...crmCard, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+      <div style={{ ...crmCard, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, minWidth: 0 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Lead Management</div>
           <div style={{ fontSize: 14, color: "#64748b", marginTop: 2 }}>Create, upload, or download lead templates</div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
           <button onClick={() => setShowForm(!showForm)} style={{ ...crmBtnPrimary, gap: 6 }}>
             {showForm ? <><Icons.IconX size={14} /> Close</> : <><Icons.IconPlus size={14} /> Add Lead</>}
           </button>
@@ -191,9 +213,9 @@ export default function LeadCreateForm({ canAdminUpload, staff, leads, setLeads,
 
       {/* Create form */}
       {showForm && (
-        <div style={{ ...crmCard, borderLeft: "4px solid #6366f1" }}>
+        <div style={{ ...crmCard, borderLeft: "4px solid #6366f1", minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a", marginBottom: 14 }}>Create New Lead</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, minWidth: 0 }}>
             {([
               ["source", "Source", "e.g. Website, Referral, IndiaMART"],
               ["name", "POC Name", "Contact person name"],
@@ -207,9 +229,27 @@ export default function LeadCreateForm({ canAdminUpload, staff, leads, setLeads,
             ] as [keyof LeadFormState, string, string][]).map(([key, label, ph]) => (
               <div key={key}>
                 <label style={crmLabel}>{label}</label>
-                <input placeholder={ph} value={form[key]} onChange={(e) => set(key, e.target.value)} style={crmInput} />
+                <input
+                  placeholder={ph}
+                  value={form[key]}
+                  onChange={(e) => {
+                    const nextVal = e.target.value;
+                    set(key, nextVal);
+                    if (key === "pincode") {
+                      const digits = String(nextVal || "").replace(/\D/g, "");
+                      if (digits.length === 6) void autoFillCityStateFromPincode(digits);
+                    }
+                  }}
+                  onBlur={key === "pincode" ? () => autoFillCityStateFromPincode(form.pincode) : undefined}
+                  style={crmInput}
+                />
               </div>
             ))}
+            {lookingUpPincode && (
+              <div style={{ gridColumn: "1 / -1", fontSize: 12, color: "#6366f1" }}>
+                Looking up city/state from pincode...
+              </div>
+            )}
             <div>
               <label style={crmLabel}>Status</label>
               <select value={form.status} onChange={(e) => set("status", e.target.value)} style={crmSelect}>
@@ -247,7 +287,7 @@ export default function LeadCreateForm({ canAdminUpload, staff, leads, setLeads,
 
       {/* Upload preview */}
       {showPreview && (
-        <div style={{ ...crmCard, borderLeft: "4px solid #d97706", background: "#fffbeb" }}>
+        <div style={{ ...crmCard, borderLeft: "4px solid #d97706", background: "#fffbeb", minWidth: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: "#92400e", display: "flex", alignItems: "center", gap: 6 }}>
               <Icons.IconFileText size={18} /> Upload Preview — {previewRows.length} rows shown
@@ -259,8 +299,8 @@ export default function LeadCreateForm({ canAdminUpload, staff, leads, setLeads,
               <button onClick={() => { setShowPreview(false); setSelectedFile(null); }} style={crmBtnSecondary}>Cancel</button>
             </div>
           </div>
-          <div style={{ overflowX: "auto", borderRadius: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <div style={{ overflowX: "auto", borderRadius: 8, maxWidth: "100%", WebkitOverflowScrolling: "touch" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 760 }}>
               <thead>
                 <tr>
                   {previewRows[0] && Object.keys(previewRows[0]).slice(0, 10).map((h) => (

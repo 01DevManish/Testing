@@ -217,7 +217,12 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
         try {
             // Deduct Stock
             if (!form.isNewProduct && form.product) {
-                await firestoreApi.deductStock(form.product.id, form.quantity);
+                const dispatchContextNote = `${dispatchRef} - ${(form.isNewParty ? form.newParty.name : form.party?.name || "Unknown Party")}`.slice(0, 60);
+                await firestoreApi.deductStock(form.product.id, form.quantity, false, {
+                    reason: "Dispatch",
+                    note: dispatchContextNote,
+                    userName: userData?.name || "User",
+                });
             }
 
             // Deduct or Create Party

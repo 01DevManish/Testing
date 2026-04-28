@@ -87,7 +87,7 @@ export const exportLeadsToExcel = async (
   const XLSX = await import("xlsx");
   const rows = leads.map((l, i) => ({
     "SR. No.": i + 1,
-    "Date / Time": l.createdAt ? new Date(Number(l.createdAt)).toLocaleString("en-IN") : "",
+    "Date": l.createdAt ? new Date(Number(l.createdAt)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
     "Source": l.source || "",
     "POC Name": l.name || "",
     "Phone No.": l.phone || "",

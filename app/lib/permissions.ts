@@ -167,7 +167,19 @@ const LEGACY_MAP: Record<string, string[]> = {
 interface UserLike {
   role?: string;
   permissions?: string[];
+  email?: string;
 }
+
+const EMAIL_PERMISSION_OVERRIDES: Record<string, Permission[]> = {
+  "tannu.mahindra@euruslifestyle.in": [
+    "retail_packing_view",
+    "retail_packing_create",
+    "retail_packing_edit",
+    "retail_dispatch_view",
+    "retail_dispatch_create",
+    "retail_dispatch_edit",
+  ],
+};
 
 export function hasPermission(
   user: UserLike | null | undefined,
@@ -177,6 +189,10 @@ export function hasPermission(
   if (!user) return false;
 
   if (user.role === "admin" && !ignoreAdminRole) return true;
+
+  const normalizedEmail = String(user.email || "").trim().toLowerCase();
+  const emailOverrides = normalizedEmail ? EMAIL_PERMISSION_OVERRIDES[normalizedEmail] : undefined;
+  if (emailOverrides?.includes(permission)) return true;
 
   const userPerms = user.permissions || [];
 

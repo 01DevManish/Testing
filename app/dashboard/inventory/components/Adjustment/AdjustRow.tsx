@@ -15,9 +15,12 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
     isMobile?: boolean,
     mobileCard?: boolean
 }) {
+    const ADJUSTMENT_REASONS = ["Ecom Sale", "Retail Sale", "Remove Stock"];
     const [qty, setQty] = useState<number | "">(1);
     const [saving, setSaving] = useState(false);
     const [confirm, setConfirm] = useState<{ mode: "add" | "remove" } | null>(null);
+    const [reason, setReason] = useState("");
+    const [note, setNote] = useState("");
 
     const handleAdjust = async () => {
         if (!confirm) return;
@@ -25,6 +28,8 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
         const q = Number(qty);
         if (!q || q <= 0) { setConfirm(null); return; }
         if (mode === "remove" && q > p.stock) { alert("Cannot remove more stock than available."); setConfirm(null); return; }
+        if (!reason) { alert("Please select a reason."); return; }
+        if (!note.trim()) { alert("Please add a note."); return; }
 
         setSaving(true);
         try {
@@ -40,7 +45,11 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 status: autoStatus,
                 updatedAt: Date.now(),
                 updatedBy: user.uid,
-                updatedByName: user.name
+                updatedByName: user.name,
+                lastAdjustmentReason: reason,
+                lastAdjustmentNote: note.trim().slice(0, 60),
+                lastAdjustmentAt: Date.now(),
+                lastAdjustmentByName: user.name
             });
             await touchDataSignal("inventory");
 
@@ -48,14 +57,16 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 type: "inventory",
                 action: "adjustment",
                 title: mode === "add" ? "Stock Added" : "Stock Removed",
-                description: `${user.name} ${mode === "add" ? "added" : "removed"} ${q} ${p.unit || "units"} for "${p.productName}". New stock: ${newStock}.`,
+                description: `${user.name} ${mode === "add" ? "added" : "removed"} ${q} ${p.unit || "units"} for "${p.productName}" (${reason}). Note: ${note.trim().slice(0, 60)}. New stock: ${newStock}.`,
                 userId: user.uid,
                 userName: user.name,
                 userRole: "staff",
-                metadata: { productId: p.id, adjustment: q, mode, newStock }
+                metadata: { productId: p.id, adjustment: q, mode, newStock, reason, note: note.trim().slice(0, 60) }
             });
 
             setQty(1);
+            setReason("");
+            setNote("");
             setConfirm(null);
             onRefresh?.();
         } catch (e) {
@@ -83,24 +94,43 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
 
     const confirmModal = confirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(6px)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-            <div style={{ width: "100%", maxWidth: 420, background: "#fff", borderRadius: 24, padding: "40px", textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", animation: "scaleIn 0.2s ease-out" }}>
-                <div style={{ width: 80, height: 80, borderRadius: 40, background: confirm.mode === "add" ? "#f0fdf4" : "#fef2f2", color: confirm.mode === "add" ? "#10b981" : "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, margin: "0 auto 24px" }}>
+            <div style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 18, padding: "24px", textAlign: "center", boxShadow: "0 18px 34px -16px rgba(0,0,0,0.28)", animation: "scaleIn 0.2s ease-out" }}>
+                <div style={{ width: 64, height: 64, borderRadius: 32, background: confirm.mode === "add" ? "#f0fdf4" : "#fef2f2", color: confirm.mode === "add" ? "#10b981" : "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 16px" }}>
                     {confirm.mode === "add" ? "^" : "v"}
                 </div>
-                <h3 style={{ fontSize: 22, fontWeight: 400, color: "#0f172a", margin: "0 0 8px", fontFamily: FONT }}>{confirm.mode === "add" ? "Add Stock" : "Remove Stock"}?</h3>
-                <p style={{ fontSize: 15, color: "#64748b", fontWeight: 400, margin: "0 0 24px", fontFamily: FONT, lineHeight: 1.5 }}>You are adjusting <strong>{qty} {p.unit || "units"}</strong> for:<br /><span style={{ color: "#1e293b", fontWeight: 400 }}>{p.productName}</span></p>
-                <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16, marginBottom: 30, display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
+                <h3 style={{ fontSize: 19, fontWeight: 400, color: "#0f172a", margin: "0 0 6px", fontFamily: FONT }}>{confirm.mode === "add" ? "Add Stock" : "Remove Stock"}?</h3>
+                <p style={{ fontSize: 13, color: "#64748b", fontWeight: 400, margin: "0 0 14px", fontFamily: FONT, lineHeight: 1.45 }}>You are adjusting <strong>{qty} {p.unit || "units"}</strong> for:<br /><span style={{ color: "#1e293b", fontWeight: 400 }}>{p.productName}</span></p>
+                <div style={{ background: "#f8fafc", borderRadius: 12, padding: 12, marginBottom: 14, display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}>
                     <div style={{ width: 50, height: 50, borderRadius: 10, background: "#fff", border: "1.5px solid #e2e8f0", overflow: "hidden", flexShrink: 0 }}>
                         {p.imageUrl && <SmartImage src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                     </div>
                     <div>
                         <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.05em" }}>Current Stock</div>
-                        <div style={{ fontSize: 18, fontWeight: 400, color: "#1e293b" }}>{p.stock} -&gt; <span style={{ color: confirm.mode === "add" ? "#10b981" : "#ef4444" }}>{confirm.mode === "add" ? p.stock + Number(qty) : p.stock - Number(qty)}</span></div>
+                        <div style={{ fontSize: 16, fontWeight: 400, color: "#1e293b" }}>{p.stock} -&gt; <span style={{ color: confirm.mode === "add" ? "#10b981" : "#ef4444" }}>{confirm.mode === "add" ? p.stock + Number(qty) : p.stock - Number(qty)}</span></div>
+                    </div>
+                </div>
+                <div style={{ display: "grid", gap: 9, textAlign: "left", marginBottom: 14 }}>
+                    <div>
+                        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Reason *</div>
+                        <select value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: 10, outline: "none", fontSize: 13, color: "#0f172a", background: "#fff" }}>
+                            <option value="">Select reason</option>
+                            {ADJUSTMENT_REASONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Note * ({note.length}/60)</div>
+                        <input
+                            value={note}
+                            maxLength={60}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Short note about this adjustment"
+                            style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: 10, outline: "none", fontSize: 13, color: "#0f172a", background: "#fff" }}
+                        />
                     </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <button onClick={handleAdjust} style={{ width: "100%", padding: "16px", background: confirm.mode === "add" ? "#10b981" : "#ef4444", color: "#fff", border: "none", borderRadius: 14, fontSize: 16, fontWeight: 400, cursor: "pointer", transition: "all 0.2s", boxShadow: `0 4px 12px ${confirm.mode === "add" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}` }}>Confirm {confirm.mode === "add" ? "Addition" : "Removal"}</button>
-                    <button onClick={() => setConfirm(null)} style={{ width: "100%", padding: "16px", background: "#fff", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: 14, fontSize: 16, fontWeight: 400, cursor: "pointer" }}>Cancel</button>
+                    <button onClick={handleAdjust} style={{ width: "100%", padding: "12px", background: confirm.mode === "add" ? "#10b981" : "#ef4444", color: "#fff", border: "none", borderRadius: 11, fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", boxShadow: `0 4px 12px ${confirm.mode === "add" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}` }}>Confirm {confirm.mode === "add" ? "Addition" : "Removal"}</button>
+                    <button onClick={() => setConfirm(null)} style={{ width: "100%", padding: "12px", background: "#fff", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: 11, fontSize: 14, fontWeight: 500, cursor: "pointer" }}>Cancel</button>
                 </div>
             </div>
             <style>{`@keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
@@ -132,6 +162,11 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 <div style={{ marginTop: 10 }}>
                     {controls}
                 </div>
+                {(p.lastAdjustmentReason || p.lastAdjustmentNote) && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+                        {p.lastAdjustmentReason || "Update"}{p.lastAdjustmentNote ? `: ${p.lastAdjustmentNote}` : ""}
+                    </div>
+                )}
                 {confirmModal}
             </div>
         );
@@ -160,6 +195,14 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                         {p.stock}
                     </div>
                     {!isMobile && p.stock <= p.minStock && p.stock > 0 && <span style={{ fontSize: 10, color: "#a16207", fontWeight: 400 }}>Low Stock</span>}
+                </td>
+                <td style={{ padding: isMobile ? "12px 8px" : "14px 16px", maxWidth: 300 }}>
+                    <div style={{ fontSize: 12, color: "#334155", fontWeight: 500, fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.lastAdjustmentReason || "-"}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                        {p.lastAdjustmentNote || "No note"}
+                    </div>
                 </td>
                 <td style={{ padding: isMobile ? "12px 10px" : "14px 16px", textAlign: "right", position: "relative" }}>
                     {controls}

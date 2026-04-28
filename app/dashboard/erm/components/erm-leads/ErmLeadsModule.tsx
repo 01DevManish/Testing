@@ -228,7 +228,7 @@ export default function ErmLeadsModule() {
   }, [canEdit, selectedLead, userData, allLeadCalls, leads, upsertEntity]);
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, width: "100%", maxWidth: "100%", minWidth: 0, overflowX: "hidden" }}>
       <LeadStatCards leads={visibleLeads} loading={loadingLeads} />
 
       <LeadCreateForm

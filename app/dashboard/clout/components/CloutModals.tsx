@@ -20,6 +20,37 @@ interface CloutModalsProps {
   movingCount: number;
 }
 
+const modalShell =
+  "fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm";
+
+const modalCard =
+  "w-full max-w-lg overflow-hidden rounded-[28px] border border-white/60 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.28)]";
+
+function ModalHeader({
+  eyebrow,
+  title,
+  description,
+  accent,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  accent: string;
+}) {
+  return (
+    <div className={`relative overflow-hidden ${accent} px-6 py-5 text-white`}>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.14),transparent_30%)]" />
+      <div className="relative">
+        <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-white/80">
+          {eyebrow}
+        </div>
+        <h3 className="mt-4 text-2xl font-semibold tracking-tight">{title}</h3>
+        <p className="mt-2 max-w-md text-sm leading-6 text-white/80">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function CloutModals({
   renameFolderId,
   renameValue,
@@ -34,49 +65,129 @@ export default function CloutModals({
   moveCandidates,
   movingCount,
 }: CloutModalsProps) {
+  const selectedMoveLabel =
+    moveCandidates.find((candidate) => candidate.id === moveTargetId)?.name ?? "Select a destination";
+
   return (
     <>
       {renameFolderId ? (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center" }}>
-          <div style={{ width: 380, background: "#fff", borderRadius: 12, padding: 16, border: "1px solid #e2e8f0" }}>
-            <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>Rename Folder</h3>
-            <input
-              value={renameValue}
-              onChange={(event) => setRenameValue(event.target.value)}
-              style={{ width: "100%", border: "1px solid #cbd5e1", borderRadius: 8, padding: "9px 10px", fontSize: 14 }}
+        <div
+          className={modalShell}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="clout-rename-title"
+          onClick={onCloseRename}
+        >
+          <div className={modalCard} onClick={(event) => event.stopPropagation()}>
+            <ModalHeader
+              eyebrow="Rename folder"
+              title="Give the folder a cleaner name"
+              description="Keep the structure tidy and easy to scan — like a polished cloud workspace."
+              accent="bg-gradient-to-br from-indigo-600 via-violet-600 to-cyan-500"
             />
-            <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={onCloseRename} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "8px 12px" }}>Cancel</button>
-              <button onClick={onSaveRename} style={{ border: "none", background: "#0ea5e9", color: "#fff", borderRadius: 8, padding: "8px 12px" }}>Save</button>
+
+            <div className="space-y-5 px-6 py-6">
+              <div>
+                <label id="clout-rename-title" className="mb-2 block text-sm font-medium text-slate-900">
+                  Folder name
+                </label>
+                <input
+                  value={renameValue}
+                  onChange={(event) => setRenameValue(event.target.value)}
+                  autoFocus
+                  placeholder="Enter new folder name"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                />
+                <p className="mt-2 text-xs leading-5 text-slate-500">Short, descriptive names make folders easier to navigate.</p>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={onCloseRename}
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onSaveRename}
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white shadow-[0_12px_24px_rgba(15,23,42,0.2)] transition hover:bg-slate-800"
+                >
+                  Save changes
+                </button>
+              </div>
             </div>
           </div>
         </div>
       ) : null}
 
       {showMoveDialog ? (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center" }}>
-          <div style={{ width: 420, background: "#fff", borderRadius: 12, padding: 16, border: "1px solid #e2e8f0" }}>
-            <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>Move Selected Items</h3>
-            <p style={{ margin: "0 0 12px", fontSize: 12, color: "#64748b" }}>
-              Only editable Clout items are movable. Inventory-linked images are read-only.
-            </p>
-            <div style={{ marginBottom: 10, fontSize: 12, color: "#334155" }}>
-              Moving: {movingCount} item(s)
-            </div>
-            <select
-              value={moveTargetId || ""}
-              onChange={(event) => setMoveTargetId(event.target.value || null)}
-              style={{ width: "100%", border: "1px solid #cbd5e1", borderRadius: 8, padding: "9px 10px", fontSize: 14 }}
-            >
-              {moveCandidates.map((candidate) => (
-                <option key={candidate.id || "root"} value={candidate.id || ""}>
-                  {candidate.name}
-                </option>
-              ))}
-            </select>
-            <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={onCloseMove} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "8px 12px" }}>Cancel</button>
-              <button onClick={onMove} style={{ border: "none", background: "#0ea5e9", color: "#fff", borderRadius: 8, padding: "8px 12px" }}>Move</button>
+        <div
+          className={modalShell}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="clout-move-title"
+          onClick={onCloseMove}
+        >
+          <div className={modalCard} onClick={(event) => event.stopPropagation()}>
+            <ModalHeader
+              eyebrow="Move selected items"
+              title={`Move ${movingCount} editable item${movingCount === 1 ? "" : "s"}`}
+              description="Inventory-linked media is read-only. Only Clout items you can edit will be moved."
+              accent="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-700"
+            />
+
+            <div className="space-y-5 px-6 py-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p id="clout-move-title" className="text-sm font-medium text-slate-900">
+                      Destination folder
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">Choose where the selected items should live.</p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                    {movingCount} selected
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <select
+                    value={moveTargetId || ""}
+                    onChange={(event) => setMoveTargetId(event.target.value || null)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
+                  >
+                    {moveCandidates.map((candidate) => (
+                      <option key={candidate.id || "root"} value={candidate.id || ""}>
+                        {candidate.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Selected destination</div>
+                    <div className="mt-1 font-medium text-slate-900">{selectedMoveLabel}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={onCloseMove}
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onMove}
+                  className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-[0_12px_24px_rgba(79,70,229,0.22)] transition hover:bg-indigo-500"
+                >
+                  Move items
+                </button>
+              </div>
             </div>
           </div>
         </div>

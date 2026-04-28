@@ -13,6 +13,7 @@ import AddOrderModal from "./components/Items/AddOrderModal";
 import CreateDispatchModal from "./components/Dispatch/Createdispatchmodal";
 import CreatePackingList from "./components/Packaging/CreatePackingList";
 import AllPackingLists from "./components/Packaging/AllPackingLists";
+import TransportersTab from "./components/Packaging/TransportersTab";
 import CreateDispatchList from "./components/Dispatch/CreateDispatchList";
 import AllDispatchLists from "./components/Dispatch/AllDispatchLists";
 import BoxManagementTab from "./components/Box/BoxManagementTab";
@@ -336,6 +337,11 @@ export default function AdvancedDispatchDashboard() {
                 onDelete={handleDeletePackingList}
                 canDelete={canDelete}
               />
+            </div>
+          )}
+          {activeView === "packing-transporters" && (
+            <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
+              <TransportersTab onUpdated={loadOrders} />
             </div>
           )}
           {activeView === "all-dispatch-lists" && (
