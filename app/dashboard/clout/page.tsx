@@ -209,7 +209,7 @@ export default function CloutPage() {
   }, [bootstrapped, canView, loading, refreshItems, router]);
 
   const breadcrumbs = useMemo(() => {
-    const path: Array<{ id: string | null; name: string }> = [{ id: ROOT_ID, name: "My Clout" }];
+    const path: Array<{ id: string | null; name: string }> = [{ id: ROOT_ID, name: "Root" }];
     let cursor = currentFolderId;
     let guard = 0;
     while (cursor && guard < 100) {
@@ -219,7 +219,7 @@ export default function CloutPage() {
       cursor = node.parentId;
       guard += 1;
     }
-    return path.reverse();
+    return [path[0], ...path.slice(1).reverse()];
   }, [byId, currentFolderId]);
 
   const allVisibleInFolder = useMemo(() => {
@@ -466,19 +466,24 @@ export default function CloutPage() {
                   <span className="h-2 w-2 rounded-full bg-blue-500" />
                   Clout
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                  {breadcrumbs.map((crumb, index) => (
-                    <button
-                      key={`${crumb.id || "root"}_${index}`}
-                      type="button"
-                      onClick={() => setCurrentFolderId(crumb.id)}
-                      className={`rounded-full px-2.5 py-1 transition ${
-                        crumb.id === currentFolderId ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {crumb.name}
-                    </button>
-                  ))}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
+                  {breadcrumbs.map((crumb, index) => {
+                    const isLast = index === breadcrumbs.length - 1;
+                    return (
+                      <div key={`${crumb.id || "root"}_${index}`} className="flex items-center gap-1.5">
+                        {index > 0 ? <span className="text-slate-400">&gt;</span> : null}
+                        <button
+                          type="button"
+                          onClick={() => setCurrentFolderId(crumb.id)}
+                          className={`rounded-lg px-2.5 py-1 transition ${
+                            isLast ? "bg-slate-900 font-semibold text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          {crumb.name}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -524,32 +529,6 @@ export default function CloutPage() {
             </div>
 
             <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => router.push("/dashboard")}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Back to dashboard
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentFolderId(ROOT_ID)}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Root
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentFolderId(INVENTORY_FOLDER_ID)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                    currentFolderId === INVENTORY_FOLDER_ID ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  Inventory
-                </button>
-              </div>
-
               <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
                   {busy ? "Working..." : `${sectionCount} item(s)`}

@@ -33,7 +33,7 @@ interface AdminSidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   currentName: string;
-  userData?: { profilePic?: string } | null;
+  userData?: { profilePic?: string; role?: string; permissions?: string[]; email?: string } | null;
   handleLogout: () => void;
   // Dynamic counts from DB
   usersCount?: number;
@@ -245,7 +245,7 @@ export default function AdminSidebar({
           {navGroups.map((group) => (
             <div key={group.label} style={{ marginBottom: 20 }}>
               {(() => {
-                const visibleItems = group.items.filter((item) => !item.permission || hasPermission(user, item.permission));
+                const visibleItems = group.items.filter((item) => !item.permission || hasPermission(userData || user, item.permission));
                 if (visibleItems.length === 0) return null;
                 return (
                   <>
