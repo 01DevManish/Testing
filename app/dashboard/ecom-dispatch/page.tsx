@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { api } from "./data";
@@ -30,9 +30,10 @@ function useWindowSize() {
   return size;
 }
 
-export default function AdvancedDispatchDashboard() {
+function AdvancedDispatchDashboardContent() {
   const { user, userData, loading, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { width } = useWindowSize();
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
@@ -55,6 +56,29 @@ export default function AdvancedDispatchDashboard() {
 
   // Layout State
   const [activeView, setActiveView] = useState<ActiveView>("overview");
+  const viewQueryMap: Record<string, ActiveView> = useMemo(() => ({
+    overview: "overview",
+    "create-dispatch": "create-dispatch",
+    "rapid-dispatch": "rapid-dispatch",
+    "order-list": "order-list",
+    "add-order": "add-order",
+    scanner: "scanner",
+    catalog: "catalog",
+    messages: "messages",
+  }), []);
+
+  useEffect(() => {
+    const raw = (searchParams.get("view") || "").trim().toLowerCase();
+    const mapped = viewQueryMap[raw] || "overview";
+    setActiveView((prev) => (prev === mapped ? prev : mapped));
+  }, [searchParams, viewQueryMap]);
+
+  const goToView = (nextView: ActiveView) => {
+    setActiveView(nextView);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", nextView);
+    router.replace(`/dashboard/ecom-dispatch?${params.toString()}`);
+  };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -83,7 +107,7 @@ export default function AdvancedDispatchDashboard() {
     } else {
       if (canCreate) {
         setScannedUnknownId(code);
-        setActiveView("add-order");
+        goToView("add-order");
       } else {
         alert("Found no order with this ID. You do not have permission to create a new one.");
       }
@@ -97,7 +121,7 @@ export default function AdvancedDispatchDashboard() {
 
   const handleOrderAdded = (newOrder: Order) => {
     setOrders([newOrder, ...orders]);
-    setActiveView("overview");
+    goToView("overview");
     setScannedUnknownId("");
     setSelectedOrder(newOrder);
   };
@@ -226,7 +250,7 @@ export default function AdvancedDispatchDashboard() {
         <DispatchSidebar
           activeView={activeView}
           onNavigate={(view) => {
-            setActiveView(view);
+            goToView(view);
             if (!isDesktop) setSidebarOpen(false);
           }}
           currentName={currentName}
@@ -277,7 +301,7 @@ export default function AdvancedDispatchDashboard() {
                         type="text" 
                         onChange={(e) => {
                            setSearchQuery(e.target.value);
-                           if (e.target.value) setActiveView("order-list");
+                           if (e.target.value) goToView("order-list");
                         }}
                         style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: 14, fontFamily: "'Segoe UI', system-ui", color: "#1e293b" }}
                      />
@@ -288,7 +312,7 @@ export default function AdvancedDispatchDashboard() {
                            key={s} 
                            onClick={() => {
                               setFilterStatus(s as any);
-                              setActiveView("order-list");
+                              goToView("order-list");
                            }}
                            style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 12, fontWeight: 400, cursor: "pointer", transition: "all 0.15s" }}
                            onMouseEnter={e => (e.currentTarget.style.background = "#f1f5f9")}
@@ -322,7 +346,7 @@ export default function AdvancedDispatchDashboard() {
                 <Card style={{ padding: 0, overflow: "hidden", minHeight: 300 }}>
                   <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <h3 style={{ fontSize: 14, fontWeight: 400, color: "#1e293b", margin: 0 }}>Recent Dispatches</h3>
-                    <button onClick={() => setActiveView("order-list")} style={{ fontSize: 12, fontWeight: 400, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
+                    <button onClick={() => goToView("order-list")} style={{ fontSize: 12, fontWeight: 400, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
                   </div>
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -368,11 +392,11 @@ export default function AdvancedDispatchDashboard() {
                     Quick Actions
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <button onClick={() => setActiveView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                    <button onClick={() => goToView("order-list")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
                       <span style={{ background: "rgba(139,92,246,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</span>
                       Manage All Orders
                     </button>
-                    <button onClick={() => setActiveView("scanner")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+                    <button onClick={() => goToView("scanner")} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 400, textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
                       <span style={{ background: "rgba(20,184,166,0.2)", width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔍</span>
                       Barcode Scanner
                     </button>
@@ -412,7 +436,7 @@ export default function AdvancedDispatchDashboard() {
         {activeView === "rapid-dispatch" && (
           <div className="animate-in fade-in duration-300">
             <RapidEcomDispatch
-              onClose={() => setActiveView("overview")}
+              onClose={() => goToView("overview")}
               onDispatched={() => {
                 loadOrders();
               }}
@@ -424,10 +448,10 @@ export default function AdvancedDispatchDashboard() {
           <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300">
             <CreateDispatchModal
               dispatchType="ecom"
-              onClose={() => setActiveView("overview")}
+              onClose={() => goToView("overview")}
               onDispatched={(data) => {
                 loadOrders();
-                setActiveView("overview");
+                goToView("overview");
               }}
             />
           </div>
@@ -437,7 +461,7 @@ export default function AdvancedDispatchDashboard() {
           <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300">
             <AddOrderModal
               initialOrderId={scannedUnknownId}
-              onClose={() => setActiveView("overview")}
+              onClose={() => goToView("overview")}
               onOrderAdded={handleOrderAdded}
             />
           </div>
@@ -478,3 +502,12 @@ export default function AdvancedDispatchDashboard() {
     </div>
   );
 }
+
+export default function AdvancedDispatchDashboard() {
+  return (
+    <Suspense fallback={null}>
+      <AdvancedDispatchDashboardContent />
+    </Suspense>
+  );
+}
+

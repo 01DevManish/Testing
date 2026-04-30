@@ -4,6 +4,7 @@ import { getBarcodeMappedFields, needsBarcodeRefresh, normalizeSkuKey } from "..
 import type { Collection } from "../inventory/types";
 import { touchDataSignal } from "../../lib/dataSignals";
 import { deleteDataItemById, fetchDataItems, upsertDataItems } from "../../lib/dynamoDataApi";
+import { appendInventoryAdjustmentLog } from "../../lib/inventoryAdjustmentLogs";
 
 type InventoryDispatchProduct = {
   id: string;
@@ -280,7 +281,7 @@ export const firestoreApi = {
   deductStock: async (
     productId: string,
     quantityToDeduct: number,
-    context?: { reason?: string; note?: string; userName?: string }
+    context?: { reason?: string; note?: string; userName?: string; userUid?: string; dispatchId?: string; partyName?: string }
   ): Promise<boolean> => {
     try {
       const inventoryRows = await fetchDataItems<Record<string, any>>("inventory");
@@ -309,6 +310,22 @@ export const firestoreApi = {
         lastAdjustmentAt: Date.now(),
         updatedAt: Date.now(),
       }]);
+      await appendInventoryAdjustmentLog({
+        sku: String(productData.sku || ""),
+        productId: String(productData.id),
+        productName: String(productData.productName || "Unknown"),
+        mode: quantityToDeduct >= 0 ? "remove" : "add",
+        source: quantityToDeduct >= 0 ? "dispatch" : "dispatch_return",
+        quantity: Math.abs(Number(quantityToDeduct) || 0),
+        previousStock: currentStock,
+        newStock,
+        reason: context?.reason || (quantityToDeduct >= 0 ? "Dispatch" : "Dispatch Return"),
+        note: (context?.note || "").slice(0, 120),
+        partyName: context?.partyName || "",
+        dispatchId: context?.dispatchId || "",
+        createdByUid: context?.userUid || "",
+        createdByName: context?.userName || "System",
+      });
       await touchDataSignal("inventory");
       firestoreApi.invalidateInventoryCache();
       
@@ -358,6 +375,9 @@ export const api = {
               reason: "Dispatch",
               note: `Dispatch ${id}`,
               userName: actor?.name || user,
+              userUid: actor?.uid || "",
+              dispatchId: id,
+              partyName: existing.partyName || existing.customer?.name || "",
             });
           }
           updatedOrder.stockDeducted = true;
@@ -370,9 +390,12 @@ export const api = {
           console.log(`Restoring stock for cancelled retail order ${id}...`);
           for (const prod of existing.products) {
             await firestoreApi.deductStock(prod.id, -Math.abs(Number(prod.quantity) || 0), {
-              reason: "Dispatch Return",
-              note: `Return from dispatch ${id}`,
+              reason: "Dispatch Cancelled",
+              note: `Dispatch ${id} cancelled - stock restored`,
               userName: actor?.name || user,
+              userUid: actor?.uid || "",
+              dispatchId: id,
+              partyName: existing.partyName || existing.customer?.name || "",
             });
           }
           updatedOrder.stockDeducted = false;

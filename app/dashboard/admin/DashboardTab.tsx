@@ -377,12 +377,18 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
               .map(p => (
                 <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: "#f8fafc", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
-                    <SmartImage
-                      src={p.imageUrl || "/placeholder-prod.png"}
-                      alt=""
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      {...({ priority: (criticalPage === 1 && allProducts.filter(p => p.stock <= p.minStock).indexOf(p) < 2) } as any)}
-                    />
+                    {p.imageUrl ? (
+                      <SmartImage
+                        src={p.imageUrl}
+                        alt=""
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        {...({ priority: (criticalPage === 1 && allProducts.filter(p => p.stock <= p.minStock).indexOf(p) < 2) } as any)}
+                      />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 9, letterSpacing: "0.08em" }}>
+                        IMG
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.productName}</div>
@@ -488,12 +494,18 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                 return (
                 <div key={p.id} style={{ ...S.activityItem, padding: "10px", borderBottom: "1px solid #f8fafc", borderRadius: 10, marginBottom: 4, background: stockLevel.bg, display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f8fafc", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
-                    <SmartImage
-                      src={p.imageUrl || "/placeholder-prod.png"}
-                      alt=""
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      {...({ priority: (inventoryPage === 1 && allProducts.indexOf(p) < 4) } as any)}
-                    />
+                    {p.imageUrl ? (
+                      <SmartImage
+                        src={p.imageUrl}
+                        alt=""
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        {...({ priority: (inventoryPage === 1 && allProducts.indexOf(p) < 4) } as any)}
+                      />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 9, letterSpacing: "0.08em" }}>
+                        IMG
+                      </div>
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", minWidth: 0, gap: 10 }}>

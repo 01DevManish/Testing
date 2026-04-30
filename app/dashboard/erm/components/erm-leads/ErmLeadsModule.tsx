@@ -16,6 +16,22 @@ import LeadCreateForm from "./LeadCreateForm";
 import LeadTable from "./LeadTable";
 import LeadActionModal from "./LeadActionModal";
 
+const hasCrmPermissionAccess = (user: { role?: string; permissions?: string[]; email?: string } | null | undefined) => {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  return (
+    hasPermission(user, "erm_dashboard_view")
+    || hasPermission(user, "erm_inventory_view")
+    || hasPermission(user, "erm_leads_view")
+    || hasPermission(user, "erm_orders_view")
+    || hasPermission(user, "erm_catalog_view")
+    || hasPermission(user, "erm_view")
+    || hasPermission(user, "crm_view")
+    || hasPermission(user, "erm")
+    || hasPermission(user, "crm")
+  );
+};
+
 export default function ErmLeadsModule() {
   const { userData } = useAuth();
   const { users = [] } = useData();
@@ -93,7 +109,7 @@ export default function ErmLeadsModule() {
   const staff = useMemo(
     () => users.filter((u) => 
       u.email !== "01devmanish@gmail.com" && 
-      (hasPermission(u, "erm_leads_view") || u.role === "admin" || u.role === "manager")
+      hasCrmPermissionAccess(u)
     ),
     [users],
   );

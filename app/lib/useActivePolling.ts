@@ -13,6 +13,8 @@ export function useActivePolling(
   deps: DependencyList = []
 ) {
   const taskRef = useRef(task);
+  const inFlightRef = useRef(false);
+  const lastRunAtRef = useRef(0);
 
   useEffect(() => {
     taskRef.current = task;
@@ -25,9 +27,19 @@ export function useActivePolling(
     const run = () => {
       if (stopped) return;
       if (!isScreenActive()) return;
-      void Promise.resolve(taskRef.current()).catch((error) => {
-        console.error("[useActivePolling] Poll task failed:", error);
-      });
+      if (inFlightRef.current) return;
+      const now = Date.now();
+      // Prevent tight duplicate calls from focus/visibility churn in development.
+      if (now - lastRunAtRef.current < 1200) return;
+      inFlightRef.current = true;
+      lastRunAtRef.current = now;
+      void Promise.resolve(taskRef.current())
+        .catch((error) => {
+          console.error("[useActivePolling] Poll task failed:", error);
+        })
+        .finally(() => {
+          inFlightRef.current = false;
+        });
     };
 
     const start = () => {
@@ -45,7 +57,6 @@ export function useActivePolling(
 
     const handleActivityChange = () => {
       if (isScreenActive()) {
-        run();
         start();
       } else {
         stop();

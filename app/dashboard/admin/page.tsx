@@ -3,8 +3,8 @@
 
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { deleteTaskById, fetchAllTasks, patchTaskById, upsertTask } from "../../lib/tasksApi";
 
 import { UserRecord, Task, UserRole } from "./types";
@@ -44,9 +44,10 @@ const normalizeStaffEmail = (raw: string) => {
   return `${value}@${OFFICIAL_EMAIL_DOMAIN}`;
 };
 
-export default function AdminPage() {
+function AdminPageContent() {
   const { user, userData, logout, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { width } = useWindowSize();
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
@@ -97,6 +98,41 @@ export default function AdminPage() {
   const [authUsers, setAuthUsers] = useState<UserRecord[]>([]);
   const [fetchingAuthUsers, setFetchingAuthUsers] = useState(false);
   const [hasLoadedAuth, setHasLoadedAuth] = useState(false);
+  const syncingFromUrlRef = useRef(false);
+  const tabQueryMap = useMemo(() => ({
+    dashboard: "dashboard",
+    reports: "reports",
+    users: "users",
+    tasks: "tasks",
+    logs: "logs",
+    brands: "brands",
+    catalog: "catalog",
+    "party-rates": "party-rates",
+    profile: "profile",
+    messages: "messages",
+  }), []);
+
+  useEffect(() => {
+    const raw = (searchParams.get("tab") || "").trim().toLowerCase();
+    const next = (tabQueryMap[raw as keyof typeof tabQueryMap] || "dashboard") as typeof tab;
+    setTab((prev) => {
+      if (prev === next) return prev;
+      syncingFromUrlRef.current = true;
+      return next;
+    });
+  }, [searchParams, tabQueryMap]);
+
+  useEffect(() => {
+    if (syncingFromUrlRef.current) {
+      syncingFromUrlRef.current = false;
+      return;
+    }
+    const current = (searchParams.get("tab") || "").trim().toLowerCase();
+    if (current === tab) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`/dashboard/admin?${params.toString()}`);
+  }, [tab, router, searchParams]);
 
   // Global fetching aliases
   const users = useMemo(() => {
@@ -830,5 +866,13 @@ export default function AdminPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminPageContent />
+    </Suspense>
   );
 }

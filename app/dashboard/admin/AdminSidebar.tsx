@@ -93,7 +93,7 @@ export default function AdminSidebar({
         { key: "inventory", label: "Inventory Management", icon: ICONS.inventory, path: "/dashboard/inventory" },
         { key: "retail", label: "Retail Dispatch", icon: ICONS.retail, path: "/dashboard/retail-dispatch" },
         { key: "ecom", label: "Ecommerce Dispatch", icon: ICONS.ecom, path: "/dashboard/ecom-dispatch" },
-        { key: "erm", label: "CRM", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
+        { key: "erm", label: "CRM Workspace", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
         { key: "clout", label: "Clout", icon: ICONS.clout, path: "/dashboard/clout", permission: "clout_drive_view" },
       ]
     },

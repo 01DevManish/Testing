@@ -12,6 +12,7 @@ interface UserData {
   name: string;
   role: UserRole;
   permissions?: string[];
+  crmWorkspaceCreated?: boolean;
   dispatchPin?: string;
   profilePic?: string;
   requiresPasswordChange?: boolean;
@@ -76,6 +77,7 @@ const sanitizeUserRecord = (raw: unknown, fallbackUid: string): UserData | null 
     name,
     role: normalizeRole(input.role),
     permissions: Array.isArray(input.permissions) ? input.permissions.filter((p): p is string => typeof p === "string") : [],
+    crmWorkspaceCreated: Boolean(input.crmWorkspaceCreated),
     dispatchPin: normalizeDispatchPin(input.dispatchPin),
     profilePic: input.profilePic,
     requiresPasswordChange: input.requiresPasswordChange,

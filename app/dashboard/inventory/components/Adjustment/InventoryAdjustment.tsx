@@ -151,7 +151,7 @@ export default function InventoryAdjustment({ products, collections, user, onDon
                                 <tr>
                                     <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Product & Info</th>
                                     <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Current Stock</th>
-                                    <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Implicate</th>
+                                    <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase" }}>Implication</th>
                                     <th style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: FONT, textTransform: "uppercase", textAlign: "right" }}>Adjust Quantity</th>
                                 </tr>
                             </thead>

@@ -1,5 +1,6 @@
 export const DATA_ENTITIES = [
   "inventory",
+  "inventoryAdjustments",
   "cloutItems",
   "partyRates",
   "brands",

@@ -9,6 +9,13 @@ import { useData } from "../../../../context/DataContext";
 import { useAuth } from "../../../../context/AuthContext";
 import { firestoreApi } from "../../data";
 
+const canAccessPackingList = (list: any, currentUid: string, isAdmin: boolean): boolean => {
+  if (isAdmin) return true;
+  const assignedUid = String(list?.assignedTo || "").trim();
+  const createdByUid = String(list?.createdById || "").trim();
+  return assignedUid === currentUid || createdByUid === currentUid;
+};
+
 export default function AllPackingLists({
   onEdit,
   onView,
@@ -100,10 +107,10 @@ export default function AllPackingLists({
 
   const lists = (packingLists || []).slice().sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
   const scopedLists = useMemo(() => {
-    if (userData?.role === "admin") return lists;
+    const isAdmin = userData?.role === "admin";
     const currentUid = String(userData?.uid || user?.uid || "").trim();
     if (!currentUid) return [];
-    return lists.filter((list) => String(list.assignedTo || "").trim() === currentUid);
+    return lists.filter((list) => canAccessPackingList(list, currentUid, isAdmin));
   }, [lists, userData?.role, userData?.uid, user?.uid]);
 
   const filteredLists = scopedLists.filter((list) => {

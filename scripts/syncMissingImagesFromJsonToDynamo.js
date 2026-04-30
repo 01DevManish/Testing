@@ -5,7 +5,12 @@ const dotenv = require("dotenv");
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, QueryCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 
-dotenv.config({ path: path.join(process.cwd(), ".env") });
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: path.join(process.cwd(), ".env") });
+} else {
+  dotenv.config({ path: path.join(process.cwd(), ".env.local") });
+  dotenv.config({ path: path.join(process.cwd(), ".env") });
+}
 
 const REGION = process.env.AWS_REGION || "ap-south-1";
 const PARTITION = "DATA#inventory";
@@ -159,4 +164,3 @@ main().catch((err) => {
   console.error("[img-fill] failed:", err);
   process.exit(1);
 });
-

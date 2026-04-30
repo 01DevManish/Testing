@@ -86,7 +86,7 @@ export default function EmployeeSidebar({
         { key: "retail", label: "Retail Dispatch", icon: ICONS.retail, path: "/dashboard/retail-dispatch", permission: "retail_view" },
         { key: "ecom", label: "Ecommerce Dispatch", icon: ICONS.ecom, path: "/dashboard/ecom-dispatch", permission: "ecom_view" },
         { key: "inventory", label: "Inventory Feed", icon: ICONS.inventory, path: "/dashboard/inventory", permission: "inventory_view" },
-        { key: "erm", label: "CRM", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
+        { key: "erm", label: "CRM Workspace", icon: ICONS.erm, path: "/dashboard/erm", permission: "erm_dashboard_view" },
         { key: "clout", label: "Clout", icon: ICONS.clout, path: "/dashboard/clout", permission: "clout_drive_view" },
       ]
     },
