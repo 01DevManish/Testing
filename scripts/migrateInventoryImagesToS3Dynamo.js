@@ -6,7 +6,12 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, QueryCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 const { S3Client, CopyObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
 
-dotenv.config({ path: path.join(process.cwd(), ".env") });
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: path.join(process.cwd(), ".env") });
+} else {
+  dotenv.config({ path: path.join(process.cwd(), ".env.local") });
+  dotenv.config({ path: path.join(process.cwd(), ".env") });
+}
 
 const REGION = process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_S3_REGION || "ap-south-1";
 const TABLE_NAME = process.env.DYNAMO_DATA_TABLE || "eurus-data";

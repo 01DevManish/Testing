@@ -34,6 +34,7 @@ export async function GET(req: Request) {
         name: dbInfo.name || u.email.split("@")[0] || "Unknown User",
         role: dbInfo.role || (dbInfo.role as string) || "user",
         permissions: (dbInfo.permissions as string[]) || [],
+        crmWorkspaceCreated: Boolean((dbInfo as { crmWorkspaceCreated?: boolean }).crmWorkspaceCreated),
         dispatchPin: (dbInfo.dispatchPin as string) || "",
         createdAt: u.createdAt,
         lastSignIn: null,

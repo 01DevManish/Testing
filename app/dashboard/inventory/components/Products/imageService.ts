@@ -51,17 +51,8 @@ export const resolveS3Url = (url: string): string => {
         if (domainParts.length > 1) {
             let path = domainParts[1];
             
-            // Step 3: Progressive Format Rewrite (Client-Side Negotiation)
-            // If the browser supports AVIF/WebP, we explicitly ask for it to bypass Edge logic and show in inspector
-            if (formatSupport !== "original") {
-                const parts = path.split('.');
-                if (parts.length > 1) {
-                    const ext = parts.pop()?.toLowerCase();
-                    if (ext && ['jpg', 'jpeg', 'png'].includes(ext)) {
-                        path = `${parts.join('.')}.${formatSupport}`;
-                    }
-                }
-            }
+            // Keep original file extension to avoid 404 when AVIF/WebP variants
+            // are not physically present on storage/CDN.
 
             return `${domain}/${path}${process.env.NEXT_PUBLIC_IMAGE_VERSION ? `?v=${process.env.NEXT_PUBLIC_IMAGE_VERSION}` : ""}`;
         }

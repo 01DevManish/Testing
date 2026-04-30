@@ -8,7 +8,12 @@ const {
   HeadObjectCommand,
 } = require("@aws-sdk/client-s3");
 
-dotenv.config({ path: path.join(process.cwd(), ".env") });
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: path.join(process.cwd(), ".env") });
+} else {
+  dotenv.config({ path: path.join(process.cwd(), ".env.local") });
+  dotenv.config({ path: path.join(process.cwd(), ".env") });
+}
 
 const BACKUP_DIR = path.join(process.cwd(), "scripts", "backups");
 const DB_URL =

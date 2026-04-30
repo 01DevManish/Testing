@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "../../context/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { sendNotification } from "../../lib/notificationHelper";
 import PartyRateModule from "../party-rate";
 import { PartyRate } from "../admin/types";
@@ -51,10 +51,11 @@ function useWindowSize() {
   return size;
 }
 
-export default function EmployeePage() {
+function EmployeePageContent() {
   const { user, userData, logout, loading } = useAuth();
   const { users } = useData();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { width } = useWindowSize();
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
@@ -68,6 +69,26 @@ export default function EmployeePage() {
   const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
   const { products, categories, collections, brands, loading: fetchingGlobal } = useData();
   const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
+  const viewQueryMap = useState(() => ({
+    tasks: "tasks",
+    "party-rates": "party-rates",
+    messages: "messages",
+    catalog: "catalog",
+  }))[0];
+
+  useEffect(() => {
+    const raw = (searchParams.get("view") || "").trim().toLowerCase();
+    const next = (viewQueryMap[raw as keyof typeof viewQueryMap] || "tasks") as typeof view;
+    setView((prev) => (prev === next ? prev : next));
+  }, [searchParams, viewQueryMap]);
+
+  useEffect(() => {
+    const current = (searchParams.get("view") || "").trim().toLowerCase();
+    if (current === view) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", view);
+    router.replace(`/dashboard/employee?${params.toString()}`);
+  }, [view, router, searchParams]);
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
@@ -422,5 +443,13 @@ export default function EmployeePage() {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
+  );
+}
+
+export default function EmployeePage() {
+  return (
+    <Suspense fallback={null}>
+      <EmployeePageContent />
+    </Suspense>
   );
 }

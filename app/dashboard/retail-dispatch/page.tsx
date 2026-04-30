@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { api } from "./data";
@@ -42,9 +42,10 @@ function useWindowSize() {
   return size;
 }
 
-export default function AdvancedDispatchDashboard() {
+function AdvancedDispatchDashboardContent() {
   const { user, userData, loading, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { width } = useWindowSize();
   const isMobile = width < 640;
   const isDesktop = width >= 1024;
@@ -88,6 +89,36 @@ export default function AdvancedDispatchDashboard() {
   const [editingPackingList, setEditingPackingList] = useState<any>(null);
   const [viewingPackingList, setViewingPackingList] = useState<any>(null);
   const [statsDate, setStatsDate] = useState(new Date().toISOString().split('T')[0]);
+  const viewQueryMap: Record<string, ActiveView> = useMemo(() => ({
+    overview: "overview",
+    "create-dispatch": "create-dispatch",
+    "order-list": "order-list",
+    "add-order": "add-order",
+    scanner: "scanner",
+    "create-packing-list": "create-packing-list",
+    "all-packing-lists": "all-packing-lists",
+    "packing-transporters": "packing-transporters",
+    "create-dispatch-list": "create-dispatch-list",
+    "all-dispatch-lists": "all-dispatch-lists",
+    "box-management": "box-management",
+    "dispatch-box": "dispatch-box",
+    "all-box-dispatches": "all-box-dispatches",
+    catalog: "catalog",
+    messages: "messages",
+  }), []);
+
+  useEffect(() => {
+    const raw = (searchParams.get("view") || "").trim().toLowerCase();
+    const mapped = viewQueryMap[raw] || "overview";
+    setActiveView((prev) => (prev === mapped ? prev : mapped));
+  }, [searchParams, viewQueryMap]);
+
+  const goToView = (nextView: ActiveView) => {
+    setActiveView(nextView);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", nextView);
+    router.replace(`/dashboard/retail-dispatch?${params.toString()}`);
+  };
 
   useEffect(() => {
     if (isDesktop) setSidebarOpen(false);
@@ -99,7 +130,7 @@ export default function AdvancedDispatchDashboard() {
       setSelectedOrder(order);
     } else {
       setScannedUnknownId(code);
-      setActiveView("add-order");
+      goToView("add-order");
     }
   };
 
@@ -110,7 +141,7 @@ export default function AdvancedDispatchDashboard() {
 
   const handleOrderAdded = (newOrder: Order) => {
     setOrders([newOrder, ...orders]);
-    setActiveView("overview");
+    goToView("overview");
     setScannedUnknownId("");
     setSelectedOrder(newOrder);
   };
@@ -215,7 +246,7 @@ export default function AdvancedDispatchDashboard() {
 
   const handleOrderStatusNavigate = (status: OrderStatus | "All") => {
     setFilterStatus(status);
-    setActiveView("order-list");
+    goToView("order-list");
   };
 
   return (
@@ -255,7 +286,7 @@ export default function AdvancedDispatchDashboard() {
       }}>
         <DispatchSidebar
           activeView={activeView}
-          onNavigate={(v) => { setActiveView(v); if (!isDesktop) setSidebarOpen(false); }}
+          onNavigate={(v) => { goToView(v); if (!isDesktop) setSidebarOpen(false); }}
           currentName={currentName}
           currentRole={currentRole}
           onLogout={async () => {
@@ -302,7 +333,7 @@ export default function AdvancedDispatchDashboard() {
                 onStatsDateChange={setStatsDate}
                 onSearchQueryChange={setSearchQuery}
                 onClearSearch={() => setSearchQuery("")}
-                onNavigate={setActiveView}
+                onNavigate={goToView}
                 onOrderStatusNavigate={handleOrderStatusNavigate}
               />
             ) : (
@@ -318,21 +349,21 @@ export default function AdvancedDispatchDashboard() {
                 onStatsDateChange={setStatsDate}
                 onSearchQueryChange={setSearchQuery}
                 onClearSearch={() => setSearchQuery("")}
-                onNavigate={setActiveView}
+                onNavigate={goToView}
                 onOrderStatusNavigate={handleOrderStatusNavigate}
               />
             )
           )}
           {activeView === "order-list" && <OrderList orders={orders} onSelectOrder={setSelectedOrder} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterStatus={filterStatus} setFilterStatus={setFilterStatus} onRefresh={loadOrders} loading={fetching} onDeleteOrder={canDelete ? handleDeleteOrder : undefined} canDelete={canDelete} />}
           {activeView === "scanner" && <div className="animate-in fade-in duration-300"><PageHeader title="Scanner" sub="Scan barcodes..." /><Card style={{ padding: 24 }}><Scanner onScan={handleScan} /></Card></div>}
-          {activeView === "create-dispatch" && <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300"><CreateDispatchModal dispatchType="retail" onClose={() => setActiveView("overview")} onDispatched={() => { loadOrders(); setActiveView("overview"); }} /></div>}
-          {activeView === "add-order" && <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300"><AddOrderModal initialOrderId={scannedUnknownId} onClose={() => setActiveView("overview")} onOrderAdded={handleOrderAdded} /></div>}
-          {activeView === "create-packing-list" && <div className="max-w-6xl mx-auto pt-4 animate-in fade-in duration-300"><CreatePackingList editingList={editingPackingList} onClose={() => { setActiveView("overview"); setEditingPackingList(null); }} onCreated={() => { setActiveView("all-packing-lists"); setEditingPackingList(null); loadOrders(); }} /></div>}
-          {activeView === "create-dispatch-list" && <div className="max-w-6xl mx-auto pt-4 animate-in fade-in duration-300"><CreateDispatchList onClose={() => setActiveView("overview")} onCreated={() => { setActiveView("overview"); loadOrders(); }} /></div>}
+          {activeView === "create-dispatch" && <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300"><CreateDispatchModal dispatchType="retail" onClose={() => goToView("overview")} onDispatched={() => { loadOrders(); goToView("overview"); }} /></div>}
+          {activeView === "add-order" && <div className="max-w-3xl mx-auto pt-4 animate-in fade-in duration-300"><AddOrderModal initialOrderId={scannedUnknownId} onClose={() => goToView("overview")} onOrderAdded={handleOrderAdded} /></div>}
+          {activeView === "create-packing-list" && <div className="max-w-6xl mx-auto pt-4 animate-in fade-in duration-300"><CreatePackingList editingList={editingPackingList} onClose={() => { goToView("overview"); setEditingPackingList(null); }} onCreated={() => { goToView("all-packing-lists"); setEditingPackingList(null); loadOrders(); }} /></div>}
+          {activeView === "create-dispatch-list" && <div className="max-w-6xl mx-auto pt-4 animate-in fade-in duration-300"><CreateDispatchList onClose={() => goToView("overview")} onCreated={() => { goToView("overview"); loadOrders(); }} /></div>}
           {activeView === "all-packing-lists" && (
             <div className="max-w-7xl mx-auto pt-4 animate-in fade-in duration-300">
               <AllPackingLists
-                onEdit={(list) => { setEditingPackingList(list); setActiveView("create-packing-list"); }}
+                onEdit={(list) => { setEditingPackingList(list); goToView("create-packing-list"); }}
                 onView={(list) => setViewingPackingList(list)}
                 onDelete={handleDeletePackingList}
                 canDelete={canDelete}
@@ -390,6 +421,14 @@ export default function AdvancedDispatchDashboard() {
         />
       )}
     </div>
+  );
+}
+
+export default function AdvancedDispatchDashboard() {
+  return (
+    <Suspense fallback={null}>
+      <AdvancedDispatchDashboardContent />
+    </Suspense>
   );
 }
 

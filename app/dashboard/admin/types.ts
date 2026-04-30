@@ -9,6 +9,7 @@ export interface UserRecord {
   name: string;
   role: UserRole;
   permissions?: string[];
+  crmWorkspaceCreated?: boolean;
   dispatchPin?: string;
   requiresPasswordChange?: boolean;
 }

@@ -43,27 +43,32 @@ export async function GET(req: NextRequest) {
   try {
     const s3Location = parseS3Location(imageUrl);
     if (s3Location) {
-      const object = await s3Client.send(
-        new GetObjectCommand({
-          Bucket: s3Location.bucket,
-          Key: s3Location.key,
-        })
-      );
+      try {
+        const object = await s3Client.send(
+          new GetObjectCommand({
+            Bucket: s3Location.bucket,
+            Key: s3Location.key,
+          })
+        );
 
-      if (!object.Body) {
-        return NextResponse.json({ error: "Image not found" }, { status: 404 });
+        if (!object.Body) {
+          return NextResponse.json({ error: "Image not found" }, { status: 404 });
+        }
+
+        const bytes = await object.Body.transformToByteArray();
+        return new NextResponse(toArrayBuffer(bytes), {
+          headers: {
+            "Content-Type": object.ContentType || "image/jpeg",
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch (s3Err) {
+        // If AWS SDK access is restricted for this bucket, fallback to public HTTP fetch.
+        console.warn("Proxy S3 SDK fetch failed; falling back to HTTP fetch:", s3Err);
       }
-
-      const bytes = await object.Body.transformToByteArray();
-      return new NextResponse(toArrayBuffer(bytes), {
-        headers: {
-          "Content-Type": object.ContentType || "image/jpeg",
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
     }
 
-    // Fallback for non-S3 sources.
+    // Fallback for non-S3 sources or S3 SDK permission failures.
     const response = await fetch(imageUrl);
     if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
     const blob = await response.blob();

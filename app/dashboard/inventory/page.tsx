@@ -1,8 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { logActivity } from "../../lib/activityLogger";
@@ -54,10 +54,38 @@ function useWindowWidth() {
   return w;
 }
 
+const VIEW_QUERY_KEY = "view";
+const DEFAULT_VIEW: ActiveView = "overview";
+const VIEW_FROM_QUERY: Record<string, ActiveView> = {
+  overview: "overview",
+  "product-create": "product-create",
+  "product-list": "product-list",
+  "category-create": "category-create",
+  "category-list": "category-list",
+  "collections-create": "collections-create",
+  "collections-list": "collections-list",
+  "grouping-create": "grouping-create",
+  "grouping-list": "grouping-list",
+  "inventory-adjustment": "inventory-adjustment",
+  "inventory-bulk": "inventory-bulk",
+  "inventory-barcode-create": "inventory-barcode-create",
+  "inventory-barcode-print": "inventory-barcode-print",
+  catalog: "catalog",
+};
+
+const VIEW_TO_QUERY: Record<ActiveView, string> = Object.entries(VIEW_FROM_QUERY).reduce(
+  (acc, [key, value]) => {
+    acc[value] = key;
+    return acc;
+  },
+  {} as Record<ActiveView, string>
+);
+
 // ═══════════════════════════════════════════════════════════════
-export default function InventoryPage() {
+function InventoryPageContent() {
   const { user, userData, logout, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const width = useWindowWidth();
   const isMobile = width < 640;
   const isDesktop = width >= 1024;
@@ -76,6 +104,12 @@ export default function InventoryPage() {
   // ── Sidebar ───────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>("overview");
+
+  useEffect(() => {
+    const rawView = (searchParams.get(VIEW_QUERY_KEY) || "").trim().toLowerCase();
+    const nextView = VIEW_FROM_QUERY[rawView] || DEFAULT_VIEW;
+    setActiveView((prev) => (prev === nextView ? prev : nextView));
+  }, [searchParams]);
 
   // ── Data from Global Cache ────────────────────────────────
   const { 
@@ -361,6 +395,9 @@ export default function InventoryPage() {
   // ── Route view ─────────────────────────────────────────────
   const navigate = (view: ActiveView) => {
     setActiveView(view);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(VIEW_QUERY_KEY, VIEW_TO_QUERY[view] || VIEW_TO_QUERY[DEFAULT_VIEW]);
+    router.replace(`/dashboard/inventory?${params.toString()}`);
     if (!isDesktop) setSidebarOpen(false);
   };
 
@@ -783,6 +820,14 @@ export default function InventoryPage() {
         />
       )}
     </>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <InventoryPageContent />
+    </Suspense>
   );
 }
 

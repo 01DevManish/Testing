@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermission } from "../../lib/permissions";
+import { hasCrmWorkspace } from "../../lib/crmWorkspace";
 
 export default function ErmHomePage() {
   const router = useRouter();
@@ -22,6 +23,10 @@ export default function ErmHomePage() {
 
     if (userData?.role === "admin") {
       router.replace("/dashboard/erm/admin");
+      return;
+    }
+    if (!hasCrmWorkspace(userData)) {
+      router.replace("/dashboard/erm/no-workspace");
       return;
     }
 

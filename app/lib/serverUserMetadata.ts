@@ -9,6 +9,7 @@ export interface UserMetadata {
   name: string;
   role: UserRole;
   permissions?: string[];
+  crmWorkspaceCreated?: boolean;
   dispatchPin?: string;
   profilePic?: string;
   requiresPasswordChange?: boolean;
@@ -47,6 +48,7 @@ export const sanitizeUserMetadata = (raw: unknown): UserMetadata | null => {
     name,
     role: normalizeRole(input.role),
     permissions: Array.isArray(input.permissions) ? input.permissions.filter((p): p is string => typeof p === "string") : [],
+    crmWorkspaceCreated: Boolean(input.crmWorkspaceCreated),
     dispatchPin: normalizeDispatchPin(input.dispatchPin),
     profilePic: typeof input.profilePic === "string" ? input.profilePic : undefined,
     requiresPasswordChange: Boolean(input.requiresPasswordChange),

@@ -6,6 +6,7 @@ import { logActivity } from "../../../../lib/activityLogger";
 import SmartImage from "../../../../components/SmartImage";
 import { touchDataSignal } from "../../../../lib/dataSignals";
 import { upsertDataItems } from "../../../../lib/dynamoDataApi";
+import { appendInventoryAdjustmentLog, fetchInventoryAdjustmentLogsBySku, InventoryAdjustmentLog } from "../../../../lib/inventoryAdjustmentLogs";
 
 export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: {
     p: Product,
@@ -14,12 +15,16 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
     isMobile?: boolean,
     mobileCard?: boolean
 }) {
-    const ADJUSTMENT_REASONS = ["Ecom Sale", "Retail Sale", "Remove Stock"];
+    const REMOVE_REASONS = ["Ecom Sale", "Retail Sale", "Remove Stock"];
+    const ADD_REASONS = ["New Production", "New Job Work", "Dispatch Return", "Ecom Return", "Purchase"];
     const [qty, setQty] = useState<number | "">(1);
     const [saving, setSaving] = useState(false);
     const [confirm, setConfirm] = useState<{ mode: "add" | "remove" } | null>(null);
     const [reason, setReason] = useState("");
     const [note, setNote] = useState("");
+    const [logsOpen, setLogsOpen] = useState(false);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [logs, setLogs] = useState<InventoryAdjustmentLog[]>([]);
 
     const handleAdjust = async () => {
         if (!confirm) return;
@@ -53,6 +58,20 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 lastAdjustmentByName: user.name
             }]);
             await touchDataSignal("inventory");
+            await appendInventoryAdjustmentLog({
+                sku: p.sku,
+                productId: p.id,
+                productName: p.productName,
+                mode,
+                source: "manual",
+                quantity: q,
+                previousStock: p.stock,
+                newStock,
+                reason,
+                note: note.trim().slice(0, 60),
+                createdByUid: user.uid,
+                createdByName: user.name,
+            });
 
             await logActivity({
                 type: "inventory",
@@ -77,6 +96,30 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
         } finally {
             setSaving(false);
         }
+    };
+
+    const loadLogs = async () => {
+        setLogsLoading(true);
+        try {
+            const rows = await fetchInventoryAdjustmentLogsBySku(p.sku);
+            setLogs(rows);
+        } catch (error) {
+            console.error("Failed to load inventory logs:", error);
+            alert("Could not load SKU logs.");
+        } finally {
+            setLogsLoading(false);
+        }
+    };
+
+    const openLogs = async () => {
+        setLogsOpen(true);
+        await loadLogs();
+    };
+
+    const formatLogTime = (value?: number): string => {
+        const ts = Number(value || 0);
+        if (!ts) return "-";
+        return new Date(ts).toLocaleString();
     };
 
     const controls = (
@@ -115,7 +158,9 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Reason *</div>
                         <select value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: 10, outline: "none", fontSize: 13, color: "#0f172a", background: "#fff" }}>
                             <option value="">Select reason</option>
-                            {ADJUSTMENT_REASONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                            {(confirm?.mode === "add" ? ADD_REASONS : REMOVE_REASONS).map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
                         </select>
                     </div>
                     <div>
@@ -163,6 +208,30 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 <div style={{ marginTop: 10 }}>
                     {controls}
                 </div>
+                <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                        type="button"
+                        onClick={() => void openLogs()}
+                        style={{
+                            border: "1px solid #cbd5e1",
+                            background: "#fff",
+                            borderRadius: 8,
+                            padding: "6px 10px",
+                            fontSize: 11,
+                            color: "#334155",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6
+                        }}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                        View Logs
+                    </button>
+                </div>
                 {(p.lastAdjustmentReason || p.lastAdjustmentNote) && (
                     <div style={{ marginTop: 8, fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
                         {p.lastAdjustmentReason || "Update"}{p.lastAdjustmentNote ? `: ${p.lastAdjustmentNote}` : ""}
@@ -198,11 +267,38 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                     {!isMobile && p.stock <= p.minStock && p.stock > 0 && <span style={{ fontSize: 10, color: "#a16207", fontWeight: 400 }}>Low Stock</span>}
                 </td>
                 <td style={{ padding: isMobile ? "12px 8px" : "14px 16px", maxWidth: 300 }}>
-                    <div style={{ fontSize: 12, color: "#334155", fontWeight: 500, fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.lastAdjustmentReason || "-"}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
-                        {p.lastAdjustmentNote || "No note"}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button
+                            type="button"
+                            onClick={() => void openLogs()}
+                            title="View SKU logs"
+                            style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 8,
+                                border: "1.5px solid #cbd5e1",
+                                background: "#fff",
+                                color: "#334155",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 14
+                            }}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                            </svg>
+                        </button>
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: "#334155", fontWeight: 500, fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {p.lastAdjustmentReason || "-"}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#64748b", fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                                {p.lastAdjustmentNote || "No note"}
+                            </div>
+                        </div>
                     </div>
                 </td>
                 <td style={{ padding: isMobile ? "12px 10px" : "14px 16px", textAlign: "right", position: "relative" }}>
@@ -210,6 +306,51 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 </td>
             </tr>
             {confirmModal}
+            {logsOpen && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(4px)", zIndex: 2100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+                    <div style={{ width: "100%", maxWidth: 760, maxHeight: "86vh", overflow: "hidden", background: "#fff", borderRadius: 16, boxShadow: "0 18px 34px -16px rgba(0,0,0,0.28)", display: "flex", flexDirection: "column" }}>
+                        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>SKU Logs</div>
+                                <div style={{ fontSize: 12, color: "#64748b" }}>{p.sku} - {p.productName}</div>
+                            </div>
+                            <button type="button" onClick={() => setLogsOpen(false)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#334155" }}>Close</button>
+                        </div>
+                        <div style={{ padding: 12, overflowY: "auto" }}>
+                            {logsLoading ? (
+                                <div style={{ textAlign: "center", padding: "24px 8px", color: "#64748b" }}>Loading logs...</div>
+                            ) : logs.length === 0 ? (
+                                <div style={{ textAlign: "center", padding: "24px 8px", color: "#64748b" }}>No logs found for this SKU.</div>
+                            ) : (
+                                logs.map((row) => (
+                                    <div key={row.id} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10, background: "#fff" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: row.mode === "add" ? "#059669" : "#dc2626" }}>
+                                                {row.mode === "add" ? "Stock Added" : "Stock Removed"} - {row.quantity}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: "#64748b" }}>{formatLogTime(row.createdAt)}</div>
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
+                                            Stock: {row.previousStock} -&gt; {row.newStock}
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
+                                            Reason: {row.reason || "-"}{row.note ? ` | Note: ${row.note}` : ""}
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
+                                            Source: {row.source}
+                                            {row.partyName ? ` | Party: ${row.partyName}` : ""}
+                                            {row.dispatchId ? ` | Dispatch: ${row.dispatchId}` : ""}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: "#64748b" }}>
+                                            By: {row.createdByName || "System"}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

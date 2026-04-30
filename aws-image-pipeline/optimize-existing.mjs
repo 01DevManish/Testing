@@ -12,7 +12,12 @@ import path from "path";
 
 // Load config
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: path.resolve(__dirname, "../.env") });
+} else {
+  dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
+  dotenv.config({ path: path.resolve(__dirname, "../.env") });
+}
 
 const config = {
   region: process.env.AWS_REGION || "ap-south-1",

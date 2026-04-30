@@ -159,13 +159,21 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
         if (processedFiles) return;
 
         // STEP 1: Process Images
-        const allImages: { url: string, productName: string, sku: string }[] = [];
-        selectedProducts.forEach(p => {
-            if (p.imageUrls && p.imageUrls.length > 0) {
-                p.imageUrls.forEach(url => allImages.push({ url, productName: p.productName, sku: p.sku }));
-            } else if (p.imageUrl) {
-                allImages.push({ url: p.imageUrl, productName: p.productName, sku: p.sku });
-            }
+        const allImages: { urls: string[], productName: string, sku: string }[] = [];
+        const seenSku = new Set<string>();
+        selectedProducts.forEach((p) => {
+            const skuKey = String(p.sku || "").trim().toLowerCase();
+            if (!skuKey || seenSku.has(skuKey)) return;
+
+            const candidateUrls = [
+                String(p.imageUrl || "").trim(),
+                ...(Array.isArray(p.imageUrls) ? p.imageUrls.map((u) => String(u || "").trim()) : []),
+            ].filter(Boolean);
+
+            if (candidateUrls.length === 0) return;
+
+            seenSku.add(skuKey);
+            allImages.push({ urls: candidateUrls, productName: p.productName, sku: p.sku });
         });
 
         if (allImages.length === 0) {
@@ -187,14 +195,21 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
                     const logoUrl = brand?.logoUrl;
                     const prodCollection = product?.collection || collectionName || "";
 
-                    const resolvedUrl = resolveS3Url(img.url);
-                    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(resolvedUrl)}`;
-                    const response = await fetch(proxyUrl);
-                    if (!response.ok) throw new Error(`HTTP ${response.status} for ${resolvedUrl} via proxy`);
+                    let originalBlob: Blob | null = null;
+                    let lastError = "";
+                    for (const rawUrl of img.urls) {
+                        const resolvedUrl = resolveS3Url(rawUrl);
+                        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(resolvedUrl)}`;
+                        const response = await fetch(proxyUrl);
+                        if (response.ok) {
+                            originalBlob = await response.blob();
+                            break;
+                        }
+                        lastError = `HTTP ${response.status} for ${resolvedUrl} via proxy`;
+                    }
+                    if (!originalBlob) throw new Error(lastError || `No valid image URL for ${img.sku}`);
 
-                    const originalBlob = await response.blob();
                     const processedBlob = await processProductImage(originalBlob, logoUrl, prodCollection, img.sku, allImages.length);
-                    
                     const fileName = `${img.productName.replace(/[^a-z0-9]/gi, '_')}_${img.sku}_${idx}.jpg`;
                     return { blob: processedBlob, fileName };
                 }));

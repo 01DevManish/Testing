@@ -27,7 +27,10 @@ export default function CatalogTab({ products, categories, collections, brands, 
     const [showShareModal, setShowShareModal] = useState(false);
     const [shareOutOfStock, setShareOutOfStock] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+    const [proxyFallbackIds, setProxyFallbackIds] = useState<Set<string>>(new Set());
     const ITEMS_PER_PAGE = 24;
+    const canToggleOutOfStock = Boolean(isAdmin);
+    const includeOutOfStock = canToggleOutOfStock ? shareOutOfStock : false;
 
     const uniqueCategories = useMemo(() => {
         const cats = products.map(p => p.category).filter(Boolean) as string[];
@@ -51,14 +54,14 @@ export default function CatalogTab({ products, categories, collections, brands, 
             const matchesCat = selectedCategory === "all" || p.category === selectedCategory;
             const matchesColl = selectedCollection === "all" || p.collection === selectedCollection;
             const matchesSize = selectedSize === "all" || p.size === selectedSize;
-            const matchesStock = shareOutOfStock ? true : (p.stock || 0) > 0;
+            const matchesStock = includeOutOfStock ? true : (p.stock || 0) > 0;
             return matchesSearch && matchesCat && matchesColl && matchesSize && matchesStock;
         });
-    }, [products, searchTerm, selectedCategory, selectedCollection, selectedSize, shareOutOfStock]);
+    }, [products, searchTerm, selectedCategory, selectedCollection, selectedSize, includeOutOfStock]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, selectedCategory, selectedCollection, selectedSize, shareOutOfStock]);
+    }, [searchTerm, selectedCategory, selectedCollection, selectedSize, includeOutOfStock]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
     const paginatedItems = useMemo(
@@ -67,8 +70,26 @@ export default function CatalogTab({ products, categories, collections, brands, 
     );
 
     const finalSelectedProducts = useMemo(() => {
-        return shareOutOfStock ? selectedProducts : selectedProducts.filter(p => (p.stock || 0) > 0);
-    }, [selectedProducts, shareOutOfStock]);
+        return includeOutOfStock ? selectedProducts : selectedProducts.filter(p => (p.stock || 0) > 0);
+    }, [selectedProducts, includeOutOfStock]);
+
+    const getBaseImageUrl = (p: Product): string => {
+        const raw =
+            p.imageUrl ||
+            (Array.isArray(p.imageUrls) ? p.imageUrls.find((u) => typeof u === "string" && u.trim()) : "") ||
+            "";
+        if (!raw) return "";
+        return resolveS3Url(raw);
+    };
+
+    const getDisplayImageSrc = (p: Product): string => {
+        const base = getBaseImageUrl(p);
+        if (!base) return "/placeholder-prod.png";
+        if (proxyFallbackIds.has(p.id)) {
+            return `/api/proxy-image?url=${encodeURIComponent(base)}`;
+        }
+        return base;
+    };
 
     const handleToggleSelect = (p: Product) => {
         setSelectedProducts(prev => {
@@ -275,6 +296,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                 <div style={{ ...gridStyle, gridTemplateColumns: isMobile ? MOBILE_CATALOG_GRID : "repeat(auto-fill, minmax(220px, 1fr))", gap: isMobile ? 8 : 20 }}>
                     {paginatedItems.map(p => {
                         const isSelected = !!selectedProducts.find(item => item.id === p.id);
+                        const baseImageUrl = getBaseImageUrl(p);
                         return (
                             <div 
                                 key={p.id} 
@@ -286,13 +308,27 @@ export default function CatalogTab({ products, categories, collections, brands, 
                                 }}
                             >
                                 <div style={imageContainer}>
-                                    <img 
-                                        src={resolveS3Url(p.imageUrl || "/placeholder-prod.png")} 
-                                        alt={p.productName} 
-                                        style={imageStyle} 
-                                        loading={paginatedItems.indexOf(p) < 8 ? "eager" : "lazy"}
-                                        {...({ fetchpriority: paginatedItems.indexOf(p) < 8 ? "high" : "auto" } as any)}
-                                    />
+                                    {baseImageUrl ? (
+                                        <img 
+                                            src={getDisplayImageSrc(p)} 
+                                            alt={p.productName} 
+                                            style={imageStyle} 
+                                            loading={paginatedItems.indexOf(p) < 8 ? "eager" : "lazy"}
+                                            {...({ fetchpriority: paginatedItems.indexOf(p) < 8 ? "high" : "auto" } as any)}
+                                            onError={() => {
+                                                setProxyFallbackIds((prev) => {
+                                                    if (prev.has(p.id)) return prev;
+                                                    const next = new Set(prev);
+                                                    next.add(p.id);
+                                                    return next;
+                                                });
+                                            }}
+                                        />
+                                    ) : (
+                                        <div style={{ ...imageStyle, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 11, letterSpacing: "0.08em", background: "linear-gradient(145deg,#f8fafc,#eef2f7)" }}>
+                                            IMG
+                                        </div>
+                                    )}
                                     {isSelected && (
                                         <div style={checkOverlay}>
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">

@@ -23,6 +23,22 @@ type EmployeeSummary = {
   sales: number;
 };
 
+const hasCrmPermissionAccess = (user: { role?: string; permissions?: string[]; email?: string } | null | undefined) => {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  return (
+    hasPermission(user, "erm_dashboard_view")
+    || hasPermission(user, "erm_inventory_view")
+    || hasPermission(user, "erm_leads_view")
+    || hasPermission(user, "erm_orders_view")
+    || hasPermission(user, "erm_catalog_view")
+    || hasPermission(user, "erm_view")
+    || hasPermission(user, "crm_view")
+    || hasPermission(user, "erm")
+    || hasPermission(user, "crm")
+  );
+};
+
 
 
 const cardStyle: React.CSSProperties = {
@@ -203,6 +219,8 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
   const [leads, setLeads] = useState<LeadRecord[]>([]);
   const [orders, setOrders] = useState<ErmOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [workspaceCreatingUid, setWorkspaceCreatingUid] = useState<string>("");
+  const [workspaceReadyByUid, setWorkspaceReadyByUid] = useState<Record<string, boolean>>({});
 
   const isAdmin = userData?.role === "admin";
   const [selectedUid, setSelectedUid] = useState<string>(forcedEmployeeUid || "all");
@@ -271,10 +289,22 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
     };
   }, [visibleOrders, visibleLeads]);
 
+  const crmUsers = useMemo(
+    () => users.filter((u) => u.email !== "01devmanish@gmail.com" && hasCrmPermissionAccess(u)),
+    [users],
+  );
+
   const employeeRows = useMemo(() => {
     if (!isAdmin) return [];
-    const map = new Map<string, { uid: string; name: string; role: string; orders: number; sales: number }>();
-    users.forEach(u => map.set(u.uid, { uid: u.uid, name: u.name, role: u.role || "employee", orders: 0, sales: 0 }));
+    const map = new Map<string, { uid: string; name: string; role: string; orders: number; sales: number; workspaceReady: boolean }>();
+    crmUsers.forEach(u => map.set(u.uid, {
+      uid: u.uid,
+      name: u.name,
+      role: u.role || "employee",
+      orders: 0,
+      sales: 0,
+      workspaceReady: workspaceReadyByUid[u.uid] ?? Boolean(u.crmWorkspaceCreated),
+    }));
     
     orders.forEach(o => {
       const emp = map.get(o.employeeUid);
@@ -284,8 +314,28 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
       }
     });
     
-    return Array.from(map.values()).filter(e => (e.orders > 0 || e.sales > 0 || users.some(u => u.uid === e.uid)) && !users.some(u => u.uid === e.uid && u.email === "01devmanish@gmail.com")).sort((a,b) => b.sales - a.sales);
-  }, [isAdmin, users, orders]);
+    return Array.from(map.values()).sort((a,b) => b.sales - a.sales);
+  }, [isAdmin, crmUsers, orders, workspaceReadyByUid]);
+
+  const createWorkspaceForUser = useCallback(async (uid: string) => {
+    if (!uid) return;
+    setWorkspaceCreatingUid(uid);
+    try {
+      const res = await fetch("/api/admin/user-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, data: { crmWorkspaceCreated: true } }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Failed to create workspace");
+      setWorkspaceReadyByUid((prev) => ({ ...prev, [uid]: true }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create workspace";
+      alert(message);
+    } finally {
+      setWorkspaceCreatingUid("");
+    }
+  }, []);
 
   const formatMoney = (amount: number) => `Rs. ${Math.round(amount || 0).toLocaleString("en-IN")}`;
 
@@ -300,7 +350,7 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
             style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: "6px 10px", fontSize: 12 }}
           >
             <option value="all">All Employees</option>
-            {users.filter(u => u.email !== "01devmanish@gmail.com").map((row) => (
+            {crmUsers.map((row) => (
               <option key={row.uid} value={row.uid}>{row.name}</option>
             ))}
           </select>
@@ -344,12 +394,32 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
                     <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9", textAlign: "right", fontSize: 13 }}>{row.orders}</td>
                     <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9", textAlign: "right", fontSize: 13, fontWeight: 600 }}>{formatMoney(row.sales)}</td>
                     <td style={{ padding: "14px 8px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
-                      <button
-                        onClick={() => router.push(`/dashboard/erm/employee/${row.uid}/dashboard`)}
-                        style={{ border: "1px solid #c7d2fe", background: "#eef2ff", color: "#4338ca", borderRadius: 8, fontSize: 14, padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}
-                      >
-                        Open Workspace
-                      </button>
+                      {row.workspaceReady ? (
+                        <button
+                          onClick={() => router.push(`/dashboard/erm/employee/${row.uid}/dashboard`)}
+                          style={{ border: "1px solid #c7d2fe", background: "#eef2ff", color: "#4338ca", borderRadius: 8, fontSize: 14, padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}
+                        >
+                          Open Workspace
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => createWorkspaceForUser(row.uid)}
+                          disabled={workspaceCreatingUid === row.uid}
+                          style={{
+                            border: "1px solid #fdba74",
+                            background: "#fff7ed",
+                            color: "#9a3412",
+                            borderRadius: 8,
+                            fontSize: 14,
+                            padding: "8px 12px",
+                            cursor: workspaceCreatingUid === row.uid ? "not-allowed" : "pointer",
+                            fontWeight: 600,
+                            opacity: workspaceCreatingUid === row.uid ? 0.7 : 1,
+                          }}
+                        >
+                          {workspaceCreatingUid === row.uid ? "Creating..." : "Create Workspace"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

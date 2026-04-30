@@ -48,7 +48,7 @@ export const PERMISSION_GROUPS = [
   },
   {
     id: "erm",
-    name: "ERM / CRM",
+    name: "CRM Workspace",
     icon: "ERM",
     subModules: [
       { id: "erm_dashboard", name: "ERM Dashboard", actions: ["view", "create", "edit"] as const },

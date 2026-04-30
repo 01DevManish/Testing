@@ -39,6 +39,7 @@ export interface SessionUser {
   role: UserRole;
   name: string;
   permissions: string[];
+  crmWorkspaceCreated?: boolean;
   dispatchPin?: string;
   exp: number;
 }
@@ -420,13 +421,14 @@ export const getSessionUserFromRequest = async (req: Request): Promise<SessionUs
   const latestMeta = await getUserMetadataByUid(parsed.uid);
   if (!latestMeta) return null;
 
-  return {
-    uid: latestMeta.uid,
-    email: normalizeEmail(latestMeta.email),
-    role: latestMeta.role,
-    name: latestMeta.name,
-    permissions: latestMeta.permissions || [],
-    dispatchPin: latestMeta.dispatchPin,
-    exp: parsed.exp,
-  };
+    return {
+      uid: latestMeta.uid,
+      email: normalizeEmail(latestMeta.email),
+      role: latestMeta.role,
+      name: latestMeta.name,
+      permissions: latestMeta.permissions || [],
+      crmWorkspaceCreated: Boolean(latestMeta.crmWorkspaceCreated),
+      dispatchPin: latestMeta.dispatchPin,
+      exp: parsed.exp,
+    };
 };

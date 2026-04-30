@@ -11,8 +11,8 @@ export default function ErmAdminPage() {
   return (
     <ErmShell
       active="dashboard"
-      title="ERM Admin Dashboard"
-      subtitle="Admin can see all orders/sales, plus every employee dashboard link."
+      title="CRM Workspace Admin Dashboard"
+      subtitle="Admin can see all CRM workspace users, orders/sales, and employee workspace links."
     >
       <ErmDashboardModule />
     </ErmShell>

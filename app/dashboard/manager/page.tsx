@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "../../context/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { sendNotification } from "../../lib/notificationHelper";
 import ProfileTab from "../admin/ProfileTab";
 import PartyRateModule from "../party-rate";
@@ -37,9 +37,10 @@ const statusConfig = {
   completed: { label: "Completed", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
 
-export default function ManagerPage() {
+function ManagerPageContent() {
   const { user, userData, logout, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [fetchingTasks, setFetchingTasks] = useState(true);
@@ -55,6 +56,29 @@ export default function ManagerPage() {
   const { products, categories, collections, brands, loading: fetchingGlobal, users } = useData();
   const [partyRates, setPartyRates] = useState<PartyRate[]>([]);
   const [fetchingPartyRates, setFetchingPartyRates] = useState(false);
+  const viewQueryMap = useState(() => ({
+    dashboard: "dashboard",
+    tasks: "tasks",
+    team: "team",
+    "party-rates": "party-rates",
+    messages: "messages",
+    catalog: "catalog",
+    profile: "profile",
+  }))[0];
+
+  useEffect(() => {
+    const raw = (searchParams.get("view") || "").trim().toLowerCase();
+    const next = (viewQueryMap[raw as keyof typeof viewQueryMap] || "dashboard") as typeof view;
+    setView((prev) => (prev === next ? prev : next));
+  }, [searchParams, viewQueryMap]);
+
+  useEffect(() => {
+    const current = (searchParams.get("view") || "").trim().toLowerCase();
+    if (current === view) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", view);
+    router.replace(`/dashboard/manager?${params.toString()}`);
+  }, [view, router, searchParams]);
 
   useEffect(() => { localStorage.setItem("managerSidebarCollapsed", isCollapsed.toString()); }, [isCollapsed]);
 
@@ -315,5 +339,13 @@ export default function ManagerPage() {
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
+  );
+}
+
+export default function ManagerPage() {
+  return (
+    <Suspense fallback={null}>
+      <ManagerPageContent />
+    </Suspense>
   );
 }

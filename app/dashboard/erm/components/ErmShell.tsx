@@ -12,6 +12,7 @@ interface ErmShellProps {
   subtitle: string;
   children: React.ReactNode;
   employeeDashboardUid?: string;
+  workspaceReady?: boolean;
 }
 
 interface NavItem {
@@ -22,7 +23,7 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-export default function ErmShell({ active, title, subtitle, children, employeeDashboardUid }: ErmShellProps) {
+export default function ErmShell({ active, title, subtitle, children, employeeDashboardUid, workspaceReady = true }: ErmShellProps) {
   const router = useRouter();
   const { userData, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,8 +47,11 @@ export default function ErmShell({ active, title, subtitle, children, employeeDa
   );
 
   const allowedItems = useMemo(
-    () => navItems.filter((item) => hasPermission(userData, item.permission)),
-    [navItems, userData],
+    () => navItems.filter((item) => {
+      if (!workspaceReady && item.key !== "dashboard") return false;
+      return hasPermission(userData, item.permission);
+    }),
+    [navItems, userData, workspaceReady],
   );
   const roleLabel = String(userData?.role || "employee")
     .replace(/_/g, " ")

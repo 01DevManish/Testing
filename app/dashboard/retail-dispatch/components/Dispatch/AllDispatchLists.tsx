@@ -13,6 +13,12 @@ import { touchDataSignal } from "../../../../lib/dataSignals";
 import { upsertDataItems } from "../../../../lib/dynamoDataApi";
 
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+const canAccessPackingList = (list: PackingList, currentUid: string, isAdmin: boolean): boolean => {
+  if (isAdmin) return true;
+  const assignedUid = String(list?.assignedTo || "").trim();
+  const createdByUid = String((list as PackingList & { createdById?: string })?.createdById || "").trim();
+  return assignedUid === currentUid || createdByUid === currentUid;
+};
 
 export default function AllDispatchLists() {
   const { userData } = useAuth();
@@ -47,10 +53,9 @@ export default function AllDispatchLists() {
     return rows as PackingList[];
   }, [allPackingLists]);
   const scopedLists = useMemo(() => {
-    if (isAdmin) return lists;
     const currentUid = String(userData?.uid || "").trim();
     if (!currentUid) return [];
-    return lists.filter((list) => String(list.assignedTo || "").trim() === currentUid);
+    return lists.filter((list) => canAccessPackingList(list, currentUid, isAdmin));
   }, [isAdmin, lists, userData?.uid]);
 
   const handleFinalize = async (id: string) => {

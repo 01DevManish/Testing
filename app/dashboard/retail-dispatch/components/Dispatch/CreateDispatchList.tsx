@@ -38,6 +38,12 @@ const normalizeScannerImageUrl = (raw?: string): string => {
 
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 const normalizeCode = (value?: string): string => (value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+const canAccessPackingList = (list: any, currentUid: string, isAdmin: boolean): boolean => {
+  if (isAdmin) return true;
+  const assignedUid = String(list?.assignedTo || "").trim();
+  const createdByUid = String(list?.createdById || "").trim();
+  return assignedUid === currentUid || createdByUid === currentUid;
+};
 const normalizePinValue = (value: unknown): string => String(value ?? "").trim().replace(/\D/g, "");
 const pinMatches = (enteredPin: string, savedPin: unknown): boolean => {
   const entered = normalizePinValue(enteredPin);
@@ -107,14 +113,9 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
       (val: any) => val.status !== "Completed" && val.status !== "Packed"
     );
 
-    if (isAdmin) {
-      setPackingLists(baseLists);
-      return;
-    }
-
     const currentUid = String(userData?.uid || user?.uid || "").trim();
     const scoped = currentUid
-      ? baseLists.filter((val: any) => String(val?.assignedTo || "").trim() === currentUid)
+      ? baseLists.filter((val: any) => canAccessPackingList(val, currentUid, isAdmin))
       : [];
     setPackingLists(scoped);
   }, [ctxPackingLists, isAdmin, userData?.uid, user?.uid]);
