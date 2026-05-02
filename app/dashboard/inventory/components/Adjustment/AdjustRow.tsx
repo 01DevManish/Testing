@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { FONT, Product } from "../../types";
 import { logActivity } from "../../../../lib/activityLogger";
 import SmartImage from "../../../../components/SmartImage";
@@ -189,6 +190,63 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
         </div>
     );
 
+    const confirmModalPortal =
+        confirmModal && typeof document !== "undefined"
+            ? createPortal(confirmModal, document.body)
+            : null;
+
+    const logsModal =
+        logsOpen ? (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(4px)", zIndex: 2100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+                <div style={{ width: "100%", maxWidth: 760, maxHeight: "86vh", overflow: "hidden", background: "#fff", borderRadius: 16, boxShadow: "0 18px 34px -16px rgba(0,0,0,0.28)", display: "flex", flexDirection: "column" }}>
+                    <div style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                            <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>SKU Logs</div>
+                            <div style={{ fontSize: 12, color: "#64748b" }}>{p.sku} - {p.productName}</div>
+                        </div>
+                        <button type="button" onClick={() => setLogsOpen(false)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#334155" }}>Close</button>
+                    </div>
+                    <div style={{ padding: 12, overflowY: "auto" }}>
+                        {logsLoading ? (
+                            <div style={{ textAlign: "center", padding: "24px 8px", color: "#64748b" }}>Loading logs...</div>
+                        ) : logs.length === 0 ? (
+                            <div style={{ textAlign: "center", padding: "24px 8px", color: "#64748b" }}>No logs found for this SKU.</div>
+                        ) : (
+                            logs.map((row) => (
+                                <div key={row.id} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10, background: "#fff" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: row.mode === "add" ? "#059669" : "#dc2626" }}>
+                                            {row.mode === "add" ? "Stock Added" : "Stock Removed"} - {row.quantity}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: "#64748b" }}>{formatLogTime(row.createdAt)}</div>
+                                    </div>
+                                    <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
+                                        Stock: {row.previousStock} -&gt; {row.newStock}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
+                                        Reason: {row.reason || "-"}{row.note ? ` | Note: ${row.note}` : ""}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
+                                        Source: {row.source}
+                                        {row.partyName ? ` | Party: ${row.partyName}` : ""}
+                                        {row.dispatchId ? ` | Dispatch: ${row.dispatchId}` : ""}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                                        By: {row.createdByName || "System"}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        ) : null;
+
+    const logsModalPortal =
+        logsModal && typeof document !== "undefined"
+            ? createPortal(logsModal, document.body)
+            : null;
+
     if (mobileCard) {
         return (
             <div style={{ borderBottom: "1px solid #f1f5f9", background: saving ? "#f8fafc" : "#fff", opacity: saving ? 0.6 : 1, transition: "0.2s", padding: "12px 12px" }}>
@@ -243,7 +301,8 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                         {p.lastAdjustmentReason || "Update"}{p.lastAdjustmentNote ? `: ${p.lastAdjustmentNote}` : ""}
                     </div>
                 )}
-                {confirmModal}
+                {confirmModalPortal}
+                {logsModalPortal}
             </div>
         );
     }
@@ -311,52 +370,8 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                     {controls}
                 </td>
             </tr>
-            {confirmModal}
-            {logsOpen && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(4px)", zIndex: 2100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-                    <div style={{ width: "100%", maxWidth: 760, maxHeight: "86vh", overflow: "hidden", background: "#fff", borderRadius: 16, boxShadow: "0 18px 34px -16px rgba(0,0,0,0.28)", display: "flex", flexDirection: "column" }}>
-                        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
-                                <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>SKU Logs</div>
-                                <div style={{ fontSize: 12, color: "#64748b" }}>{p.sku} - {p.productName}</div>
-                            </div>
-                            <button type="button" onClick={() => setLogsOpen(false)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#334155" }}>Close</button>
-                        </div>
-                        <div style={{ padding: 12, overflowY: "auto" }}>
-                            {logsLoading ? (
-                                <div style={{ textAlign: "center", padding: "24px 8px", color: "#64748b" }}>Loading logs...</div>
-                            ) : logs.length === 0 ? (
-                                <div style={{ textAlign: "center", padding: "24px 8px", color: "#64748b" }}>No logs found for this SKU.</div>
-                            ) : (
-                                logs.map((row) => (
-                                    <div key={row.id} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10, background: "#fff" }}>
-                                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
-                                            <div style={{ fontSize: 12, fontWeight: 600, color: row.mode === "add" ? "#059669" : "#dc2626" }}>
-                                                {row.mode === "add" ? "Stock Added" : "Stock Removed"} - {row.quantity}
-                                            </div>
-                                            <div style={{ fontSize: 11, color: "#64748b" }}>{formatLogTime(row.createdAt)}</div>
-                                        </div>
-                                        <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
-                                            Stock: {row.previousStock} -&gt; {row.newStock}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
-                                            Reason: {row.reason || "-"}{row.note ? ` | Note: ${row.note}` : ""}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
-                                            Source: {row.source}
-                                            {row.partyName ? ` | Party: ${row.partyName}` : ""}
-                                            {row.dispatchId ? ` | Dispatch: ${row.dispatchId}` : ""}
-                                        </div>
-                                        <div style={{ fontSize: 11, color: "#64748b" }}>
-                                            By: {row.createdByName || "System"}
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {confirmModalPortal}
+            {logsModalPortal}
         </>
     );
 }

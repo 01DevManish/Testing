@@ -33,14 +33,24 @@ export default function CatalogTab({ products, categories, collections, brands, 
     const includeOutOfStock = canToggleOutOfStock ? shareOutOfStock : false;
 
     const uniqueCategories = useMemo(() => {
-        const cats = products.map(p => p.category).filter(Boolean) as string[];
-        return Array.from(new Set(cats)).sort();
-    }, [products]);
+        const fromMaster = (categories || [])
+            .map((c: any) => String(c?.name || c?.categoryName || "").trim())
+            .filter(Boolean);
+        const fromProducts = (products || [])
+            .map((p) => String(p.category || "").trim())
+            .filter(Boolean);
+        return Array.from(new Set([...fromMaster, ...fromProducts])).sort((a, b) => a.localeCompare(b));
+    }, [categories, products]);
 
     const uniqueCollections = useMemo(() => {
-        const cols = products.map(p => p.collection).filter(Boolean) as string[];
-        return Array.from(new Set(cols)).sort();
-    }, [products]);
+        const fromMaster = (collections || [])
+            .map((c: any) => String(c?.name || c?.collectionName || "").trim())
+            .filter(Boolean);
+        const fromProducts = (products || [])
+            .map((p) => String(p.collection || "").trim())
+            .filter(Boolean);
+        return Array.from(new Set([...fromMaster, ...fromProducts])).sort((a, b) => a.localeCompare(b));
+    }, [collections, products]);
 
     const uniqueSizes = useMemo(() => {
         const sizes = products.map(p => p.size).filter(Boolean) as string[];
