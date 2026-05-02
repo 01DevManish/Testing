@@ -55,7 +55,7 @@ export default function ErmShell({
   const { userData, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
-  const [expandedGroup, setExpandedGroup] = useState<string>("orders");
+  const [expandedGroup, setExpandedGroup] = useState<string>("dashboard");
 
   const dashboardPath = useMemo(() => {
     const uid = employeeDashboardUid || userData?.uid || "";
@@ -82,26 +82,6 @@ export default function ErmShell({
         label: "Leads",
         icon: <Icons.IconUsers size={16} />,
         items: [{ key: "leads", label: "Leads", path: "/dashboard/erm/leads", permission: "erm_leads_view" }],
-      },
-      {
-        key: "orders",
-        label: "Orders",
-        icon: <Icons.IconBriefcase size={16} />,
-        permission: "erm_orders_view",
-        items: [
-          { key: "orders-create", label: "Create Order", path: "/dashboard/erm/orders/create", permission: "erm_orders_create" },
-          { key: "orders-all", label: "All Order", path: "/dashboard/erm/orders", permission: "erm_orders_view" },
-        ],
-      },
-      {
-        key: "accounting",
-        label: "Accounting",
-        icon: <Icons.IconClipboard size={16} />,
-        permission: "erm_orders_view",
-        items: [
-          { key: "purchase-create", label: "Create Purchase Invoice", path: "/dashboard/erm/accounting/create-purchase-invoice", permission: "erm_orders_create" },
-          { key: "purchase-view", label: "View Purchase Invoice", path: "/dashboard/erm/accounting/view-purchase-invoice", permission: "erm_orders_view" },
-        ],
       },
       {
         key: "catalog-sharing",
@@ -145,6 +125,8 @@ export default function ErmShell({
         className={`erm-sidebar ${desktopCollapsed ? "collapsed" : ""}`}
         style={{
           width: desktopCollapsed ? 78 : 260,
+          display: "flex",
+          flexDirection: "column",
           background: "#0f172a",
           color: "#e2e8f0",
           padding: desktopCollapsed ? "18px 8px" : "18px 12px",

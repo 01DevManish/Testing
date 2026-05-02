@@ -25,6 +25,12 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
     const [logsOpen, setLogsOpen] = useState(false);
     const [logsLoading, setLogsLoading] = useState(false);
     const [logs, setLogs] = useState<InventoryAdjustmentLog[]>([]);
+    const stockState =
+        p.stock <= 0
+            ? { label: "Out Stock", color: "#7f1d1d" }
+            : p.stock <= p.minStock
+                ? { label: "Low Stock", color: "#78350f" }
+                : { label: "In Stock", color: "#14532d" };
 
     const handleAdjust = async () => {
         if (!confirm) return;
@@ -199,10 +205,10 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                         </div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 17, fontWeight: 400, color: p.stock <= 0 ? "#991b1b" : p.stock <= p.minStock ? "#a16207" : "#10b981", fontFamily: FONT }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: stockState.color, fontFamily: FONT }}>
                             {p.stock}
                         </div>
-                        {p.stock <= p.minStock && p.stock > 0 && <div style={{ fontSize: 10, color: "#a16207", fontWeight: 400 }}>Low Stock</div>}
+                        <div style={{ fontSize: 10, color: stockState.color, fontWeight: 700 }}>{stockState.label}</div>
                     </div>
                 </div>
                 <div style={{ marginTop: 10 }}>
@@ -261,10 +267,10 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                     </div>
                 </td>
                 <td style={{ padding: isMobile ? "12px 8px" : "14px 16px" }}>
-                    <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 400, color: p.stock <= 0 ? "#991b1b" : p.stock <= p.minStock ? "#a16207" : "#10b981", fontFamily: FONT }}>
+                    <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 700, color: stockState.color, fontFamily: FONT }}>
                         {p.stock}
                     </div>
-                    {!isMobile && p.stock <= p.minStock && p.stock > 0 && <span style={{ fontSize: 10, color: "#a16207", fontWeight: 400 }}>Low Stock</span>}
+                    {!isMobile && <span style={{ fontSize: 10, color: stockState.color, fontWeight: 700 }}>{stockState.label}</span>}
                 </td>
                 <td style={{ padding: isMobile ? "12px 8px" : "14px 16px", maxWidth: 300 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
