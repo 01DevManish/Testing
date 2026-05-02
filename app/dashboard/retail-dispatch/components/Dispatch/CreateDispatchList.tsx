@@ -26,7 +26,18 @@ interface ScannableItem {
   boxName?: string;
 }
 
+type DispatchScanDraft = {
+  scannableItems: ScannableItem[];
+  boxBarcodes: Record<string, string>;
+  dispatchId: string;
+  lrNo: string;
+  currentBoxIndex: number;
+  packageType: "Box" | "Bale";
+  updatedAt: number;
+};
+
 const FALLBACK_SCANNER_IMAGE = "https://epanelimages.s3.ap-south-1.amazonaws.com/inventory/images/1776344255576-CLR-401.webp";
+const DISPATCH_SCAN_DRAFT_PREFIX = "retail-dispatch-scan-draft:v1";
 
 const normalizeScannerImageUrl = (raw?: string): string => {
   const value = (raw || "").trim();
@@ -50,6 +61,37 @@ const pinMatches = (enteredPin: string, savedPin: unknown): boolean => {
   const saved = normalizePinValue(savedPin);
   if (entered.length !== 4 || !saved) return false;
   return entered === saved || entered === saved.padStart(4, "0");
+};
+
+const getScanDraftKey = (packingListId: string): string => `${DISPATCH_SCAN_DRAFT_PREFIX}:${packingListId}`;
+
+const readScanDraft = (packingListId: string): DispatchScanDraft | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getScanDraftKey(packingListId));
+    if (!raw) return null;
+    return JSON.parse(raw) as DispatchScanDraft;
+  } catch {
+    return null;
+  }
+};
+
+const writeScanDraft = (packingListId: string, draft: DispatchScanDraft): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(getScanDraftKey(packingListId), JSON.stringify(draft));
+  } catch {
+    // best effort only
+  }
+};
+
+const clearScanDraft = (packingListId: string): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(getScanDraftKey(packingListId));
+  } catch {
+    // best effort only
+  }
 };
 
 export default function CreateDispatchList({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -120,6 +162,19 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     setPackingLists(scoped);
   }, [ctxPackingLists, isAdmin, userData?.uid, user?.uid]);
 
+  useEffect(() => {
+    if (!selectedList?.id) return;
+    writeScanDraft(String(selectedList.id), {
+      scannableItems,
+      boxBarcodes,
+      dispatchId,
+      lrNo,
+      currentBoxIndex,
+      packageType,
+      updatedAt: Date.now(),
+    });
+  }, [selectedList?.id, scannableItems, boxBarcodes, dispatchId, lrNo, currentBoxIndex, packageType]);
+
   const handleSelectList = async (list: any) => {
     setSelectedList(list);
     
@@ -157,7 +212,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
 
       for (let i = 0; i < item.quantity; i++) {
         expanded.push({
-          id: `${item.productId}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+          id: `${item.productId}-${i}`,
           productId: item.productId,
           productName: item.productName,
           sku: item.sku || "N/A",
@@ -169,10 +224,33 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         });
       }
     });
+
+    const draft = readScanDraft(String(list.id));
+    const baseSignature = expanded.map((row) => `${row.productId}|${normalizeSku(row.sku)}`).join("||");
+    const draftSignature = (draft?.scannableItems || [])
+      .map((row) => `${row.productId}|${normalizeSku(row.sku)}`)
+      .join("||");
+    const canRestoreDraft =
+      Boolean(draft) &&
+      Array.isArray(draft?.scannableItems) &&
+      draft!.scannableItems.length === expanded.length &&
+      draftSignature === baseSignature;
+
+    if (canRestoreDraft && draft) {
+      setScannableItems(draft.scannableItems);
+      setDispatchId(String(draft.dispatchId || ""));
+      setLrNo(String(draft.lrNo || ""));
+      setBoxBarcodes(draft.boxBarcodes || {});
+      setCurrentBoxIndex(Number(draft.currentBoxIndex) > 0 ? Number(draft.currentBoxIndex) : 1);
+      setPackageType(draft.packageType === "Bale" ? "Bale" : "Box");
+      setSelectedIds(new Set());
+      setLastMatchedItem(draft.scannableItems.find((row) => row.isPacked) || null);
+      return;
+    }
+
     setScannableItems(expanded);
-    
-    const newDispId = `DISP-${Math.floor(1000 + Math.random() * 8999)}`;
-    setDispatchId(newDispId);
+    setDispatchId(`DISP-${Math.floor(1000 + Math.random() * 8999)}`);
+    setLrNo("");
     setBoxBarcodes({});
     setCurrentBoxIndex(1);
     setSelectedIds(new Set());
@@ -454,7 +532,14 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
           latestInventory.find((p: any) => skuKey && skuKey !== "n/a" && normalizeSku(p.sku) === skuKey);
 
         if (invProd?.id) {
-          await firestoreApi.deductStock(invProd.id, qty);
+          await firestoreApi.deductStock(invProd.id, qty, {
+            reason: "Dispatch",
+            note: `Dispatch ${dispId}`.slice(0, 60),
+            userName: userData?.name || user?.name || "System",
+            userUid: userData?.uid || user?.uid || "",
+            dispatchId: dispId,
+            partyName: selectedList?.partyName || "",
+          });
         } else {
           console.warn("Could not find inventory product to deduct stock:", { productId, sku, productName, qty });
         }
@@ -481,6 +566,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
         }
       });
 
+      clearScanDraft(String(selectedList.id));
       alert("Dispatch finalized successfully!");
       onCreated();
     } catch (err) {

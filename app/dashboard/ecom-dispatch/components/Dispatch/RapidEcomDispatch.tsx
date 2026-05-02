@@ -140,6 +140,9 @@ export default function RapidEcomDispatch({ onClose, onDispatched }: { onClose: 
                 reason: "Dispatch",
                 note: dispatchContextNote,
                 userName: userData?.name || "User",
+                userUid: user?.uid || "",
+                dispatchId,
+                partyName: selectedPlatform || "",
             });
 
             // 2. Create Order

@@ -10,7 +10,7 @@ export default function ErmOrdersPage() {
 
   return (
     <ErmShell
-      active="orders"
+      active="orders-all"
       title="ERM Orders"
       subtitle="Order processing module under ERM CRM."
     >

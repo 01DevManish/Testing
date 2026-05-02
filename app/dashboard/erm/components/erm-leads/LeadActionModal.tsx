@@ -11,6 +11,7 @@ interface StaffMember { uid: string; name: string; [k: string]: unknown; }
 interface Props {
   lead: LeadRecord;
   callLogs: LeadCallRecord[];
+  isAdmin: boolean;
   canEdit: boolean;
   staff: StaffMember[];
   savingMeta: boolean;
@@ -36,7 +37,7 @@ interface CallForm {
   notes: string;
 }
 
-export default function LeadActionModal({ lead, callLogs, canEdit, staff, savingMeta, savingCall, onClose, onSaveMeta, onSaveCall }: Props) {
+export default function LeadActionModal({ lead, callLogs, isAdmin, canEdit, staff, savingMeta, savingCall, onClose, onSaveMeta, onSaveCall }: Props) {
   const [tab, setTab] = useState<"details" | "call" | "history">("details");
   const [lookingUpPincode, setLookingUpPincode] = useState(false);
 
@@ -178,7 +179,7 @@ export default function LeadActionModal({ lead, callLogs, canEdit, staff, saving
                 {fieldRow("State", "state", "e.g. Maharashtra")}
                 {fieldRow("Pincode", "pincode", "e.g. 400001")}
                 {fieldRow("Status", "status", "", "select-status")}
-                {fieldRow("Assign To", "assignedToUid", "", "select-assign")}
+                {isAdmin && fieldRow("Assign To", "assignedToUid", "", "select-assign")}
                 {(meta.status === "follow_up" || meta.status === "scheduled_meeting" || meta.status === "onboarding_scheduled") &&
                   fieldRow("Follow-up Date", "nextFollowUpAt", "", "datetime-local")}
               </div>

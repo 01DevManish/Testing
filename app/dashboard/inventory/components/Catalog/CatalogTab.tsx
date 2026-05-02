@@ -314,7 +314,7 @@ export default function CatalogTab({ products, categories, collections, brands, 
                                             alt={p.productName} 
                                             style={imageStyle} 
                                             loading={paginatedItems.indexOf(p) < 8 ? "eager" : "lazy"}
-                                            {...({ fetchpriority: paginatedItems.indexOf(p) < 8 ? "high" : "auto" } as any)}
+                                            fetchPriority={paginatedItems.indexOf(p) < 8 ? "high" : "auto"}
                                             onError={() => {
                                                 setProxyFallbackIds((prev) => {
                                                     if (prev.has(p.id)) return prev;

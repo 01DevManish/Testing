@@ -25,7 +25,6 @@ type EmployeeSummary = {
 
 const hasCrmPermissionAccess = (user: { role?: string; permissions?: string[]; email?: string } | null | undefined) => {
   if (!user) return false;
-  if (user.role === "admin") return true;
   return (
     hasPermission(user, "erm_dashboard_view")
     || hasPermission(user, "erm_inventory_view")
@@ -290,7 +289,7 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
   }, [visibleOrders, visibleLeads]);
 
   const crmUsers = useMemo(
-    () => users.filter((u) => u.email !== "01devmanish@gmail.com" && hasCrmPermissionAccess(u)),
+    () => users.filter((u) => u.role !== "admin" && u.email !== "01devmanish@gmail.com" && hasCrmPermissionAccess(u)),
     [users],
   );
 
@@ -396,7 +395,7 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
                     <td style={{ padding: "14px 8px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
                       {row.workspaceReady ? (
                         <button
-                          onClick={() => router.push(`/dashboard/erm/employee/${row.uid}/dashboard`)}
+                          onClick={() => router.push(`/dashboard/erm/employee/${row.uid}/dashboard?employeeName=${encodeURIComponent(row.name)}`)}
                           style={{ border: "1px solid #c7d2fe", background: "#eef2ff", color: "#4338ca", borderRadius: 8, fontSize: 14, padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}
                         >
                           Open Workspace

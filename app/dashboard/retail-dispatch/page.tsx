@@ -113,6 +113,8 @@ function AdvancedDispatchDashboardContent() {
     setActiveView((prev) => (prev === mapped ? prev : mapped));
   }, [searchParams, viewQueryMap]);
 
+  const debugMode = searchParams.get("debug") === "1";
+
   const goToView = (nextView: ActiveView) => {
     setActiveView(nextView);
     const params = new URLSearchParams(searchParams.toString());
@@ -179,6 +181,39 @@ function AdvancedDispatchDashboardContent() {
   const canViewBox = hasPermission(userData, "retail_box_view");
   const canCreateBox = hasPermission(userData, "retail_box_create");
   const canEditBox = hasPermission(userData, "retail_box_edit");
+
+  useEffect(() => {
+    if (!debugMode) return;
+    console.log("[RetailDispatch Debug]", {
+      activeView,
+      role: userData?.role,
+      uid: userData?.uid || user?.uid || null,
+      permissions: userData?.permissions || [],
+      canViewPacking,
+      canCreatePacking,
+      canEditPacking,
+      canViewDispatch,
+      canCreateDispatch,
+      canEditDispatch,
+      canViewBox,
+      canCreateBox,
+      canEditBox,
+    });
+  }, [
+    debugMode,
+    activeView,
+    userData,
+    user,
+    canViewPacking,
+    canCreatePacking,
+    canEditPacking,
+    canViewDispatch,
+    canCreateDispatch,
+    canEditDispatch,
+    canViewBox,
+    canCreateBox,
+    canEditBox,
+  ]);
 
   // Legacy aliases for existing components
   const canView = canViewPacking || canViewDispatch || canViewBox || hasPermission(userData, "retail_view");
@@ -311,6 +346,14 @@ function AdvancedDispatchDashboardContent() {
         willChange: "margin-left"
       }}>
         <div style={{ maxWidth: 1600, margin: "0 auto" }}>
+          {debugMode && (
+            <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fdba74", color: "#7c2d12", fontSize: 12 }}>
+              <strong>Retail Debug</strong>: view={activeView} | role={String(userData?.role || "")} | packing(view/create/edit)=
+              {String(canViewPacking)}/{String(canCreatePacking)}/{String(canEditPacking)} | dispatch(view/create/edit)=
+              {String(canViewDispatch)}/{String(canCreateDispatch)}/{String(canEditDispatch)} | box(view/create/edit)=
+              {String(canViewBox)}/{String(canCreateBox)}/{String(canEditBox)}
+            </div>
+          )}
           {isMobile && (
             <MobileTopBar
               title="Retail Dispatch"

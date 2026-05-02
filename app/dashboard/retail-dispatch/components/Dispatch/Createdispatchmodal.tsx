@@ -266,6 +266,9 @@ export default function CreateDispatchModal({ onClose, onDispatched, dispatchTyp
                     reason: "Dispatch",
                     note: dispatchContextNote,
                     userName: userData?.name || "User",
+                    userUid: user?.uid || "",
+                    dispatchId: dispatchRef,
+                    partyName: form.isNewParty ? form.newParty.name : (form.party?.name || ""),
                 });
             }
 

@@ -18,7 +18,6 @@ import LeadActionModal from "./LeadActionModal";
 
 const hasCrmPermissionAccess = (user: { role?: string; permissions?: string[]; email?: string } | null | undefined) => {
   if (!user) return false;
-  if (user.role === "admin") return true;
   return (
     hasPermission(user, "erm_dashboard_view")
     || hasPermission(user, "erm_inventory_view")
@@ -108,6 +107,7 @@ export default function ErmLeadsModule() {
   /* ── Staff (ERM-permissioned users) ── */
   const staff = useMemo(
     () => users.filter((u) => 
+      u.role !== "admin" &&
       u.email !== "01devmanish@gmail.com" && 
       hasCrmPermissionAccess(u)
     ),
@@ -275,6 +275,7 @@ export default function ErmLeadsModule() {
         <LeadActionModal
           lead={selectedLead}
           callLogs={callLogs}
+          isAdmin={isAdmin}
           canEdit={canEdit}
           staff={staff as any[]}
           savingMeta={savingMeta}
