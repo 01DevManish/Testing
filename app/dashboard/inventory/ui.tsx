@@ -3,14 +3,23 @@ import { FONT } from "./types";
 
 // ── Input ──────────────────────────────────────────────────────
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+    const isNumberField = props.type === "number";
+    const mergedClassName = `${props.className || ""}${isNumberField ? " no-number-spinner" : ""}`.trim();
     return (
         <input
             {...props}
+            className={mergedClassName}
             style={{
                 width: "100%", padding: "10px 13px",
                 background: "#f8fafc", border: "1.5px solid #e2e8f0",
                 borderRadius: 9, color: "#1e293b", fontSize: 13,
                 fontFamily: FONT, outline: "none", boxSizing: "border-box",
+                ...(isNumberField
+                    ? {
+                        appearance: "textfield" as const,
+                        MozAppearance: "textfield" as const,
+                    }
+                    : {}),
                 ...props.style,
             }}
         />

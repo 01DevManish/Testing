@@ -8,9 +8,9 @@
   --bg-input: #ffffff;
   --bg-input-focus: #f9fafb;
 
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
+  --text-primary: #0b1220;
+  --text-secondary: #1f2937;
+  --text-muted: #475569;
   --text-placeholder: #9ca3af;
 
   --accent-primary: #4f46e5;
@@ -51,18 +51,25 @@
   box-sizing: border-box;
 }
 
+/* Hide number input steppers for inventory-style numeric fields */
+.no-number-spinner::-webkit-outer-spin-button,
+.no-number-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-  font-weight: 400; /* Force normal weight */
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
 }
 
 h1, h2, h3, h4, h5, h6, b, strong, th {
-  font-weight: 400 !important;
+  font-weight: 600 !important;
 }
 
 
