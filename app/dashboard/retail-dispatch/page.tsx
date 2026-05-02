@@ -272,7 +272,11 @@ function AdvancedDispatchDashboardContent() {
     todayPacking: visiblePackingLists.filter(l => new Date(l.createdAt).toISOString().split('T')[0] === todayDate).length,
     todayDispatch: visiblePackingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt && new Date(l.dispatchedAt).toISOString().split('T')[0] === todayDate).length,
     totalDispatch: visiblePackingLists.filter(l => (l.status === "Packed" || l.status === "Completed") && l.dispatchedAt).length,
-    pending: orders.filter(o => o.status === "Pending").length,
+    pending: visiblePackingLists.filter((list) => {
+      const isCancelled = list.status === "Cancelled";
+      const isDispatched = Boolean(list.dispatchedAt);
+      return !isCancelled && !isDispatched;
+    }).length,
   };
 
   const currentRole = userData?.role || "employee";
