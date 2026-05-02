@@ -158,6 +158,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
   const [transporter, setTransporter] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
   const [partySearch, setPartySearch] = useState("");
+  const [skuSearch, setSkuSearch] = useState("");
   const isMobile = viewportWidth < 640;
 
   useEffect(() => {
@@ -298,6 +299,17 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
     return mergedRates;
   }, [selectedParty, editingList]);
+
+  const filteredPartyRates = useMemo(() => {
+    const query = skuSearch.trim().toLowerCase();
+    return partyRatesForForm
+      .map((rate: any, idx: number) => ({ rate, idx }))
+      .filter(({ rate }: { rate: any; idx: number }) => {
+        if (!query) return true;
+        const sku = String(rate?.sku || "").toLowerCase();
+        return sku.includes(query);
+      });
+  }, [partyRatesForForm, skuSearch]);
 
   useEffect(() => {
     if (!editingList || !selectedParty) return;
@@ -612,6 +624,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                       onClick={() => { 
                         setSelectedParty(p); 
                         setPartySearch(""); 
+                        setSkuSearch("");
                         if (p.transporter) setTransporter(p.transporter);
                       }}
                       style={{ padding: isMobile ? "10px 12px" : "12px 16px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s", gap: 8 }}
@@ -635,7 +648,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                   <div style={{ fontSize: isMobile ? 11 : 12, color: "#64748b", marginTop: 2 }}>{selectedParty.billTo?.address || "No address provided"}</div>
                 </div>
                 <button 
-                  onClick={() => { setSelectedParty(null); setSelectedItems({}); }}
+                  onClick={() => { setSelectedParty(null); setSelectedItems({}); setSkuSearch(""); }}
                   style={{ padding: "6px 12px", borderRadius: 8, background: "#fff", border: "1px solid #e2e8f0", fontSize: isMobile ? 11 : 12, color: "#6366f1", cursor: "pointer" }}
                 >
                   Change Party
@@ -655,10 +668,19 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                 <p style={{ fontSize: isMobile ? 11 : 12, color: "#64748b", marginTop: 6, marginLeft: isMobile ? 34 : 38 }}>
                   Pricing is automatically pulled from the <b>{selectedParty.partyName}</b> rate list.
                 </p>
+                <div style={{ marginTop: 10, marginLeft: isMobile ? 34 : 38 }}>
+                  <input
+                    type="text"
+                    placeholder="Search SKU (assigned to this party)"
+                    value={skuSearch}
+                    onChange={(e) => setSkuSearch(e.target.value)}
+                    style={{ width: isMobile ? "100%" : "calc(100% - 38px)", maxWidth: isMobile ? "100%" : 720, padding: isMobile ? "10px 12px" : "9px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: isMobile ? 12 : 13, outline: "none" }}
+                  />
+                </div>
               </div>
               {isMobile ? (
               <div style={{ display: "grid", gap: 8, padding: 10 }}>
-                  {partyRatesForForm.map((r: any, idx: number) => {
+                  {filteredPartyRates.map(({ rate: r, idx }: { rate: any; idx: number }) => {
                     const rateSkuKey = normalizeSku(r.sku);
                     const invMatch =
                       inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
@@ -707,6 +729,11 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                       No rates have been assigned to this party yet. Please update the Party-wise Rate List first.
                     </div>
                   )}
+                  {partyRatesForForm.length > 0 && filteredPartyRates.length === 0 && (
+                    <div style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>
+                      No SKU matched your search in this party rate list.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ overflowX: "auto" }}>
@@ -720,7 +747,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                       </tr>
                     </thead>
                     <tbody>
-                      {partyRatesForForm.map((r: any, idx: number) => {
+                      {filteredPartyRates.map(({ rate: r, idx }: { rate: any; idx: number }) => {
                         const rateSkuKey = normalizeSku(r.sku);
                         const invMatch =
                           inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
@@ -763,6 +790,13 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                         <tr>
                           <td colSpan={4} style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic" }}>
                             No rates have been assigned to this party yet. Please update the Party-wise Rate List first.
+                          </td>
+                        </tr>
+                      )}
+                      {partyRatesForForm.length > 0 && filteredPartyRates.length === 0 && (
+                        <tr>
+                          <td colSpan={4} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic" }}>
+                            No SKU matched your search in this party rate list.
                           </td>
                         </tr>
                       )}
