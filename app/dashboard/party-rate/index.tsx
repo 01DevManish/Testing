@@ -155,6 +155,19 @@ export default function PartyRateModule({
             return;
         }
 
+        const normalizedGst = String(b.gstNo || "").trim().toUpperCase();
+        if (normalizedGst) {
+            const duplicate = (partyRates || []).find((p) => {
+                if (editingId && p.id === editingId) return false;
+                const existingGst = String(p?.billTo?.gstNo || "").trim().toUpperCase();
+                return existingGst && existingGst === normalizedGst;
+            });
+            if (duplicate) {
+                alert(`Duplicate GST not allowed. GST ${normalizedGst} is already assigned to "${duplicate.partyName}".`);
+                return;
+            }
+        }
+
         setSaving(true);
         try {
             const data = {

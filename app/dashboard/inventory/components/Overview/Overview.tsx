@@ -31,6 +31,14 @@ export default function Overview({ products, categories, collections, loading, o
     const [stockPage, setStockPage] = useState(1);
     const STOCK_ITEMS_PER_PAGE = 4;
     const isAdmin = userRole === "admin";
+    const hasUsableProductImage = (url?: string): boolean => {
+        const value = String(url || "").trim().toLowerCase();
+        if (!value) return false;
+        if (value.includes("/logo.") || value.includes("logo.png") || value.includes("logo.webp")) return false;
+        if (value.includes("dispatch-list-logo")) return false;
+        if (value.includes("placeholder-prod")) return false;
+        return true;
+    };
 
     useEffect(() => {
         setStockPage(1);
@@ -236,11 +244,17 @@ export default function Overview({ products, categories, collections, loading, o
                                             <td style={{ padding: isMobile ? "10px 8px" : "12px 16px", borderBottom: "1px solid #f8fafc" }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 14 }}>
                                                     <div style={{ width: isMobile ? 34 : 42, height: isMobile ? 34 : 42, borderRadius: isMobile ? 8 : 10, background: "#fff", overflow: "hidden", border: "1.5px solid #f1f5f9", flexShrink: 0 }}>
-                                                        <SmartImage 
-                                                            src={p.imageUrl || "/placeholder-prod.png"} 
-                                                            style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-                                                            {...({ priority: paginatedStock.indexOf(p) < 4 } as any)}
-                                                        />
+                                                        {hasUsableProductImage(p.imageUrl) ? (
+                                                            <SmartImage
+                                                                src={String(p.imageUrl)}
+                                                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                                                {...({ priority: paginatedStock.indexOf(p) < 4 } as any)}
+                                                            />
+                                                        ) : (
+                                                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 9, letterSpacing: "0.08em", fontFamily: FONT }}>
+                                                                IMG
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div style={{ minWidth: 0 }}>
                                                         <div style={{ fontSize: isMobile ? 11 : 13, lineHeight: isMobile ? 1.25 : 1.4, fontWeight: 500, color: "#1e293b", fontFamily: FONT, display: "-webkit-box", WebkitLineClamp: isMobile ? 2 : 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.productName}</div>

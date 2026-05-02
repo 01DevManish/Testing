@@ -191,6 +191,19 @@ export const firestoreApi = {
   },
 
   createParty: async (party: Omit<Party, "id">): Promise<Party> => {
+    const normalizeGst = (value: unknown) => String(value || "").trim().toUpperCase();
+    const incomingGst = normalizeGst((party as any)?.gst || (party as any)?.gstin);
+    if (incomingGst) {
+      const existing = await fetchDataItems<Party>("parties");
+      const duplicate = existing.find((row) => {
+        const rowGst = normalizeGst((row as any)?.gst || (row as any)?.gstin);
+        return rowGst && rowGst === incomingGst;
+      });
+      if (duplicate) {
+        throw new Error(`Party already exists with GST ${incomingGst}. Duplicate GST is not allowed.`);
+      }
+    }
+
     const created: Party = {
       id: `PTY-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       ...party,

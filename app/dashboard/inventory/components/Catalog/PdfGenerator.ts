@@ -3,6 +3,15 @@ import autoTable from "jspdf-autotable";
 import { Product } from "../../types";
 import { resolveS3Url } from "../Products/imageService";
 
+const isUsableProductImageUrl = (url?: string | null): boolean => {
+    const value = String(url || "").trim().toLowerCase();
+    if (!value) return false;
+    if (value.includes("/logo.") || value.includes("logo.png") || value.includes("logo.webp")) return false;
+    if (value.includes("dispatch-list-logo")) return false;
+    if (value.includes("placeholder-prod")) return false;
+    return true;
+};
+
 const getBase64Image = async (
     url: string,
     maxWidth = 600,
@@ -221,6 +230,7 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
 
     const tableData: any[][] = [];
     const images: Record<number, string> = {};
+    const rowHasImage: Record<number, boolean> = {};
 
     const normalize = (value: unknown) =>
         String(value ?? "")
@@ -253,9 +263,12 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
             const globalIdx = i + chunkIdx;
             const product = findProductForRate(r);
             const imgUrl = product?.imageUrl || (product?.imageUrls && product?.imageUrls.length > 0 ? product.imageUrls[0] : null);
-            if (imgUrl) {
-                const result = await getBase64Image(resolveS3Url(imgUrl));
-                if (result) images[globalIdx] = result.data;
+            if (isUsableProductImageUrl(imgUrl)) {
+                const result = await getBase64Image(resolveS3Url(String(imgUrl)));
+                if (result) {
+                    images[globalIdx] = result.data;
+                    rowHasImage[globalIdx] = true;
+                }
             }
         }));
     }
@@ -273,7 +286,7 @@ export const generatePartyRatePdf = async (party: any, ratesToShare: any[], prod
 
         tableData.push([
             i + 1,
-            "", // Placeholder for image
+            rowHasImage[i] ? "" : "IMG",
             `${r.productName}\nSKU: ${sku}`,
             r.packagingType || "-",
             pkgCost > 0 ? `Rs. ${pkgCost}` : "-",
