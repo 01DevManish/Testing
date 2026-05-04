@@ -129,7 +129,7 @@ export default function RetailDispatchOverviewDesktop({
               {dispatches.length === 0 && (
                 <tr>
                   <td colSpan={7} style={{ padding: "80px 24px", textAlign: "center", color: "#94a3b8", fontSize: 14, fontFamily: FONT }}>
-                    No retail dispatches found for {statsDate}.
+                    No retail dispatches found in the last 7 days (ending {statsDate}).
                   </td>
                 </tr>
               )}

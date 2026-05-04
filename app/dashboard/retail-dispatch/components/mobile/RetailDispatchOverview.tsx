@@ -126,7 +126,7 @@ export default function RetailDispatchOverviewMobile({
           <div>
             <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a", marginBottom: 4, fontFamily: FONT }}>Recent dispatches</div>
             <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6, fontFamily: FONT }}>
-              Showing activity for {statsDate}
+              Showing last 7 days activity (ending {statsDate})
             </div>
           </div>
           {canViewDispatch && (
@@ -138,7 +138,7 @@ export default function RetailDispatchOverviewMobile({
 
         {dispatches.length === 0 && (
           <Card style={{ padding: 18, textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 6, fontFamily: FONT }}>No dispatches for this date</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 6, fontFamily: FONT }}>No dispatches in the last 7 days</div>
             <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6, fontFamily: FONT }}>
               Try another date or clear the search to see more dispatch activity.
             </div>

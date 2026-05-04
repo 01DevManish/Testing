@@ -84,7 +84,6 @@ export default function LeadTable({
               <th style={crmTh}>POC Name</th>
               <th style={crmTh}>Status</th>
               <th style={crmTh}>Phone No.</th>
-              <th style={crmTh}>Email ID</th>
               <th style={crmTh}>Company</th>
               <th style={crmTh}>City</th>
               <th style={crmTh}>State</th>
@@ -116,7 +115,6 @@ export default function LeadTable({
                 <td style={{ ...crmTd, fontWeight: 600, color: "#0f172a" }}>{lead.name}</td>
                 <td style={crmTd}><StatusBadge status={lead.status} /></td>
                 <td style={{ ...crmTd, fontFamily: "monospace", fontSize: 14 }}>{lead.phone}</td>
-                <td style={{ ...crmTd, fontSize: 14, color: "#475569" }}>{lead.email || "-"}</td>
                 <td style={{ ...crmTd, fontSize: 14 }}>{lead.company || "-"}</td>
                 <td style={{ ...crmTd, fontSize: 14 }}>{lead.city || "-"}</td>
                 <td style={{ ...crmTd, fontSize: 14 }}>{lead.state || "-"}</td>

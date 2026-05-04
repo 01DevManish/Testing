@@ -28,7 +28,11 @@ export default function CriticalStockPage() {
   const criticalItems = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return (products || [])
-      .filter((p: any) => Number(p.stock || 0) <= Number(p.minStock || 0))
+      .filter((p: any) => {
+        const stock = Number(p.stock || 0);
+        const minStock = Number(p.minStock || 0);
+        return stock > 0 && stock <= minStock;
+      })
       .filter((p: any) => !q || p.productName?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q))
       .sort((a: any, b: any) => Number(a.stock || 0) - Number(b.stock || 0));
   }, [products, searchTerm]);
@@ -68,7 +72,6 @@ export default function CriticalStockPage() {
       <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
         {paginatedItems.length > 0 ? (
           paginatedItems.map((p: any) => {
-            const out = Number(p.stock || 0) <= 0;
             return (
               <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>
                 <div style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden", border: "1px solid #e2e8f0", background: "#f8fafc", flexShrink: 0 }}>
@@ -79,10 +82,10 @@ export default function CriticalStockPage() {
                   <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>SKU: {p.sku}</div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: out ? "#991b1b" : "#a16207" }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "#a16207" }}>
                     {p.stock} <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>{p.unit || "PCS"}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: out ? "#991b1b" : "#a16207", marginTop: 2 }}>{out ? "Out of Stock" : "Low Stock"}</div>
+                  <div style={{ fontSize: 11, color: "#a16207", marginTop: 2 }}>Low Stock</div>
                 </div>
               </div>
             );

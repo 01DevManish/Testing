@@ -84,7 +84,6 @@ export default function AdminSidebar({
       label: "Analytics",
       items: [
         { key: "dashboard", label: "Dashboard", icon: ICONS.dashboard },
-        { key: "reports", label: "Reports", icon: ICONS.reports },
       ]
     },
     {

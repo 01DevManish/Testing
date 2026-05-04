@@ -105,6 +105,15 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
     }
   }, 20000, []);
   const allProducts = useMemo(() => products as Product[], [products]);
+  const criticalLowStockProducts = useMemo(
+    () =>
+      allProducts.filter((p) => {
+        const stock = Number(p.stock || 0);
+        const minStock = Number(p.minStock || 0);
+        return stock > 0 && stock <= minStock;
+      }),
+    [allProducts]
+  );
   const completedPackingLists = useMemo(
     () => (packingLists as PackingList[]).filter((item) => item.status === "Completed" || item.status === "Packed"),
     [packingLists]
@@ -367,12 +376,11 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
               title="View all critical stock"
               style={{ fontSize: 12, fontWeight: 400, color: "#991b1b", background: "#fee2e2", padding: "2px 8px", borderRadius: 12, border: "1px solid #fecaca", cursor: "pointer" }}
             >
-              {allProducts.filter(p => p.stock <= p.minStock).length}
+              {criticalLowStockProducts.length}
             </button>
           </div>
           <div style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
-            {allProducts
-              .filter(p => p.stock <= p.minStock)
+            {criticalLowStockProducts
               .slice((criticalPage - 1) * 2, criticalPage * 2)
               .map(p => (
                 <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 10 }}>
@@ -382,7 +390,7 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                         src={p.imageUrl}
                         alt=""
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        {...({ priority: (criticalPage === 1 && allProducts.filter(p => p.stock <= p.minStock).indexOf(p) < 2) } as any)}
+                        {...({ priority: (criticalPage === 1 && criticalLowStockProducts.indexOf(p) < 2) } as any)}
                       />
                     ) : (
                       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 9, letterSpacing: "0.08em" }}>
@@ -404,13 +412,13 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
                   </div>
                 </div>
               ))}
-            {allProducts.filter(p => p.stock <= p.minStock).length === 0 && (
+            {criticalLowStockProducts.length === 0 && (
               <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>All stock levels are healthy.</div>
             )}
           </div>
 
           {/* Critical Stock Pagination */}
-          {allProducts.filter(p => p.stock <= p.minStock).length > 2 && (
+          {criticalLowStockProducts.length > 2 && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, padding: "10px 4px 0", borderTop: "1px solid #f1f5f9" }}>
               <button
                 disabled={criticalPage === 1}
@@ -421,9 +429,9 @@ export default function DashboardTab({ S, isMobile, isTablet, users, tasks }: Da
               </button>
               <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 400 }}>Page {criticalPage}</div>
               <button
-                disabled={criticalPage * 2 >= allProducts.filter(p => p.stock <= p.minStock).length}
+                disabled={criticalPage * 2 >= criticalLowStockProducts.length}
                 onClick={() => setCriticalPage(p => p + 1)}
-                style={{ ...S.btnSecondary, padding: "4px 10px", fontSize: 10, opacity: (criticalPage * 2 >= allProducts.filter(p => p.stock <= p.minStock).length) ? 0.5 : 1, cursor: (criticalPage * 2 >= allProducts.filter(p => p.stock <= p.minStock).length) ? "not-allowed" : "pointer", minWidth: 50 }}
+                style={{ ...S.btnSecondary, padding: "4px 10px", fontSize: 10, opacity: (criticalPage * 2 >= criticalLowStockProducts.length) ? 0.5 : 1, cursor: (criticalPage * 2 >= criticalLowStockProducts.length) ? "not-allowed" : "pointer", minWidth: 50 }}
               >
                 Next
               </button>

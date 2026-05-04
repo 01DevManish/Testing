@@ -239,7 +239,15 @@ function AdvancedDispatchDashboardContent() {
     visiblePackingLists
       .filter((list) => {
         const matchesStatus = list.status === "Packed" || list.status === "Completed";
-        const matchesDate = Boolean(list.dispatchedAt) && new Date(list.dispatchedAt || 0).toISOString().split('T')[0] === statsDate;
+        const rangeEnd = new Date(`${statsDate}T23:59:59.999`);
+        const rangeStart = new Date(rangeEnd);
+        rangeStart.setDate(rangeStart.getDate() - 6);
+        const dispatchedDate = list.dispatchedAt ? new Date(list.dispatchedAt) : null;
+        const matchesDateRange = Boolean(
+          dispatchedDate &&
+          dispatchedDate >= rangeStart &&
+          dispatchedDate <= rangeEnd
+        );
         const normalizedSearch = searchQuery.trim().toLowerCase();
         const matchesSearch = !normalizedSearch ||
           list.partyName?.toLowerCase().includes(normalizedSearch) ||
@@ -247,7 +255,7 @@ function AdvancedDispatchDashboardContent() {
           list.id?.toLowerCase().includes(normalizedSearch) ||
           list.lrNo?.toLowerCase().includes(normalizedSearch);
 
-        return matchesStatus && matchesDate && matchesSearch;
+        return matchesStatus && matchesDateRange && matchesSearch;
       })
       .sort((first, second) => (Number(second.dispatchedAt) || 0) - (Number(first.dispatchedAt) || 0))
   ), [visiblePackingLists, searchQuery, statsDate]);
