@@ -13,6 +13,7 @@ interface Props {
   callLogs: LeadCallRecord[];
   isAdmin: boolean;
   canEdit: boolean;
+  canSaveCall: boolean;
   staff: StaffMember[];
   savingMeta: boolean;
   savingCall: boolean;
@@ -37,7 +38,7 @@ interface CallForm {
   notes: string;
 }
 
-export default function LeadActionModal({ lead, callLogs, isAdmin, canEdit, staff, savingMeta, savingCall, onClose, onSaveMeta, onSaveCall }: Props) {
+export default function LeadActionModal({ lead, callLogs, isAdmin, canEdit, canSaveCall, staff, savingMeta, savingCall, onClose, onSaveMeta, onSaveCall }: Props) {
   const [tab, setTab] = useState<"details" | "call" | "history">("details");
   const [lookingUpPincode, setLookingUpPincode] = useState(false);
 
@@ -253,8 +254,8 @@ export default function LeadActionModal({ lead, callLogs, isAdmin, canEdit, staf
                   onChange={(e) => cSet("notes", e.target.value)}
                   style={{ ...crmInput, minHeight: 80, resize: "vertical" }} />
               </div>
-              <button onClick={() => onSaveCall(call)} disabled={!canEdit || savingCall}
-                style={{ ...crmBtnPrimary, justifySelf: "start", opacity: canEdit && !savingCall ? 1 : 0.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <button onClick={() => onSaveCall(call)} disabled={!canSaveCall || savingCall}
+                style={{ ...crmBtnPrimary, justifySelf: "start", opacity: canSaveCall && !savingCall ? 1 : 0.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
                 {savingCall ? "Saving..." : <><Icons.IconPhone size={14} /> Save Call Record</>}
               </button>
             </div>

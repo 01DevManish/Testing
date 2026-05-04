@@ -138,7 +138,7 @@ const mapInventoryForDispatch = (rows: any[]) =>
 
 export default function CreatePackingList({ onClose, onCreated, editingList }: CreatePackingListProps) {
   const { user, userData } = useAuth();
-  const { products: cachedProducts, users: dataUsers, partyRates: ctxPartyRates } = useData();
+  const { products: cachedProducts, users: dataUsers, partyRates: ctxPartyRates, packingLists } = useData();
   const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1200);
   const [parties, setParties] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -159,6 +159,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
   const [assignedUserId, setAssignedUserId] = useState("");
   const [partySearch, setPartySearch] = useState("");
   const [skuSearch, setSkuSearch] = useState("");
+  const [holdPreview, setHoldPreview] = useState<{ sku: string; rows: Array<{ party: string; qty: number }> } | null>(null);
   const isMobile = viewportWidth < 640;
 
   useEffect(() => {
@@ -311,6 +312,33 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
       });
   }, [partyRatesForForm, skuSearch]);
 
+  const activeHoldSummary = useMemo(() => {
+    const bySku = new Map<string, { totalHeld: number; byParty: Map<string, number> }>();
+    const activeLists = (packingLists || []).filter((list: any) => {
+      const status = String(list?.status || "").toLowerCase();
+      if (status === "completed" || status === "cancelled") return false;
+      if (editingList?.id && String(list?.id || "") === String(editingList.id)) return false;
+      return true;
+    });
+
+    activeLists.forEach((list: any) => {
+      const partyName = String(list?.partyName || "Unknown Party").trim() || "Unknown Party";
+      (list?.items || []).forEach((item: any) => {
+        const skuKey = normalizeSku(item?.sku);
+        if (!skuKey) return;
+        const qty = Math.max(0, Number(item?.quantity) || 0);
+        if (!qty) return;
+
+        if (!bySku.has(skuKey)) bySku.set(skuKey, { totalHeld: 0, byParty: new Map<string, number>() });
+        const entry = bySku.get(skuKey)!;
+        entry.totalHeld += qty;
+        entry.byParty.set(partyName, (entry.byParty.get(partyName) || 0) + qty);
+      });
+    });
+
+    return bySku;
+  }, [packingLists, editingList?.id]);
+
   useEffect(() => {
     if (!editingList || !selectedParty) return;
     const qtyByKey = new Map<string, number>();
@@ -350,7 +378,9 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
         const invMatch =
           inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
           inventory.find(p => p.productName?.trim()?.toLowerCase() === (r.productName || "").trim().toLowerCase());
-        const availableStock = toStockNumber(invMatch?.stock);
+        const stock = toStockNumber(invMatch?.stock);
+        const holdInfo = rateSkuKey ? activeHoldSummary.get(rateSkuKey) : undefined;
+        const availableStock = Math.max(0, stock - (holdInfo?.totalHeld || 0));
         const currentQty = Number(prev[idx]) || 0;
         const clampedQty = Math.max(0, Math.min(currentQty, availableStock));
         if (clampedQty !== currentQty) {
@@ -361,7 +391,7 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
 
       return changed ? next : prev;
     });
-  }, [inventory, partyRatesForForm, selectedParty]);
+  }, [inventory, partyRatesForForm, selectedParty, activeHoldSummary]);
 
   const handleCreate = async () => {
     if (createLockRef.current || saving) return;
@@ -388,7 +418,9 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
           latestInventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
           latestInventory.find(p => p.productName?.trim()?.toLowerCase() === targetName);
         const requestedQty = Number(selectedItems[idx]) || 0;
-        const availableStock = toStockNumber(invMatch?.stock);
+        const stock = toStockNumber(invMatch?.stock);
+        const holdInfo = rateSkuKey ? activeHoldSummary.get(rateSkuKey) : undefined;
+        const availableStock = Math.max(0, stock - (holdInfo?.totalHeld || 0));
         const displayName = r.productName || invMatch?.productName || `Item #${idx + 1}`;
 
         if (!invMatch) {
@@ -685,15 +717,36 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                     const invMatch =
                       inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
                       inventory.find(p => p.productName === r.productName);
-                    const availableStock = toStockNumber(invMatch?.stock);
+                    const stock = toStockNumber(invMatch?.stock);
+                    const holdInfo = rateSkuKey ? activeHoldSummary.get(rateSkuKey) : undefined;
+                    const holdQty = holdInfo?.totalHeld || 0;
+                    const availableStock = Math.max(0, stock - holdQty);
                     const isOutOfStock = availableStock <= 0;
+                    const holdRows = holdInfo
+                      ? Array.from(holdInfo.byParty.entries()).map(([party, qty]) => ({ party, qty }))
+                      : [];
                     return (
                       <div key={idx} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff", display: "grid", gap: 8 }}>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{r.productName}</div>
                           <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                            SKU: {r.sku || invMatch?.sku || "-"} | Stock: {availableStock} {invMatch?.unit || "PCS"}
+                            SKU: {r.sku || invMatch?.sku || "-"} | Stock: {stock} {invMatch?.unit || "PCS"} | Fillable: {availableStock}
                           </div>
+                          {holdQty > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                              <div style={{ fontSize: 10, color: "#92400e", fontWeight: 700 }}>
+                                Hold: {holdQty}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setHoldPreview({ sku: r.sku || invMatch?.sku || "-", rows: holdRows })}
+                                style={{ border: "1px solid #e2e8f0", background: "#fff", borderRadius: 8, padding: "2px 8px", fontSize: 10, color: "#475569", cursor: "pointer" }}
+                                title="View hold details"
+                              >
+                                👁 View
+                              </button>
+                            </div>
+                          )}
                           {isOutOfStock && (
                             <div style={{ fontSize: 10, color: "#dc2626", fontWeight: 600, marginTop: 4 }}>Out of stock</div>
                           )}
@@ -752,16 +805,37 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
                         const invMatch =
                           inventory.find(p => rateSkuKey && normalizeSku(p.sku) === rateSkuKey) ||
                           inventory.find(p => p.productName === r.productName);
-                        const availableStock = toStockNumber(invMatch?.stock);
+                        const stock = toStockNumber(invMatch?.stock);
+                        const holdInfo = rateSkuKey ? activeHoldSummary.get(rateSkuKey) : undefined;
+                        const holdQty = holdInfo?.totalHeld || 0;
+                        const availableStock = Math.max(0, stock - holdQty);
                         const isOutOfStock = availableStock <= 0;
+                        const holdRows = holdInfo
+                          ? Array.from(holdInfo.byParty.entries()).map(([party, qty]) => ({ party, qty }))
+                          : [];
                         return (
                           <tr key={idx} style={{ borderBottom: "1px solid #f8fafc" }}>
                             <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", fontWeight: 500 }}>{r.productName}</td>
                             <td style={{ padding: "14px 24px", fontSize: 13, color: "#64748b" }}>
                               <div>{r.sku || invMatch?.sku || "-"}</div>
                               <div style={{ fontSize: 11, marginTop: 2, color: isOutOfStock ? "#dc2626" : "#64748b" }}>
-                                Stock: {availableStock} {invMatch?.unit || "PCS"}
+                                Stock: {stock} {invMatch?.unit || "PCS"} | Fillable: {availableStock}
                               </div>
+                              {holdQty > 0 && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                                  <div style={{ fontSize: 10, color: "#92400e", fontWeight: 700 }}>
+                                    Hold: {holdQty}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setHoldPreview({ sku: r.sku || invMatch?.sku || "-", rows: holdRows })}
+                                    style={{ border: "1px solid #e2e8f0", background: "#fff", borderRadius: 8, padding: "2px 8px", fontSize: 10, color: "#475569", cursor: "pointer" }}
+                                    title="View hold details"
+                                  >
+                                    👁 View
+                                  </button>
+                                </div>
+                              )}
                             </td>
                             <td style={{ padding: "14px 24px", fontSize: 14, color: "#1e293b", textAlign: "right", fontWeight: 600 }}>Rs. {r.rate}</td>
                             <td style={{ padding: "14px 24px", textAlign: "center" }}>
@@ -904,6 +978,36 @@ export default function CreatePackingList({ onClose, onCreated, editingList }: C
           )}
         </div>
       </div>
+
+      {holdPreview && (
+        <div
+          onClick={() => setHoldPreview(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 460, background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden" }}
+          >
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>SKU</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>{holdPreview.sku}</div>
+              </div>
+              <button onClick={() => setHoldPreview(null)} style={{ border: "1px solid #e2e8f0", background: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>
+                Close
+              </button>
+            </div>
+            <div style={{ maxHeight: 300, overflowY: "auto", padding: 12, display: "grid", gap: 8 }}>
+              {holdPreview.rows.map((row, index) => (
+                <div key={`${row.party}-${index}`} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 600 }}>{row.party}</div>
+                  <div style={{ fontSize: 13, color: "#92400e", fontWeight: 700 }}>{row.qty} hold</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

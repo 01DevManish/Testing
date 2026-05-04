@@ -36,6 +36,7 @@ export default function ErmLeadsModule() {
   const { users = [] } = useData();
   const canCreate = hasPermission(userData, "erm_leads_create");
   const canEdit = hasPermission(userData, "erm_leads_edit");
+  const canSaveCall = canEdit || canCreate;
   const isAdmin = userData?.role === "admin";
   const canAdminUpload = isAdmin && canCreate;
 
@@ -194,7 +195,7 @@ export default function ErmLeadsModule() {
   /* ── Save call ── */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSaveCall = useCallback(async (form: any) => {
-    if (!canEdit || !selectedLead) return;
+    if (!canSaveCall || !selectedLead) return;
     setSavingCall(true);
     try {
       const now = Date.now();
@@ -241,7 +242,7 @@ export default function ErmLeadsModule() {
     } finally {
       setSavingCall(false);
     }
-  }, [canEdit, selectedLead, userData, allLeadCalls, leads, upsertEntity]);
+  }, [canSaveCall, selectedLead, userData, allLeadCalls, leads, upsertEntity]);
 
   return (
     <div style={{ display: "grid", gap: 16, width: "100%", maxWidth: "100%", minWidth: 0, overflowX: "hidden" }}>
@@ -277,6 +278,7 @@ export default function ErmLeadsModule() {
           callLogs={callLogs}
           isAdmin={isAdmin}
           canEdit={canEdit}
+          canSaveCall={canSaveCall}
           staff={staff as any[]}
           savingMeta={savingMeta}
           savingCall={savingCall}

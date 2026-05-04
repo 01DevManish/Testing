@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { LeadRecord } from "./types";
 import { crmCard, crmInput, crmSelect, crmTh, crmTd, crmBtnSecondary } from "./styles";
 import { fmtDate, exportLeadsToExcel } from "./helpers";
@@ -28,7 +28,23 @@ export default function LeadTable({
   leadSearch, setLeadSearch, statusFilter, setStatusFilter,
   onOpenLead, staff, onAssignChange,
 }: Props) {
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
   const title = isAdmin ? `All Leads` : `My Leads`;
+
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
+  const paginatedLeads = useMemo(
+    () => filteredLeads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredLeads, page]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [leadSearch, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <div style={{ ...crmCard, width: "100%", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}>
@@ -92,7 +108,7 @@ export default function LeadTable({
             </tr>
           </thead>
           <tbody>
-            {filteredLeads.map((lead, idx) => (
+            {paginatedLeads.map((lead, idx) => (
               <tr
                 key={lead.id}
                 style={{
@@ -103,7 +119,7 @@ export default function LeadTable({
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#eef2ff")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? "#fff" : "#fafbfc")}
               >
-                <td style={{ ...crmTd, fontWeight: 600, color: "#94a3b8", fontSize: 14, width: 40 }}>{idx + 1}</td>
+                <td style={{ ...crmTd, fontWeight: 600, color: "#94a3b8", fontSize: 14, width: 40 }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                 <td style={{ ...crmTd, fontSize: 14, color: "#475569", whiteSpace: "nowrap" }}>{fmtDate(lead.createdAt)}</td>
                 {isAdmin && (
                   <td style={crmTd}>
@@ -170,20 +186,44 @@ export default function LeadTable({
             ))}
           </tbody>
         </table>
-        {loading && filteredLeads.length === 0 && (
-          <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 15 }}>
+            {loading && paginatedLeads.length === 0 && (
+              <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 15 }}>
             <Icons.IconRefresh size={32} style={{ marginBottom: 12, opacity: 0.5, animation: "spin 2s linear infinite" }} />
             <div>Loading leads...</div>
             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
-        {!loading && filteredLeads.length === 0 && (
+        {!loading && paginatedLeads.length === 0 && (
           <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 15 }}>
             <Icons.IconPackage size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
             <div>No leads found. Try adjusting your search or filters.</div>
           </div>
         )}
       </div>
+
+      {!loading && filteredLeads.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            Page {page} of {totalPages}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              style={{ ...crmBtnSecondary, padding: "6px 10px", opacity: page === 1 ? 0.5 : 1, cursor: page === 1 ? "not-allowed" : "pointer" }}
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              style={{ ...crmBtnSecondary, padding: "6px 10px", opacity: page === totalPages ? 0.5 : 1, cursor: page === totalPages ? "not-allowed" : "pointer" }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
