@@ -56,18 +56,40 @@ const doesScanMatchItem = (item: { barcode?: string; sku?: string }, scanCode?: 
   const normalizedBarcode = normalizeCode(item?.barcode);
   const normalizedSkuValue = normalizeCode(item?.sku);
 
-  // Direct exact matches first (v2 barcode / direct SKU scanners).
-  if (normalizedBarcode && normalizedInput === normalizedBarcode) return true;
-  if (normalizedSkuValue && normalizedInput === normalizedSkuValue) return true;
+  const candidateScans = new Set<string>([normalizedInput]);
+
+  // Some hardware scanners prepend AIM/GS1 style markers (after cleanup they often look like C1/E0).
+  if (/^(C1|E0|A0)[A-Z0-9]+$/.test(normalizedInput) && normalizedInput.length > 2) {
+    candidateScans.add(normalizedInput.slice(2));
+  }
+
+  const hasDirectOrWrappedMatch = (target?: string): boolean => {
+    if (!target) return false;
+    for (const candidate of candidateScans) {
+      if (candidate === target) return true;
+      // Guarded wrapped match: handles scanner-added prefix/suffix around valid code.
+      if (candidate.length >= target.length + 2 && candidate.includes(target)) return true;
+    }
+    return false;
+  };
+
+  // Direct exact/wrapped matches first (v2 barcode / direct SKU scanners).
+  if (hasDirectOrWrappedMatch(normalizedBarcode)) return true;
+  if (hasDirectOrWrappedMatch(normalizedSkuValue)) return true;
 
   // Legacy v1 fallback:
   // For 13-digit scans, use embedded SKU part and compare with SKU trailing digits.
-  let scannedSkuPart = normalizedInput;
-  if (/^[0-9]{13}$/.test(normalizedInput)) scannedSkuPart = normalizedInput.substring(3, 6);
   const targetSkuDigits = normalizedSkuValue.replace(/[^0-9]/g, "");
   const targetSkuPart = targetSkuDigits.substring(targetSkuDigits.length - 3).padStart(3, "0");
+  if (!targetSkuPart) return false;
 
-  return Boolean(targetSkuPart && scannedSkuPart === targetSkuPart);
+  for (const candidate of candidateScans) {
+    let scannedSkuPart = candidate;
+    if (/^[0-9]{13}$/.test(candidate)) scannedSkuPart = candidate.substring(3, 6);
+    if (scannedSkuPart === targetSkuPart) return true;
+  }
+
+  return false;
 };
 const canAccessPackingList = (list: any, currentUid: string, isAdmin: boolean): boolean => {
   if (isAdmin) return true;
