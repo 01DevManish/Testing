@@ -228,12 +228,17 @@ export default function MobileScannerView({
       throw lastStartError || new Error("Unable to start scanner");
 
     } catch (err) {
-      console.error("Scanner failed to start:", err);
       const rawMessage =
         typeof err === "object" && err && "message" in err ? String((err as { message?: string }).message || "") : "";
       const errorName =
         typeof err === "object" && err && "name" in err ? String((err as { name?: string }).name || "") : "";
       const isCameraMissing = errorName === "NotFoundError" || /notfounderror|requested device not found/i.test(rawMessage);
+
+      if (isCameraMissing) {
+        console.warn("Scanner unavailable: no camera device found.", err);
+      } else {
+        console.error("Scanner failed to start:", err);
+      }
 
       setErrorStatus(
         isCameraMissing
