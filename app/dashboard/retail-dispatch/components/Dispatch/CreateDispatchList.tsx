@@ -49,6 +49,26 @@ const normalizeScannerImageUrl = (raw?: string): string => {
 
 const normalizeSku = (value?: string): string => (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 const normalizeCode = (value?: string): string => (value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+const doesScanMatchItem = (item: { barcode?: string; sku?: string }, scanCode?: string): boolean => {
+  const normalizedInput = normalizeCode(scanCode);
+  if (!normalizedInput) return false;
+
+  const normalizedBarcode = normalizeCode(item?.barcode);
+  const normalizedSkuValue = normalizeCode(item?.sku);
+
+  // Direct exact matches first (v2 barcode / direct SKU scanners).
+  if (normalizedBarcode && normalizedInput === normalizedBarcode) return true;
+  if (normalizedSkuValue && normalizedInput === normalizedSkuValue) return true;
+
+  // Legacy v1 fallback:
+  // For 13-digit scans, use embedded SKU part and compare with SKU trailing digits.
+  let scannedSkuPart = normalizedInput;
+  if (/^[0-9]{13}$/.test(normalizedInput)) scannedSkuPart = normalizedInput.substring(3, 6);
+  const targetSkuDigits = normalizedSkuValue.replace(/[^0-9]/g, "");
+  const targetSkuPart = targetSkuDigits.substring(targetSkuDigits.length - 3).padStart(3, "0");
+
+  return Boolean(targetSkuPart && scannedSkuPart === targetSkuPart);
+};
 const canAccessPackingList = (list: any, currentUid: string, isAdmin: boolean): boolean => {
   if (isAdmin) return true;
   const assignedUid = String(list?.assignedTo || "").trim();
@@ -311,20 +331,8 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     const targetItem = scannableItems.find(i => !i.isPacked);
     
     // 2. Helper to check if a code matches an item
-    const isMatching = (item: any, scanCode: string) => {
-      const normalizedScan = normalizeCode(scanCode);
-      const normalizedBarcode = normalizeCode(item?.barcode);
-      const normalizedSku = normalizeCode(item?.sku);
-      if (!normalizedScan) return false;
-
-      // Accept either mapped barcode or exact SKU (scanner might send either code type).
-      if (normalizedBarcode && normalizedScan === normalizedBarcode) return true;
-      if (normalizedSku && normalizedScan === normalizedSku) return true;
-      return false;
-    };
-
     // 3. Check if we have a match at all
-    const anyMatch = scannableItems.find(item => !item.isPacked && isMatching(item, code));
+    const anyMatch = scannableItems.find(item => !item.isPacked && doesScanMatchItem(item, code));
 
     if (!anyMatch) {
       setLastScanned({ value: code, match: false, expected: "Invalid" });
@@ -332,7 +340,7 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     }
 
     // 4. Sequential Check: Is it the target we're looking for?
-    if (targetItem && !isMatching(targetItem, code)) {
+    if (targetItem && !doesScanMatchItem(targetItem, code)) {
       setLastScanned({ value: code, match: false, expected: targetItem.sku });
       return { 
         success: false, 
@@ -354,10 +362,31 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     return { success: true, item: match };
   };
 
+  const focusNextScanInput = (fromIndex: number, items: ScannableItem[]) => {
+    for (let i = fromIndex + 1; i < items.length; i++) {
+      if (items[i]?.isPacked) continue;
+      const nextInput = document.getElementById(`scan-${i}`) as HTMLInputElement | null;
+      if (nextInput && !nextInput.disabled) {
+        nextInput.focus();
+        nextInput.select();
+        return;
+      }
+    }
+  };
+
   const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       const item = scannableItems[idx];
-      handleAutoScan(item.scannedValue);
+      const result = handleAutoScan(item.scannedValue);
+      if (result.success) {
+        const nextItems = scannableItems.map((row, rowIndex) =>
+          rowIndex === idx
+            ? { ...row, boxName: row.boxName || currentBoxName, isPacked: true, scannedValue: item.scannedValue }
+            : row
+        );
+        setTimeout(() => focusNextScanInput(idx, nextItems), 0);
+      }
     }
   };
 
@@ -368,27 +397,12 @@ export default function CreateDispatchList({ onClose, onCreated }: { onClose: ()
     
     if (value.trim().length >= 3) {
       const item = newItems[idx];
-      const normalizedInput = normalizeCode(value);
-      let scannedSkuPart = normalizedInput;
-      if (/^[0-9]{13}$/.test(normalizedInput)) scannedSkuPart = normalizedInput.substring(3, 6);
-      
-      const normalizedItemSku = normalizeCode(item.sku);
-      const targetSkuDigits = normalizedItemSku.replace(/[^0-9]/g, "");
-      const targetSkuPart = targetSkuDigits.substring(targetSkuDigits.length - 3).padStart(3, "0");
-
-      if (
-        scannedSkuPart === targetSkuPart ||
-        normalizedInput === normalizeCode(item.barcode) ||
-        normalizedInput === normalizedItemSku
-      ) {
+      if (doesScanMatchItem(item, value)) {
         if (!item.boxName) return;
         newItems[idx].isPacked = true;
         setScannableItems(newItems);
         setLastMatchedItem({ ...newItems[idx] });
-        setTimeout(() => {
-          const nextInput = document.getElementById(`scan-${idx + 1}`) as HTMLInputElement;
-          if (nextInput) nextInput.focus();
-        }, 10);
+        setTimeout(() => focusNextScanInput(idx, newItems), 10);
       }
     }
   };
