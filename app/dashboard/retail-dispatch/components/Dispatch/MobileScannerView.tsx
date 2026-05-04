@@ -188,22 +188,65 @@ export default function MobileScannerView({
       html5QrCode = new Html5Qrcode(scannerId);
       scannerRef.current = html5QrCode;
 
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        {
-          fps: 25,
-          qrbox: { width: 320, height: 180 },
-          aspectRatio: 1,
-        },
-        (decodedText) => latestHandleDetectionRef.current(decodedText),
-        () => {}
-      );
+      const config = {
+        fps: 25,
+        qrbox: { width: 320, height: 180 },
+        aspectRatio: 1,
+      };
 
-      setIsScanning(true);
+      const scanSuccess = (decodedText: string) => latestHandleDetectionRef.current(decodedText);
+      const scanError = () => {};
+
+      const candidates: Array<{ facingMode?: string; deviceId?: { exact: string } }> = [
+        { facingMode: "environment" },
+      ];
+
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        const backCamera =
+          cameras.find((c) => /back|rear|environment/i.test(String(c.label || ""))) || cameras[0];
+        if (backCamera?.id) {
+          candidates.push({ deviceId: { exact: backCamera.id } });
+        }
+      } catch {
+        // Ignore camera enumeration failures and continue with generic fallbacks.
+      }
+
+      candidates.push({ facingMode: "user" });
+
+      let lastStartError: unknown = null;
+      for (const cameraConfig of candidates) {
+        try {
+          await html5QrCode.start(cameraConfig, config, scanSuccess, scanError);
+          setIsScanning(true);
+          return;
+        } catch (startError) {
+          lastStartError = startError;
+        }
+      }
+
+      throw lastStartError || new Error("Unable to start scanner");
+
     } catch (err) {
       console.error("Scanner failed to start:", err);
-      setErrorStatus("Camera access denied or busy. Check browser permissions.");
+      const rawMessage =
+        typeof err === "object" && err && "message" in err ? String((err as { message?: string }).message || "") : "";
+      const errorName =
+        typeof err === "object" && err && "name" in err ? String((err as { name?: string }).name || "") : "";
+      const isCameraMissing = errorName === "NotFoundError" || /notfounderror|requested device not found/i.test(rawMessage);
+
+      setErrorStatus(
+        isCameraMissing
+          ? "No camera was found on this device. Connect/enable a camera and try again."
+          : "Camera access denied or busy. Check browser permissions."
+      );
       setIsScanning(false);
+      try {
+        await scannerRef.current?.clear();
+      } catch {
+        // noop
+      }
+      scannerRef.current = null;
     }
   };
 
