@@ -39,6 +39,17 @@ export const renameCloutFolder = async (id: string, name: string): Promise<Clout
   return json.item as CloutItem;
 };
 
+export const renameCloutItem = async (id: string, name: string): Promise<CloutItem> => {
+  const res = await fetch(`/api/clout/items/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  await assertOk(res, "Rename item");
+  const json = await res.json();
+  return json.item as CloutItem;
+};
+
 export const moveCloutItems = async (payload: {
   itemIds: string[];
   targetParentId: string | null;

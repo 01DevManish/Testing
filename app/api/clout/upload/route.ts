@@ -8,6 +8,19 @@ import { CloutItem } from "@/app/lib/cloutTypes";
 
 export const runtime = "nodejs";
 const IMAGE_MIME_PREFIX = "image/";
+const SUPPORTED_IMAGE_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "avif",
+  "gif",
+  "bmp",
+  "tiff",
+  "tif",
+  "heic",
+  "heif",
+]);
 
 const sanitizeName = (value: string): string =>
   String(value || "")
@@ -49,7 +62,7 @@ export async function POST(req: Request) {
     const originalName = sanitizeName(file.name || "file");
     const ext = extensionFromName(originalName);
     const isImageMime = declaredMimeType.startsWith(IMAGE_MIME_PREFIX);
-    const extSuggestsImage = Boolean(ext && ["jpg", "jpeg", "png", "webp", "avif", "gif", "bmp", "tiff", "tif", "heic", "heif"].includes(ext));
+    const extSuggestsImage = Boolean(ext && SUPPORTED_IMAGE_EXTENSIONS.has(ext));
     if (!isImageMime && !extSuggestsImage) {
       return NextResponse.json(
         { error: "Only image uploads are allowed." },

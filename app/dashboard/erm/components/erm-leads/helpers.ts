@@ -2,8 +2,9 @@
 
 const ERM_LEADS_CACHE_KEY = "eurus_cache_erm_leads";
 const ERM_LEAD_CALLS_CACHE_KEY = "eurus_cache_erm_lead_calls";
+const ERM_LEAD_ACTIVITIES_CACHE_KEY = "eurus_cache_erm_lead_activities";
 
-export { ERM_LEADS_CACHE_KEY, ERM_LEAD_CALLS_CACHE_KEY };
+export { ERM_LEADS_CACHE_KEY, ERM_LEAD_CALLS_CACHE_KEY, ERM_LEAD_ACTIVITIES_CACHE_KEY };
 
 /* ── Sorting ── */
 export const sortByUpdatedAtDesc = <T extends { updatedAt?: number }>(rows: T[]): T[] =>

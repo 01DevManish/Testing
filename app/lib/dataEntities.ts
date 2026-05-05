@@ -14,6 +14,7 @@ export const DATA_ENTITIES = [
   "tasks",
   "ermLeads",
   "ermLeadCalls",
+  "ermLeadActivities",
   "usersMeta",
   "ermOrders",
 ] as const;

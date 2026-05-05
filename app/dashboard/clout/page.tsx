@@ -8,7 +8,7 @@ import SmartImage from "@/app/components/SmartImage";
 import { hasPermission } from "@/app/lib/permissions";
 import { normalizeStorageImageUrl } from "@/app/lib/urlUtils";
 import CloutSidebar from "./components/CloutSidebar";
-import { createCloutFolder, deleteCloutItem, fetchCloutItems, uploadToClout } from "@/app/lib/cloutApi";
+import { createCloutFolder, deleteCloutItem, fetchCloutItems, renameCloutItem, uploadToClout } from "@/app/lib/cloutApi";
 import { CloutItem } from "@/app/lib/cloutTypes";
 
 const ROOT_ID = null;
@@ -16,6 +16,7 @@ const INVENTORY_FOLDER_ID = "__inventory_used_images__";
 const INVENTORY_FILE_PREFIX = "invimg_";
 
 type ViewMode = "list" | "grid";
+const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.heic,.heif";
 
 const sortItems = (items: CloutItem[]): CloutItem[] =>
   [...items].sort((a, b) => {
@@ -420,6 +421,26 @@ export default function CloutPage() {
     }
   };
 
+  const handleRenameItem = async (item: CloutItem) => {
+    if (isInventoryVirtualFile(item.id) || isInventoryVirtualFolder(item.id)) return;
+    const currentName = item.kind === "file" ? item.name.replace(/\.[^.]+$/, "") : item.name;
+    const nextName = window.prompt(`Rename ${item.kind}`, currentName);
+    if (nextName === null) return;
+    const trimmed = nextName.trim();
+    if (!trimmed || trimmed === currentName) return;
+
+    setBusy(true);
+    try {
+      const updated = await renameCloutItem(item.id, trimmed);
+      setServerItems((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
+      setMessage(`${item.kind === "folder" ? "Folder" : "Image"} renamed.`);
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : `Could not rename ${item.kind}.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const stats = useMemo(() => {
     const folders = serverItems.filter((item) => item.kind === "folder").length + 1;
     const cloutFiles = serverItems.filter((item) => item.kind === "file").length;
@@ -454,6 +475,7 @@ export default function CloutPage() {
           key={uploadInputKey}
           type="file"
           multiple
+          accept={IMAGE_ACCEPT}
           className="hidden"
           onChange={handleUploadPick}
         />
@@ -611,6 +633,17 @@ export default function CloutPage() {
                               <span aria-hidden="true">⬇️</span>
                             </button>
                           ) : null}
+                          {!isInventory ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleRenameItem(item)}
+                              aria-label="Rename"
+                              title="Rename"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              <span aria-hidden="true">R</span>
+                            </button>
+                          ) : null}
                           {item.kind === "file" && !isInventory ? (
                             <button
                               type="button"
@@ -697,6 +730,17 @@ export default function CloutPage() {
                             className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm text-slate-700 transition hover:bg-slate-50"
                           >
                             <span aria-hidden="true">⬇️</span>
+                          </button>
+                        ) : null}
+                        {!isInventory ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleRenameItem(item)}
+                            aria-label="Rename"
+                            title="Rename"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            R
                           </button>
                         ) : null}
                         {item.kind === "file" && !isInventory ? (

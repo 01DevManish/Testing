@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { LeadRecord, LeadFormState, LeadStatus } from "./types";
+import { LeadRecord, LeadFormState, LEAD_STATUS_OPTIONS } from "./types";
 import { crmCard, crmInput, crmSelect, crmBtnPrimary, crmBtnSecondary, crmLabel } from "./styles";
 import { downloadLeadsTemplate, normalizeHeader, parseCsvRows, pickFromRow, generateEntityId, sortByUpdatedAtDesc, saveCachedArray, ERM_LEADS_CACHE_KEY } from "./helpers";
 import * as Icons from "./Icons";
@@ -8,7 +8,6 @@ import * as Icons from "./Icons";
 interface StaffMember {
   uid: string;
   name: string;
-  [key: string]: unknown;
 }
 
 interface Props {
@@ -253,13 +252,9 @@ export default function LeadCreateForm({ canAdminUpload, staff, leads, setLeads,
             <div>
               <label style={crmLabel}>Status</label>
               <select value={form.status} onChange={(e) => set("status", e.target.value)} style={crmSelect}>
-                <option value="new">New</option>
-                <option value="contacted">Contacted</option>
-                <option value="interested">Interested</option>
-                <option value="not_interested">Not Interested</option>
-                <option value="follow_up">Follow Up</option>
-                <option value="scheduled_meeting">Meeting Scheduled</option>
-                <option value="ordered">Ordered</option>
+                {LEAD_STATUS_OPTIONS.map((status) => (
+                  <option key={status.value} value={status.value}>{status.label}</option>
+                ))}
               </select>
             </div>
             <div>

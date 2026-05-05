@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../../../context/AuthContext";
 import { useData } from "../../../../context/DataContext";
 import { hasPermission } from "../../../../lib/permissions";
-import { LeadRecord, LeadCallRecord, ErmEntity, LeadStatus } from "./types";
+import { LeadRecord, LeadCallRecord, LeadActivityRecord, ErmEntity, LeadStatus } from "./types";
 import {
   sortByUpdatedAtDesc, sortByCalledAtDesc,
   parseCachedArray, saveCachedArray,
@@ -69,6 +69,12 @@ export default function ErmLeadsModule() {
     });
     if (!r.ok) throw new Error(`Failed to save ${entity}`);
   }, []);
+
+  const saveEmployeeActivities = useCallback(async (items: LeadActivityRecord[]) => {
+    const employeeItems = items.filter((item) => item.employeeUid && userData?.role !== "admin");
+    if (!employeeItems.length) return;
+    await upsertEntity("ermLeadActivities", employeeItems);
+  }, [upsertEntity, userData?.role]);
 
   const syncLeads = useCallback(async () => {
     const rows = await fetchEntity<LeadRecord>("ermLeads");
@@ -164,6 +170,7 @@ export default function ErmLeadsModule() {
     setSavingMeta(true);
     try {
       const assignee = staff.find((s) => s.uid === form.assignedToUid);
+      const now = Date.now();
       const updated: LeadRecord = {
         ...selectedLead,
         name: form.name?.trim() || selectedLead.name,
@@ -179,18 +186,61 @@ export default function ErmLeadsModule() {
         assignedToName: assignee?.name || selectedLead.assignedToName || "",
         notes: form.notes?.trim() || "",
         nextFollowUpAt: form.nextFollowUpAt ? new Date(form.nextFollowUpAt).getTime() : undefined,
-        updatedAt: Date.now(),
+        updatedAt: now,
       };
+      const actorUid = userData?.uid || "";
+      const actorName = userData?.name || "Employee";
+      const activities: LeadActivityRecord[] = [];
+      const previousStatus = String(selectedLead.status || "new");
+      const nextStatus = String(updated.status || "new");
+      const previousNotes = String(selectedLead.notes || "").trim();
+      const nextNotes = String(updated.notes || "").trim();
+
+      if (previousStatus !== nextStatus) {
+        activities.push({
+          id: generateEntityId("lead_activity"),
+          leadId: selectedLead.id,
+          leadName: updated.name || selectedLead.name || "Unnamed Lead",
+          company: updated.company || "",
+          type: "status",
+          text: `Status changed to ${nextStatus.replace(/_/g, " ")}`,
+          status: updated.status,
+          employeeUid: actorUid,
+          employeeName: actorName,
+          activityAt: now,
+          createdAt: now,
+        });
+      }
+
+      if (nextNotes && previousNotes !== nextNotes) {
+        activities.push({
+          id: generateEntityId("lead_activity"),
+          leadId: selectedLead.id,
+          leadName: updated.name || selectedLead.name || "Unnamed Lead",
+          company: updated.company || "",
+          type: "note",
+          text: `Note: ${nextNotes}`,
+          notes: nextNotes,
+          employeeUid: actorUid,
+          employeeName: actorName,
+          activityAt: now,
+          createdAt: now,
+        });
+      }
+
       const next = sortByUpdatedAtDesc(leads.map((l) => (l.id === selectedLead.id ? updated : l)));
       setLeads(next);
       saveCachedArray(ERM_LEADS_CACHE_KEY, next);
-      await upsertEntity("ermLeads", [updated]);
+      await Promise.all([
+        upsertEntity("ermLeads", [updated]),
+        saveEmployeeActivities(activities),
+      ]);
       setIsModalOpen(false);
       setSelectedLeadId("");
     } finally {
       setSavingMeta(false);
     }
-  }, [canEdit, selectedLead, staff, leads, upsertEntity]);
+  }, [canEdit, selectedLead, staff, leads, upsertEntity, saveEmployeeActivities, userData]);
 
   /* ── Save call ── */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -227,6 +277,21 @@ export default function ErmLeadsModule() {
         updatedAt: now,
       };
 
+      const activity: LeadActivityRecord = {
+        id: generateEntityId("lead_activity"),
+        leadId: selectedLead.id,
+        leadName: selectedLead.name || "Unnamed Lead",
+        company: selectedLead.company || "",
+        type: "call",
+        text: `Call: ${String(newCall.outcome || "updated").replace(/_/g, " ")}${newCall.notes ? ` | ${newCall.notes}` : ""}`,
+        status: newCall.outcome,
+        notes: newCall.notes || "",
+        employeeUid: userData?.uid || "",
+        employeeName: userData?.name || "Employee",
+        activityAt: now,
+        createdAt: now,
+      };
+
       const nextCalls = sortByCalledAtDesc([newCall, ...allLeadCalls]);
       const nextLeads = sortByUpdatedAtDesc(leads.map((l) => (l.id === selectedLead.id ? patchedLead : l)));
       setAllLeadCalls(nextCalls);
@@ -236,13 +301,14 @@ export default function ErmLeadsModule() {
       await Promise.all([
         upsertEntity("ermLeadCalls", [newCall]),
         upsertEntity("ermLeads", [patchedLead]),
+        saveEmployeeActivities([activity]),
       ]);
       setIsModalOpen(false);
       setSelectedLeadId("");
     } finally {
       setSavingCall(false);
     }
-  }, [canSaveCall, selectedLead, userData, allLeadCalls, leads, upsertEntity]);
+  }, [canSaveCall, selectedLead, userData, allLeadCalls, leads, upsertEntity, saveEmployeeActivities]);
 
   return (
     <div style={{ display: "grid", gap: 16, width: "100%", maxWidth: "100%", minWidth: 0, overflowX: "hidden" }}>
@@ -250,7 +316,7 @@ export default function ErmLeadsModule() {
 
       <LeadCreateForm
         canAdminUpload={canAdminUpload}
-        staff={staff as any[]}
+        staff={staff}
         leads={leads}
         setLeads={setLeads}
         upsertEntityItems={(e, items) => upsertEntity(e, items)}
@@ -268,7 +334,7 @@ export default function ErmLeadsModule() {
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
         onOpenLead={(id) => { setSelectedLeadId(id); setIsModalOpen(true); }}
-        staff={staff as any[]}
+        staff={staff}
         onAssignChange={handleAssignChange}
       />
 
@@ -279,7 +345,7 @@ export default function ErmLeadsModule() {
           isAdmin={isAdmin}
           canEdit={canEdit}
           canSaveCall={canSaveCall}
-          staff={staff as any[]}
+          staff={staff}
           savingMeta={savingMeta}
           savingCall={savingCall}
           onClose={() => { setIsModalOpen(false); setSelectedLeadId(""); }}

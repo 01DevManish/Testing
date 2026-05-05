@@ -10,11 +10,11 @@ import { hasPermission } from "../../../lib/permissions";
 import ErmLeadsModule from "./erm-leads/ErmLeadsModule";
 import LeadStatCards from "./erm-leads/LeadStatCards";
 import ErmOrdersModuleComponent from "./erm-orders/ErmOrdersModule";
-import { LeadRecord } from "./erm-leads/types";
+import { LeadActivityRecord, LeadRecord } from "./erm-leads/types";
 import { ErmOrder } from "./erm-orders/ErmOrdersModule";
 
 
-type DispatchLike = Record<string, any>;
+type DispatchLike = Record<string, unknown>;
 
 type EmployeeSummary = {
   uid: string;
@@ -49,26 +49,6 @@ const cardStyle: React.CSSProperties = {
   boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
 };
 
-const inputStyle: React.CSSProperties = {
-  border: "1px solid #cbd5e1",
-  borderRadius: 10,
-  padding: 10,
-  fontSize: 13,
-  outline: "none",
-  background: "#fff",
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  border: "none",
-  background: "linear-gradient(135deg, #1d4ed8, #4f46e5)",
-  color: "#fff",
-  borderRadius: 10,
-  padding: "10px 14px",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
 const subtleButtonStyle: React.CSSProperties = {
   border: "1px solid #cbd5e1",
   background: "#fff",
@@ -80,43 +60,19 @@ const subtleButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const ERM_LEADS_CACHE_KEY = "eurus_cache_erm_leads";
-const ERM_LEAD_CALLS_CACHE_KEY = "eurus_cache_erm_lead_calls";
-type ErmEntity = "ermLeads" | "ermLeadCalls";
-
-const sortByUpdatedAtDesc = <T extends { updatedAt?: number }>(rows: T[]): T[] =>
-  rows.slice().sort((a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0));
-
-const sortByCalledAtDesc = <T extends { calledAt?: number }>(rows: T[]): T[] =>
-  rows.slice().sort((a, b) => (Number(b.calledAt) || 0) - (Number(a.calledAt) || 0));
-
-const parseCachedArray = <T,>(key: string): T[] => {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
-  }
+const toDateInputValue = (ts: number) => {
+  const d = new Date(ts);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
-const saveCachedArray = (key: string, value: unknown[]) => {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // no-op
-  }
-};
+const isSameDateInput = (ts: number, dateValue: string) =>
+  Boolean(ts && dateValue && toDateInputValue(ts) === dateValue);
 
-const generateEntityId = (prefix: string) => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `${prefix}_${crypto.randomUUID()}`;
-  }
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-};
+const getLegacyLeadActivityKey = (leadId: string, type: "status" | "note") =>
+  `legacy_${leadId}_${type}`;
 
 const formatMoney = (amount: number) => `Rs. ${Math.round(amount || 0).toLocaleString("en-IN")}`;
 const safeNumber = (v: unknown) => {
@@ -124,13 +80,14 @@ const safeNumber = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const extractItems = (record: DispatchLike): DispatchLike[] => {
-  if (Array.isArray(record?.items) && record.items.length) return record.items;
-  if (Array.isArray(record?.products) && record.products.length) return record.products;
+const extractItems = (record: unknown): DispatchLike[] => {
+  const row = (record || {}) as DispatchLike;
+  if (Array.isArray(row.items) && row.items.length) return row.items as DispatchLike[];
+  if (Array.isArray(row.products) && row.products.length) return row.products as DispatchLike[];
   return [];
 };
 
-const computeSales = (record: DispatchLike): number => {
+const computeSales = (record: unknown): number => {
   return extractItems(record).reduce((sum, item) => {
     const qty = safeNumber(item?.quantity || 1);
     const rate = safeNumber(item?.rate ?? item?.price ?? item?.wholesalePrice ?? 0);
@@ -138,16 +95,18 @@ const computeSales = (record: DispatchLike): number => {
   }, 0);
 };
 
-const normalizeEmployeeKey = (record: DispatchLike): { uid: string; name: string } => {
-  const uid = String(record?.assignedTo || record?.dispatchedBy || record?.createdBy || record?.userId || "").trim();
-  const name = String(record?.assignedToName || record?.dispatchedByName || record?.createdByName || record?.employeeName || "Unassigned").trim() || "Unassigned";
+const normalizeEmployeeKey = (record: unknown): { uid: string; name: string } => {
+  const row = (record || {}) as DispatchLike;
+  const uid = String(row.assignedTo || row.dispatchedBy || row.createdBy || row.userId || "").trim();
+  const name = String(row.assignedToName || row.dispatchedByName || row.createdByName || row.employeeName || "Unassigned").trim() || "Unassigned";
   return { uid, name };
 };
 
-const isDispatchLike = (record: DispatchLike): boolean => {
-  const status = String(record?.status || "").trim().toLowerCase();
+const isDispatchLike = (record: unknown): boolean => {
+  const row = (record || {}) as DispatchLike;
+  const status = String(row.status || "").trim().toLowerCase();
   if (["packed", "completed", "dispatched", "in transit", "delivered"].includes(status)) return true;
-  return Boolean(record?.dispatchedAt);
+  return Boolean(row.dispatchedAt);
 };
 
 const parseCsvRows = (text: string): Record<string, string>[] => {
@@ -180,8 +139,8 @@ function useErmOrderSummaries() {
   const { orders, packingLists } = useData();
 
   const records = useMemo(() => {
-    const retail = (packingLists || []).filter((x: DispatchLike) => isDispatchLike(x));
-    const dispatches = (orders || []) as DispatchLike[];
+    const retail = (packingLists || []).filter((x) => isDispatchLike(x));
+    const dispatches = (orders || []) as unknown[];
     return [...retail, ...dispatches];
   }, [orders, packingLists]);
 
@@ -217,12 +176,13 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
   const { users = [] } = useData();
 
   const [leads, setLeads] = useState<LeadRecord[]>([]);
-  const [leadCalls, setLeadCalls] = useState<Record<string, any>[]>([]);
+  const [leadActivities, setLeadActivities] = useState<LeadActivityRecord[]>([]);
   const [orders, setOrders] = useState<ErmOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [workspaceCreatingUid, setWorkspaceCreatingUid] = useState<string>("");
   const [workspaceReadyByUid, setWorkspaceReadyByUid] = useState<Record<string, boolean>>({});
   const [activityPage, setActivityPage] = useState(1);
+  const [activityDate, setActivityDate] = useState("");
 
   const isAdmin = userData?.role === "admin";
   const [selectedUid, setSelectedUid] = useState<string>(forcedEmployeeUid || "all");
@@ -231,29 +191,34 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
     if (forcedEmployeeUid) setSelectedUid(forcedEmployeeUid);
   }, [forcedEmployeeUid]);
 
-  useEffect(() => {
-    const fetchErmData = async () => {
-      setLoading(true);
-      try {
-        const [resLeads, resOrders, resLeadCalls] = await Promise.all([
-          fetch("/api/data/ermLeads"),
-          fetch("/api/data/ermOrders"),
-          fetch("/api/data/ermLeadCalls"),
-        ]);
-        const dataLeads = resLeads.ok ? await resLeads.json() : { items: [] };
-        const dataOrders = resOrders.ok ? await resOrders.json() : { items: [] };
-        const dataLeadCalls = resLeadCalls.ok ? await resLeadCalls.json() : { items: [] };
-        setLeads(Array.isArray(dataLeads.items) ? dataLeads.items : []);
-        setOrders(Array.isArray(dataOrders.items) ? dataOrders.items : []);
-        setLeadCalls(Array.isArray(dataLeadCalls.items) ? dataLeadCalls.items : []);
-      } catch (err) {
-        console.error("Failed to fetch ERM dashboard data", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchErmData();
+  const fetchErmData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [resLeads, resOrders, resLeadActivities] = await Promise.all([
+        fetch("/api/data/ermLeads"),
+        fetch("/api/data/ermOrders"),
+        fetch("/api/data/ermLeadActivities"),
+      ]);
+      const dataLeads = resLeads.ok ? await resLeads.json() : { items: [] };
+      const dataOrders = resOrders.ok ? await resOrders.json() : { items: [] };
+      const dataLeadActivities = resLeadActivities.ok ? await resLeadActivities.json() : { items: [] };
+      setLeads(Array.isArray(dataLeads.items) ? dataLeads.items : []);
+      setOrders(Array.isArray(dataOrders.items) ? dataOrders.items : []);
+      setLeadActivities(Array.isArray(dataLeadActivities.items) ? dataLeadActivities.items : []);
+    } catch (err) {
+      console.error("Failed to fetch ERM dashboard data", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchErmData();
+    const timer = window.setInterval(() => {
+      fetchErmData().catch(() => {});
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [fetchErmData]);
 
   const allowedUserKey = useMemo(() => {
     if (isAdmin) return selectedUid;
@@ -270,10 +235,95 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
     return orders.filter((o) => o.employeeUid === allowedUserKey);
   }, [orders, isAdmin, allowedUserKey]);
 
-  const visibleLeadCalls = useMemo(() => {
-    if (isAdmin && allowedUserKey === "all") return leadCalls;
-    return leadCalls.filter((c) => String(c?.calledByUid || "") === allowedUserKey);
-  }, [leadCalls, isAdmin, allowedUserKey]);
+  const synthesizedLeadActivitiesAllTime = useMemo(() => {
+    const employeeNameByUid = new Map<string, string>();
+    users.forEach((u) => {
+      if (u.uid) employeeNameByUid.set(u.uid, u.name || "Employee");
+    });
+
+    const existingKeys = new Set(
+      leadActivities.map((activity) => `${activity.leadId}_${activity.type}`),
+    );
+
+    const legacyActivities: LeadActivityRecord[] = leads.flatMap((lead) => {
+      const employeeUid = String(lead.assignedToUid || "").trim();
+      if (!employeeUid) return [];
+
+      const employeeName = lead.assignedToName
+        || employeeNameByUid.get(employeeUid)
+        || "Employee";
+      const activityAt = Number(lead.updatedAt) || Number(lead.createdAt) || 0;
+      const rows: LeadActivityRecord[] = [];
+      const status = String(lead.status || "new").toLowerCase();
+      const notes = String(lead.notes || "").trim();
+
+      if (status && status !== "new" && !existingKeys.has(`${lead.id}_status`)) {
+        rows.push({
+          id: getLegacyLeadActivityKey(lead.id, "status"),
+          leadId: lead.id,
+          leadName: lead.name || "Unnamed Lead",
+          company: lead.company || "",
+          type: "status",
+          text: `Status changed to ${status.replace(/_/g, " ")}`,
+          status: lead.status,
+          employeeUid,
+          employeeName,
+          activityAt,
+          createdAt: activityAt,
+        });
+      }
+
+      if (notes && !existingKeys.has(`${lead.id}_note`)) {
+        rows.push({
+          id: getLegacyLeadActivityKey(lead.id, "note"),
+          leadId: lead.id,
+          leadName: lead.name || "Unnamed Lead",
+          company: lead.company || "",
+          type: "note",
+          text: `Note: ${notes}`,
+          notes,
+          employeeUid,
+          employeeName,
+          activityAt,
+          createdAt: activityAt,
+        });
+      }
+
+      return rows;
+    });
+
+    return [...leadActivities, ...legacyActivities];
+  }, [leadActivities, leads, users]);
+
+  const visibleLeadActivitiesAllTime = useMemo(() => {
+    const rows = synthesizedLeadActivitiesAllTime.filter((activity) => {
+      const employeeUid = String(activity.employeeUid || "");
+      if (!employeeUid) return false;
+      if (isAdmin && allowedUserKey === "all") return true;
+      return employeeUid === allowedUserKey;
+    });
+    return rows.slice().sort((a, b) => (Number(b.activityAt) || 0) - (Number(a.activityAt) || 0));
+  }, [synthesizedLeadActivitiesAllTime, isAdmin, allowedUserKey]);
+
+  const visibleLeadActivities = useMemo(() => {
+    if (!activityDate) return visibleLeadActivitiesAllTime;
+    return visibleLeadActivitiesAllTime.filter((activity) => isSameDateInput(Number(activity.activityAt) || 0, activityDate));
+  }, [visibleLeadActivitiesAllTime, activityDate]);
+
+  const activityCounts = useMemo(() => {
+    const countByType = (rows: LeadActivityRecord[], type: LeadActivityRecord["type"]) =>
+      rows.filter((activity) => activity.type === type).length;
+    return {
+      selectedTotal: visibleLeadActivities.length,
+      allTimeTotal: visibleLeadActivitiesAllTime.length,
+      selectedStatus: countByType(visibleLeadActivities, "status"),
+      selectedNotes: countByType(visibleLeadActivities, "note"),
+      selectedCalls: countByType(visibleLeadActivities, "call"),
+      allTimeStatus: countByType(visibleLeadActivitiesAllTime, "status"),
+      allTimeNotes: countByType(visibleLeadActivitiesAllTime, "note"),
+      allTimeCalls: countByType(visibleLeadActivitiesAllTime, "call"),
+    };
+  }, [visibleLeadActivities, visibleLeadActivitiesAllTime]);
 
   const stats = useMemo(() => {
     const todayStart = new Date();
@@ -296,76 +346,24 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
       dailySales,
       saleItemsCount,
       pendingPoCount,
-      statusChangedLeads: visibleLeads.filter((l) => String(l.status || "").toLowerCase() !== "new").length,
-      notesUpdatedLeads: visibleLeads.filter((l) => Boolean(String(l.notes || "").trim())).length,
-      callsDone: visibleLeadCalls.length,
+      statusChangedLeads: activityCounts.selectedStatus,
+      notesUpdatedLeads: activityCounts.selectedNotes,
+      callsDone: activityCounts.selectedCalls,
     };
-  }, [visibleOrders, visibleLeads, visibleLeadCalls]);
+  }, [visibleOrders, visibleLeads, activityCounts]);
 
   const recentLeadUpdates = useMemo(() => {
-    const leadActivities = visibleLeads.flatMap((lead) => {
-      const rows: Array<{
-        id: string;
-        leadId: string;
-        leadName: string;
-        company: string;
-        type: "status" | "note";
-        text: string;
-        timestamp: number;
-      }> = [];
-
-      if (String(lead.status || "").toLowerCase() !== "new" || String(lead.lastOutcome || "").trim()) {
-        rows.push({
-          id: `${lead.id}_status`,
-          leadId: lead.id,
-          leadName: lead.name || "Unnamed Lead",
-          company: lead.company || "",
-          type: "status",
-          text: `Status: ${String(lead.status || "new").replace(/_/g, " ")}${lead.lastOutcome ? ` | Outcome: ${String(lead.lastOutcome).replace(/_/g, " ")}` : ""}`,
-          timestamp: Number(lead.updatedAt) || 0,
-        });
-      }
-
-      if (String(lead.notes || "").trim()) {
-        rows.push({
-          id: `${lead.id}_note`,
-          leadId: lead.id,
-          leadName: lead.name || "Unnamed Lead",
-          company: lead.company || "",
-          type: "note",
-          text: `Note: ${String(lead.notes)}`,
-          timestamp: Number(lead.updatedAt) || 0,
-        });
-      }
-
-      return rows;
-    });
-
-    const leadNameById = new Map<string, { leadName: string; company: string }>();
-    visibleLeads.forEach((lead) => {
-      leadNameById.set(String(lead.id), {
-        leadName: lead.name || "Unnamed Lead",
-        company: lead.company || "",
-      });
-    });
-
-    const callActivities = visibleLeadCalls.map((call, idx) => {
-      const leadId = String(call?.leadId || "");
-      const leadMeta = leadNameById.get(leadId);
-      return {
-        id: `${String(call?.id || "call")}_${idx}`,
-        leadId,
-        leadName: leadMeta?.leadName || "Unknown Lead",
-        company: leadMeta?.company || "",
-        type: "call" as const,
-        text: `Call: ${String(call?.outcome || "updated").replace(/_/g, " ")}${call?.notes ? ` | ${String(call.notes)}` : ""}`,
-        timestamp: Number(call?.calledAt) || 0,
-      };
-    });
-
-    return [...leadActivities, ...callActivities]
-      .sort((a, b) => b.timestamp - a.timestamp);
-  }, [visibleLeads, visibleLeadCalls]);
+    return visibleLeadActivities.map((activity) => ({
+      id: activity.id,
+      leadId: activity.leadId,
+      leadName: activity.leadName || "Unnamed Lead",
+      company: activity.company || "",
+      type: activity.type,
+      text: activity.text,
+      employeeName: activity.employeeName || "Employee",
+      timestamp: Number(activity.activityAt) || 0,
+    }));
+  }, [visibleLeadActivities]);
 
   const ACTIVITY_PAGE_SIZE = 10;
   const activityTotalPages = Math.max(1, Math.ceil(recentLeadUpdates.length / ACTIVITY_PAGE_SIZE));
@@ -376,7 +374,7 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
 
   useEffect(() => {
     setActivityPage(1);
-  }, [allowedUserKey]);
+  }, [allowedUserKey, activityDate]);
 
   useEffect(() => {
     if (activityPage > activityTotalPages) setActivityPage(activityTotalPages);
@@ -435,7 +433,7 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
   return (
     <div style={{ display: "grid", gap: 24 }}>
       {isAdmin && (
-        <div style={{ ...cardStyle, marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ ...cardStyle, marginBottom: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a" }}>Filter By Employee:</div>
           <select
             value={selectedUid}
@@ -447,6 +445,19 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
               <option key={row.uid} value={row.uid}>{row.name}</option>
             ))}
           </select>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a" }}>Activity Date:</div>
+          <input
+            type="date"
+            value={activityDate}
+            onChange={(e) => setActivityDate(e.target.value)}
+            style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: "6px 10px", fontSize: 12 }}
+          />
+          <button
+            onClick={() => setActivityDate("")}
+            style={{ ...subtleButtonStyle, padding: "6px 10px", fontSize: 12 }}
+          >
+            All Time
+          </button>
         </div>
       )}
 
@@ -459,7 +470,9 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
           { label: "Pending PO", value: stats.pendingPoCount, color: "#d97706" },
           { label: "Status Changed", value: stats.statusChangedLeads, color: "#7c3aed" },
           { label: "Notes Updated", value: stats.notesUpdatedLeads, color: "#0f766e" },
-          { label: "Calls Done", value: stats.callsDone, color: "#be123c" }
+          { label: "Calls Done", value: stats.callsDone, color: "#be123c" },
+          { label: "Activity Total", value: activityCounts.selectedTotal, color: "#1d4ed8" },
+          { label: "All Time Activity", value: activityCounts.allTimeTotal, color: "#334155" }
         ].map(stat => (
           <div key={stat.label} style={{ ...cardStyle, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{stat.label}</div>
@@ -558,12 +571,24 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
       <LeadStatCards leads={visibleLeads} loading={loading} />
 
       <div style={cardStyle}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
-          Recent Lead Status & Notes
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+              Employee Lead Updates
+            </div>
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+              {activityDate ? `Selected date: ${activityDate}` : "All time"} | Total: {activityCounts.selectedTotal} | All time: {activityCounts.allTimeTotal}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12, color: "#475569" }}>
+            <span>Status {activityCounts.selectedStatus}/{activityCounts.allTimeStatus}</span>
+            <span>Notes {activityCounts.selectedNotes}/{activityCounts.allTimeNotes}</span>
+            <span>Calls {activityCounts.selectedCalls}/{activityCounts.allTimeCalls}</span>
+          </div>
         </div>
         {recentLeadUpdates.length === 0 ? (
           <div style={{ fontSize: 13, color: "#64748b" }}>
-            No status changes or notes yet.
+            No employee lead updates found.
           </div>
         ) : (
           <>
@@ -593,6 +618,9 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
                         {activity.leadName} {activity.company ? `(${activity.company})` : ""}
                       </div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>{updatedOn}</div>
+                    </div>
+                    <div style={{ marginTop: 3, fontSize: 12, color: "#64748b" }}>
+                      By: {activity.employeeName}
                     </div>
                     <div style={{ marginTop: 4, fontSize: 13, color: "#334155" }}>
                       {activity.text}

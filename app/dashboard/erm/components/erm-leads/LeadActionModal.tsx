@@ -1,12 +1,12 @@
 "use client";
 import React, { useState } from "react";
-import { LeadRecord, LeadCallRecord, LeadStatus } from "./types";
-import { crmInput, crmSelect, crmBtnPrimary, crmBtnSecondary, crmLabel, crmOverlay, crmModalBox } from "./styles";
+import { LeadRecord, LeadCallRecord, LeadStatus, LEAD_STATUS_OPTIONS } from "./types";
+import { crmInput, crmSelect, crmBtnPrimary, crmLabel, crmOverlay, crmModalBox } from "./styles";
 import { fmtDateTime } from "./helpers";
 import StatusBadge from "./StatusBadge";
 import * as Icons from "./Icons";
 
-interface StaffMember { uid: string; name: string; [k: string]: unknown; }
+interface StaffMember { uid: string; name: string; }
 
 interface Props {
   lead: LeadRecord;
@@ -81,7 +81,7 @@ export default function LeadActionModal({ lead, callLogs, isAdmin, canEdit, canS
     }
   };
 
-  const tabBtn = (key: typeof tab, label: string, Icon: React.ComponentType<any>) => (
+  const tabBtn = (key: typeof tab, label: string, Icon: React.ComponentType<{ size?: number }>) => (
     <button
       onClick={() => setTab(key)}
       style={{
@@ -105,8 +105,8 @@ export default function LeadActionModal({ lead, callLogs, isAdmin, canEdit, canS
       <label style={crmLabel}>{label}</label>
       {type === "select-status" ? (
         <select value={meta[key]} onChange={(e) => mSet(key, e.target.value)} style={crmSelect}>
-          {["new","contacted","interested","not_interested","follow_up","scheduled_meeting","ordered","onboarding_scheduled","won","lost"].map((s) => (
-            <option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</option>
+          {LEAD_STATUS_OPTIONS.map((status) => (
+            <option key={status.value} value={status.value}>{status.label}</option>
           ))}
         </select>
       ) : type === "select-assign" ? (

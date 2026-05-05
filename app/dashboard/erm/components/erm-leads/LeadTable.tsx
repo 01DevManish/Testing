@@ -1,12 +1,12 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { LeadRecord } from "./types";
+import React, { useMemo, useState } from "react";
+import { LeadRecord, LEAD_STATUS_OPTIONS } from "./types";
 import { crmCard, crmInput, crmSelect, crmTh, crmTd, crmBtnSecondary } from "./styles";
 import { fmtDate, exportLeadsToExcel } from "./helpers";
 import StatusBadge from "./StatusBadge";
 import * as Icons from "./Icons";
 
-interface StaffMember { uid: string; name: string; [k: string]: unknown; }
+interface StaffMember { uid: string; name: string; }
 
 interface Props {
   leads: LeadRecord[];
@@ -33,18 +33,11 @@ export default function LeadTable({
   const title = isAdmin ? `All Leads` : `My Leads`;
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
   const paginatedLeads = useMemo(
-    () => filteredLeads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filteredLeads, page]
+    () => filteredLeads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredLeads, currentPage]
   );
-
-  useEffect(() => {
-    setPage(1);
-  }, [leadSearch, statusFilter]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
 
   return (
     <div style={{ ...crmCard, width: "100%", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}>
@@ -62,23 +55,26 @@ export default function LeadTable({
             <input
               placeholder="Search by name, phone, city..."
               value={leadSearch}
-              onChange={(e) => setLeadSearch(e.target.value)}
+              onChange={(e) => {
+                setLeadSearch(e.target.value);
+                setPage(1);
+              }}
               style={{ ...crmInput, width: "100%", minWidth: 0, paddingLeft: 34 }}
             />
           </div>
           <div style={{ position: "relative", flex: "1 1 160px", minWidth: 140 }}>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ ...crmSelect, width: "100%", minWidth: 0 }}>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              style={{ ...crmSelect, width: "100%", minWidth: 0 }}
+            >
               <option value="all">All Status</option>
-              <option value="new">New</option>
-              <option value="contacted">Contacted</option>
-              <option value="interested">Interested</option>
-              <option value="not_interested">Not Interested</option>
-              <option value="follow_up">Follow Up</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="scheduled_meeting">Meeting Set</option>
-              <option value="ordered">Ordered</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
+              {LEAD_STATUS_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
             </select>
           </div>
           {isAdmin && (
@@ -121,7 +117,7 @@ export default function LeadTable({
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#eef2ff")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? "#fff" : "#fafbfc")}
               >
-                <td style={{ ...crmTd, fontWeight: 600, color: "#94a3b8", fontSize: 14, width: 40 }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                <td style={{ ...crmTd, fontWeight: 600, color: "#94a3b8", fontSize: 14, width: 40 }}>{(currentPage - 1) * PAGE_SIZE + idx + 1}</td>
                 <td style={{ ...crmTd, fontSize: 14, color: "#475569", whiteSpace: "nowrap" }}>{fmtDate(lead.createdAt)}</td>
                 {isAdmin && (
                   <td style={crmTd}>
@@ -206,20 +202,20 @@ export default function LeadTable({
       {!loading && filteredLeads.length > 0 && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
           <div style={{ fontSize: 12, color: "#64748b" }}>
-            Page {page} of {totalPages}
+            Page {currentPage} of {totalPages}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={{ ...crmBtnSecondary, padding: "6px 10px", opacity: page === 1 ? 0.5 : 1, cursor: page === 1 ? "not-allowed" : "pointer" }}
+              disabled={currentPage === 1}
+              style={{ ...crmBtnSecondary, padding: "6px 10px", opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
             >
               Prev
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              style={{ ...crmBtnSecondary, padding: "6px 10px", opacity: page === totalPages ? 0.5 : 1, cursor: page === totalPages ? "not-allowed" : "pointer" }}
+              disabled={currentPage === totalPages}
+              style={{ ...crmBtnSecondary, padding: "6px 10px", opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
             >
               Next
             </button>
