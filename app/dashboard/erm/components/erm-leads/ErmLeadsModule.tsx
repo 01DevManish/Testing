@@ -38,7 +38,7 @@ export default function ErmLeadsModule() {
   const canEdit = hasPermission(userData, "erm_leads_edit");
   const canSaveCall = canEdit || canCreate;
   const isAdmin = userData?.role === "admin";
-  const canAdminUpload = isAdmin && canCreate;
+  const canAdminUpload = isAdmin;
 
   /* ── State ── */
   const [leads, setLeads] = useState<LeadRecord[]>([]);

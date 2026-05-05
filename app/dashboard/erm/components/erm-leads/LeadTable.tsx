@@ -81,12 +81,14 @@ export default function LeadTable({
               <option value="lost">Lost</option>
             </select>
           </div>
-          <button
-            onClick={() => exportLeadsToExcel(filteredLeads as unknown as Record<string, unknown>[])}
-            style={crmBtnSecondary}
-          >
-            <Icons.IconDownload size={14} /> Export Excel
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => exportLeadsToExcel(filteredLeads as unknown as Record<string, unknown>[])}
+              style={crmBtnSecondary}
+            >
+              <Icons.IconDownload size={14} /> Export Excel
+            </button>
+          )}
         </div>
       </div>
 

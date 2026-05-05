@@ -163,7 +163,29 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                 <div style={{ display: "grid", gap: 9, textAlign: "left", marginBottom: 14 }}>
                     <div>
                         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Reason *</div>
-                        <select value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: 10, outline: "none", fontSize: 13, color: "#0f172a", background: "#fff" }}>
+                        <select
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                border: "1.5px solid #e2e8f0",
+                                borderRadius: 10,
+                                outline: "none",
+                                fontSize: 13,
+                                color: "#0f172a",
+                                background: "#fff",
+                                appearance: "none",
+                                WebkitAppearance: "none",
+                                MozAppearance: "none",
+                                backgroundImage:
+                                  "linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%)",
+                                backgroundPosition: "calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px)",
+                                backgroundSize: "5px 5px, 5px 5px",
+                                backgroundRepeat: "no-repeat",
+                                paddingRight: 30,
+                            }}
+                        >
                             <option value="">Select reason</option>
                             {(confirm?.mode === "add" ? ADD_REASONS : REMOVE_REASONS).map((item) => (
                                 <option key={item} value={item}>{item}</option>
@@ -172,12 +194,25 @@ export default function AdjustRow({ p, user, onRefresh, isMobile, mobileCard }: 
                     </div>
                     <div>
                         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Note * ({note.length}/60)</div>
-                        <input
+                        <textarea
                             value={note}
                             maxLength={60}
                             onChange={(e) => setNote(e.target.value)}
                             placeholder="Short note about this adjustment"
-                            style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: 10, outline: "none", fontSize: 13, color: "#0f172a", background: "#fff" }}
+                            rows={2}
+                            style={{
+                                width: "100%",
+                                resize: "none",
+                                padding: "10px 12px",
+                                border: "1.5px solid #e2e8f0",
+                                borderRadius: 10,
+                                outline: "none",
+                                fontSize: 13,
+                                color: "#0f172a",
+                                background: "#fff",
+                                fontFamily: FONT,
+                                lineHeight: 1.4,
+                            }}
                         />
                     </div>
                 </div>

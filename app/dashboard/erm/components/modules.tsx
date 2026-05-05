@@ -8,6 +8,7 @@ import { useData } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission } from "../../../lib/permissions";
 import ErmLeadsModule from "./erm-leads/ErmLeadsModule";
+import LeadStatCards from "./erm-leads/LeadStatCards";
 import ErmOrdersModuleComponent from "./erm-orders/ErmOrdersModule";
 import { LeadRecord } from "./erm-leads/types";
 import { ErmOrder } from "./erm-orders/ErmOrdersModule";
@@ -216,10 +217,12 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
   const { users = [] } = useData();
 
   const [leads, setLeads] = useState<LeadRecord[]>([]);
+  const [leadCalls, setLeadCalls] = useState<Record<string, any>[]>([]);
   const [orders, setOrders] = useState<ErmOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [workspaceCreatingUid, setWorkspaceCreatingUid] = useState<string>("");
   const [workspaceReadyByUid, setWorkspaceReadyByUid] = useState<Record<string, boolean>>({});
+  const [activityPage, setActivityPage] = useState(1);
 
   const isAdmin = userData?.role === "admin";
   const [selectedUid, setSelectedUid] = useState<string>(forcedEmployeeUid || "all");
@@ -232,14 +235,17 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
     const fetchErmData = async () => {
       setLoading(true);
       try {
-        const [resLeads, resOrders] = await Promise.all([
+        const [resLeads, resOrders, resLeadCalls] = await Promise.all([
           fetch("/api/data/ermLeads"),
           fetch("/api/data/ermOrders"),
+          fetch("/api/data/ermLeadCalls"),
         ]);
         const dataLeads = resLeads.ok ? await resLeads.json() : { items: [] };
         const dataOrders = resOrders.ok ? await resOrders.json() : { items: [] };
+        const dataLeadCalls = resLeadCalls.ok ? await resLeadCalls.json() : { items: [] };
         setLeads(Array.isArray(dataLeads.items) ? dataLeads.items : []);
         setOrders(Array.isArray(dataOrders.items) ? dataOrders.items : []);
+        setLeadCalls(Array.isArray(dataLeadCalls.items) ? dataLeadCalls.items : []);
       } catch (err) {
         console.error("Failed to fetch ERM dashboard data", err);
       } finally {
@@ -264,6 +270,11 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
     return orders.filter((o) => o.employeeUid === allowedUserKey);
   }, [orders, isAdmin, allowedUserKey]);
 
+  const visibleLeadCalls = useMemo(() => {
+    if (isAdmin && allowedUserKey === "all") return leadCalls;
+    return leadCalls.filter((c) => String(c?.calledByUid || "") === allowedUserKey);
+  }, [leadCalls, isAdmin, allowedUserKey]);
+
   const stats = useMemo(() => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -284,9 +295,92 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
       totalLeads: visibleLeads.length,
       dailySales,
       saleItemsCount,
-      pendingPoCount
+      pendingPoCount,
+      statusChangedLeads: visibleLeads.filter((l) => String(l.status || "").toLowerCase() !== "new").length,
+      notesUpdatedLeads: visibleLeads.filter((l) => Boolean(String(l.notes || "").trim())).length,
+      callsDone: visibleLeadCalls.length,
     };
-  }, [visibleOrders, visibleLeads]);
+  }, [visibleOrders, visibleLeads, visibleLeadCalls]);
+
+  const recentLeadUpdates = useMemo(() => {
+    const leadActivities = visibleLeads.flatMap((lead) => {
+      const rows: Array<{
+        id: string;
+        leadId: string;
+        leadName: string;
+        company: string;
+        type: "status" | "note";
+        text: string;
+        timestamp: number;
+      }> = [];
+
+      if (String(lead.status || "").toLowerCase() !== "new" || String(lead.lastOutcome || "").trim()) {
+        rows.push({
+          id: `${lead.id}_status`,
+          leadId: lead.id,
+          leadName: lead.name || "Unnamed Lead",
+          company: lead.company || "",
+          type: "status",
+          text: `Status: ${String(lead.status || "new").replace(/_/g, " ")}${lead.lastOutcome ? ` | Outcome: ${String(lead.lastOutcome).replace(/_/g, " ")}` : ""}`,
+          timestamp: Number(lead.updatedAt) || 0,
+        });
+      }
+
+      if (String(lead.notes || "").trim()) {
+        rows.push({
+          id: `${lead.id}_note`,
+          leadId: lead.id,
+          leadName: lead.name || "Unnamed Lead",
+          company: lead.company || "",
+          type: "note",
+          text: `Note: ${String(lead.notes)}`,
+          timestamp: Number(lead.updatedAt) || 0,
+        });
+      }
+
+      return rows;
+    });
+
+    const leadNameById = new Map<string, { leadName: string; company: string }>();
+    visibleLeads.forEach((lead) => {
+      leadNameById.set(String(lead.id), {
+        leadName: lead.name || "Unnamed Lead",
+        company: lead.company || "",
+      });
+    });
+
+    const callActivities = visibleLeadCalls.map((call, idx) => {
+      const leadId = String(call?.leadId || "");
+      const leadMeta = leadNameById.get(leadId);
+      return {
+        id: `${String(call?.id || "call")}_${idx}`,
+        leadId,
+        leadName: leadMeta?.leadName || "Unknown Lead",
+        company: leadMeta?.company || "",
+        type: "call" as const,
+        text: `Call: ${String(call?.outcome || "updated").replace(/_/g, " ")}${call?.notes ? ` | ${String(call.notes)}` : ""}`,
+        timestamp: Number(call?.calledAt) || 0,
+      };
+    });
+
+    return [...leadActivities, ...callActivities]
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [visibleLeads, visibleLeadCalls]);
+
+  const ACTIVITY_PAGE_SIZE = 10;
+  const activityTotalPages = Math.max(1, Math.ceil(recentLeadUpdates.length / ACTIVITY_PAGE_SIZE));
+  const paginatedActivities = useMemo(
+    () => recentLeadUpdates.slice((activityPage - 1) * ACTIVITY_PAGE_SIZE, activityPage * ACTIVITY_PAGE_SIZE),
+    [recentLeadUpdates, activityPage],
+  );
+
+  useEffect(() => {
+    setActivityPage(1);
+  }, [allowedUserKey]);
+
+  useEffect(() => {
+    if (activityPage > activityTotalPages) setActivityPage(activityTotalPages);
+  }, [activityPage, activityTotalPages]);
 
   const crmUsers = useMemo(
     () => users.filter((u) => u.role !== "admin" && u.email !== "01devmanish@gmail.com" && hasCrmPermissionAccess(u)),
@@ -316,20 +410,20 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
     return Array.from(map.values()).sort((a,b) => b.sales - a.sales);
   }, [isAdmin, crmUsers, orders, workspaceReadyByUid]);
 
-  const createWorkspaceForUser = useCallback(async (uid: string) => {
+  const setWorkspaceForUser = useCallback(async (uid: string, workspaceReady: boolean) => {
     if (!uid) return;
     setWorkspaceCreatingUid(uid);
     try {
       const res = await fetch("/api/admin/user-metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, data: { crmWorkspaceCreated: true } }),
+        body: JSON.stringify({ uid, data: { crmWorkspaceCreated: workspaceReady } }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || "Failed to create workspace");
-      setWorkspaceReadyByUid((prev) => ({ ...prev, [uid]: true }));
+      if (!res.ok) throw new Error(json?.error || "Failed to update workspace");
+      setWorkspaceReadyByUid((prev) => ({ ...prev, [uid]: workspaceReady }));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create workspace";
+      const message = err instanceof Error ? err.message : "Failed to update workspace";
       alert(message);
     } finally {
       setWorkspaceCreatingUid("");
@@ -362,7 +456,10 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
           { label: "Total Leads", value: stats.totalLeads, color: "#4f46e5" },
           { label: "Daily Sales", value: formatMoney(stats.dailySales), color: "#16a34a" },
           { label: "Sale Items", value: stats.saleItemsCount, color: "#ea580c" },
-          { label: "Pending PO", value: stats.pendingPoCount, color: "#d97706" }
+          { label: "Pending PO", value: stats.pendingPoCount, color: "#d97706" },
+          { label: "Status Changed", value: stats.statusChangedLeads, color: "#7c3aed" },
+          { label: "Notes Updated", value: stats.notesUpdatedLeads, color: "#0f766e" },
+          { label: "Calls Done", value: stats.callsDone, color: "#be123c" }
         ].map(stat => (
           <div key={stat.label} style={{ ...cardStyle, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{stat.label}</div>
@@ -393,32 +490,62 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
                     <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9", textAlign: "right", fontSize: 13 }}>{row.orders}</td>
                     <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9", textAlign: "right", fontSize: 13, fontWeight: 600 }}>{formatMoney(row.sales)}</td>
                     <td style={{ padding: "14px 8px", borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
-                      {row.workspaceReady ? (
-                        <button
-                          onClick={() => router.push(`/dashboard/erm/employee/${row.uid}/dashboard?employeeName=${encodeURIComponent(row.name)}`)}
-                          style={{ border: "1px solid #c7d2fe", background: "#eef2ff", color: "#4338ca", borderRadius: 8, fontSize: 14, padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}
-                        >
-                          Open Workspace
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => createWorkspaceForUser(row.uid)}
-                          disabled={workspaceCreatingUid === row.uid}
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <span
                           style={{
-                            border: "1px solid #fdba74",
-                            background: "#fff7ed",
-                            color: "#9a3412",
-                            borderRadius: 8,
-                            fontSize: 14,
-                            padding: "8px 12px",
-                            cursor: workspaceCreatingUid === row.uid ? "not-allowed" : "pointer",
-                            fontWeight: 600,
-                            opacity: workspaceCreatingUid === row.uid ? 0.7 : 1,
+                            borderRadius: 999,
+                            padding: "4px 10px",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: "0.02em",
+                            border: row.workspaceReady ? "1px solid #bbf7d0" : "1px solid #fed7aa",
+                            background: row.workspaceReady ? "#f0fdf4" : "#fff7ed",
+                            color: row.workspaceReady ? "#166534" : "#9a3412",
                           }}
                         >
-                          {workspaceCreatingUid === row.uid ? "Creating..." : "Create Workspace"}
-                        </button>
-                      )}
+                          {row.workspaceReady ? "Workspace Ready" : "Workspace Pending"}
+                        </span>
+                        {row.workspaceReady ? (
+                          <button
+                            onClick={() => setWorkspaceForUser(row.uid, false)}
+                            disabled={workspaceCreatingUid === row.uid}
+                            style={{
+                              border: "1px solid #fecaca",
+                              background: "#fef2f2",
+                              color: "#b91c1c",
+                              borderRadius: 8,
+                              fontSize: 13,
+                              padding: "8px 10px",
+                              cursor: workspaceCreatingUid === row.uid ? "not-allowed" : "pointer",
+                              fontWeight: 600,
+                              opacity: workspaceCreatingUid === row.uid ? 0.7 : 1,
+                            }}
+                          >
+                            {workspaceCreatingUid === row.uid ? "Updating..." : "Close Workspace"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              await setWorkspaceForUser(row.uid, true);
+                              router.push(`/dashboard/erm/employee/${row.uid}/dashboard?employeeName=${encodeURIComponent(row.name)}`);
+                            }}
+                            disabled={workspaceCreatingUid === row.uid}
+                            style={{
+                              border: "1px solid #fdba74",
+                              background: "#fff7ed",
+                              color: "#9a3412",
+                              borderRadius: 8,
+                              fontSize: 14,
+                              padding: "8px 12px",
+                              cursor: workspaceCreatingUid === row.uid ? "not-allowed" : "pointer",
+                              fontWeight: 600,
+                              opacity: workspaceCreatingUid === row.uid ? 0.7 : 1,
+                            }}
+                          >
+                            {workspaceCreatingUid === row.uid ? "Opening..." : "Open Workspace"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -427,6 +554,77 @@ export function ErmDashboardModule({ forcedEmployeeUid }: { forcedEmployeeUid?: 
           </div>
         </div>
       )}
+
+      <LeadStatCards leads={visibleLeads} loading={loading} />
+
+      <div style={cardStyle}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
+          Recent Lead Status & Notes
+        </div>
+        {recentLeadUpdates.length === 0 ? (
+          <div style={{ fontSize: 13, color: "#64748b" }}>
+            No status changes or notes yet.
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gap: 10 }}>
+              {paginatedActivities.map((activity) => {
+                const updatedOn = activity.timestamp
+                  ? new Date(activity.timestamp).toLocaleString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                  : "-";
+                return (
+                  <div
+                    key={activity.id}
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>
+                        {activity.leadName} {activity.company ? `(${activity.company})` : ""}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>{updatedOn}</div>
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: "#334155" }}>
+                      {activity.text}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: "#64748b" }}>
+                Page {activityPage} of {activityTotalPages}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                  disabled={activityPage === 1}
+                  style={{ ...subtleButtonStyle, padding: "6px 10px", opacity: activityPage === 1 ? 0.5 : 1, cursor: activityPage === 1 ? "not-allowed" : "pointer" }}
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
+                  disabled={activityPage === activityTotalPages}
+                  style={{ ...subtleButtonStyle, padding: "6px 10px", opacity: activityPage === activityTotalPages ? 0.5 : 1, cursor: activityPage === activityTotalPages ? "not-allowed" : "pointer" }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
