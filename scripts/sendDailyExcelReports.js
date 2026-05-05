@@ -149,6 +149,9 @@ const writeWorkbook = async (fileName, sheets) => {
 const asArray = (value) => Array.isArray(value) ? value : [];
 const firstImage = (row) =>
   row.imageUrl || asArray(row.imageUrls).find((url) => typeof url === "string" && url.trim()) || "";
+const isRetailDispatchList = (list) => list?.status === "Packed" || list?.status === "Completed";
+const getPackingItems = (list) => asArray(list.items || list.products);
+const getPackingQuantity = (item) => Number(item.quantity || item.qty || item.selectedQty || 0);
 
 const buildInventoryReport = (inventory, stamp) => {
   const rows = inventory.map((p) => ({
@@ -194,35 +197,42 @@ const buildInventoryReport = (inventory, stamp) => {
   }]);
 };
 
-const buildRetailDispatchReport = (dispatches, stamp) => {
-  const summaryRows = dispatches.map((d) => ({
-    id: d.id || "",
-    partyName: d.partyName || d.customer?.name || "",
-    status: d.status || "",
-    paymentStatus: d.paymentStatus || "",
-    dispatchDate: d.dispatchDate || "",
-    transporterName: d.transporterName || "",
-    bails: d.bails || "",
-    totalProducts: asArray(d.products).length,
-    totalQuantity: asArray(d.products).reduce((sum, p) => sum + Number(p.quantity || 0), 0),
-    stockDeducted: d.stockDeducted ? "Yes" : "No",
-    createdAt: formatDateTime(d.createdAt),
-    updatedAt: formatDateTime(d.updatedAt),
+const buildRetailDispatchReport = (dispatchLists, stamp) => {
+  const summaryRows = dispatchLists.map((list) => ({
+    id: list.dispatchId || list.id || "",
+    packingListId: list.id || "",
+    dispatchNo: list.dispatchNo || "",
+    partyName: list.partyName || "",
+    status: list.status || "",
+    transporterName: list.transporterName || list.transporter || "",
+    lrNo: list.lrNo || "",
+    invoiceNo: list.invoiceNo || "",
+    bails: list.bails || "",
+    totalProducts: getPackingItems(list).length,
+    totalQuantity: getPackingItems(list).reduce((sum, item) => sum + getPackingQuantity(item), 0),
+    stockDeducted: list.stockDeducted ? "Yes" : "No",
+    assignedTo: list.assignedToName || list.assignedTo || "",
+    createdAt: formatDateTime(list.createdAt),
+    dispatchedAt: formatDateTime(list.dispatchedAt),
+    updatedAt: formatDateTime(list.updatedAt),
   }));
 
   const itemRows = [];
-  dispatches.forEach((d) => {
-    asArray(d.products).forEach((p) => {
+  dispatchLists.forEach((list) => {
+    getPackingItems(list).forEach((item) => {
       itemRows.push({
-        dispatchId: d.id || "",
-        partyName: d.partyName || d.customer?.name || "",
-        status: d.status || "",
-        sku: p.sku || "",
-        productName: p.productName || p.name || "",
-        quantity: Number(p.quantity || 0),
-        price: Number(p.price || 0),
-        packed: p.packed ? "Yes" : "No",
-        productId: p.id || p.productId || "",
+        dispatchId: list.dispatchId || list.id || "",
+        packingListId: list.id || "",
+        partyName: list.partyName || "",
+        status: list.status || "",
+        sku: item.sku || "",
+        productName: item.productName || item.name || "",
+        collectionName: item.collectionName || "",
+        brandName: item.brandName || "",
+        quantity: getPackingQuantity(item),
+        rate: Number(item.rate || item.price || 0),
+        packagingType: item.packagingType || "",
+        productId: item.productId || item.id || "",
       });
     });
   });
@@ -232,16 +242,20 @@ const buildRetailDispatchReport = (dispatches, stamp) => {
       name: "Dispatches",
       columns: [
         { header: "Dispatch ID", key: "id", width: 24 },
+        { header: "Packing List ID", key: "packingListId", width: 24 },
+        { header: "Dispatch No", key: "dispatchNo", width: 16 },
         { header: "Party Name", key: "partyName", width: 28 },
         { header: "Status", key: "status", width: 14 },
-        { header: "Payment Status", key: "paymentStatus", width: 16 },
-        { header: "Dispatch Date", key: "dispatchDate", width: 18 },
         { header: "Transporter", key: "transporterName", width: 22 },
+        { header: "LR No", key: "lrNo", width: 16 },
+        { header: "Invoice No", key: "invoiceNo", width: 16 },
         { header: "Bails", key: "bails", width: 10 },
         { header: "Product Lines", key: "totalProducts", width: 14 },
         { header: "Total Quantity", key: "totalQuantity", width: 15 },
         { header: "Stock Deducted", key: "stockDeducted", width: 16 },
+        { header: "Assigned To", key: "assignedTo", width: 20 },
         { header: "Created At", key: "createdAt", width: 22 },
+        { header: "Dispatched At", key: "dispatchedAt", width: 22 },
         { header: "Updated At", key: "updatedAt", width: 22 },
       ],
       rows: summaryRows,
@@ -250,13 +264,16 @@ const buildRetailDispatchReport = (dispatches, stamp) => {
       name: "Dispatch Items",
       columns: [
         { header: "Dispatch ID", key: "dispatchId", width: 24 },
+        { header: "Packing List ID", key: "packingListId", width: 24 },
         { header: "Party Name", key: "partyName", width: 28 },
         { header: "Status", key: "status", width: 14 },
         { header: "SKU", key: "sku", width: 18 },
         { header: "Product Name", key: "productName", width: 34 },
+        { header: "Collection", key: "collectionName", width: 18 },
+        { header: "Brand", key: "brandName", width: 18 },
         { header: "Quantity", key: "quantity", width: 12 },
-        { header: "Price", key: "price", width: 12 },
-        { header: "Packed", key: "packed", width: 10 },
+        { header: "Rate", key: "rate", width: 12 },
+        { header: "Packaging Type", key: "packagingType", width: 18 },
         { header: "Product ID", key: "productId", width: 24 },
       ],
       rows: itemRows,
@@ -276,7 +293,7 @@ const buildPackingListReport = (packingLists, stamp) => {
     lrNo: p.lrNo || "",
     invoiceNo: p.invoiceNo || "",
     totalBoxes: p.totalBoxes || asArray(p.boxes).length || "",
-    totalItems: asArray(p.items || p.products).reduce((sum, item) => sum + Number(item.quantity || item.qty || 0), 0),
+    totalItems: getPackingItems(p).reduce((sum, item) => sum + getPackingQuantity(item), 0),
     partyCity: p.partyCity || p.district || "",
     partyAddress: p.partyAddress || "",
     createdAt: formatDateTime(p.createdAt),
@@ -286,14 +303,14 @@ const buildPackingListReport = (packingLists, stamp) => {
 
   const itemRows = [];
   packingLists.forEach((list) => {
-    asArray(list.items || list.products).forEach((item) => {
+    getPackingItems(list).forEach((item) => {
       itemRows.push({
         packingListId: list.id || "",
         dispatchId: list.dispatchId || "",
         partyName: list.partyName || "",
         sku: item.sku || "",
         productName: item.productName || item.name || "",
-        quantity: Number(item.quantity || item.qty || 0),
+        quantity: getPackingQuantity(item),
         boxNo: item.boxNo || item.boxId || "",
         productId: item.productId || item.id || "",
       });
@@ -481,16 +498,19 @@ async function run() {
   });
 
   console.log(`Generating daily Excel reports from "${DATA_TABLE_NAME}" in "${REGION}"...`);
-  const [inventory, dispatches, packingLists, partyRates] = await Promise.all([
+  const [inventory, packingLists, partyRates] = await Promise.all([
     fetchEntityRows(docClient, "inventory"),
-    fetchEntityRows(docClient, "dispatches"),
     fetchEntityRows(docClient, "packingLists"),
     fetchEntityRows(docClient, "partyRates"),
   ]);
+  const retailDispatchLists = packingLists
+    .filter(isRetailDispatchList)
+    .slice()
+    .sort((a, b) => (Number(b.dispatchedAt) || Number(b.updatedAt) || Number(b.createdAt) || 0) - (Number(a.dispatchedAt) || Number(a.updatedAt) || Number(a.createdAt) || 0));
 
   const counts = {
     inventory: inventory.length,
-    dispatches: dispatches.length,
+    dispatches: retailDispatchLists.length,
     packingLists: packingLists.length,
     partyRates: partyRates.length,
   };
@@ -498,7 +518,7 @@ async function run() {
 
   const attachments = [];
   attachments.push(await buildInventoryReport(inventory, stamp));
-  attachments.push(await buildRetailDispatchReport(dispatches, stamp));
+  attachments.push(await buildRetailDispatchReport(retailDispatchLists, stamp));
   attachments.push(await buildPackingListReport(packingLists, stamp));
   attachments.push(await buildPartyRatesReport(partyRates, stamp));
 
