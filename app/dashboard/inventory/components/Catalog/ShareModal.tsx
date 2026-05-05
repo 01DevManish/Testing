@@ -137,6 +137,17 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
         return () => window.removeEventListener("resize", onResize);
     }, []);
 
+    const getUniqueProductsBySku = (products: Product[]) => {
+        const seen = new Set<string>();
+        return products.filter((p) => {
+            const key = String(p.sku || p.id || "").trim().toLowerCase();
+            if (!key) return true;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    };
+
     const handleShareBatch = async (batchFiles: File[]) => {
         try {
             if (navigator.share && navigator.canShare && navigator.canShare({ files: batchFiles })) {
@@ -236,7 +247,8 @@ export default function ShareModal({ selectedProducts, brands, collectionName, o
     const handleGeneratePdf = async () => {
         setSharing(true);
         try {
-            const blob = await generateCatalogPdf(selectedProducts, collectionName, false);
+            const uniqueProducts = getUniqueProductsBySku(selectedProducts);
+            const blob = await generateCatalogPdf(uniqueProducts, collectionName, false);
             if (!blob) return;
             const fileName = `Eurus_Lifestyle_Catalog_${new Date().getTime()}.pdf`;
             const file = new File([blob], fileName, { type: "application/pdf" });

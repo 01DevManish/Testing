@@ -34,9 +34,25 @@ jobs:
           BACKUP_S3_PREFIX: ${{ secrets.BACKUP_S3_PREFIX }}
         run: npm run backup:dynamo
 
+      - name: Send daily Excel reports
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DYNAMO_DATA_TABLE: ${{ secrets.DYNAMO_DATA_TABLE }}
+          REPORT_SMTP_USER: ${{ secrets.REPORT_SMTP_USER }}
+          REPORT_SMTP_PASS: ${{ secrets.REPORT_SMTP_PASS }}
+          REPORT_MAIL_FROM: ${{ secrets.REPORT_MAIL_FROM }}
+          REPORT_MAIL_TO: ${{ secrets.REPORT_MAIL_TO }}
+          REPORT_MAIL_CC: ${{ secrets.REPORT_MAIL_CC }}
+          REPORT_SKIP_IF_MISSING: "true"
+        run: npm run report:daily-email
+
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: dynamo-daily-backup
-          path: scripts/backups/daily/*.json
+          path: |
+            scripts/backups/daily/*.json
+            scripts/reports/daily/*.xlsx
           retention-days: 30

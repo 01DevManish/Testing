@@ -17,11 +17,12 @@
     "smoke:headed": "playwright test tests/smoke --project=chromium --headed",
     "smoke:report": "playwright show-report",
     "backup:dynamo": "node scripts/backupDynamoData.js",
+    "report:daily-email": "node scripts/sendDailyExcelReports.js",
+    "report:daily-files": "node scripts/sendDailyExcelReports.js --no-email",
     "setup:erpdev": "node scripts/setupErpDevInfra.js",
     "migrate:inventory-images-s3:dry": "node scripts/migrateInventoryImagesToS3Dynamo.js",
     "migrate:inventory-images-s3": "node scripts/migrateInventoryImagesToS3Dynamo.js --apply",
     "setup:dynamo-data-table": "node scripts/setupDataTable.js",
-    "migrate:firebase-to-dynamo": "node scripts/migrateFirebaseToDynamo.js",
     "migrate:users-meta-json-to-dynamo": "node scripts/migrateUsersMetaFromRtdbJson.js"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
     "next": "16.2.1",
+    "nodemailer": "^8.0.7",
     "pdf-lib": "^1.17.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
